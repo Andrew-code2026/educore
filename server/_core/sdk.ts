@@ -311,6 +311,10 @@ class SDKServer {
       throw ForbiddenError("User not found");
     }
 
+    if (user.status !== "ACTIVE") {
+      throw ForbiddenError(user.status === "SUSPENDED" ? "Tu acceso a EduCore está suspendido." : "Tu acceso a EduCore está inactivo.");
+    }
+
     await db.upsertUser({
       openId: user.openId,
       lastSignedIn: signedInAt,

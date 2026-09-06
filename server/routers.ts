@@ -4,6 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { invokeLLM } from "./_core/llm";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { storagePut } from "./storage";
 import {
   createDemoAssignment,
@@ -19,12 +20,50 @@ import {
   createAcademicPeriod,
   updateAcademicPeriod,
   writeAuditLog,
+  acceptInvitation,
+  createGuardianRelationship,
+  createInvitation,
+  createSchoolUser,
+  getDemoIdentityContext,
+  getMembershipContext,
+  getRolePermissionCatalog,
+  getSchoolUserProfile,
+  listGuardianStudents,
+  listInvitations,
+  listSchoolUsers,
+  setUserStatus,
+  updateMembershipRole,
 } from "./db";
+import { hasPermission, IDENTITY_ROLES, type IdentityRole } from "./identityModel";
+import type { TrpcContext } from "./_core/context";
 
 const roleSchema = z.enum(["admin", "teacher", "student", "guardian"]);
 const roleGuard = (role: EduRole, allowed: EduRole[]) => {
   if (!allowed.includes(role)) throw new Error("No tienes permisos para realizar esta acción.");
 };
+
+async function resolveDemoActor(role: EduRole) {
+  const context = await getDemoIdentityContext(role);
+  const roleKey = ({ admin: "SCHOOL_ADMIN", teacher: "TEACHER", student: "STUDENT", guardian: "GUARDIAN" } as const)[role] as IdentityRole;
+  return { schoolId: DEMO_SCHOOL_ID, userId: context?.user.id ?? 0, roleKey, permissions: context?.permissions ?? [] };
+}
+
+async function resolveActor(ctx: TrpcContext, demoRole: EduRole) {
+  if (ctx.user) {
+    const context = await getMembershipContext(ctx.user.id, ctx.user.schoolId ?? DEMO_SCHOOL_ID);
+    if (!context) throw new TRPCError({ code: "FORBIDDEN", message: "Tu usuario no tiene una membresía activa en esta institución." });
+    return { schoolId: ctx.user.schoolId ?? DEMO_SCHOOL_ID, userId: context.user.id, roleKey: context.membership.roleKey as IdentityRole, permissions: context.permissions };
+  }
+  return resolveDemoActor(demoRole);
+}
+
+async function requirePermission(ctx: TrpcContext, role: EduRole, permission: string) {
+  const actor = await resolveActor(ctx, role);
+  if (!hasPermission(actor.roleKey, permission) || (actor.userId === 0 && process.env.DATABASE_URL)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "No tienes permisos para realizar esta acción." });
+  }
+  return actor;
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -36,8 +75,58 @@ export const appRouter = router({
       return { success: true } as const;
     }),
   }),
+  identity: router({
+    users: publicProcedure.input(z.object({ role: roleSchema, search: z.string().max(120).optional(), roleKey: z.enum(["ALL", ...IDENTITY_ROLES]).default("ALL"), status: z.enum(["ALL", "ACTIVE", "INVITED", "SUSPENDED", "INACTIVE"]).default("ALL"), limit: z.number().int().min(1).max(100).default(50), offset: z.number().int().min(0).default(0) })).query(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "users.view");
+      return listSchoolUsers({ schoolId: actor.schoolId, search: input.search, roleKey: input.roleKey, status: input.status, limit: input.limit, offset: input.offset });
+    }),
+    profile: publicProcedure.input(z.object({ role: roleSchema, userId: z.number().int() })).query(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "users.view");
+      if (input.role === "guardian" && actor.userId !== input.userId) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes permiso para consultar este perfil." });
+      return getSchoolUserProfile(actor.schoolId, input.userId);
+    }),
+    createUser: publicProcedure.input(z.object({ role: roleSchema, firstName: z.string().min(2).max(100), lastName: z.string().min(2).max(100), email: z.string().email().max(320), roleKey: z.enum(IDENTITY_ROLES), status: z.enum(["ACTIVE", "INVITED", "SUSPENDED", "INACTIVE"]), phone: z.string().max(40).optional(), studentCode: z.string().max(60).optional(), gradeLevel: z.string().max(20).optional(), course: z.string().max(60).optional() })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "users.create");
+      return createSchoolUser({ ...input, schoolId: actor.schoolId, actorUserId: actor.userId || undefined });
+    }),
+    changeRole: publicProcedure.input(z.object({ role: roleSchema, userId: z.number().int(), roleKey: z.enum(IDENTITY_ROLES) })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "users.update");
+      if (input.userId === actor.userId && input.roleKey !== "SCHOOL_ADMIN") throw new TRPCError({ code: "BAD_REQUEST", message: "No puedes retirar tu propio rol administrativo desde esta vista." });
+      return updateMembershipRole({ schoolId: actor.schoolId, userId: input.userId, roleKey: input.roleKey, actorUserId: actor.userId || undefined });
+    }),
+    setStatus: publicProcedure.input(z.object({ role: roleSchema, userId: z.number().int(), status: z.enum(["ACTIVE", "SUSPENDED", "INACTIVE"]) })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "users.disable");
+      if (input.userId === actor.userId) throw new TRPCError({ code: "BAD_REQUEST", message: "No puedes suspender tu propio acceso." });
+      return setUserStatus({ schoolId: actor.schoolId, userId: input.userId, status: input.status, actorUserId: actor.userId || undefined });
+    }),
+    invitations: publicProcedure.input(z.object({ role: roleSchema })).query(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "users.view");
+      return listInvitations(actor.schoolId);
+    }),
+    createInvitation: publicProcedure.input(z.object({ role: roleSchema, email: z.string().email().max(320), roleKey: z.enum(IDENTITY_ROLES) })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "users.create");
+      const result = await createInvitation({ schoolId: actor.schoolId, email: input.email, roleKey: input.roleKey, actorUserId: actor.userId });
+      return result?.invitation ? { id: result.invitation.id, email: result.invitation.email, roleKey: result.invitation.roleKey, status: result.invitation.status, expiresAt: result.invitation.expiresAt, delivery: "development_fallback" as const } : null;
+    }),
+    acceptInvitation: publicProcedure.input(z.object({ token: z.string().min(20), firstName: z.string().min(2).max(100), lastName: z.string().min(2).max(100) })).mutation(({ input }) => acceptInvitation(input)),
+    relationships: publicProcedure.input(z.object({ role: roleSchema, guardianUserId: z.number().int().optional() })).query(async ({ input, ctx }) => {
+      const actor = await resolveActor(ctx, input.role);
+      const guardianId = input.role === "guardian" ? actor.userId : input.guardianUserId;
+      if (!guardianId) throw new TRPCError({ code: "BAD_REQUEST", message: "No se pudo determinar el acudiente." });
+      if (input.role !== "guardian") await requirePermission(ctx, input.role, "students.view");
+      return listGuardianStudents(actor.schoolId, guardianId);
+    }),
+    createRelationship: publicProcedure.input(z.object({ role: roleSchema, guardianUserId: z.number().int(), studentUserId: z.number().int(), relationshipType: z.enum(["PARENT", "LEGAL_GUARDIAN", "OTHER"]), isPrimary: z.boolean().default(false) })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "users.update");
+      return createGuardianRelationship({ ...input, schoolId: actor.schoolId, actorUserId: actor.userId || undefined });
+    }),
+    roles: publicProcedure.input(z.object({ role: roleSchema })).query(async ({ input, ctx }) => {
+      await requirePermission(ctx, input.role, "settings.view");
+      return getRolePermissionCatalog();
+    }),
+  }),
   educore: router({
-    snapshot: publicProcedure.input(z.object({ role: roleSchema })).query(({ input }) => getEduCoreSnapshot(input.role)),
+    snapshot: publicProcedure.input(z.object({ role: roleSchema, selectedStudentId: z.number().int().optional() })).query(({ input }) => getEduCoreSnapshot(input.role, input.selectedStudentId)),
     createAssignment: publicProcedure.input(z.object({
       role: roleSchema,
       title: z.string().min(3).max(180),
@@ -47,8 +136,8 @@ export const appRouter = router({
       dueAt: z.coerce.date(),
       points: z.number().int().min(1).max(1000),
       teacherName: z.string().min(2),
-    })).mutation(async ({ input }) => {
-      roleGuard(input.role, ["admin", "teacher"]);
+    })).mutation(async ({ input, ctx }) => {
+      await requirePermission(ctx, input.role, "assignments.create");
       const result = await createDemoAssignment(input);
       await writeAuditLog(input.role, "create_assignment", input.title);
       return result;
@@ -59,8 +148,8 @@ export const appRouter = router({
       studentName: z.string().min(2),
       fileName: z.string().min(1),
       comment: z.string().max(500).default(""),
-    })).mutation(async ({ input }) => {
-      roleGuard(input.role, ["student", "guardian"]);
+    })).mutation(async ({ input, ctx }) => {
+      await requirePermission(ctx, input.role, "assignments.create");
       const result = await submitDemoAssignment(input);
       await writeAuditLog(input.role, "submit_assignment", `${input.assignmentId}:${input.studentName}`);
       return result;
@@ -70,8 +159,8 @@ export const appRouter = router({
       submissionId: z.number().int(),
       grade: z.number().min(0).max(5),
       comment: z.string().max(500).default(""),
-    })).mutation(async ({ input }) => {
-      roleGuard(input.role, ["admin", "teacher"]);
+    })).mutation(async ({ input, ctx }) => {
+      await requirePermission(ctx, input.role, "grades.update");
       const result = await gradeDemoSubmission(input);
       await writeAuditLog(input.role, "grade_submission", `${input.submissionId}:${input.grade}`);
       return result;
@@ -83,8 +172,8 @@ export const appRouter = router({
       subject: z.string().min(2),
       period: z.string().min(2),
       value: z.number().min(0).max(5),
-    })).mutation(async ({ input }) => {
-      roleGuard(input.role, ["admin", "teacher"]);
+    })).mutation(async ({ input, ctx }) => {
+      await requirePermission(ctx, input.role, "grades.update");
       const result = await updateDemoGrade(input);
       await writeAuditLog(input.role, "update_grade", `${input.studentName}:${input.subject}:${input.value}`);
       return result;
@@ -94,8 +183,8 @@ export const appRouter = router({
       course: z.string().min(2),
       date: z.coerce.date(),
       records: z.array(z.object({ studentName: z.string().min(2), status: z.enum(["Presente", "Ausente", "Tardanza", "Excusa"]), note: z.string().optional() })).min(1),
-    })).mutation(async ({ input }) => {
-      roleGuard(input.role, ["admin", "teacher"]);
+    })).mutation(async ({ input, ctx }) => {
+      await requirePermission(ctx, input.role, "attendance.update");
       const result = await recordDemoAttendance(input);
       await writeAuditLog(input.role, "record_attendance", `${input.course}:${input.records.length}`);
       return result;
@@ -123,8 +212,8 @@ export const appRouter = router({
       themeMode: z.enum(["light", "dark"]),
       borderRadius: z.string().regex(/^\d+(px|rem)$/),
       logoUrl: z.string().max(500).nullable().default(null),
-    })).mutation(async ({ input }) => {
-      roleGuard(input.role, ["admin"]);
+    })).mutation(async ({ input, ctx }) => {
+      await requirePermission(ctx, input.role, "institution.update");
       const result = await updateSchoolSettings(input);
       await writeAuditLog(input.role, "update_school_settings", input.name);
       return result;
@@ -134,8 +223,8 @@ export const appRouter = router({
       fileName: z.string().regex(/\.(png|jpe?g|svg)$/i),
       contentType: z.enum(["image/png", "image/jpeg", "image/svg+xml"]),
       dataBase64: z.string().min(20).max(4_000_000),
-    })).mutation(async ({ input }) => {
-      roleGuard(input.role, ["admin"]);
+    })).mutation(async ({ input, ctx }) => {
+      await requirePermission(ctx, input.role, "institution.update");
       const buffer = Buffer.from(input.dataBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
       if (buffer.length > 2_500_000) throw new Error("El logo debe pesar menos de 2.5 MB.");
       const uploaded = await storagePut(`schools/${DEMO_SCHOOL_ID}/branding/${input.fileName}`, buffer, input.contentType);
@@ -149,8 +238,8 @@ export const appRouter = router({
       startDate: z.coerce.date(),
       endDate: z.coerce.date(),
       status: z.enum(["Activo", "Programado", "Cerrado"]),
-    })).mutation(async ({ input }) => {
-      roleGuard(input.role, ["admin"]);
+    })).mutation(async ({ input, ctx }) => {
+      await requirePermission(ctx, input.role, "settings.update");
       if (input.endDate <= input.startDate) throw new Error("La fecha final debe ser posterior a la fecha inicial.");
       const result = await createAcademicPeriod(input);
       await writeAuditLog(input.role, "create_academic_period", input.name);
@@ -163,8 +252,8 @@ export const appRouter = router({
       startDate: z.coerce.date(),
       endDate: z.coerce.date(),
       status: z.enum(["Activo", "Programado", "Cerrado"]),
-    })).mutation(async ({ input }) => {
-      roleGuard(input.role, ["admin"]);
+    })).mutation(async ({ input, ctx }) => {
+      await requirePermission(ctx, input.role, "settings.update");
       if (input.endDate <= input.startDate) throw new Error("La fecha final debe ser posterior a la fecha inicial.");
       const result = await updateAcademicPeriod(input);
       await writeAuditLog(input.role, "update_academic_period", input.name);
@@ -175,8 +264,8 @@ export const appRouter = router({
       kind: z.enum(["activity", "communication", "planning", "insight"]),
       prompt: z.string().min(4).max(1000),
       context: z.string().max(1500).default(""),
-    })).mutation(async ({ input }) => {
-      roleGuard(input.role, ["admin", "teacher", "student", "guardian"]);
+    })).mutation(async ({ input, ctx }) => {
+      await requirePermission(ctx, input.role, "ai.use");
       const system = input.kind === "activity"
         ? "Eres EduCore AI. Genera un borrador de actividad educativa en español, claro y editable. Incluye objetivo, instrucciones, preguntas, actividad y criterios de evaluación. Nunca publiques automáticamente."
         : input.kind === "communication"

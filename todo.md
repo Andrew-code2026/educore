@@ -1,28 +1,29 @@
-# EduCore — Fase 2.5
+# EduCore — Fase 3: Identidad, roles y relaciones institucionales
 
-## Alcance
+## Objetivo
 
-- Refinar visualmente EduCore hacia una experiencia premium, minimalista y editorial.
-- Aplicar el lenguaje **EduCore Spatial UI**: superficies limpias, profundidad sutil, blur controlado, cards flotantes y motion breve.
-- Mantener branding dinámico por institución, `school_id`, datos demo, roles, dashboards y módulos existentes.
-- No cambiar la lógica de EduCore AI ni agregar funcionalidades grandes.
+Construir sobre la aplicación existente una base de identidad escolar estructurada: institución, usuario, membresía, rol, permisos y relaciones académicas. Se preservan los dashboards, datos demo, branding dinámico, `school_id`, persistencia y lógica de EduCore AI.
 
-## Entregables
+## Implementación
 
-- [x] Tokens visuales y fondos institucionales refinados.
-- [x] Sidebar delgado, navbar flotante y navegación mobile apropiada.
-- [x] Composición editorial para dashboards y cards con jerarquías distintas.
-- [x] Login, EduCore AI y configuración alineados al nuevo lenguaje.
-- [x] Transiciones, hover, focus y estados accesibles.
-- [x] Validación desktop/mobile y regresión funcional.
-- [x] Typecheck, Vitest y build de producción.
-- [x] Regresión manual de login, dashboards rector/docente/estudiante/acudiente, Classroom, Académico, Asistencia, Calendario, Comunicaciones, Reportes, EduCore AI y Configuración.
-- [x] Verificación responsive con viewport mobile explícito y navegación inferior.
-- [x] Hallazgos documentados en `phase2_5_visual_findings.md`.
+- [x] Extender schema con memberships, roles, permisos, perfiles, relaciones e invitaciones.
+- [x] Implementar autorización backend, aislamiento por `school_id` y estados de usuario.
+- [x] Asignar datos demo a identidades y memberships ficticias.
+- [x] Construir UI Spatial para usuarios, perfiles, invitaciones, relaciones y permisos.
+- [x] Agregar pruebas Vitest de creación, permisos, suspensión, invitaciones, relaciones, aislamiento, último admin y resistencia a role spoofing.
+- [x] Ejecutar migración, typecheck, tests, build y regresión visual.
 
-## Restricciones
+## Implementado vs preparado
 
-- No eliminar módulos, datos, permisos, persistencia ni branding de Fase 2.
-- No usar glassmorphism de forma indiscriminada.
-- No introducir colores hardcoded que sustituyan los tokens institucionales.
-- No cargar assets pesados por estética.
+La administración básica de usuarios, invitaciones de desarrollo, perfiles, relaciones acudiente-estudiante, permisos explícitos y controles RBAC quedó implementada. El envío real de correo, recuperación de contraseña, selección de múltiples instituciones y módulos académicos completos quedan preparados para fases posteriores; no se simulan como funciones reales.
+
+## Restricciones verificadas
+
+No se reconstruyó la aplicación ni se duplicó la tabla de usuarios. No se eliminaron datos existentes. Las mutaciones relevantes resuelven permisos server-side a partir de la membresía; las sesiones reales bloquean usuarios suspendidos o inactivos. Las invitaciones no exponen tokens después de crearse. La suspensión conserva el historial y se protege el último administrador funcional. Las queries de identidad filtran por `school_id`.
+
+## Verificación final
+
+- `pnpm check`: correcto.
+- `pnpm test`: 3 archivos, 24 pruebas correctas.
+- `pnpm build`: correcto; solo queda el warning informativo de chunk Vite mayor a 500 kB.
+- Preview live: login admin, Usuarios, modal de crear usuario, Roles y permisos, Invitaciones y selector de dos estudiantes vinculados en vista acudiente verificados.

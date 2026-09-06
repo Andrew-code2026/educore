@@ -1,4 +1,5 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, like, or, sql } from "drizzle-orm";
+import { createHash, randomBytes } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   aiConversations,
@@ -10,18 +11,28 @@ import {
   courses,
   events,
   grades,
+  guardianProfiles,
+  guardianStudentRelationships,
+  invitations,
   InsertUser,
   notifications,
+  permissions,
   planning,
   reportCards,
+  rolePermissions,
+  roles,
   schools,
+  schoolMemberships,
+  studentProfiles,
   students,
   subjects,
   submissions,
+  teacherProfiles,
   teachers,
   users,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
+import { DEMO_ROLE_MAP, IDENTITY_ROLES, PERMISSIONS, PERMISSION_METADATA, ROLE_DESCRIPTIONS, ROLE_HIERARCHY, ROLE_LABELS, type DemoRole, type IdentityRole, hasPermission, permissionsForRole } from "./identityModel";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 export const DEMO_SCHOOL_ID = 1;
@@ -44,10 +55,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   if (!db) return;
   const values: InsertUser = { openId: user.openId };
   const updateSet: Record<string, unknown> = {};
-  const textFields = ["name", "email", "loginMethod"] as const;
+  const textFields = ["name", "firstName", "lastName", "avatarUrl", "phone", "email", "loginMethod", "status"] as const;
   textFields.forEach(field => {
     if (user[field] !== undefined) {
-      values[field] = user[field] ?? null;
+      values[field] = (user[field] ?? null) as never;
       updateSet[field] = user[field] ?? null;
     }
   });
@@ -59,6 +70,10 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   } else if (user.openId === ENV.ownerOpenId) {
     values.role = "admin";
     updateSet.role = "admin";
+  }
+  if (user.schoolId !== undefined) {
+    values.schoolId = user.schoolId;
+    updateSet.schoolId = user.schoolId;
   }
   await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
 }
@@ -227,6 +242,7 @@ export async function ensureEduCoreSeeded() {
       { schoolId, studentName: "Carlos Rojas", course: "11-2", period: "Periodo 2", average: 3.8, attendancePercent: 92, status: "Listo" },
     ]);
   }
+  await ensureIdentitySeeded(schoolId);
   return school;
 }
 
@@ -238,7 +254,7 @@ export const ROLE_NAMES: Record<EduRole, string> = {
   guardian: "Acudiente",
 };
 
-export async function getEduCoreSnapshot(role: EduRole) {
+export async function getEduCoreSnapshot(role: EduRole, selectedStudentId?: number) {
   const school = await ensureEduCoreSeeded();
   const db = await getDb();
   if (!db || !school) return null;
@@ -259,7 +275,13 @@ export async function getEduCoreSnapshot(role: EduRole) {
     db.select().from(planning).where(eq(planning.schoolId, schoolId)).orderBy(desc(planning.createdAt)),
     db.select().from(academicPeriods).where(eq(academicPeriods.schoolId, schoolId)).orderBy(academicPeriods.startDate),
   ]);
-  const demoStudent = "Sofía Martínez";
+  const guardianContext = role === "guardian" ? await getDemoIdentityContext("guardian", schoolId) : null;
+  const authorizedRelationship = role === "guardian" && guardianContext && selectedStudentId
+    ? (await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, schoolId), eq(guardianStudentRelationships.guardianUserId, guardianContext.user.id), eq(guardianStudentRelationships.studentUserId, selectedStudentId))).limit(1))[0]
+    : null;
+  const scopedSelectedStudentId = role === "guardian" ? authorizedRelationship?.studentUserId : selectedStudentId;
+  const selectedStudent = scopedSelectedStudentId ? (await db.select().from(users).where(eq(users.id, scopedSelectedStudentId)).limit(1))[0] : undefined;
+  const demoStudent = selectedStudent?.name ?? "Sofía Martínez";
   const scopedCourseNames = role === "teacher" ? ["11-1", "11-2"] : role === "student" || role === "guardian" ? ["11-2"] : courseRows.map(row => row.name);
   const scopedStudents = role === "student" || role === "guardian" ? studentRows.filter(row => row.name === demoStudent) : role === "teacher" ? studentRows.filter(row => scopedCourseNames.includes(row.course)) : studentRows;
   const scopedAssignments = role === "student" || role === "guardian" ? assignmentRows.filter(row => row.course === "11-2") : role === "teacher" ? assignmentRows.filter(row => row.teacherName === "Laura Gómez" || row.course === "11-2") : assignmentRows;
@@ -369,3 +391,274 @@ export async function saveAiConversation(role: EduRole, prompt: string, response
   if (!db || !school) return;
   await db.insert(aiConversations).values({ schoolId: school.id, userRole: role, prompt, response });
 }
+
+
+export type IdentityUserRecord = typeof users.$inferSelect & {
+  membershipRole?: IdentityRole;
+  membershipStatus?: string;
+  permissions?: string[];
+};
+
+const identityRoleRows = IDENTITY_ROLES.map(key => ({
+  key,
+  name: ROLE_LABELS[key],
+  description: ROLE_DESCRIPTIONS[key],
+  hierarchyLevel: ROLE_HIERARCHY[key],
+}));
+
+export async function ensureIdentitySeeded(schoolId = DEMO_SCHOOL_ID) {
+  const db = await getDb();
+  if (!db) return;
+  const existingRoles = await db.select().from(roles);
+  if (existingRoles.length === 0) await db.insert(roles).values(identityRoleRows);
+  const existingPermissions = await db.select().from(permissions);
+  if (existingPermissions.length === 0) {
+    await db.insert(permissions).values(PERMISSIONS.map(key => ({ key, ...PERMISSION_METADATA[key] })));
+  }
+  const roleRows = await db.select().from(roles);
+  const permissionRows = await db.select().from(permissions);
+  const assignments = roleRows.flatMap(role => permissionsForRole(role.key as IdentityRole).map(permissionKey => {
+    const permission = permissionRows.find(row => row.key === permissionKey);
+    return permission ? { roleId: role.id, permissionId: permission.id } : null;
+  }).filter((row): row is { roleId: number; permissionId: number } => Boolean(row)));
+  if (assignments.length > 0) {
+    const existingLinks = await db.select().from(rolePermissions);
+    const existingKeys = new Set(existingLinks.map(row => `${row.roleId}:${row.permissionId}`));
+    const missing = assignments.filter(row => !existingKeys.has(`${row.roleId}:${row.permissionId}`));
+    if (missing.length > 0) await db.insert(rolePermissions).values(missing);
+  }
+  const school = (await db.select().from(schools).where(eq(schools.id, schoolId)).limit(1))[0];
+  if (!school) return;
+  const demoUsers = [
+    { openId: "educore-demo-admin", firstName: "Valentina", lastName: "Ríos", name: "Valentina Ríos", email: "valentina.admin@demo.educore.co", roleKey: "SCHOOL_ADMIN" as IdentityRole, status: "ACTIVE", profile: "none" },
+    { openId: "educore-demo-rector", firstName: "Ana", lastName: "Torres", name: "Ana Torres", email: "ana.rector@demo.educore.co", roleKey: "RECTOR" as IdentityRole, status: "ACTIVE", profile: "none" },
+    { openId: "educore-demo-coordinator", firstName: "Carlos", lastName: "Mendoza", name: "Carlos Mendoza", email: "carlos.coordinador@demo.educore.co", roleKey: "COORDINATOR" as IdentityRole, status: "ACTIVE", profile: "none" },
+    { openId: "educore-demo-teacher-1", firstName: "Laura", lastName: "Pérez", name: "Laura Pérez", email: "laura.perez@demo.educore.co", roleKey: "TEACHER" as IdentityRole, status: "ACTIVE", profile: "teacher" },
+    { openId: "educore-demo-teacher-2", firstName: "Andrés", lastName: "Molina", name: "Andrés Molina", email: "andres.molina@demo.educore.co", roleKey: "TEACHER" as IdentityRole, status: "ACTIVE", profile: "teacher" },
+    { openId: "educore-demo-student-1", firstName: "Sofía", lastName: "Martínez", name: "Sofía Martínez", email: "sofia.martinez@demo.educore.co", roleKey: "STUDENT" as IdentityRole, status: "ACTIVE", profile: "student" },
+    { openId: "educore-demo-student-2", firstName: "Carlos", lastName: "Rojas", name: "Carlos Rojas", email: "carlos.rojas@demo.educore.co", roleKey: "STUDENT" as IdentityRole, status: "ACTIVE", profile: "student" },
+    { openId: "educore-demo-student-3", firstName: "Daniel", lastName: "Torres", name: "Daniel Torres", email: "daniel.torres@demo.educore.co", roleKey: "STUDENT" as IdentityRole, status: "ACTIVE", profile: "student" },
+    { openId: "educore-demo-guardian-1", firstName: "Mariana", lastName: "Martínez", name: "Mariana Martínez", email: "mariana.martinez@demo.educore.co", roleKey: "GUARDIAN" as IdentityRole, status: "ACTIVE", profile: "guardian" },
+    { openId: "educore-demo-guardian-2", firstName: "Andrés", lastName: "Rojas", name: "Andrés Rojas", email: "andres.rojas@demo.educore.co", roleKey: "GUARDIAN" as IdentityRole, status: "ACTIVE", profile: "guardian" },
+  ];
+  for (const demo of demoUsers) {
+    let user = (await db.select().from(users).where(eq(users.openId, demo.openId)).limit(1))[0];
+    if (!user) {
+      await db.insert(users).values({ openId: demo.openId, schoolId, name: demo.name, firstName: demo.firstName, lastName: demo.lastName, email: demo.email, loginMethod: "demo", role: demo.roleKey === "SCHOOL_ADMIN" ? "admin" : "user", status: demo.status });
+      user = (await db.select().from(users).where(eq(users.openId, demo.openId)).limit(1))[0];
+    }
+    if (!user) continue;
+    const membership = (await db.select().from(schoolMemberships).where(and(eq(schoolMemberships.schoolId, schoolId), eq(schoolMemberships.userId, user.id))).limit(1))[0];
+    if (!membership) await db.insert(schoolMemberships).values({ schoolId, userId: user.id, roleKey: demo.roleKey, status: demo.status });
+    if (demo.profile === "teacher") {
+      const profile = (await db.select().from(teacherProfiles).where(and(eq(teacherProfiles.schoolId, schoolId), eq(teacherProfiles.userId, user.id))).limit(1))[0];
+      if (!profile) await db.insert(teacherProfiles).values({ schoolId, userId: user.id, employeeCode: `DOC-${user.id}`, specialties: "Acompañamiento académico", subjects: "Matemáticas, Ciencias" });
+    }
+    if (demo.profile === "student") {
+      const profile = (await db.select().from(studentProfiles).where(and(eq(studentProfiles.schoolId, schoolId), eq(studentProfiles.userId, user.id))).limit(1))[0];
+      if (!profile) await db.insert(studentProfiles).values({ schoolId, userId: user.id, studentCode: `EST-${user.id}`, gradeLevel: "11", course: "11-2", status: demo.status });
+    }
+    if (demo.profile === "guardian") {
+      const profile = (await db.select().from(guardianProfiles).where(and(eq(guardianProfiles.schoolId, schoolId), eq(guardianProfiles.userId, user.id))).limit(1))[0];
+      if (!profile) await db.insert(guardianProfiles).values({ schoolId, userId: user.id });
+    }
+  }
+  const guardian = (await db.select().from(users).where(eq(users.openId, "educore-demo-guardian-1")).limit(1))[0];
+  const student = (await db.select().from(users).where(eq(users.openId, "educore-demo-student-1")).limit(1))[0];
+  if (guardian && student) {
+    const relationship = (await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, schoolId), eq(guardianStudentRelationships.guardianUserId, guardian.id), eq(guardianStudentRelationships.studentUserId, student.id))).limit(1))[0];
+    if (!relationship) await db.insert(guardianStudentRelationships).values({ schoolId, guardianUserId: guardian.id, studentUserId: student.id, relationshipType: "PARENT", isPrimary: 1 });
+    const secondStudent = (await db.select().from(users).where(eq(users.openId, "educore-demo-student-2")).limit(1))[0];
+    if (secondStudent) {
+      const secondRelationship = (await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, schoolId), eq(guardianStudentRelationships.guardianUserId, guardian.id), eq(guardianStudentRelationships.studentUserId, secondStudent.id))).limit(1))[0];
+      if (!secondRelationship) await db.insert(guardianStudentRelationships).values({ schoolId, guardianUserId: guardian.id, studentUserId: secondStudent.id, relationshipType: "PARENT", isPrimary: 0 });
+    }
+  }
+  return { schoolId };
+}
+
+export async function getMembershipContext(userId: number, schoolId: number): Promise<{ user: typeof users.$inferSelect; membership: typeof schoolMemberships.$inferSelect; permissions: string[] } | null> {
+  const db = await getDb();
+  if (!db) return null;
+  await ensureIdentitySeeded(schoolId);
+  const user = (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0];
+  const membership = (await db.select().from(schoolMemberships).where(and(eq(schoolMemberships.userId, userId), eq(schoolMemberships.schoolId, schoolId))).limit(1))[0];
+  if (!user || !membership || membership.status !== "ACTIVE" || user.status !== "ACTIVE") return null;
+  return { user, membership, permissions: permissionsForRole(membership.roleKey as IdentityRole) };
+}
+
+export async function getDemoIdentityContext(role: DemoRole, schoolId = DEMO_SCHOOL_ID) {
+  const db = await getDb();
+  if (!db) return null;
+  await ensureIdentitySeeded(schoolId);
+  const roleKey = DEMO_ROLE_MAP[role];
+  const membership = (await db.select().from(schoolMemberships).where(and(eq(schoolMemberships.schoolId, schoolId), eq(schoolMemberships.roleKey, roleKey), eq(schoolMemberships.status, "ACTIVE"))).limit(1))[0];
+  if (!membership) return null;
+  return getMembershipContext(membership.userId, schoolId);
+}
+
+export async function listSchoolUsers(input: { schoolId: number; search?: string; roleKey?: IdentityRole | "ALL"; status?: string | "ALL"; limit?: number; offset?: number }) {
+  const db = await getDb();
+  if (!db) return { rows: [], total: 0 };
+  await ensureIdentitySeeded(input.schoolId);
+  const memberships = await db.select().from(schoolMemberships).where(eq(schoolMemberships.schoolId, input.schoolId));
+  const memberIds = new Set(memberships.map(row => row.userId));
+  let rows = (await db.select().from(users)).filter(user => memberIds.has(user.id));
+  if (input.search) {
+    const needle = input.search.toLowerCase();
+    rows = rows.filter(user => `${user.name ?? ""} ${user.email ?? ""}`.toLowerCase().includes(needle));
+  }
+  if (input.roleKey && input.roleKey !== "ALL") rows = rows.filter(user => memberships.find(m => m.userId === user.id)?.roleKey === input.roleKey);
+  if (input.status && input.status !== "ALL") rows = rows.filter(user => user.status === input.status && memberships.find(m => m.userId === user.id)?.status === input.status);
+  const total = rows.length;
+  const offset = input.offset ?? 0;
+  const limit = input.limit ?? 50;
+  const sliced = rows.slice(offset, offset + limit).map(user => {
+    const membership = memberships.find(m => m.userId === user.id);
+    return { ...user, membershipRole: membership?.roleKey ?? "STUDENT", membershipStatus: membership?.status ?? "INACTIVE", permissions: permissionsForRole((membership?.roleKey ?? "STUDENT") as IdentityRole) };
+  });
+  return { rows: sliced, total, limit, offset };
+}
+
+export async function getSchoolUserProfile(schoolId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const user = (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0];
+  const membership = (await db.select().from(schoolMemberships).where(and(eq(schoolMemberships.schoolId, schoolId), eq(schoolMemberships.userId, userId))).limit(1))[0];
+  if (!user || !membership) return null;
+  const permissions = permissionsForRole(membership.roleKey as IdentityRole);
+  const teacher = (await db.select().from(teacherProfiles).where(and(eq(teacherProfiles.schoolId, schoolId), eq(teacherProfiles.userId, userId))).limit(1))[0] ?? null;
+  const student = (await db.select().from(studentProfiles).where(and(eq(studentProfiles.schoolId, schoolId), eq(studentProfiles.userId, userId))).limit(1))[0] ?? null;
+  const guardian = (await db.select().from(guardianProfiles).where(and(eq(guardianProfiles.schoolId, schoolId), eq(guardianProfiles.userId, userId))).limit(1))[0] ?? null;
+  const relationships = await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, schoolId), eq(guardianStudentRelationships.guardianUserId, userId)));
+  const linkedStudents = relationships.length ? (await db.select().from(users)).filter(user => relationships.some(row => row.studentUserId === user.id)) : [];
+  const school = (await db.select().from(schools).where(eq(schools.id, schoolId)).limit(1))[0] ?? null;
+  return { ...user, school, membership, permissions, teacherProfile: teacher, studentProfile: student, guardianProfile: guardian, linkedStudents };
+}
+
+export async function createSchoolUser(input: { schoolId: number; firstName: string; lastName: string; email: string; roleKey: IdentityRole; status: string; phone?: string; studentCode?: string; gradeLevel?: string; course?: string; actorUserId?: number }) {
+  const db = await getDb();
+  if (!db) return null;
+  await ensureIdentitySeeded(input.schoolId);
+  const existing = (await db.select().from(users).where(eq(users.email, input.email)).limit(1))[0];
+  if (existing) throw new Error("Ya existe un usuario con ese correo.");
+  const name = `${input.firstName} ${input.lastName}`.trim();
+  const manualOpenId = `manual:${createHash("sha256").update(`${input.email}:${Date.now()}`).digest("hex").slice(0, 52)}`;
+  await db.insert(users).values({ openId: manualOpenId, schoolId: input.schoolId, name, firstName: input.firstName, lastName: input.lastName, email: input.email, phone: input.phone ?? null, status: input.status, role: "user", loginMethod: "manual" });
+  const user = (await db.select().from(users).where(eq(users.email, input.email)).limit(1))[0];
+  if (!user) return null;
+  await db.insert(schoolMemberships).values({ schoolId: input.schoolId, userId: user.id, roleKey: input.roleKey, status: input.status });
+  if (input.roleKey === "TEACHER") await db.insert(teacherProfiles).values({ schoolId: input.schoolId, userId: user.id, employeeCode: null, specialties: null, subjects: null });
+  if (input.roleKey === "STUDENT") await db.insert(studentProfiles).values({ schoolId: input.schoolId, userId: user.id, studentCode: input.studentCode ?? null, gradeLevel: input.gradeLevel ?? null, course: input.course ?? null, status: input.status });
+  if (input.roleKey === "GUARDIAN") await db.insert(guardianProfiles).values({ schoolId: input.schoolId, userId: user.id });
+  await writeIdentityAudit({ schoolId: input.schoolId, actorUserId: input.actorUserId, targetUserId: user.id, action: "user.created", detail: `Usuario ${emailSafe(user.email)}` });
+  return getSchoolUserProfile(input.schoolId, user.id);
+}
+
+const emailSafe = (email: string | null) => email ? email.replace(/(.{2}).+(@.*)/, "$1•••$2") : "correo protegido";
+
+export async function updateMembershipRole(input: { schoolId: number; userId: number; roleKey: IdentityRole; actorUserId?: number }) {
+  const db = await getDb();
+  if (!db) return null;
+  const membership = (await db.select().from(schoolMemberships).where(and(eq(schoolMemberships.schoolId, input.schoolId), eq(schoolMemberships.userId, input.userId))).limit(1))[0];
+  if (!membership) throw new Error("El usuario no pertenece a esta institución.");
+  await db.update(schoolMemberships).set({ roleKey: input.roleKey }).where(eq(schoolMemberships.id, membership.id));
+  await writeIdentityAudit({ schoolId: input.schoolId, actorUserId: input.actorUserId, targetUserId: input.userId, action: "user.role_changed", detail: input.roleKey });
+  return getSchoolUserProfile(input.schoolId, input.userId);
+}
+
+export async function setUserStatus(input: { schoolId: number; userId: number; status: "ACTIVE" | "SUSPENDED" | "INACTIVE"; actorUserId?: number }) {
+  const db = await getDb();
+  if (!db) return null;
+  const membership = (await db.select().from(schoolMemberships).where(and(eq(schoolMemberships.schoolId, input.schoolId), eq(schoolMemberships.userId, input.userId))).limit(1))[0];
+  if (!membership) throw new Error("El usuario no pertenece a esta institución.");
+  if (input.status !== "ACTIVE" && membership.roleKey === "SCHOOL_ADMIN") {
+    const admins = await db.select().from(schoolMemberships).where(and(eq(schoolMemberships.schoolId, input.schoolId), eq(schoolMemberships.roleKey, "SCHOOL_ADMIN"), eq(schoolMemberships.status, "ACTIVE")));
+    if (admins.length <= 1) throw new Error("No puedes desactivar al último administrador de esta institución.");
+  }
+  await db.update(users).set({ status: input.status }).where(eq(users.id, input.userId));
+  await db.update(schoolMemberships).set({ status: input.status }).where(eq(schoolMemberships.id, membership.id));
+  await writeIdentityAudit({ schoolId: input.schoolId, actorUserId: input.actorUserId, targetUserId: input.userId, action: input.status === "ACTIVE" ? "user.reactivated" : "user.suspended", detail: input.status });
+  return getSchoolUserProfile(input.schoolId, input.userId);
+}
+
+export async function createInvitation(input: { schoolId: number; email: string; roleKey: IdentityRole; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) return null;
+  await ensureIdentitySeeded(input.schoolId);
+  const rawToken = randomBytes(24).toString("hex");
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await db.insert(invitations).values({ schoolId: input.schoolId, email: input.email, roleKey: input.roleKey, tokenHash, status: "PENDING", expiresAt, invitedBy: input.actorUserId });
+  const invitation = (await db.select().from(invitations).where(eq(invitations.tokenHash, tokenHash)).limit(1))[0];
+  await writeIdentityAudit({ schoolId: input.schoolId, actorUserId: input.actorUserId, action: "invitation.created", detail: `${emailSafe(input.email)} · ${input.roleKey}` });
+  return { invitation, rawToken };
+}
+
+export async function listInvitations(schoolId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({ id: invitations.id, email: invitations.email, roleKey: invitations.roleKey, status: invitations.status, expiresAt: invitations.expiresAt, invitedBy: invitations.invitedBy, createdAt: invitations.createdAt }).from(invitations).where(eq(invitations.schoolId, schoolId)).orderBy(desc(invitations.createdAt));
+}
+
+export async function acceptInvitation(input: { token: string; firstName: string; lastName: string }) {
+  const db = await getDb();
+  if (!db) return null;
+  const tokenHash = createHash("sha256").update(input.token).digest("hex");
+  const invitation = (await db.select().from(invitations).where(eq(invitations.tokenHash, tokenHash)).limit(1))[0];
+  if (!invitation || invitation.status !== "PENDING" || invitation.expiresAt < new Date()) throw new Error("Esta invitación ya no está disponible.");
+  let user = (await db.select().from(users).where(eq(users.email, invitation.email)).limit(1))[0];
+  if (!user) {
+    const invitedOpenId = `invited:${createHash("sha256").update(invitation.email).digest("hex").slice(0, 56)}`;
+    await db.insert(users).values({ openId: invitedOpenId, schoolId: invitation.schoolId, name: `${input.firstName} ${input.lastName}`, firstName: input.firstName, lastName: input.lastName, email: invitation.email, loginMethod: "invitation", status: "ACTIVE", role: "user" });
+    user = (await db.select().from(users).where(eq(users.email, invitation.email)).limit(1))[0];
+  }
+  if (!user) return null;
+  const existingMembership = (await db.select().from(schoolMemberships).where(and(eq(schoolMemberships.schoolId, invitation.schoolId), eq(schoolMemberships.userId, user.id))).limit(1))[0];
+  if (!existingMembership) await db.insert(schoolMemberships).values({ schoolId: invitation.schoolId, userId: user.id, roleKey: invitation.roleKey, status: "ACTIVE" });
+  await db.update(invitations).set({ status: "ACCEPTED" }).where(eq(invitations.id, invitation.id));
+  await writeIdentityAudit({ schoolId: invitation.schoolId, targetUserId: user.id, action: "invitation.accepted", detail: "Invitación aceptada" });
+  return getSchoolUserProfile(invitation.schoolId, user.id);
+}
+
+export async function createGuardianRelationship(input: { schoolId: number; guardianUserId: number; studentUserId: number; relationshipType: string; isPrimary: boolean; actorUserId?: number }) {
+  const db = await getDb();
+  if (!db) return null;
+  const [guardianMembership, studentMembership] = await Promise.all([
+    db.select().from(schoolMemberships).where(and(eq(schoolMemberships.schoolId, input.schoolId), eq(schoolMemberships.userId, input.guardianUserId))).limit(1),
+    db.select().from(schoolMemberships).where(and(eq(schoolMemberships.schoolId, input.schoolId), eq(schoolMemberships.userId, input.studentUserId))).limit(1),
+  ]);
+  if (guardianMembership[0]?.roleKey !== "GUARDIAN" || studentMembership[0]?.roleKey !== "STUDENT") throw new Error("La relación requiere un acudiente y un estudiante de la misma institución.");
+  const existing = (await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, input.schoolId), eq(guardianStudentRelationships.guardianUserId, input.guardianUserId), eq(guardianStudentRelationships.studentUserId, input.studentUserId))).limit(1))[0];
+  if (existing) return existing;
+  await db.insert(guardianStudentRelationships).values({ schoolId: input.schoolId, guardianUserId: input.guardianUserId, studentUserId: input.studentUserId, relationshipType: input.relationshipType, isPrimary: input.isPrimary ? 1 : 0 });
+  const relationship = (await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, input.schoolId), eq(guardianStudentRelationships.guardianUserId, input.guardianUserId), eq(guardianStudentRelationships.studentUserId, input.studentUserId))).limit(1))[0];
+  await writeIdentityAudit({ schoolId: input.schoolId, actorUserId: input.actorUserId, targetUserId: input.studentUserId, action: "guardian.relationship_created", detail: `${input.guardianUserId}:${input.relationshipType}` });
+  return relationship;
+}
+
+export async function listGuardianStudents(schoolId: number, guardianUserId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const relationships = await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, schoolId), eq(guardianStudentRelationships.guardianUserId, guardianUserId)));
+  const studentIds = new Set(relationships.map(row => row.studentUserId));
+  return (await db.select().from(users)).filter(user => studentIds.has(user.id)).map(user => ({ ...user, relationship: relationships.find(row => row.studentUserId === user.id) }));
+}
+
+export async function getRolePermissionCatalog() {
+  const db = await getDb();
+  if (!db) return { roles: identityRoleRows, permissions: PERMISSIONS.map(key => ({ key, ...PERMISSION_METADATA[key] })) };
+  await ensureIdentitySeeded();
+  const roleRows = await db.select().from(roles);
+  const permissionRows = await db.select().from(permissions);
+  const links = await db.select().from(rolePermissions);
+  return { roles: roleRows.map(role => ({ ...role, permissions: links.filter(link => link.roleId === role.id).map(link => permissionRows.find(permission => permission.id === link.permissionId)?.key).filter(Boolean) })), permissions: permissionRows };
+}
+
+export async function writeIdentityAudit(input: { schoolId: number; actorUserId?: number; targetUserId?: number; action: string; detail?: string }) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(auditLogs).values({ schoolId: input.schoolId, actorUserId: input.actorUserId ?? null, targetUserId: input.targetUserId ?? null, targetType: "identity", actorRole: input.actorUserId ? "institution_user" : "system", action: input.action, detail: input.detail ?? null });
+}
+
+export { hasPermission };

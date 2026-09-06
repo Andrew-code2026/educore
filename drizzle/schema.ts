@@ -1,16 +1,100 @@
-import { double, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { double, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   schoolId: int("schoolId"),
   name: text("name"),
+  firstName: varchar("firstName", { length: 100 }),
+  lastName: varchar("lastName", { length: 100 }),
+  avatarUrl: text("avatarUrl"),
+  phone: varchar("phone", { length: 40 }),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+});
+
+export const schoolMemberships = mysqlTable("school_memberships", {
+  id: int("id").autoincrement().primaryKey(),
+  schoolId: int("schoolId").notNull(),
+  userId: int("userId").notNull(),
+  roleKey: varchar("roleKey", { length: 40 }).notNull().default("STUDENT"),
+  status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ membershipUnique: uniqueIndex("school_memberships_school_user_unique").on(table.schoolId, table.userId) }));
+
+export const roles = mysqlTable("roles", {
+  id: int("id").autoincrement().primaryKey(),
+  key: varchar("key", { length: 40 }).notNull().unique(),
+  name: varchar("name", { length: 80 }).notNull(),
+  description: text("description").notNull(),
+  hierarchyLevel: int("hierarchyLevel").notNull().default(0),
+});
+
+export const permissions = mysqlTable("permissions", {
+  id: int("id").autoincrement().primaryKey(),
+  key: varchar("key", { length: 80 }).notNull().unique(),
+  module: varchar("module", { length: 40 }).notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
+  description: text("description").notNull(),
+});
+
+export const rolePermissions = mysqlTable("role_permissions", {
+  id: int("id").autoincrement().primaryKey(),
+  roleId: int("roleId").notNull(),
+  permissionId: int("permissionId").notNull(),
+}, table => ({ rolePermissionUnique: uniqueIndex("role_permissions_role_permission_unique").on(table.roleId, table.permissionId) }));
+
+export const teacherProfiles = mysqlTable("teacher_profiles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  schoolId: int("schoolId").notNull(),
+  employeeCode: varchar("employeeCode", { length: 60 }),
+  specialties: text("specialties"),
+  subjects: text("subjects"),
+}, table => ({ teacherUnique: uniqueIndex("teacher_profiles_school_user_unique").on(table.schoolId, table.userId) }));
+
+export const studentProfiles = mysqlTable("student_profiles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  schoolId: int("schoolId").notNull(),
+  studentCode: varchar("studentCode", { length: 60 }),
+  gradeLevel: varchar("gradeLevel", { length: 20 }),
+  course: varchar("course", { length: 60 }),
+  status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
+}, table => ({ studentUnique: uniqueIndex("student_profiles_school_user_unique").on(table.schoolId, table.userId) }));
+
+export const guardianProfiles = mysqlTable("guardian_profiles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  schoolId: int("schoolId").notNull(),
+}, table => ({ guardianUnique: uniqueIndex("guardian_profiles_school_user_unique").on(table.schoolId, table.userId) }));
+
+export const guardianStudentRelationships = mysqlTable("guardian_student_relationships", {
+  id: int("id").autoincrement().primaryKey(),
+  guardianUserId: int("guardianUserId").notNull(),
+  studentUserId: int("studentUserId").notNull(),
+  schoolId: int("schoolId").notNull(),
+  relationshipType: varchar("relationshipType", { length: 30 }).notNull().default("PARENT"),
+  isPrimary: int("isPrimary").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => ({ relationshipUnique: uniqueIndex("guardian_student_school_unique").on(table.guardianUserId, table.studentUserId, table.schoolId) }));
+
+export const invitations = mysqlTable("invitations", {
+  id: int("id").autoincrement().primaryKey(),
+  schoolId: int("schoolId").notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  roleKey: varchar("roleKey", { length: 40 }).notNull(),
+  tokenHash: varchar("tokenHash", { length: 128 }).notNull().unique(),
+  status: varchar("status", { length: 20 }).notNull().default("PENDING"),
+  expiresAt: timestamp("expiresAt").notNull(),
+  invitedBy: int("invitedBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export const schools = mysqlTable("schools", {
@@ -206,6 +290,9 @@ export const aiConversations = mysqlTable("ai_conversations", {
 export const auditLogs = mysqlTable("audit_logs", {
   id: int("id").autoincrement().primaryKey(),
   schoolId: int("schoolId").notNull(),
+  actorUserId: int("actorUserId"),
+  targetUserId: int("targetUserId"),
+  targetType: varchar("targetType", { length: 50 }),
   actorRole: varchar("actorRole", { length: 30 }).notNull(),
   action: varchar("action", { length: 120 }).notNull(),
   detail: text("detail"),
