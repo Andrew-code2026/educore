@@ -9,13 +9,16 @@
 
 ## Entregables
 
-- [ ] Tokens visuales y fondos institucionales refinados.
-- [ ] Sidebar delgado, navbar flotante y navegación mobile apropiada.
-- [ ] Composición editorial para dashboards y cards con jerarquías distintas.
-- [ ] Login, EduCore AI y configuración alineados al nuevo lenguaje.
-- [ ] Transiciones, hover, focus y estados accesibles.
-- [ ] Validación desktop/mobile y regresión funcional.
-- [ ] Typecheck, Vitest y build de producción.
+- [x] Tokens visuales y fondos institucionales refinados.
+- [x] Sidebar delgado, navbar flotante y navegación mobile apropiada.
+- [x] Composición editorial para dashboards y cards con jerarquías distintas.
+- [x] Login, EduCore AI y configuración alineados al nuevo lenguaje.
+- [x] Transiciones, hover, focus y estados accesibles.
+- [x] Validación desktop/mobile y regresión funcional.
+- [x] Typecheck, Vitest y build de producción.
+- [x] Regresión manual de login, dashboards rector/docente/estudiante/acudiente, Classroom, Académico, Asistencia, Calendario, Comunicaciones, Reportes, EduCore AI y Configuración.
+- [x] Verificación responsive con viewport mobile explícito y navegación inferior.
+- [x] Hallazgos documentados en `phase2_5_visual_findings.md`.
 
 ## Restricciones
 
