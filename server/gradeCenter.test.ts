@@ -111,6 +111,12 @@ describe("EduCore Grade Center", () => {
     expect(result?.rows[0].enrollment.studentUserId).toBe(student!.user.id);
   });
 
+  it("rejects student course ID tampering instead of falling back to a visible course", async () => {
+    const otherCourse = seededContext!.courses.find(course => course.id !== seededContext!.selected!.course.id);
+    if (!otherCourse) return;
+    await expect(getGradeCenterContext(actor(student, "STUDENT"), { courseId: otherCourse.id })).rejects.toThrow(/permiso/);
+  });
+
   it("keeps guardian visibility limited to linked students", async () => {
     const result = await getGradeCenterContext(actor(guardian, "GUARDIAN"));
     const linked = await caller(guardian!.user).identity.relationships({ role: "guardian" });

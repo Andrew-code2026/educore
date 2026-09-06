@@ -98,6 +98,7 @@ export async function getGradeCenterContext(actor: GradeCenterActor, input: Grad
   if (!db) return null;
   await ensureGradeCenterSeeded(actor.schoolId);
   const courseIds = await visibleCourseIds(actor);
+  if (input.courseId !== undefined && !courseIds.includes(input.courseId)) throw new Error("No tienes permiso para acceder a este curso.");
   const courseRows = courseIds.length ? await db.select().from(courses).where(and(eq(courses.schoolId, actor.schoolId), inArray(courses.id, courseIds))).orderBy(courses.name) : [];
   const course = courseRows.find(row => row.id === input.courseId) ?? courseRows.find(row => row.name === "11-2") ?? courseRows[0];
   if (!course) return { courses: [], subjects: [], periods: [], assessments: [], students: [], rows: [], stats: { average: null, max: null, min: null, assessments: 0, students: 0, graded: 0, total: 0, completion: 0 }, distribution: [], insights: [], observations: [], scale: null, selected: null, reportCards: [] };
@@ -109,9 +110,11 @@ export async function getGradeCenterContext(actor: GradeCenterActor, input: Grad
     const assignedIds = new Set(assignments.map(row => row.subjectId));
     subjectRows = subjectRows.filter(row => assignedIds.has(row.id));
   }
+  if (input.subjectId !== undefined && !subjectRows.some(row => row.id === input.subjectId)) throw new Error("No tienes permiso para acceder a esta materia.");
   const subject = subjectRows.find(row => row.id === input.subjectId) ?? subjectRows.find(row => row.name === "Matemáticas") ?? subjectRows[0];
   if (!subject) return { courses: courseRows, subjects: [], periods: [], assessments: [], students: [], rows: [], stats: { average: null, max: null, min: null, assessments: 0, students: 0, graded: 0, total: 0, completion: 0 }, distribution: [], insights: [], observations: [], scale: null, selected: { course }, reportCards: [] };
   const periods = await db.select().from(academicPeriods).where(and(eq(academicPeriods.schoolId, actor.schoolId), eq(academicPeriods.academicYearId, course.academicYearId ?? 0))).orderBy(academicPeriods.orderIndex);
+  if (input.academicPeriodId !== undefined && !periods.some(row => row.id === input.academicPeriodId)) throw new Error("No tienes permiso para acceder a este periodo.");
   const period = periods.find(row => row.id === input.academicPeriodId) ?? periods.find(row => row.status === "Activo" || row.status === "ACTIVE") ?? periods[0];
   if (!period) return { courses: courseRows, subjects: subjectRows, periods: [], assessments: [], students: [], rows: [], stats: { average: null, max: null, min: null, assessments: 0, students: 0, graded: 0, total: 0, completion: 0 }, distribution: [], insights: [], observations: [], scale: null, selected: { course, subject }, reportCards: [] };
   const valid = await assertContext(actor, { courseId: course.id, subjectId: subject.id, academicPeriodId: period.id });
