@@ -263,6 +263,81 @@ export const enrollmentHistory = mysqlTable("enrollment_history", {
   reason: text("reason"),
 });
 
+export const gradingScales = mysqlTable("grading_scales", {
+	id: int("id").autoincrement().primaryKey(),
+	schoolId: int("schoolId").notNull(),
+	name: varchar("name", { length: 80 }).notNull(),
+	minValue: double("minValue").notNull().default(0),
+	maxValue: double("maxValue").notNull().default(5),
+	decimalPlaces: int("decimalPlaces").notNull().default(1),
+	status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
+	createdAt: timestamp("createdAt").defaultNow().notNull(),
+	updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ scaleUnique: uniqueIndex("grading_scales_school_name_unique").on(table.schoolId, table.name) }));
+
+export const assessments = mysqlTable("assessments", {
+	id: int("id").autoincrement().primaryKey(),
+	schoolId: int("schoolId").notNull(),
+	academicYearId: int("academicYearId").notNull(),
+	academicPeriodId: int("academicPeriodId").notNull(),
+	courseId: int("courseId").notNull(),
+	subjectId: int("subjectId").notNull(),
+	teacherId: int("teacherId").notNull(),
+	title: varchar("title", { length: 180 }).notNull(),
+	description: text("description"),
+	assessmentType: varchar("assessmentType", { length: 30 }).notNull().default("ACTIVIDAD"),
+	date: timestamp("date").notNull(),
+	maxValue: double("maxValue").notNull().default(5),
+	weight: double("weight").notNull().default(0),
+	status: varchar("status", { length: 20 }).notNull().default("DRAFT"),
+	createdAt: timestamp("createdAt").defaultNow().notNull(),
+	updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const assessmentGrades = mysqlTable("assessment_grades", {
+	id: int("id").autoincrement().primaryKey(),
+	schoolId: int("schoolId").notNull(),
+	assessmentId: int("assessmentId").notNull(),
+	studentId: int("studentId").notNull(),
+	studentEnrollmentId: int("studentEnrollmentId").notNull(),
+	courseId: int("courseId").notNull(),
+	subjectId: int("subjectId").notNull(),
+	academicYearId: int("academicYearId").notNull(),
+	academicPeriodId: int("academicPeriodId").notNull(),
+	value: double("value"),
+	comment: text("comment"),
+	status: varchar("status", { length: 20 }).notNull().default("RECORDED"),
+	createdAt: timestamp("createdAt").defaultNow().notNull(),
+	updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ gradeUnique: uniqueIndex("assessment_grades_assessment_student_unique").on(table.assessmentId, table.studentId) }));
+
+export const academicObservations = mysqlTable("academic_observations", {
+	id: int("id").autoincrement().primaryKey(),
+	schoolId: int("schoolId").notNull(),
+	studentId: int("studentId").notNull(),
+	academicYearId: int("academicYearId").notNull(),
+	academicPeriodId: int("academicPeriodId").notNull(),
+	assessmentId: int("assessmentId"),
+	text: text("text").notNull(),
+	status: varchar("status", { length: 20 }).notNull().default("DRAFT"),
+	createdByUserId: int("createdByUserId").notNull(),
+	createdAt: timestamp("createdAt").defaultNow().notNull(),
+	updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const reportCardRuns = mysqlTable("report_card_runs", {
+	id: int("id").autoincrement().primaryKey(),
+	schoolId: int("schoolId").notNull(),
+	academicYearId: int("academicYearId").notNull(),
+	academicPeriodId: int("academicPeriodId").notNull(),
+	courseId: int("courseId").notNull(),
+	studentId: int("studentId").notNull(),
+	status: varchar("status", { length: 20 }).notNull().default("READY"),
+	generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+	createdByUserId: int("createdByUserId").notNull(),
+	dataJson: text("dataJson").notNull(),
+});
+
 export const grades = mysqlTable("grades", {
   id: int("id").autoincrement().primaryKey(),
   schoolId: int("schoolId").notNull(),

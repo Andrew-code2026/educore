@@ -43,6 +43,13 @@
       "when": 1788716666062,
       "tag": "0005_shiny_stryfe",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1788721163821,
+      "tag": "0006_mixed_demogoblin",
+      "breakpoints": true
     }
   ]
 }

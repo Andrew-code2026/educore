@@ -44,6 +44,14 @@ import {
   transferAcademicStudent,
   writeAcademicAudit,
 } from "./db";
+import {
+  createGradeCenterAssessment,
+  generateGradeCenterReportCards,
+  getGradeCenterContext,
+  saveAcademicObservation,
+  saveGradeCenterGrades,
+  updateGradeCenterAssessment,
+} from "./gradeCenterDb";
 import { hasPermission, IDENTITY_ROLES, type IdentityRole } from "./identityModel";
 import type { TrpcContext } from "./_core/context";
 
@@ -201,6 +209,43 @@ export const appRouter = router({
       const result = await transferAcademicStudent(actor, input);
       await writeAcademicAudit(actor, "student_course_changed", "student_enrollment", `${input.enrollmentId}:${input.newCourseId}`);
       return result;
+    }),
+  }),
+  gradeCenter: router({
+    context: publicProcedure.input(z.object({ role: roleSchema, courseId: z.number().int().optional(), subjectId: z.number().int().optional(), academicPeriodId: z.number().int().optional() })).query(async ({ input, ctx }) => {
+      const actor = await resolveActor(ctx, input.role);
+      if (!hasPermission(actor.roleKey, "grades.view") && !hasPermission(actor.roleKey, "courses.view")) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes acceso a las calificaciones." });
+      return getGradeCenterContext(actor, input);
+    }),
+    createAssessment: publicProcedure.input(z.object({ role: roleSchema, academicYearId: z.number().int(), academicPeriodId: z.number().int(), courseId: z.number().int(), subjectId: z.number().int(), title: z.string().min(3).max(180), description: z.string().max(1000).optional(), assessmentType: z.enum(["QUIZ", "TALLER", "EXAMEN", "PROYECTO", "ACTIVIDAD", "PARTICIPACION", "RECUPERACION", "OTRO"]), date: z.coerce.date(), maxValue: z.number().positive().max(100), weight: z.number().min(0).max(100), status: z.enum(["DRAFT", "PUBLISHED", "CLOSED"]).default("DRAFT") })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "grades.update");
+      return createGradeCenterAssessment(actor, input);
+    }),
+    updateAssessment: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int(), title: z.string().min(3).max(180).optional(), description: z.string().max(1000).optional(), date: z.coerce.date().optional(), weight: z.number().min(0).max(100).optional(), status: z.enum(["DRAFT", "PUBLISHED", "CLOSED"]).optional() })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "grades.update");
+      return updateGradeCenterAssessment(actor, input);
+    }),
+    saveGrades: publicProcedure.input(z.object({ role: roleSchema, assessmentId: z.number().int(), grades: z.array(z.object({ studentId: z.number().int(), value: z.number().min(0).nullable(), comment: z.string().max(500).optional() })).min(1) })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "grades.update");
+      return saveGradeCenterGrades(actor, input);
+    }),
+    saveObservation: publicProcedure.input(z.object({ role: roleSchema, studentId: z.number().int(), academicYearId: z.number().int(), academicPeriodId: z.number().int(), assessmentId: z.number().int().optional(), text: z.string().min(3).max(1200), status: z.enum(["DRAFT", "PUBLISHED"]).default("DRAFT") })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "grades.update");
+      return saveAcademicObservation(actor, input);
+    }),
+    generateReportCards: publicProcedure.input(z.object({ role: roleSchema, academicYearId: z.number().int(), academicPeriodId: z.number().int(), courseId: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "reports.export");
+      return generateGradeCenterReportCards(actor, input);
+    }),
+    generateObservationDraft: publicProcedure.input(z.object({ role: roleSchema, studentName: z.string().min(2), context: z.string().min(10).max(3000) })).mutation(async ({ input, ctx }) => {
+      await requirePermission(ctx, input.role, "ai.use");
+      let text = "";
+      try {
+        const response = await invokeLLM({ messages: [{ role: "system", content: "Eres EduCore AI. Genera solo un borrador de observación académica neutral, cálida y editable en español. No diagnostiques, no etiquetes y no tomes decisiones." }, { role: "user", content: `Estudiante: ${input.studentName}\nDatos autorizados:\n${input.context}` }] });
+        const content = response.choices?.[0]?.message?.content;
+        text = typeof content === "string" ? content : "";
+      } catch { /* fallback below */ }
+      return { text: text || `Borrador: ${input.studentName} ha mostrado avances observables en las actividades revisadas. Se recomienda continuar acompañando su proceso y revisar las próximas evidencias de aprendizaje.`, reviewed: false };
     }),
   }),
   educore: router({

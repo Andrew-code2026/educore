@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   createGuardianRelationship,
   createSchoolUser,
@@ -11,7 +11,10 @@ import {
   updateMembershipRole,
   createInvitation,
   acceptInvitation,
+  getDb,
 } from "./db";
+import { schoolMemberships, users } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
 import { DEMO_ROLE_MAP, IDENTITY_ROLES, ROLE_HIERARCHY, ROLE_LABELS, hasPermission, permissionsForRole } from "./identityModel";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
@@ -19,6 +22,8 @@ import type { TrpcContext } from "./_core/context";
 const schoolId = 1;
 let createdUser: Awaited<ReturnType<typeof createSchoolUser>> = null;
 let invitationToken = "";
+let isolatedAdminId = 0;
+const isolatedSchoolId = 999998;
 
 beforeAll(async () => {
   await ensureIdentitySeeded(schoolId);
@@ -35,6 +40,13 @@ beforeAll(async () => {
     const invitation = await createInvitation({ schoolId, email: `aceptar.${Date.now()}@demo.educore.co`, roleKey: "STUDENT", actorUserId: admin.user.id });
     invitationToken = invitation?.rawToken ?? "";
   }
+});
+
+afterAll(async () => {
+  const db = await getDb();
+  if (!db || !isolatedAdminId) return;
+  await db.delete(schoolMemberships).where(eq(schoolMemberships.userId, isolatedAdminId));
+  await db.delete(users).where(eq(users.id, isolatedAdminId));
 });
 
 describe("EduCore identity catalog", () => {
@@ -149,8 +161,16 @@ describe("EduCore identity persistence and isolation", () => {
   });
 
   it("protects the last active school administrator", async () => {
-    const admin = await getDemoIdentityContext("admin", schoolId);
-    if (!admin) return;
-    await expect(setUserStatus({ schoolId, userId: admin.user.id, status: "SUSPENDED" })).rejects.toThrow("último administrador");
+    const isolatedAdmin = await createSchoolUser({
+      schoolId: isolatedSchoolId,
+      firstName: "Administrador",
+      lastName: "Aislado",
+      email: `admin.aislado.${Date.now()}@demo.educore.co`,
+      roleKey: "SCHOOL_ADMIN",
+      status: "ACTIVE",
+    });
+    if (!isolatedAdmin) return;
+    isolatedAdminId = isolatedAdmin.id;
+    await expect(setUserStatus({ schoolId: isolatedSchoolId, userId: isolatedAdmin.id, status: "SUSPENDED" })).rejects.toThrow("último administrador");
   });
 });

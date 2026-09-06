@@ -44,9 +44,10 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { GradeCenterPage } from "./GradeCenter";
 
 type EduRole = "admin" | "teacher" | "student" | "guardian";
-type Section = "overview" | "academic" | "classroom" | "attendance" | "calendar" | "communications" | "reports" | "ai" | "users" | "settings";
+type Section = "overview" | "academic" | "grades" | "classroom" | "attendance" | "calendar" | "communications" | "reports" | "ai" | "users" | "settings";
 
 const roleLabels: Record<EduRole, string> = {
   admin: "Administrador",
@@ -65,6 +66,7 @@ const roleGreetings: Record<EduRole, string> = {
 const navItems: Array<{ id: Section; label: string; icon: typeof LayoutDashboard; roles: EduRole[] }> = [
   { id: "overview", label: "Inicio", icon: LayoutDashboard, roles: ["admin", "teacher", "student", "guardian"] },
   { id: "academic", label: "Académico", icon: GraduationCap, roles: ["admin", "teacher"] },
+  { id: "grades", label: "Calificaciones", icon: BarChart3, roles: ["admin", "teacher", "student", "guardian"] },
   { id: "classroom", label: "Classroom", icon: ClipboardList, roles: ["admin", "teacher", "student", "guardian"] },
   { id: "attendance", label: "Asistencia", icon: ClipboardCheck, roles: ["admin", "teacher", "student", "guardian"] },
   { id: "calendar", label: "Calendario", icon: CalendarDays, roles: ["admin", "teacher", "student", "guardian"] },
@@ -392,6 +394,6 @@ export default function Home() {
   if (loading || isLoading) return <div className="flex min-h-screen items-center justify-center bg-[var(--edc-background)]"><div className="flex items-center gap-3 text-sm text-slate-500"><div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--edc-accent)] border-t-[#368de8]" />Preparando tu espacio EduCore...</div></div>;
   if (!isAuthenticated && !demoMode) return <LoginScreen school={data?.school} onDemo={selectedRole => { handleRoleChange(selectedRole); setDemoMode(true); }} />;
   if (!data) return <div className="flex min-h-screen items-center justify-center bg-[var(--edc-background)] p-6"><EmptyState title="No pudimos cargar tu espacio" detail="Revisa la conexión e inténtalo de nuevo." /></div>;
-  const content = section === "overview" ? effectiveRole === "admin" ? <AdminDashboard data={data} setSection={setSection} /> : effectiveRole === "teacher" ? <TeacherDashboard data={data} setSection={setSection} /> : <StudentDashboard data={data} role={effectiveRole} setSection={setSection} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} /> : section === "academic" ? <AcademicPage data={data} role={effectiveRole} setSection={setSection} onGradeSaved={refresh} /> : section === "classroom" ? <ClassroomPage data={data} role={effectiveRole} onChanged={refresh} setSection={setSection} /> : section === "attendance" ? <AttendancePage data={data} role={effectiveRole} onChanged={refresh} /> : section === "calendar" ? <CalendarPage data={data} /> : section === "communications" ? <CommunicationsPage data={data} role={effectiveRole} onChanged={refresh} /> : section === "reports" ? <ReportsPage data={data} role={effectiveRole} setSection={setSection} /> : section === "ai" ? <AiPage data={data} role={effectiveRole} /> : section === "users" ? <UsersPage role={effectiveRole} onPreview={handleRoleChange} /> : <SettingsPage data={data} role={effectiveRole} onChanged={refresh} />;
+  const content = section === "overview" ? effectiveRole === "admin" ? <AdminDashboard data={data} setSection={setSection} /> : effectiveRole === "teacher" ? <TeacherDashboard data={data} setSection={setSection} /> : <StudentDashboard data={data} role={effectiveRole} setSection={setSection} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} /> : section === "academic" ? <AcademicPage data={data} role={effectiveRole} setSection={setSection} onGradeSaved={refresh} /> : section === "grades" ? <GradeCenterPage role={effectiveRole} school={data.school} /> : section === "classroom" ? <ClassroomPage data={data} role={effectiveRole} onChanged={refresh} setSection={setSection} /> : section === "attendance" ? <AttendancePage data={data} role={effectiveRole} onChanged={refresh} /> : section === "calendar" ? <CalendarPage data={data} /> : section === "communications" ? <CommunicationsPage data={data} role={effectiveRole} onChanged={refresh} /> : section === "reports" ? <ReportsPage data={data} role={effectiveRole} setSection={setSection} /> : section === "ai" ? <AiPage data={data} role={effectiveRole} /> : section === "users" ? <UsersPage role={effectiveRole} onPreview={handleRoleChange} /> : <SettingsPage data={data} role={effectiveRole} onChanged={refresh} />;
   return <AppShell role={effectiveRole} section={section} setSection={setSection} schoolName={schoolName} school={data.school} onRoleChange={handleRoleChange} onLogout={async () => { if (isAuthenticated) await logout(); setDemoMode(false); }} notificationCount={data.notifications.filter((item: any) => !item.read).length}>{content}</AppShell>;
 }
