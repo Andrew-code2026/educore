@@ -1,0 +1,1 @@
+ALTER TABLE `schools` MODIFY COLUMN `description` text;

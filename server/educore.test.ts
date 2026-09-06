@@ -45,4 +45,41 @@ describe("EduCore role model", () => {
       teacherName: "Demo",
     })).rejects.toThrow("No tienes permisos");
   });
+
+  it("blocks non-admin branding changes", async () => {
+    await expect(caller().educore.updateSchool({
+      role: "teacher",
+      name: "Colegio no autorizado",
+      shortName: "Demo",
+      city: "Cali",
+      department: "Valle del Cauca",
+      country: "Colombia",
+      description: "Cambio no autorizado para la prueba.",
+      website: "https://educore.co",
+      email: "contacto@educore.co",
+      phone: "+57 602 555 0101",
+      address: "Cali",
+      academicYear: "2026",
+      primaryColor: "#2475cf",
+      secondaryColor: "#eaf4ff",
+      accentColor: "#8ec6fa",
+      backgroundColor: "#f7f9fc",
+      surfaceColor: "#ffffff",
+      textColor: "#182131",
+      mutedTextColor: "#7a8798",
+      themeMode: "light",
+      borderRadius: "12px",
+      logoUrl: null,
+    })).rejects.toThrow("No tienes permisos");
+  });
+
+  it("rejects inconsistent academic period dates before persistence", async () => {
+    await expect(caller().educore.createAcademicPeriod({
+      role: "admin",
+      name: "Periodo inválido",
+      startDate: new Date("2026-06-20T00:00:00Z"),
+      endDate: new Date("2026-06-19T00:00:00Z"),
+      status: "Programado",
+    })).rejects.toThrow("fecha final");
+  });
 });

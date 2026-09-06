@@ -4,6 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { invokeLLM } from "./_core/llm";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
+import { storagePut } from "./storage";
 import {
   createDemoAssignment,
   DEMO_SCHOOL_ID,
@@ -15,6 +16,8 @@ import {
   submitDemoAssignment,
   updateDemoGrade,
   updateSchoolSettings,
+  createAcademicPeriod,
+  updateAcademicPeriod,
   writeAuditLog,
 } from "./db";
 
@@ -100,14 +103,71 @@ export const appRouter = router({
     updateSchool: publicProcedure.input(z.object({
       role: roleSchema,
       name: z.string().min(3).max(180),
+      shortName: z.string().min(2).max(80),
       city: z.string().min(2).max(80),
+      department: z.string().min(2).max(100),
+      country: z.string().min(2).max(80),
+      description: z.string().min(10).max(1000),
+      website: z.string().url().max(180),
+      email: z.string().email().max(180),
+      phone: z.string().min(5).max(40),
+      address: z.string().min(3).max(180),
       academicYear: z.string().min(4).max(20),
       primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
       secondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+      accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+      backgroundColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+      surfaceColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+      textColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+      mutedTextColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+      themeMode: z.enum(["light", "dark"]),
+      borderRadius: z.string().regex(/^\d+(px|rem)$/),
+      logoUrl: z.string().max(500).nullable().default(null),
     })).mutation(async ({ input }) => {
       roleGuard(input.role, ["admin"]);
       const result = await updateSchoolSettings(input);
       await writeAuditLog(input.role, "update_school_settings", input.name);
+      return result;
+    }),
+    uploadSchoolLogo: publicProcedure.input(z.object({
+      role: roleSchema,
+      fileName: z.string().regex(/\.(png|jpe?g|svg)$/i),
+      contentType: z.enum(["image/png", "image/jpeg", "image/svg+xml"]),
+      dataBase64: z.string().min(20).max(4_000_000),
+    })).mutation(async ({ input }) => {
+      roleGuard(input.role, ["admin"]);
+      const buffer = Buffer.from(input.dataBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
+      if (buffer.length > 2_500_000) throw new Error("El logo debe pesar menos de 2.5 MB.");
+      const uploaded = await storagePut(`schools/${DEMO_SCHOOL_ID}/branding/${input.fileName}`, buffer, input.contentType);
+      const result = await updateSchoolSettings({ logoUrl: uploaded.url });
+      await writeAuditLog(input.role, "update_school_logo", input.fileName);
+      return { ...result, logoUrl: uploaded.url };
+    }),
+    createAcademicPeriod: publicProcedure.input(z.object({
+      role: roleSchema,
+      name: z.string().min(2).max(80),
+      startDate: z.coerce.date(),
+      endDate: z.coerce.date(),
+      status: z.enum(["Activo", "Programado", "Cerrado"]),
+    })).mutation(async ({ input }) => {
+      roleGuard(input.role, ["admin"]);
+      if (input.endDate <= input.startDate) throw new Error("La fecha final debe ser posterior a la fecha inicial.");
+      const result = await createAcademicPeriod(input);
+      await writeAuditLog(input.role, "create_academic_period", input.name);
+      return result;
+    }),
+    updateAcademicPeriod: publicProcedure.input(z.object({
+      role: roleSchema,
+      id: z.number().int(),
+      name: z.string().min(2).max(80),
+      startDate: z.coerce.date(),
+      endDate: z.coerce.date(),
+      status: z.enum(["Activo", "Programado", "Cerrado"]),
+    })).mutation(async ({ input }) => {
+      roleGuard(input.role, ["admin"]);
+      if (input.endDate <= input.startDate) throw new Error("La fecha final debe ser posterior a la fecha inicial.");
+      const result = await updateAcademicPeriod(input);
+      await writeAuditLog(input.role, "update_academic_period", input.name);
       return result;
     }),
     generateDraft: publicProcedure.input(z.object({

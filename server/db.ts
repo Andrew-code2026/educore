@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   aiConversations,
+  academicPeriods,
   announcements,
   assignments,
   attendance,
@@ -94,6 +95,16 @@ export async function ensureEduCoreSeeded() {
   }
   if (!school) return null;
   const schoolId = school.id;
+
+  if ((await db.select({ id: academicPeriods.id }).from(academicPeriods).where(eq(academicPeriods.schoolId, schoolId)).limit(1)).length === 0) {
+    const year = Number(school.academicYear) || 2026;
+    await db.insert(academicPeriods).values([
+      { schoolId, name: "Periodo 1", startDate: new Date(`${year}-01-13T00:00:00Z`), endDate: new Date(`${year}-03-27T23:59:59Z`), status: "Cerrado" },
+      { schoolId, name: "Periodo 2", startDate: new Date(`${year}-04-06T00:00:00Z`), endDate: new Date(`${year}-06-19T23:59:59Z`), status: "Activo" },
+      { schoolId, name: "Periodo 3", startDate: new Date(`${year}-07-06T00:00:00Z`), endDate: new Date(`${year}-09-18T23:59:59Z`), status: "Programado" },
+      { schoolId, name: "Periodo 4", startDate: new Date(`${year}-09-28T00:00:00Z`), endDate: new Date(`${year}-11-27T23:59:59Z`), status: "Programado" },
+    ]);
+  }
 
   if ((await db.select({ id: students.id }).from(students).where(eq(students.schoolId, schoolId)).limit(1)).length === 0) {
     await db.insert(students).values([
@@ -232,7 +243,7 @@ export async function getEduCoreSnapshot(role: EduRole) {
   const db = await getDb();
   if (!db || !school) return null;
   const schoolId = school.id;
-  const [courseRows, studentRows, teacherRows, subjectRows, gradeRows, attendanceRows, assignmentRows, submissionRows, eventRows, announcementRows, notificationRows, reportCardRows, planningRows] = await Promise.all([
+  const [courseRows, studentRows, teacherRows, subjectRows, gradeRows, attendanceRows, assignmentRows, submissionRows, eventRows, announcementRows, notificationRows, reportCardRows, planningRows, periodRows] = await Promise.all([
     db.select().from(courses).where(eq(courses.schoolId, schoolId)),
     db.select().from(students).where(eq(students.schoolId, schoolId)),
     db.select().from(teachers).where(eq(teachers.schoolId, schoolId)),
@@ -246,6 +257,7 @@ export async function getEduCoreSnapshot(role: EduRole) {
     db.select().from(notifications).where(eq(notifications.schoolId, schoolId)).orderBy(desc(notifications.createdAt)),
     db.select().from(reportCards).where(eq(reportCards.schoolId, schoolId)),
     db.select().from(planning).where(eq(planning.schoolId, schoolId)).orderBy(desc(planning.createdAt)),
+    db.select().from(academicPeriods).where(eq(academicPeriods.schoolId, schoolId)).orderBy(academicPeriods.startDate),
   ]);
   const demoStudent = "Sofía Martínez";
   const scopedCourseNames = role === "teacher" ? ["11-1", "11-2"] : role === "student" || role === "guardian" ? ["11-2"] : courseRows.map(row => row.name);
@@ -269,6 +281,7 @@ export async function getEduCoreSnapshot(role: EduRole) {
     notifications: notificationRows,
     reportCards: role === "student" || role === "guardian" ? reportCardRows.filter(row => row.studentName === demoStudent) : reportCardRows,
     planning: planningRows,
+    academicPeriods: periodRows,
     role,
     roleName: ROLE_NAMES[role],
   };
@@ -282,12 +295,30 @@ export async function writeAuditLog(actorRole: EduRole, action: string, detail: 
   await db.insert(auditLogs).values({ schoolId: school.id, actorRole, action, detail });
 }
 
-export async function updateSchoolSettings(input: { name: string; city: string; academicYear: string; primaryColor: string; secondaryColor: string }) {
+export async function updateSchoolSettings(input: Partial<typeof schools.$inferInsert> & { id?: number; role?: string }) {
   const db = await getDb();
   const school = await ensureEduCoreSeeded();
   if (!db || !school) return null;
-  await db.update(schools).set(input).where(eq(schools.id, school.id));
+  const { id: _id, role: _role, ...changes } = input;
+  await db.update(schools).set(changes).where(eq(schools.id, school.id));
   return (await db.select().from(schools).where(eq(schools.id, school.id)).limit(1))[0];
+}
+
+export async function createAcademicPeriod(input: { name: string; startDate: Date; endDate: Date; status: string }) {
+  const db = await getDb();
+  const school = await ensureEduCoreSeeded();
+  if (!db || !school) return null;
+  await db.insert(academicPeriods).values({ schoolId: school.id, ...input });
+  return (await db.select().from(academicPeriods).where(eq(academicPeriods.schoolId, school.id)).orderBy(desc(academicPeriods.id)).limit(1))[0];
+}
+
+export async function updateAcademicPeriod(input: { id: number; name: string; startDate: Date; endDate: Date; status: string }) {
+  const db = await getDb();
+  const school = await ensureEduCoreSeeded();
+  if (!db || !school) return null;
+  const { id, ...changes } = input;
+  await db.update(academicPeriods).set(changes).where(and(eq(academicPeriods.id, id), eq(academicPeriods.schoolId, school.id)));
+  return (await db.select().from(academicPeriods).where(and(eq(academicPeriods.id, id), eq(academicPeriods.schoolId, school.id))).limit(1))[0];
 }
 
 export async function createDemoAssignment(input: { title: string; subject: string; course: string; description: string; dueAt: Date; points: number; teacherName: string }) {
