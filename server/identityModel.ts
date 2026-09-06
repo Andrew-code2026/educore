@@ -62,7 +62,7 @@ const rolePermissionSets: Record<IdentityRole, PermissionKey[]> = {
   SCHOOL_ADMIN: [
     "institution.view", "institution.update", "users.view", "users.create", "users.update", "users.disable",
     "students.view", "students.create", "students.update", "teachers.view", "teachers.create", "teachers.update",
-    "courses.view", "reports.view", "reports.export", "communications.view", "communications.create", "communications.send",
+    "courses.view", "courses.create", "courses.update", "reports.view", "reports.export", "communications.view", "communications.create", "communications.send",
     "settings.view", "settings.update", "ai.use",
   ],
   RECTOR: [

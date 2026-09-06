@@ -1,29 +1,31 @@
-# EduCore — Fase 3: Identidad, roles y relaciones institucionales
+# EduCore — Fase 4: Arquitectura académica
 
 ## Objetivo
 
-Construir sobre la aplicación existente una base de identidad escolar estructurada: institución, usuario, membresía, rol, permisos y relaciones académicas. Se preservan los dashboards, datos demo, branding dinámico, `school_id`, persistencia y lógica de EduCore AI.
+Convertir la sección Académico en una fuente de verdad persistente para años, periodos, grados, cursos, materias, asignaciones docentes y matrículas, manteniendo aislamiento por institución y permisos server-side.
 
-## Implementación
+## Entregables
 
-- [x] Extender schema con memberships, roles, permisos, perfiles, relaciones e invitaciones.
-- [x] Implementar autorización backend, aislamiento por `school_id` y estados de usuario.
-- [x] Asignar datos demo a identidades y memberships ficticias.
-- [x] Construir UI Spatial para usuarios, perfiles, invitaciones, relaciones y permisos.
-- [x] Agregar pruebas Vitest de creación, permisos, suspensión, invitaciones, relaciones, aislamiento, último admin y resistencia a role spoofing.
-- [x] Ejecutar migración, typecheck, tests, build y regresión visual.
+- [x] Extender schema con `academic_years`, grados, relaciones curso-materia, asignaciones docentes y matrículas con historial.
+- [x] Sembrar datos académicos demo para 2025/2026, grados 6°–11°, cursos, materias, asignaciones y estudiantes.
+- [x] Implementar snapshot académico filtrado por `school_id` y rol: admin, docente, estudiante y acudiente.
+- [x] Implementar creación de año, grado, curso y materia con validación institucional.
+- [x] Implementar asociación materia-curso y asignación docente.
+- [x] Implementar matrícula individual/masiva, prevención de duplicados y cambio de curso con historial.
+- [x] Conectar tRPC y reemplazar el placeholder de Académico por tabs de Resumen, Cursos, Materias, Docentes, Estudiantes y Matrículas.
+- [x] Agregar formularios premium para curso y materia, selección masiva y cambio de curso.
+- [x] Mantener RBAC server-side: solo administradores gestionan estructura; docentes, estudiantes y acudientes reciben contexto filtrado.
+- [x] Agregar 18 pruebas académicas de estructura, relaciones, permisos, aislamiento, matrícula e historial.
 
-## Implementado vs preparado
-
-La administración básica de usuarios, invitaciones de desarrollo, perfiles, relaciones acudiente-estudiante, permisos explícitos y controles RBAC quedó implementada. El envío real de correo, recuperación de contraseña, selección de múltiples instituciones y módulos académicos completos quedan preparados para fases posteriores; no se simulan como funciones reales.
-
-## Restricciones verificadas
-
-No se reconstruyó la aplicación ni se duplicó la tabla de usuarios. No se eliminaron datos existentes. Las mutaciones relevantes resuelven permisos server-side a partir de la membresía; las sesiones reales bloquean usuarios suspendidos o inactivos. Las invitaciones no exponen tokens después de crearse. La suspensión conserva el historial y se protege el último administrador funcional. Las queries de identidad filtran por `school_id`.
-
-## Verificación final
+## Verificación
 
 - `pnpm check`: correcto.
-- `pnpm test`: 3 archivos, 24 pruebas correctas.
-- `pnpm build`: correcto; solo queda el warning informativo de chunk Vite mayor a 500 kB.
-- Preview live: login admin, Usuarios, modal de crear usuario, Roles y permisos, Invitaciones y selector de dos estudiantes vinculados en vista acudiente verificados.
+- `pnpm test`: 4 archivos, 42 pruebas correctas.
+- `pnpm build`: correcto; queda únicamente el warning informativo de chunk Vite grande.
+- Preview live: login admin, Académico, Resumen, Cursos y Matrículas verificados; snapshot cargó 10 cursos, 5 materias, 6 grados y matrículas activas.
+- Preview responsive: shell Spatial y tarjetas institucionales conservan composición limpia.
+- Datos QA temporales: comprobados y limpiados por los hooks de las pruebas; se preservan las identidades y datos demo.
+
+## Fuera de alcance
+
+El envío de notificaciones, carga masiva CSV, edición avanzada de periodos y vistas analíticas específicas por materia quedan preparados para la siguiente fase; no se presentan como funcionalidades falsas.

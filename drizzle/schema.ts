@@ -128,13 +128,27 @@ export const schools = mysqlTable("schools", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const academicYears = mysqlTable("academic_years", {
+  id: int("id").autoincrement().primaryKey(),
+  schoolId: int("schoolId").notNull(),
+  name: varchar("name", { length: 80 }).notNull(),
+  year: int("year").notNull(),
+  startDate: timestamp("startDate").notNull(),
+  endDate: timestamp("endDate").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("DRAFT"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ yearUnique: uniqueIndex("academic_years_school_year_unique").on(table.schoolId, table.year) }));
+
 export const academicPeriods = mysqlTable("academic_periods", {
   id: int("id").autoincrement().primaryKey(),
   schoolId: int("schoolId").notNull(),
+  academicYearId: int("academicYearId"),
   name: varchar("name", { length: 80 }).notNull(),
   startDate: timestamp("startDate").notNull(),
   endDate: timestamp("endDate").notNull(),
   status: varchar("status", { length: 30 }).notNull().default("Activo"),
+  orderIndex: int("orderIndex").notNull().default(1),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -162,21 +176,91 @@ export const teachers = mysqlTable("teachers", {
 export const courses = mysqlTable("courses", {
   id: int("id").autoincrement().primaryKey(),
   schoolId: int("schoolId").notNull(),
+  academicYearId: int("academicYearId"),
+  gradeLevelId: int("gradeLevelId"),
   name: varchar("name", { length: 60 }).notNull(),
+  code: varchar("code", { length: 30 }),
   grade: varchar("grade", { length: 20 }).notNull(),
   groupName: varchar("groupName", { length: 10 }).notNull(),
   year: varchar("year", { length: 20 }).notNull(),
+  capacity: int("capacity"),
+  status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
   teacherName: varchar("teacherName", { length: 160 }).notNull(),
   studentsCount: int("studentsCount").notNull().default(0),
   average: double("average").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export const subjects = mysqlTable("subjects", {
   id: int("id").autoincrement().primaryKey(),
   schoolId: int("schoolId").notNull(),
   name: varchar("name", { length: 120 }).notNull(),
+  shortName: varchar("shortName", { length: 40 }),
+  code: varchar("code", { length: 30 }),
+  description: text("description"),
+  status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
   course: varchar("course", { length: 60 }).notNull(),
   teacherName: varchar("teacherName", { length: 160 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const gradeLevels = mysqlTable("grade_levels", {
+  id: int("id").autoincrement().primaryKey(),
+  schoolId: int("schoolId").notNull(),
+  name: varchar("name", { length: 80 }).notNull(),
+  shortName: varchar("shortName", { length: 20 }).notNull(),
+  levelOrder: int("levelOrder").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
+}, table => ({ gradeUnique: uniqueIndex("grade_levels_school_short_unique").on(table.schoolId, table.shortName) }));
+
+export const courseSubjects = mysqlTable("course_subjects", {
+  id: int("id").autoincrement().primaryKey(),
+  schoolId: int("schoolId").notNull(),
+  courseId: int("courseId").notNull(),
+  subjectId: int("subjectId").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ courseSubjectUnique: uniqueIndex("course_subjects_school_course_subject_unique").on(table.schoolId, table.courseId, table.subjectId) }));
+
+export const teacherAssignments = mysqlTable("teacher_assignments", {
+  id: int("id").autoincrement().primaryKey(),
+  schoolId: int("schoolId").notNull(),
+  teacherUserId: int("teacherUserId").notNull(),
+  courseId: int("courseId").notNull(),
+  subjectId: int("subjectId").notNull(),
+  academicYearId: int("academicYearId").notNull(),
+  isPrimary: int("isPrimary").notNull().default(0),
+  status: varchar("status", { length: 20 }).notNull().default("ACTIVE"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ assignmentUnique: uniqueIndex("teacher_assignments_school_unique").on(table.schoolId, table.teacherUserId, table.courseId, table.subjectId, table.academicYearId) }));
+
+export const studentEnrollments = mysqlTable("student_enrollments", {
+  id: int("id").autoincrement().primaryKey(),
+  schoolId: int("schoolId").notNull(),
+  studentUserId: int("studentUserId").notNull(),
+  academicYearId: int("academicYearId").notNull(),
+  courseId: int("courseId").notNull(),
+  enrollmentStatus: varchar("enrollmentStatus", { length: 20 }).notNull().default("ACTIVE"),
+  enrollmentDate: timestamp("enrollmentDate").defaultNow().notNull(),
+  withdrawalDate: timestamp("withdrawalDate"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({ enrollmentUnique: uniqueIndex("student_enrollments_school_student_year_course_unique").on(table.schoolId, table.studentUserId, table.academicYearId, table.courseId) }));
+
+export const enrollmentHistory = mysqlTable("enrollment_history", {
+  id: int("id").autoincrement().primaryKey(),
+  schoolId: int("schoolId").notNull(),
+  enrollmentId: int("enrollmentId").notNull(),
+  studentUserId: int("studentUserId").notNull(),
+  fromCourseId: int("fromCourseId"),
+  toCourseId: int("toCourseId").notNull(),
+  changedByUserId: int("changedByUserId").notNull(),
+  changedAt: timestamp("changedAt").defaultNow().notNull(),
+  reason: text("reason"),
 });
 
 export const grades = mysqlTable("grades", {

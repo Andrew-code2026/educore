@@ -33,6 +33,16 @@ import {
   listSchoolUsers,
   setUserStatus,
   updateMembershipRole,
+  getAcademicSnapshot,
+  createAcademicYear,
+  createAcademicGrade,
+  createAcademicCourse,
+  createAcademicSubject,
+  attachSubjectToCourse,
+  assignAcademicTeacher,
+  enrollAcademicStudent,
+  transferAcademicStudent,
+  writeAcademicAudit,
 } from "./db";
 import { hasPermission, IDENTITY_ROLES, type IdentityRole } from "./identityModel";
 import type { TrpcContext } from "./_core/context";
@@ -62,6 +72,12 @@ async function requirePermission(ctx: TrpcContext, role: EduRole, permission: st
   if (!hasPermission(actor.roleKey, permission) || (actor.userId === 0 && process.env.DATABASE_URL)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "No tienes permisos para realizar esta acción." });
   }
+  return actor;
+}
+
+async function requireAcademicActor(ctx: TrpcContext, role: EduRole, permission?: string) {
+  const actor = await resolveActor(ctx, role);
+  if (permission && !hasPermission(actor.roleKey, permission)) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes permisos para gestionar la estructura académica." });
   return actor;
 }
 
@@ -123,6 +139,68 @@ export const appRouter = router({
     roles: publicProcedure.input(z.object({ role: roleSchema })).query(async ({ input, ctx }) => {
       await requirePermission(ctx, input.role, "settings.view");
       return getRolePermissionCatalog();
+    }),
+  }),
+  academic: router({
+    snapshot: publicProcedure.input(z.object({ role: roleSchema })).query(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role);
+      if (!hasPermission(actor.roleKey, "courses.view") && !hasPermission(actor.roleKey, "students.view")) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes acceso al contexto académico." });
+      return getAcademicSnapshot(actor);
+    }),
+    createYear: publicProcedure.input(z.object({ role: roleSchema, name: z.string().min(4).max(80), year: z.number().int().min(2000).max(2100), startDate: z.coerce.date(), endDate: z.coerce.date(), status: z.enum(["DRAFT", "ACTIVE", "CLOSED"]) })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "settings.update");
+      const result = await createAcademicYear(actor, input);
+      await writeAcademicAudit(actor, "academic_year_created", "academic_year", String(input.year));
+      return result;
+    }),
+    createGrade: publicProcedure.input(z.object({ role: roleSchema, name: z.string().min(2).max(80), shortName: z.string().min(1).max(20), levelOrder: z.number().int().min(1).max(20) })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "courses.create");
+      const result = await createAcademicGrade(actor, input);
+      await writeAcademicAudit(actor, "grade_created", "grade_level", input.shortName);
+      return result;
+    }),
+    createCourse: publicProcedure.input(z.object({ role: roleSchema, academicYearId: z.number().int(), gradeLevelId: z.number().int(), name: z.string().min(2).max(60), code: z.string().min(1).max(30), capacity: z.number().int().min(1).max(200).nullable().optional() })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "courses.create");
+      const result = await createAcademicCourse(actor, input);
+      await writeAcademicAudit(actor, "course_created", "course", input.code);
+      return result;
+    }),
+    createSubject: publicProcedure.input(z.object({ role: roleSchema, name: z.string().min(2).max(120), shortName: z.string().min(1).max(40), code: z.string().min(1).max(30), description: z.string().max(500).optional() })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "courses.create");
+      const result = await createAcademicSubject(actor, input);
+      await writeAcademicAudit(actor, "subject_created", "subject", input.code);
+      return result;
+    }),
+    attachSubject: publicProcedure.input(z.object({ role: roleSchema, courseId: z.number().int(), subjectId: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "courses.update");
+      const result = await attachSubjectToCourse(actor, input);
+      await writeAcademicAudit(actor, "subject_attached_to_course", "course_subject", `${input.courseId}:${input.subjectId}`);
+      return result;
+    }),
+    assignTeacher: publicProcedure.input(z.object({ role: roleSchema, teacherUserId: z.number().int(), courseId: z.number().int(), subjectId: z.number().int(), academicYearId: z.number().int(), isPrimary: z.boolean().default(false) })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "courses.update");
+      const result = await assignAcademicTeacher(actor, input);
+      await writeAcademicAudit(actor, "teacher_assigned", "teacher_assignment", `${input.teacherUserId}:${input.courseId}:${input.subjectId}`);
+      return result;
+    }),
+    enrollStudent: publicProcedure.input(z.object({ role: roleSchema, studentUserId: z.number().int(), academicYearId: z.number().int(), courseId: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "students.update");
+      const result = await enrollAcademicStudent(actor, input);
+      await writeAcademicAudit(actor, "student_enrolled", "student_enrollment", `${input.studentUserId}:${input.courseId}`);
+      return result;
+    }),
+    bulkEnroll: publicProcedure.input(z.object({ role: roleSchema, studentUserIds: z.array(z.number().int()).min(1).max(100), academicYearId: z.number().int(), courseId: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "students.update");
+      const results = [];
+      for (const studentUserId of input.studentUserIds) results.push(await enrollAcademicStudent(actor, { studentUserId, academicYearId: input.academicYearId, courseId: input.courseId }));
+      await writeAcademicAudit(actor, "students_bulk_enrolled", "student_enrollment", `${input.studentUserIds.length}:${input.courseId}`);
+      return results;
+    }),
+    transferStudent: publicProcedure.input(z.object({ role: roleSchema, enrollmentId: z.number().int(), newCourseId: z.number().int(), reason: z.string().max(300).optional() })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "students.update");
+      const result = await transferAcademicStudent(actor, input);
+      await writeAcademicAudit(actor, "student_course_changed", "student_enrollment", `${input.enrollmentId}:${input.newCourseId}`);
+      return result;
     }),
   }),
   educore: router({

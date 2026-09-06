@@ -3,16 +3,20 @@ import { createHash, randomBytes } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   aiConversations,
+  academicYears,
   academicPeriods,
   announcements,
   assignments,
   attendance,
   auditLogs,
   courses,
+  courseSubjects,
+  enrollmentHistory,
   events,
   grades,
   guardianProfiles,
   guardianStudentRelationships,
+  gradeLevels,
   invitations,
   InsertUser,
   notifications,
@@ -24,10 +28,12 @@ import {
   schools,
   schoolMemberships,
   studentProfiles,
+  studentEnrollments,
   students,
   subjects,
   submissions,
   teacherProfiles,
+  teacherAssignments,
   teachers,
   users,
 } from "../drizzle/schema";
@@ -243,7 +249,90 @@ export async function ensureEduCoreSeeded() {
     ]);
   }
   await ensureIdentitySeeded(schoolId);
+  await ensureAcademicSeeded(schoolId);
   return school;
+}
+
+async function ensureAcademicSeeded(schoolId: number) {
+  const db = await getDb();
+  if (!db) return;
+  const year2026 = (await db.select().from(academicYears).where(and(eq(academicYears.schoolId, schoolId), eq(academicYears.year, 2026))).limit(1))[0] ?? (await db.insert(academicYears).values({ schoolId, name: "Año académico 2026", year: 2026, startDate: new Date("2026-01-12T00:00:00Z"), endDate: new Date("2026-11-27T23:59:59Z"), status: "ACTIVE" }).$returningId())[0];
+  if (!year2026) return;
+  const year2025 = (await db.select().from(academicYears).where(and(eq(academicYears.schoolId, schoolId), eq(academicYears.year, 2025))).limit(1))[0] ?? (await db.insert(academicYears).values({ schoolId, name: "Año académico 2025", year: 2025, startDate: new Date("2025-01-13T00:00:00Z"), endDate: new Date("2025-11-28T23:59:59Z"), status: "CLOSED" }).$returningId())[0];
+  const periodRows = await db.select().from(academicPeriods).where(eq(academicPeriods.schoolId, schoolId));
+  for (const period of periodRows) {
+    if (!period.academicYearId) await db.update(academicPeriods).set({ academicYearId: year2026.id, orderIndex: Number(period.name.match(/\d+/)?.[0] ?? 1) }).where(eq(academicPeriods.id, period.id));
+  }
+  const gradeSeeds = [
+    ["Sexto", "6°", 6], ["Séptimo", "7°", 7], ["Octavo", "8°", 8], ["Noveno", "9°", 9], ["Décimo", "10°", 10], ["Undécimo", "11°", 11],
+  ] as const;
+  const gradeMap = new Map<string, number>();
+  for (const [name, shortName, levelOrder] of gradeSeeds) {
+    const existing = (await db.select().from(gradeLevels).where(and(eq(gradeLevels.schoolId, schoolId), eq(gradeLevels.shortName, shortName))).limit(1))[0];
+    const row = existing ?? (await db.insert(gradeLevels).values({ schoolId, name, shortName, levelOrder, status: "ACTIVE" }).$returningId())[0];
+    if (row) gradeMap.set(String(levelOrder), row.id);
+  }
+  const courseSeeds = [
+    ["6-1", "6", "1", 6, 28], ["6-2", "6", "2", 6, 28], ["7-1", "7", "1", 7, 30], ["8-1", "8", "1", 8, 30],
+    ["9-1", "9", "1", 9, 28], ["9-2", "9", "2", 9, 29], ["10-1", "10", "1", 10, 31], ["10-2", "10", "2", 10, 30], ["11-1", "11", "1", 11, 30], ["11-2", "11", "2", 11, 32],
+  ] as const;
+  const courseMap = new Map<string, number>();
+  for (const [name, grade, groupName, levelOrder, capacity] of courseSeeds) {
+    let course = (await db.select().from(courses).where(and(eq(courses.schoolId, schoolId), eq(courses.name, name))).limit(1))[0];
+    if (!course) {
+      await db.insert(courses).values({ schoolId, academicYearId: year2026.id, gradeLevelId: gradeMap.get(String(levelOrder)) ?? null, name, code: name, grade, groupName, year: "2026", capacity, status: "ACTIVE", teacherName: "Equipo académico", studentsCount: 0, average: 0 });
+      course = (await db.select().from(courses).where(and(eq(courses.schoolId, schoolId), eq(courses.name, name))).limit(1))[0];
+    } else {
+      await db.update(courses).set({ academicYearId: course.academicYearId ?? year2026.id, gradeLevelId: course.gradeLevelId ?? gradeMap.get(String(levelOrder)) ?? null, code: course.code ?? name, capacity: course.capacity ?? capacity, status: course.status || "ACTIVE" }).where(eq(courses.id, course.id));
+    }
+    if (course) courseMap.set(name, course.id);
+  }
+  const subjectSeeds = [
+    ["Matemáticas", "MAT", "Pensamiento numérico, algebraico y variacional."], ["Física", "FIS", "Comprensión de fenómenos y movimiento."], ["Química", "QUI", "Materia, transformaciones y laboratorio."], ["Inglés", "ING", "Comunicación en lengua extranjera."], ["Lengua Castellana", "LEN", "Lectura, escritura y comunicación."], ["Ciencias Sociales", "SOC", "Sociedad, territorio y ciudadanía."], ["Filosofía", "FIL", "Pensamiento crítico y reflexión."], ["Tecnología", "TEC", "Diseño, tecnología y pensamiento computacional."], ["Educación Física", "EDF", "Movimiento, salud y bienestar."],
+  ] as const;
+  const subjectMap = new Map<string, number>();
+  for (const [name, code, description] of subjectSeeds) {
+    let subject = (await db.select().from(subjects).where(and(eq(subjects.schoolId, schoolId), eq(subjects.name, name))).limit(1))[0];
+    if (!subject) {
+      await db.insert(subjects).values({ schoolId, name, shortName: name.slice(0, 3).toUpperCase(), code, description, status: "ACTIVE", course: "11-2", teacherName: "Equipo académico" });
+      subject = (await db.select().from(subjects).where(and(eq(subjects.schoolId, schoolId), eq(subjects.name, name))).limit(1))[0];
+    } else {
+      await db.update(subjects).set({ code: subject.code ?? code, description: subject.description ?? description, status: subject.status || "ACTIVE" }).where(eq(subjects.id, subject.id));
+    }
+    if (subject) subjectMap.set(name, subject.id);
+  }
+  const standardSubjects = ["Matemáticas", "Física", "Química", "Inglés", "Lengua Castellana"];
+  for (const courseSeed of courseSeeds) {
+    const courseName = courseSeed[0];
+    const courseId = courseMap.get(courseName);
+    if (!courseId) continue;
+    for (const subjectName of standardSubjects) {
+      const subjectId = subjectMap.get(subjectName);
+      if (!subjectId) continue;
+      const exists = (await db.select({ id: courseSubjects.id }).from(courseSubjects).where(and(eq(courseSubjects.schoolId, schoolId), eq(courseSubjects.courseId, courseId), eq(courseSubjects.subjectId, subjectId))).limit(1)).length > 0;
+      if (!exists) await db.insert(courseSubjects).values({ schoolId, courseId, subjectId, status: "ACTIVE" });
+    }
+  }
+  const teachersForAcademic = await db.select({ userId: teacherProfiles.userId }).from(teacherProfiles).where(eq(teacherProfiles.schoolId, schoolId)).limit(3);
+  const subjectAssignments = [["11-2", "Matemáticas"], ["11-2", "Física"], ["10-1", "Matemáticas"], ["9-2", "Física"]] as const;
+  for (const [courseName, subjectName] of subjectAssignments) {
+    const teacherUserId = teachersForAcademic[(courseName === "11-2" && subjectName === "Física") ? 1 : 0]?.userId;
+    const courseId = courseMap.get(courseName);
+    const subjectId = subjectMap.get(subjectName);
+    if (!teacherUserId || !courseId || !subjectId) continue;
+    const exists = (await db.select({ id: teacherAssignments.id }).from(teacherAssignments).where(and(eq(teacherAssignments.schoolId, schoolId), eq(teacherAssignments.teacherUserId, teacherUserId), eq(teacherAssignments.courseId, courseId), eq(teacherAssignments.subjectId, subjectId), eq(teacherAssignments.academicYearId, year2026.id))).limit(1)).length > 0;
+    if (!exists) await db.insert(teacherAssignments).values({ schoolId, teacherUserId, courseId, subjectId, academicYearId: year2026.id, isPrimary: 1, status: "ACTIVE" });
+  }
+  const studentUserRows = await db.select({ userId: studentProfiles.userId }).from(studentProfiles).where(eq(studentProfiles.schoolId, schoolId)).limit(3);
+  const studentCourseNames = ["11-2", "11-2", "11-1"] as const;
+  for (let index = 0; index < studentUserRows.length; index += 1) {
+    const studentUserId = studentUserRows[index]?.userId;
+    const courseId = courseMap.get(studentCourseNames[index] ?? "11-2");
+    if (!studentUserId || !courseId) continue;
+    const exists = (await db.select({ id: studentEnrollments.id }).from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, schoolId), eq(studentEnrollments.studentUserId, studentUserId), eq(studentEnrollments.academicYearId, year2026.id), eq(studentEnrollments.enrollmentStatus, "ACTIVE"))).limit(1)).length > 0;
+    if (!exists) await db.insert(studentEnrollments).values({ schoolId, studentUserId, academicYearId: year2026.id, courseId, enrollmentStatus: "ACTIVE" });
+  }
+  return { year2026, year2025, courseMap, subjectMap };
 }
 
 export type EduRole = "admin" | "teacher" | "student" | "guardian";
@@ -662,3 +751,169 @@ export async function writeIdentityAudit(input: { schoolId: number; actorUserId?
 }
 
 export { hasPermission };
+
+
+export type AcademicActor = { schoolId: number; userId: number; roleKey: IdentityRole };
+
+async function academicCourseAccess(actor: AcademicActor, courseId: number) {
+  const db = await getDb();
+  if (!db) return false;
+  const course = (await db.select().from(courses).where(and(eq(courses.id, courseId), eq(courses.schoolId, actor.schoolId))).limit(1))[0];
+  if (!course) return false;
+  if (["SUPER_ADMIN", "SCHOOL_ADMIN", "RECTOR", "COORDINATOR"].includes(actor.roleKey)) return true;
+  if (actor.roleKey === "TEACHER") {
+    const rows = await db.select({ id: teacherAssignments.id }).from(teacherAssignments).where(and(eq(teacherAssignments.schoolId, actor.schoolId), eq(teacherAssignments.teacherUserId, actor.userId), eq(teacherAssignments.courseId, courseId), eq(teacherAssignments.status, "ACTIVE"))).limit(1);
+    return rows.length > 0;
+  }
+  if (actor.roleKey === "STUDENT") {
+    const rows = await db.select({ id: studentEnrollments.id }).from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, actor.schoolId), eq(studentEnrollments.studentUserId, actor.userId), eq(studentEnrollments.courseId, courseId), eq(studentEnrollments.enrollmentStatus, "ACTIVE"))).limit(1);
+    return rows.length > 0;
+  }
+  const linked = await db.select({ studentUserId: guardianStudentRelationships.studentUserId }).from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, actor.schoolId), eq(guardianStudentRelationships.guardianUserId, actor.userId)));
+  if (!linked.length) return false;
+  const rows = await db.select({ id: studentEnrollments.id }).from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, actor.schoolId), eq(studentEnrollments.courseId, courseId), eq(studentEnrollments.enrollmentStatus, "ACTIVE"), or(...linked.map(item => eq(studentEnrollments.studentUserId, item.studentUserId))))).limit(1);
+  return rows.length > 0;
+}
+
+export async function getAcademicSnapshot(actor: AcademicActor) {
+  const db = await getDb();
+  const school = await ensureEduCoreSeeded();
+  if (!db || !school || school.id !== actor.schoolId) return null;
+  const [years, periods, grades, allCourses, allSubjects, links, assignmentsRows, enrollments, teacherRows, studentRows] = await Promise.all([
+    db.select().from(academicYears).where(eq(academicYears.schoolId, actor.schoolId)).orderBy(desc(academicYears.year)),
+    db.select().from(academicPeriods).where(eq(academicPeriods.schoolId, actor.schoolId)).orderBy(academicPeriods.orderIndex),
+    db.select().from(gradeLevels).where(eq(gradeLevels.schoolId, actor.schoolId)).orderBy(gradeLevels.levelOrder),
+    db.select().from(courses).where(eq(courses.schoolId, actor.schoolId)).orderBy(courses.name),
+    db.select().from(subjects).where(eq(subjects.schoolId, actor.schoolId)).orderBy(subjects.name),
+    db.select().from(courseSubjects).where(eq(courseSubjects.schoolId, actor.schoolId)),
+    db.select().from(teacherAssignments).where(and(eq(teacherAssignments.schoolId, actor.schoolId), eq(teacherAssignments.status, "ACTIVE"))),
+    db.select().from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, actor.schoolId), eq(studentEnrollments.enrollmentStatus, "ACTIVE"))),
+    db.select({ userId: teacherProfiles.userId, employeeCode: teacherProfiles.employeeCode, specialties: teacherProfiles.specialties }).from(teacherProfiles).where(eq(teacherProfiles.schoolId, actor.schoolId)),
+    db.select({ userId: studentProfiles.userId, studentCode: studentProfiles.studentCode, gradeLevel: studentProfiles.gradeLevel, course: studentProfiles.course, status: studentProfiles.status }).from(studentProfiles).where(eq(studentProfiles.schoolId, actor.schoolId)),
+  ]);
+  let visibleCourseIds = new Set(allCourses.map(course => course.id));
+  if (actor.roleKey === "TEACHER") visibleCourseIds = new Set(assignmentsRows.filter(item => item.teacherUserId === actor.userId).map(item => item.courseId));
+  if (actor.roleKey === "STUDENT") visibleCourseIds = new Set(enrollments.filter(item => item.studentUserId === actor.userId).map(item => item.courseId));
+  if (actor.roleKey === "GUARDIAN") {
+    const linked = await db.select({ studentUserId: guardianStudentRelationships.studentUserId }).from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, actor.schoolId), eq(guardianStudentRelationships.guardianUserId, actor.userId)));
+    visibleCourseIds = new Set(enrollments.filter(item => linked.some(link => link.studentUserId === item.studentUserId)).map(item => item.courseId));
+  }
+  const visibleCourses = allCourses.filter(course => visibleCourseIds.has(course.id));
+  const visibleLinks = links.filter(link => visibleCourseIds.has(link.courseId));
+  const visibleAssignments = assignmentsRows.filter(item => visibleCourseIds.has(item.courseId));
+  const visibleEnrollments = enrollments.filter(item => visibleCourseIds.has(item.courseId) && (actor.roleKey !== "STUDENT" || item.studentUserId === actor.userId));
+  const userIds = Array.from(new Set([...visibleAssignments.map(item => item.teacherUserId), ...visibleEnrollments.map(item => item.studentUserId)]));
+  const people = userIds.length ? await db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(and(eq(users.schoolId, actor.schoolId), or(...userIds.map(id => eq(users.id, id))))) : [];
+  const peopleById = new Map(people.map(person => [person.id, person]));
+  return {
+    years,
+    activeYear: years.find(year => year.status === "ACTIVE") ?? years[0] ?? null,
+    periods: periods.filter(period => !period.academicYearId || years.some(year => year.id === period.academicYearId && visibleCourses.some(course => !course.academicYearId || course.academicYearId === year.id))),
+    grades,
+    courses: visibleCourses.map(course => ({ ...course, studentCount: visibleEnrollments.filter(item => item.courseId === course.id).length, subjectCount: visibleLinks.filter(item => item.courseId === course.id).length, teacherCount: visibleAssignments.filter(item => item.courseId === course.id).length })),
+    subjects: allSubjects.filter(subject => visibleLinks.some(link => link.subjectId === subject.id)),
+    courseSubjects: visibleLinks,
+    teacherAssignments: visibleAssignments.map(item => ({ ...item, teacher: peopleById.get(item.teacherUserId) ?? null })),
+    studentEnrollments: visibleEnrollments.map(item => ({ ...item, student: peopleById.get(item.studentUserId) ?? null })),
+    teachers: teacherRows.map(teacher => ({ ...teacher, user: peopleById.get(teacher.userId) ?? null })).filter(teacher => actor.roleKey !== "TEACHER" || visibleAssignments.some(item => item.teacherUserId === teacher.userId)),
+    students: studentRows.map(student => ({ ...student, user: peopleById.get(student.userId) ?? null })).filter(student => actor.roleKey !== "STUDENT" || student.userId === actor.userId).filter(student => actor.roleKey !== "GUARDIAN" || visibleEnrollments.some(item => item.studentUserId === student.userId)),
+    actor,
+  };
+}
+
+async function ensureAcademicRecordBelongsToSchool(table: typeof courses | typeof subjects | typeof academicYears | typeof gradeLevels, id: number, schoolId: number) {
+  const db = await getDb();
+  if (!db) return false;
+  const row = (await db.select({ id: table.id }).from(table).where(and(eq(table.id, id), eq(table.schoolId, schoolId))).limit(1))[0];
+  return Boolean(row);
+}
+
+export async function createAcademicYear(actor: AcademicActor, input: { name: string; year: number; startDate: Date; endDate: Date; status: string }) {
+  const db = await getDb();
+  if (!db) return null;
+  if (input.endDate <= input.startDate) throw new Error("La fecha final debe ser posterior a la fecha inicial.");
+  if ((await db.select({ id: academicYears.id }).from(academicYears).where(and(eq(academicYears.schoolId, actor.schoolId), eq(academicYears.year, input.year))).limit(1)).length) throw new Error("Ya existe un año académico con ese año en la institución.");
+  if (input.status === "ACTIVE") await db.update(academicYears).set({ status: "CLOSED" }).where(eq(academicYears.schoolId, actor.schoolId));
+  await db.insert(academicYears).values({ schoolId: actor.schoolId, ...input });
+  const row = (await db.select().from(academicYears).where(and(eq(academicYears.schoolId, actor.schoolId), eq(academicYears.year, input.year))).limit(1))[0];
+  return row;
+}
+
+export async function createAcademicGrade(actor: AcademicActor, input: { name: string; shortName: string; levelOrder: number }) {
+  const db = await getDb();
+  if (!db) return null;
+  if ((await db.select({ id: gradeLevels.id }).from(gradeLevels).where(and(eq(gradeLevels.schoolId, actor.schoolId), eq(gradeLevels.shortName, input.shortName))).limit(1)).length) throw new Error("Ya existe ese grado en la institución.");
+  await db.insert(gradeLevels).values({ schoolId: actor.schoolId, ...input, status: "ACTIVE" });
+  return (await db.select().from(gradeLevels).where(and(eq(gradeLevels.schoolId, actor.schoolId), eq(gradeLevels.shortName, input.shortName))).limit(1))[0];
+}
+
+export async function createAcademicCourse(actor: AcademicActor, input: { academicYearId: number; gradeLevelId: number; name: string; code: string; capacity?: number | null }) {
+  const db = await getDb();
+  if (!db) return null;
+  if (!(await ensureAcademicRecordBelongsToSchool(academicYears, input.academicYearId, actor.schoolId)) || !(await ensureAcademicRecordBelongsToSchool(gradeLevels, input.gradeLevelId, actor.schoolId))) throw new Error("El año o grado no pertenece a esta institución.");
+  if ((await db.select({ id: courses.id }).from(courses).where(and(eq(courses.schoolId, actor.schoolId), eq(courses.academicYearId, input.academicYearId), eq(courses.code, input.code))).limit(1)).length) throw new Error("Ya existe un curso con ese código en el año académico.");
+  const grade = (await db.select().from(gradeLevels).where(eq(gradeLevels.id, input.gradeLevelId)).limit(1))[0];
+  await db.insert(courses).values({ schoolId: actor.schoolId, academicYearId: input.academicYearId, gradeLevelId: input.gradeLevelId, name: input.name, code: input.code, grade: grade?.shortName ?? "", groupName: (input.name.split("-")[1] ?? "1").slice(0, 10), year: String((await db.select().from(academicYears).where(eq(academicYears.id, input.academicYearId)).limit(1))[0]?.year ?? ""), capacity: input.capacity ?? null, status: "ACTIVE", teacherName: "Equipo académico", studentsCount: 0, average: 0 });
+  return (await db.select().from(courses).where(and(eq(courses.schoolId, actor.schoolId), eq(courses.code, input.code))).orderBy(desc(courses.id)).limit(1))[0];
+}
+
+export async function createAcademicSubject(actor: AcademicActor, input: { name: string; shortName: string; code: string; description?: string }) {
+  const db = await getDb();
+  if (!db) return null;
+  if ((await db.select({ id: subjects.id }).from(subjects).where(and(eq(subjects.schoolId, actor.schoolId), eq(subjects.code, input.code))).limit(1)).length) throw new Error("Ya existe una materia con ese código en la institución.");
+  await db.insert(subjects).values({ schoolId: actor.schoolId, ...input, description: input.description ?? null, status: "ACTIVE", course: "", teacherName: "Equipo académico" });
+  return (await db.select().from(subjects).where(and(eq(subjects.schoolId, actor.schoolId), eq(subjects.code, input.code))).orderBy(desc(subjects.id)).limit(1))[0];
+}
+
+export async function attachSubjectToCourse(actor: AcademicActor, input: { courseId: number; subjectId: number }) {
+  const db = await getDb();
+  if (!db || !(await ensureAcademicRecordBelongsToSchool(courses, input.courseId, actor.schoolId)) || !(await ensureAcademicRecordBelongsToSchool(subjects, input.subjectId, actor.schoolId))) throw new Error("Curso o materia inválidos para esta institución.");
+  if ((await db.select({ id: courseSubjects.id }).from(courseSubjects).where(and(eq(courseSubjects.schoolId, actor.schoolId), eq(courseSubjects.courseId, input.courseId), eq(courseSubjects.subjectId, input.subjectId))).limit(1)).length) return { alreadyExists: true };
+  await db.insert(courseSubjects).values({ schoolId: actor.schoolId, courseId: input.courseId, subjectId: input.subjectId, status: "ACTIVE" });
+  return { alreadyExists: false };
+}
+
+export async function assignAcademicTeacher(actor: AcademicActor, input: { teacherUserId: number; courseId: number; subjectId: number; academicYearId: number; isPrimary: boolean }) {
+  const db = await getDb();
+  if (!db) return null;
+  const teacher = (await db.select({ userId: teacherProfiles.userId }).from(teacherProfiles).where(and(eq(teacherProfiles.schoolId, actor.schoolId), eq(teacherProfiles.userId, input.teacherUserId))).limit(1))[0];
+  const course = (await db.select().from(courses).where(and(eq(courses.schoolId, actor.schoolId), eq(courses.id, input.courseId))).limit(1))[0];
+  const subject = await ensureAcademicRecordBelongsToSchool(subjects, input.subjectId, actor.schoolId);
+  const link = (await db.select({ id: courseSubjects.id }).from(courseSubjects).where(and(eq(courseSubjects.schoolId, actor.schoolId), eq(courseSubjects.courseId, input.courseId), eq(courseSubjects.subjectId, input.subjectId))).limit(1))[0];
+  if (!teacher || !course || !subject || !link || course.academicYearId !== input.academicYearId) throw new Error("La asignación requiere docente, curso, materia y año del mismo contexto institucional.");
+  await db.insert(teacherAssignments).values({ schoolId: actor.schoolId, ...input, isPrimary: input.isPrimary ? 1 : 0, status: "ACTIVE" });
+  return (await db.select().from(teacherAssignments).where(and(eq(teacherAssignments.schoolId, actor.schoolId), eq(teacherAssignments.teacherUserId, input.teacherUserId), eq(teacherAssignments.courseId, input.courseId), eq(teacherAssignments.subjectId, input.subjectId), eq(teacherAssignments.academicYearId, input.academicYearId))).limit(1))[0];
+}
+
+export async function enrollAcademicStudent(actor: AcademicActor, input: { studentUserId: number; academicYearId: number; courseId: number }) {
+  const db = await getDb();
+  if (!db) return null;
+  const [student, course, year] = await Promise.all([
+    db.select({ userId: studentProfiles.userId }).from(studentProfiles).where(and(eq(studentProfiles.schoolId, actor.schoolId), eq(studentProfiles.userId, input.studentUserId))).limit(1),
+    db.select().from(courses).where(and(eq(courses.schoolId, actor.schoolId), eq(courses.id, input.courseId))).limit(1),
+    db.select({ id: academicYears.id }).from(academicYears).where(and(eq(academicYears.schoolId, actor.schoolId), eq(academicYears.id, input.academicYearId))).limit(1),
+  ]);
+  if (!student[0] || !course[0] || !year[0] || course[0].academicYearId !== input.academicYearId) throw new Error("La matrícula requiere estudiante, curso y año del mismo contexto institucional.");
+  if ((await db.select({ id: studentEnrollments.id }).from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, actor.schoolId), eq(studentEnrollments.studentUserId, input.studentUserId), eq(studentEnrollments.academicYearId, input.academicYearId), eq(studentEnrollments.enrollmentStatus, "ACTIVE"))).limit(1)).length) throw new Error("El estudiante ya tiene una matrícula activa en ese año.");
+  await db.insert(studentEnrollments).values({ schoolId: actor.schoolId, ...input, enrollmentStatus: "ACTIVE" });
+  return (await db.select().from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, actor.schoolId), eq(studentEnrollments.studentUserId, input.studentUserId), eq(studentEnrollments.academicYearId, input.academicYearId), eq(studentEnrollments.courseId, input.courseId))).orderBy(desc(studentEnrollments.id)).limit(1))[0];
+}
+
+export async function transferAcademicStudent(actor: AcademicActor, input: { enrollmentId: number; newCourseId: number; reason?: string }) {
+  const db = await getDb();
+  if (!db) return null;
+  const current = (await db.select().from(studentEnrollments).where(and(eq(studentEnrollments.id, input.enrollmentId), eq(studentEnrollments.schoolId, actor.schoolId), eq(studentEnrollments.enrollmentStatus, "ACTIVE"))).limit(1))[0];
+  const newCourse = (await db.select().from(courses).where(and(eq(courses.id, input.newCourseId), eq(courses.schoolId, actor.schoolId))).limit(1))[0];
+  if (!current || !newCourse || newCourse.academicYearId !== current.academicYearId || newCourse.id === current.courseId) throw new Error("El cambio requiere una matrícula activa y un curso válido del mismo año.");
+  const now = new Date();
+  await db.update(studentEnrollments).set({ enrollmentStatus: "TRANSFERRED", withdrawalDate: now }).where(eq(studentEnrollments.id, current.id));
+  await db.insert(studentEnrollments).values({ schoolId: actor.schoolId, studentUserId: current.studentUserId, academicYearId: current.academicYearId, courseId: input.newCourseId, enrollmentStatus: "ACTIVE", enrollmentDate: now });
+  await db.insert(enrollmentHistory).values({ schoolId: actor.schoolId, enrollmentId: current.id, studentUserId: current.studentUserId, fromCourseId: current.courseId, toCourseId: input.newCourseId, changedByUserId: actor.userId, changedAt: now, reason: input.reason ?? null });
+  return { previous: current, newCourseId: input.newCourseId };
+}
+
+export async function writeAcademicAudit(actor: AcademicActor, action: string, targetType: string, detail: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(auditLogs).values({ schoolId: actor.schoolId, actorUserId: actor.userId, targetType, actorRole: actor.roleKey, action, detail });
+}
