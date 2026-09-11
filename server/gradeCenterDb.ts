@@ -136,7 +136,7 @@ export async function getGradeCenterContext(actor: GradeCenterActor, input: Grad
     const values = assessmentsRows.map(assessment => ({ assessment, grade: gradeByKey.get(`${assessment.id}:${enrollment.studentUserId}`) ?? null }));
     return { enrollment, student: peopleById.get(enrollment.studentUserId) ?? null, values, average: weightedAverage(values.map(item => ({ value: item.grade?.value ?? null, maxValue: item.assessment.maxValue, weight: item.assessment.weight }))) };
   });
-  const recorded = rows.flatMap(row => row.values.filter(item => item.grade?.value !== null).map(item => ({ value: (item.grade!.value! / item.assessment.maxValue) * 5, comment: item.grade?.comment })));
+  const recorded = rows.flatMap(row => row.values.filter(item => item.grade && item.grade.value !== null && item.grade.value !== undefined).map(item => ({ value: (item.grade!.value! / item.assessment.maxValue) * 5, comment: item.grade?.comment })));
   const average = recorded.length ? Number((recorded.reduce((sum, item) => sum + item.value, 0) / recorded.length).toFixed(2)) : null;
   const distribution = [
     { label: "5.0–4.5", count: recorded.filter(item => item.value >= 4.5).length },
@@ -189,7 +189,13 @@ export async function updateGradeCenterAssessment(actor: GradeCenterActor, input
   if (!assessment) throw new Error("Evaluación no encontrada.");
   if (assessment.status === "CLOSED" && !MANAGEMENT_ROLES.includes(actor.roleKey)) throw new Error("La evaluación está cerrada.");
   if (actor.roleKey === "TEACHER") await assertContext(actor, { courseId: assessment.courseId, subjectId: assessment.subjectId, academicPeriodId: assessment.academicPeriodId });
-  await db.update(assessments).set({ title: input.title ?? assessment.title, description: input.description ?? assessment.description, weight: input.weight ?? assessment.weight, date: input.date ?? assessment.date, status: input.status ?? assessment.status }).where(eq(assessments.id, input.id));
+  if (input.weight !== undefined && (input.weight < 0 || input.weight > 100 || isNaN(input.weight))) {
+    throw new Error("El peso de la evaluación debe estar entre 0 y 100.");
+  }
+  if (input.title !== undefined && (!input.title.trim() || input.title.trim().length < 3)) {
+    throw new Error("El título de la evaluación debe tener al menos 3 caracteres.");
+  }
+  await db.update(assessments).set({ title: input.title ? input.title.trim() : assessment.title, description: input.description !== undefined ? input.description : assessment.description, weight: input.weight !== undefined ? input.weight : assessment.weight, date: input.date !== undefined ? input.date : assessment.date, status: input.status !== undefined ? input.status : assessment.status }).where(eq(assessments.id, input.id));
   await writeAcademicAudit(actor, input.status === "PUBLISHED" ? "assessment_published" : input.status === "CLOSED" ? "assessment_closed" : "assessment_updated", "assessment", String(input.id));
   return (await db.select().from(assessments).where(eq(assessments.id, input.id)).limit(1))[0];
 }

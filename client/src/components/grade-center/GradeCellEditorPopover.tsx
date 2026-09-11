@@ -73,9 +73,9 @@ export function GradeCellEditorPopoverContent({
     setShowCommentField(Boolean(currentComment));
     setValidationError(null);
 
-    // Auto-enfocar y seleccionar el input inmediatamente
-    const timer = setTimeout(() => {
-      if (inputRef.current) {
+    // Auto-enfocar y seleccionar el input de manera inmediata y limpia
+    const animId = requestAnimationFrame(() => {
+      if (inputRef.current && document.activeElement !== inputRef.current) {
         inputRef.current.focus();
         if (initialDraftValue) {
           inputRef.current.setSelectionRange(initialDraftValue.length, initialDraftValue.length);
@@ -83,8 +83,8 @@ export function GradeCellEditorPopoverContent({
           inputRef.current.select();
         }
       }
-    }, 20);
-    return () => clearTimeout(timer);
+    });
+    return () => cancelAnimationFrame(animId);
   }, [cellKey, currentValue, currentComment, initialDraftValue]);
 
   const suggestions = React.useMemo(() => {

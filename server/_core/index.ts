@@ -7,6 +7,7 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { ensureDatabaseRunning } from "./ensureDatabase";
 
 // Ensure console.log flushes immediately on Windows when piped
 if ((process.stdout as any)._handle?.setBlocking) (process.stdout as any)._handle.setBlocking(true);
@@ -28,6 +29,7 @@ function listenOnAvailablePort(server: ReturnType<typeof createServer>, port: nu
 
 async function startServer() {
   console.log("[EduCore] Starting server...");
+  await ensureDatabaseRunning();
   const app = express();
   const server = createServer(app);
 

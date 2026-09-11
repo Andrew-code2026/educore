@@ -44,18 +44,28 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { DEMO_ROLE_MAP, IDENTITY_ROLES, PERMISSIONS, PERMISSION_METADATA, ROLE_DESCRIPTIONS, ROLE_HIERARCHY, ROLE_LABELS, type DemoRole, type IdentityRole, hasPermission, permissionsForRole } from "./identityModel";
+import { ensureDatabaseRunning } from "./_core/ensureDatabase";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _dbInitPromise: Promise<void> | null = null;
 export const DEMO_SCHOOL_ID = 1;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
-    try {
-      _db = drizzle(process.env.DATABASE_URL);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
+    if (!_dbInitPromise) {
+      _dbInitPromise = (async () => {
+        try {
+          await ensureDatabaseRunning();
+          _db = drizzle(process.env.DATABASE_URL!);
+        } catch (error) {
+          console.warn("[Database] Failed to connect:", error);
+          _db = null;
+        } finally {
+          _dbInitPromise = null;
+        }
+      })();
     }
+    await _dbInitPromise;
   }
   return _db;
 }

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   X,
-  ExternalLink,
   Award,
   TrendingDown,
   Clock,
@@ -20,6 +19,7 @@ import {
   studentName,
   numberValue,
   getPerformanceTone,
+  calculateDefinitiva,
   POPOVER_GLASS_PANEL_CLASS,
 } from "./gradeCenterUtils";
 import {
@@ -28,7 +28,6 @@ import {
   determineRiskLevel,
 } from "./gradeIntelligenceUtils";
 import {
-  calculateMedian,
   calculateApprovalRate,
 } from "./gradeStatisticsUtils";
 import { type GradeCenterTableRow } from "./GradeCenterTable";
@@ -45,6 +44,7 @@ interface StudentSummaryPopoverProps {
   onViewDetail?: () => void;
   onOpenSimulator?: (studentRow: GradeCenterTableRow) => void;
   onOpenStudentStats?: (studentRow: GradeCenterTableRow) => void;
+  pendingGrades?: Record<string, number | null>;
   children: React.ReactNode;
 }
 
@@ -60,6 +60,7 @@ export function StudentSummaryPopover({
   onViewDetail,
   onOpenSimulator,
   onOpenStudentStats,
+  pendingGrades,
   children,
 }: StudentSummaryPopoverProps) {
   const [internalOpen, setInternalOpen] = React.useState(false);
@@ -69,23 +70,33 @@ export function StudentSummaryPopover({
 
   const sName = studentName(studentRow.student);
   const studentId = studentRow.enrollment.studentUserId;
-  const average = studentRow.average;
-  const tone = getPerformanceTone(average);
 
-  // Normalizar valores para el motor de inteligencia
+  // Normalizar valores para el motor de inteligencia respetando cambios pendientes
   const rawValues = studentRow.values ?? [];
   const normalizedValues = React.useMemo(() => {
-    return rawValues.map(v => ({
-      value: v.grade?.value !== null && v.grade?.value !== undefined && !isNaN(Number(v.grade?.value))
-        ? Number(v.grade?.value)
-        : null,
-      maxValue: Number(v.assessment.maxValue) || (scale?.maxValue ?? 5),
-      weight: Number(v.assessment.weight) || 0,
-    }));
-  }, [rawValues, scale?.maxValue]);
+    return rawValues.map(v => {
+      const key = `${v.assessment.id}:${studentId}`;
+      const liveVal =
+        pendingGrades && Object.prototype.hasOwnProperty.call(pendingGrades, key)
+          ? pendingGrades[key]
+          : v.grade?.value !== null && v.grade?.value !== undefined && !isNaN(Number(v.grade?.value))
+          ? Number(v.grade?.value)
+          : null;
+      return {
+        value: liveVal,
+        maxValue: Number(v.assessment.maxValue) || (scale?.maxValue ?? 5),
+        weight: Number(v.assessment.weight) || 0,
+      };
+    });
+  }, [rawValues, scale?.maxValue, pendingGrades, studentId]);
 
-  const validGrades = rawValues
-    .map(v => v.grade?.value)
+  const average = React.useMemo(() => {
+    return calculateDefinitiva(normalizedValues);
+  }, [normalizedValues]);
+  const tone = getPerformanceTone(average);
+
+  const validGrades = normalizedValues
+    .map(v => v.value)
     .filter((val): val is number => val !== null && val !== undefined && !isNaN(Number(val)));
 
   const bestGrade = validGrades.length ? Math.max(...validGrades) : null;
@@ -105,7 +116,6 @@ export function StudentSummaryPopover({
     return determineRiskLevel(normalizedValues, scale, sName, studentId);
   }, [normalizedValues, scale, sName, studentId]);
 
-  const median = React.useMemo(() => calculateMedian(validGrades), [validGrades]);
   const approvalRate = React.useMemo(() => calculateApprovalRate(validGrades, scale), [validGrades, scale]);
 
   const relativeRank = React.useMemo(() => {
@@ -136,6 +146,13 @@ export function StudentSummaryPopover({
         sideOffset={10}
         avoidCollisions={true}
         className={`${POPOVER_GLASS_PANEL_CLASS} w-80`}
+        onKeyDownCapture={e => {
+          if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen(false);
+          }
+        }}
       >
         {/* Highlight de vidrio sutil superior */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-8 rounded-t-2xl bg-gradient-to-b from-white/60 to-transparent dark:from-white/5" />
@@ -323,7 +340,7 @@ export function StudentSummaryPopover({
           </div>
         </div>
 
-        {/* Píldoras de destacados: Mejor, Peor, Mediana, Aprobadas, Pendientes */}
+        {/* Píldoras de destacados: Máximo, Mínimo, Aprobadas, Calificadas y Pendientes */}
         {rawValues.length > 0 && (
           <div className="relative mb-2.5 rounded-xl bg-slate-50/80 p-2 text-[10px] text-slate-600 dark:bg-slate-800/50 dark:text-slate-300">
             <div className="flex items-center justify-between gap-1.5 pb-1.5 border-b border-slate-200/60 dark:border-slate-700/60">
@@ -337,13 +354,13 @@ export function StudentSummaryPopover({
                 Mín: <strong>{numberValue(lowestGrade)}</strong>
               </span>
               <span>·</span>
-              <span title="Mediana de notas obtenidas">
-                Mediana: <strong>{numberValue(median)}</strong>
+              <span title="Tasa de evaluaciones aprobadas">
+                Aprobadas: <strong className="text-emerald-600 dark:text-emerald-400">{approvalRate.rate}%</strong>
               </span>
             </div>
             <div className="flex items-center justify-between gap-1.5 pt-1.5">
-              <span title="Tasa de evaluaciones aprobadas">
-                Aprobadas: <strong className="text-emerald-600 dark:text-emerald-400">{approvalRate.rate}%</strong> ({approvalRate.passingCount}/{approvalRate.totalCount})
+              <span className="text-slate-500 font-medium">
+                Calificadas: <strong>{validGrades.length}/{rawValues.length}</strong>
               </span>
               <span className="flex items-center gap-1 text-slate-400 font-medium" title="Evaluaciones pendientes de calificar">
                 <Clock className="h-3 w-3 text-amber-500" />
@@ -353,8 +370,8 @@ export function StudentSummaryPopover({
           </div>
         )}
 
-        {/* Acciones: Simular definitiva, Estadísticas & Ver detalle */}
-        <div className="relative flex items-center gap-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800">
+        {/* Acciones: Simular definitiva y Estadísticas */}
+        <div className="relative flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
           {onOpenSimulator && (
             <Button
               type="button"
@@ -364,9 +381,9 @@ export function StudentSummaryPopover({
                 setOpen(false);
                 onOpenSimulator(studentRow);
               }}
-              className="h-7 flex-1 justify-center rounded-xl text-[10px] font-semibold text-indigo-600 border-indigo-200 hover:bg-indigo-50/60 dark:border-indigo-800 dark:text-indigo-300 px-1"
+              className="h-7.5 flex-1 justify-center rounded-xl text-xs font-semibold text-indigo-600 border-indigo-200 hover:bg-indigo-50/60 dark:border-indigo-800 dark:text-indigo-300"
             >
-              <Calculator className="mr-1 h-3 w-3" />
+              <Calculator className="mr-1.5 h-3.5 w-3.5" />
               Simular
             </Button>
           )}
@@ -380,27 +397,13 @@ export function StudentSummaryPopover({
                 setOpen(false);
                 onOpenStudentStats(studentRow);
               }}
-              className="h-7 flex-1 justify-center rounded-xl text-[10px] font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 px-1"
+              className="h-7.5 flex-1 justify-center rounded-xl text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200"
               title="Ver estadísticas y evolución del estudiante"
             >
-              <BarChart3 className="mr-1 h-3 w-3 text-slate-500" />
+              <BarChart3 className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
               Stats
             </Button>
           )}
-
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setOpen(false);
-              onViewDetail?.();
-            }}
-            className="h-7 flex-1 justify-center rounded-xl text-[10px] font-semibold text-[var(--edc-primary)] hover:bg-[var(--edc-secondary)]/30 hover:text-[var(--edc-primary)] px-1"
-          >
-            Detalle
-            <ExternalLink className="ml-1 h-3 w-3" />
-          </Button>
         </div>
       </PopoverContent>
     </Popover>

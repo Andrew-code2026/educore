@@ -137,8 +137,8 @@ export function GradeStatisticsPanel({
         </Button>
       </div>
 
-      {/* Grid de Métricas Ejecutivas */}
-      <div className="my-3.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
+      {/* Grid de Métricas Ejecutivas Claras (sin sobrecarga de desviación estándar o mediana en la vista principal) */}
+      <div className="my-3.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
         {/* Promedio General */}
         <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 dark:border-slate-800/80 dark:bg-slate-850/40">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -149,48 +149,6 @@ export function GradeStatisticsPanel({
               {numberValue(stats.groupAverage)}
             </span>
             <span className="text-[10px] text-slate-400">/ {scale?.maxValue ?? 5}</span>
-          </div>
-        </div>
-
-        {/* Mediana */}
-        <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 dark:border-slate-800/80 dark:bg-slate-850/40">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Mediana
-          </span>
-          <div className="mt-1 flex items-baseline gap-1.5">
-            <span className="text-xl font-black tracking-tight text-slate-700 dark:text-slate-200">
-              {numberValue(stats.median)}
-            </span>
-            <span className="text-[10px] text-slate-400">puntos</span>
-          </div>
-        </div>
-
-        {/* Desviación Estándar */}
-        <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 dark:border-slate-800/80 dark:bg-slate-850/40">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400" title="Desviación Estándar (dispersión)">
-            Desv. Est.
-          </span>
-          <div className="mt-1 flex items-baseline gap-1.5">
-            <span className="text-xl font-black tracking-tight text-indigo-600 dark:text-indigo-400">
-              {stats.standardDeviation !== null ? `±${stats.standardDeviation.toFixed(2)}` : "—"}
-            </span>
-            <span className="text-[10px] text-slate-400">dispersión</span>
-          </div>
-        </div>
-
-        {/* Rango Min - Max */}
-        <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 dark:border-slate-800/80 dark:bg-slate-850/40">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Mínima – Máxima
-          </span>
-          <div className="mt-1 flex items-baseline gap-1.5">
-            <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
-              {numberValue(stats.minGrade)}
-            </span>
-            <span className="text-slate-300">/</span>
-            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-              {numberValue(stats.maxGrade)}
-            </span>
           </div>
         </div>
 
@@ -238,6 +196,22 @@ export function GradeStatisticsPanel({
               {stats.totalPendingCount}
             </span>
             <span className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80">celdas</span>
+          </div>
+        </div>
+
+        {/* Rango Min - Max */}
+        <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 dark:border-slate-800/80 dark:bg-slate-850/40">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Rango (Mín – Máx)
+          </span>
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
+              {numberValue(stats.minGrade)}
+            </span>
+            <span className="text-slate-300">/</span>
+            <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+              {numberValue(stats.maxGrade)}
+            </span>
           </div>
         </div>
       </div>

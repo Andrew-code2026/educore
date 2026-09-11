@@ -18,6 +18,11 @@ import {
 } from "./gradeCenterUtils";
 import { calculateStudentProjection } from "./gradeIntelligenceUtils";
 
+import {
+  type GradeFilterKey,
+  type GradeViewMode,
+} from "./GradeCenterToolbar";
+
 export interface GradeCenterTableRow {
   enrollment: {
     id: number;
@@ -34,6 +39,8 @@ export interface GradeCenterTableRow {
       maxValue: number;
       weight: number;
       status: string;
+      description?: string | null;
+      date?: string | Date | null;
     };
     grade: {
       id?: number;
@@ -52,6 +59,13 @@ export interface Assessment {
   maxValue: number;
   weight: number;
   status: string;
+  description?: string | null;
+  date?: string | Date | null;
+}
+
+export interface ActiveGradeCell {
+  studentUserId: number;
+  assessmentId: number;
 }
 
 interface GradeCenterTableProps {
@@ -79,10 +93,17 @@ interface GradeCenterTableProps {
   onOpenStudentStats?: (studentRow: GradeCenterTableRow) => void;
   groupAverage?: number | null;
   externalTargetCell?: { studentUserId: number; assessmentId: number; ts: number } | null;
+  onClearExternalTargetCell?: () => void;
   isSaving?: boolean;
   selectedStudentIds?: number[];
   onToggleStudent?: (studentId: number) => void;
   onToggleAllVisible?: () => void;
+  viewMode?: GradeViewMode;
+  onEditAssessment?: (
+    assessmentId: number,
+    data: { title?: string; weight?: number; date?: Date; description?: string }
+  ) => Promise<void> | void;
+  onFilterPendingForAssessment?: (assessmentId: number) => void;
 }
 
 export function GradeCenterTable({
@@ -101,41 +122,55 @@ export function GradeCenterTable({
   onOpenStudentStats,
   groupAverage,
   externalTargetCell,
+  onClearExternalTargetCell,
   isSaving = false,
   selectedStudentIds = [],
   onToggleStudent,
   onToggleAllVisible,
+  viewMode = "NOTES",
+  onEditAssessment,
+  onFilterPendingForAssessment,
 }: GradeCenterTableProps) {
-  // Celda activa con el popover de calificación abierto
-  const [activeCell, setActiveCell] = React.useState<{
-    rowIndex: number;
-    colIndex: number;
-  } | null>(null);
+  // Celda activa con el popover de calificación abierto (identidad lógica inmutable)
+  const [activeCell, setActiveCell] = React.useState<ActiveGradeCell | null>(null);
 
   // Caracter inicial para pre-llenar cuando se empieza a escribir con el teclado en la tabla
   const [initialDraft, setInitialDraft] = React.useState<string | undefined>(undefined);
 
-  // Celda con foco de navegación en el grid
-  const [focusedCell, setFocusedCell] = React.useState<{
-    rowIndex: number;
-    colIndex: number;
-  } | null>(null);
+  // Celda con foco de navegación en el grid (identidad lógica inmutable)
+  const [focusedCell, setFocusedCell] = React.useState<ActiveGradeCell | null>(null);
+
+  // Control de popover de resumen de estudiante único y controlado
+  const [openStudentSummaryId, setOpenStudentSummaryId] = React.useState<number | null>(null);
 
   const clipboardRef = React.useRef<number | null>(null);
+  const lastConsumedTargetTs = React.useRef<number | null>(null);
 
-  // Navegación directa desde componentes externos (ej. lista de pendientes)
+  // Navegación directa desde componentes externos (consumo único garantizado sin re-disparo)
   React.useEffect(() => {
     if (!externalTargetCell) return;
-    const rowIndex = rows.findIndex(
+    if (lastConsumedTargetTs.current === externalTargetCell.ts) return;
+    lastConsumedTargetTs.current = externalTargetCell.ts;
+
+    const targetStudent = rows.find(
       r => r.enrollment.studentUserId === externalTargetCell.studentUserId
     );
-    const colIndex = assessments.findIndex(a => a.id === externalTargetCell.assessmentId);
-    if (rowIndex !== -1 && colIndex !== -1) {
-      setActiveCell({ rowIndex, colIndex });
-      setFocusedCell({ rowIndex, colIndex });
+    const targetAssessment = assessments.find(a => a.id === externalTargetCell.assessmentId);
+
+    if (targetStudent && targetAssessment) {
+      setOpenStudentSummaryId(null);
+      setActiveCell({
+        studentUserId: externalTargetCell.studentUserId,
+        assessmentId: externalTargetCell.assessmentId,
+      });
+      setFocusedCell({
+        studentUserId: externalTargetCell.studentUserId,
+        assessmentId: externalTargetCell.assessmentId,
+      });
       setInitialDraft(undefined);
+      onClearExternalTargetCell?.();
     }
-  }, [externalTargetCell, rows, assessments]);
+  }, [externalTargetCell, rows, assessments, onClearExternalTargetCell]);
 
   // Obtener el valor actual de una celda teniendo en cuenta cambios locales pendientes
   const getCellValue = React.useCallback(
@@ -234,6 +269,13 @@ export function GradeCenterTable({
     toast.success(`Nota ${parsed} pegada`);
   };
 
+  const focusCellElement = React.useCallback((assessmentId: number, studentUserId: number) => {
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(`[data-cell-id="${assessmentId}:${studentUserId}"]`);
+      el?.focus();
+    });
+  }, []);
+
   // Flujo único y centralizado para guardar y avanzar (handleSaveAndAdvance)
   const handleSaveAndAdvance = React.useCallback(
     (
@@ -241,65 +283,75 @@ export function GradeCenterTable({
       direction: "down" | "up" | "right" | "left" | "stay" = "down",
       comment?: string
     ) => {
+      setOpenStudentSummaryId(null);
       if (!activeCell) return;
-      const { rowIndex, colIndex } = activeCell;
-      const assessment = assessments[colIndex];
-      const row = rows[rowIndex];
-      if (!assessment || !row) return;
-
-      const studentId = row.enrollment.studentUserId;
+      const { studentUserId, assessmentId } = activeCell;
+      const rowIndex = rows.findIndex(r => r.enrollment.studentUserId === studentUserId);
+      const colIndex = assessments.findIndex(a => a.id === assessmentId);
+      if (rowIndex === -1 || colIndex === -1) return;
 
       // 1. Registrar cambio pendiente de la nota (actualiza reactivamente la definitiva)
-      onCellPendingChange?.(assessment.id, studentId, val);
+      onCellPendingChange?.(assessmentId, studentUserId, val);
 
       // 2. Si hubo comentario, guardarlo
       if (comment !== undefined && onSaveCellGrade) {
-        void onSaveCellGrade(assessment.id, studentId, val, comment);
+        void onSaveCellGrade(assessmentId, studentUserId, val, comment);
       }
 
       setInitialDraft(undefined);
 
-      // 3. Buscar siguiente estudiante según la dirección
+      // 3. Buscar siguiente celda según la dirección
       if (direction === "down") {
         const nextRow = rowIndex + 1;
         if (nextRow < rows.length) {
-          setActiveCell({ rowIndex: nextRow, colIndex });
-          setFocusedCell({ rowIndex: nextRow, colIndex });
+          const nextStudentId = rows[nextRow].enrollment.studentUserId;
+          setActiveCell({ studentUserId: nextStudentId, assessmentId });
+          setFocusedCell({ studentUserId: nextStudentId, assessmentId });
         } else {
-          // PRUEBA 5: En el último estudiante, no intentar acceder a fila inexistente ni romper el popover
           setActiveCell(null);
-          setFocusedCell({ rowIndex, colIndex });
+          setFocusedCell({ studentUserId, assessmentId });
+          focusCellElement(assessmentId, studentUserId);
         }
       } else if (direction === "up") {
         const prevRow = rowIndex - 1;
         if (prevRow >= 0) {
-          setActiveCell({ rowIndex: prevRow, colIndex });
-          setFocusedCell({ rowIndex: prevRow, colIndex });
+          const prevStudentId = rows[prevRow].enrollment.studentUserId;
+          setActiveCell({ studentUserId: prevStudentId, assessmentId });
+          setFocusedCell({ studentUserId: prevStudentId, assessmentId });
         } else {
           setActiveCell(null);
-          setFocusedCell({ rowIndex, colIndex });
+          setFocusedCell({ studentUserId, assessmentId });
+          focusCellElement(assessmentId, studentUserId);
         }
       } else if (direction === "right") {
         const nextCol = colIndex + 1;
         if (nextCol < assessments.length) {
-          setActiveCell({ rowIndex, colIndex: nextCol });
-          setFocusedCell({ rowIndex, colIndex: nextCol });
+          const nextAssessmentId = assessments[nextCol].id;
+          setActiveCell({ studentUserId, assessmentId: nextAssessmentId });
+          setFocusedCell({ studentUserId, assessmentId: nextAssessmentId });
         } else {
           setActiveCell(null);
+          setFocusedCell({ studentUserId, assessmentId });
+          focusCellElement(assessmentId, studentUserId);
         }
       } else if (direction === "left") {
         const prevCol = colIndex - 1;
         if (prevCol >= 0) {
-          setActiveCell({ rowIndex, colIndex: prevCol });
-          setFocusedCell({ rowIndex, colIndex: prevCol });
+          const prevAssessmentId = assessments[prevCol].id;
+          setActiveCell({ studentUserId, assessmentId: prevAssessmentId });
+          setFocusedCell({ studentUserId, assessmentId: prevAssessmentId });
         } else {
           setActiveCell(null);
+          setFocusedCell({ studentUserId, assessmentId });
+          focusCellElement(assessmentId, studentUserId);
         }
       } else if (direction === "stay") {
         setActiveCell(null);
+        setFocusedCell({ studentUserId, assessmentId });
+        focusCellElement(assessmentId, studentUserId);
       }
     },
-    [activeCell, assessments, rows, onCellPendingChange, onSaveCellGrade]
+    [activeCell, assessments, rows, onCellPendingChange, onSaveCellGrade, focusCellElement]
   );
 
   // Manejo de teclado cuando la celda está enfocada en modo tabla
@@ -329,16 +381,18 @@ export function GradeCenterTable({
     // Iniciar edición abriendo el popover si el usuario presiona un número o separador decimal
     if ((e.key >= "0" && e.key <= "9") || e.key === "." || e.key === ",") {
       e.preventDefault();
+      setOpenStudentSummaryId(null);
       setInitialDraft(e.key);
-      setActiveCell({ rowIndex, colIndex });
-      setFocusedCell({ rowIndex, colIndex });
+      setActiveCell({ studentUserId: studentId, assessmentId: assessment.id });
+      setFocusedCell({ studentUserId: studentId, assessmentId: assessment.id });
       return;
     }
     if (e.key === "Enter" || e.key === "F2") {
       e.preventDefault();
+      setOpenStudentSummaryId(null);
       setInitialDraft(undefined);
-      setActiveCell({ rowIndex, colIndex });
-      setFocusedCell({ rowIndex, colIndex });
+      setActiveCell({ studentUserId: studentId, assessmentId: assessment.id });
+      setFocusedCell({ studentUserId: studentId, assessmentId: assessment.id });
       return;
     }
     if (e.key === "Backspace" || e.key === "Delete") {
@@ -350,22 +404,34 @@ export function GradeCenterTable({
     // Navegación con flechas entre celdas
     if (e.key === "ArrowDown" && rowIndex + 1 < rows.length) {
       e.preventDefault();
-      setFocusedCell({ rowIndex: rowIndex + 1, colIndex });
+      const nextStudentId = rows[rowIndex + 1].enrollment.studentUserId;
+      setFocusedCell({ studentUserId: nextStudentId, assessmentId: assessment.id });
+      focusCellElement(assessment.id, nextStudentId);
     } else if (e.key === "ArrowUp" && rowIndex > 0) {
       e.preventDefault();
-      setFocusedCell({ rowIndex: rowIndex - 1, colIndex });
+      const prevStudentId = rows[rowIndex - 1].enrollment.studentUserId;
+      setFocusedCell({ studentUserId: prevStudentId, assessmentId: assessment.id });
+      focusCellElement(assessment.id, prevStudentId);
     } else if (e.key === "ArrowRight" && colIndex + 1 < assessments.length) {
       e.preventDefault();
-      setFocusedCell({ rowIndex, colIndex: colIndex + 1 });
+      const nextAssessmentId = assessments[colIndex + 1].id;
+      setFocusedCell({ studentUserId: studentId, assessmentId: nextAssessmentId });
+      focusCellElement(nextAssessmentId, studentId);
     } else if (e.key === "ArrowLeft" && colIndex > 0) {
       e.preventDefault();
-      setFocusedCell({ rowIndex, colIndex: colIndex - 1 });
+      const prevAssessmentId = assessments[colIndex - 1].id;
+      setFocusedCell({ studentUserId: studentId, assessmentId: prevAssessmentId });
+      focusCellElement(prevAssessmentId, studentId);
     } else if (e.key === "Tab") {
       e.preventDefault();
       if (e.shiftKey && colIndex > 0) {
-        setFocusedCell({ rowIndex, colIndex: colIndex - 1 });
+        const prevAssessmentId = assessments[colIndex - 1].id;
+        setFocusedCell({ studentUserId: studentId, assessmentId: prevAssessmentId });
+        focusCellElement(prevAssessmentId, studentId);
       } else if (!e.shiftKey && colIndex + 1 < assessments.length) {
-        setFocusedCell({ rowIndex, colIndex: colIndex + 1 });
+        const nextAssessmentId = assessments[colIndex + 1].id;
+        setFocusedCell({ studentUserId: studentId, assessmentId: nextAssessmentId });
+        focusCellElement(nextAssessmentId, studentId);
       }
     }
   };
@@ -374,20 +440,8 @@ export function GradeCenterTable({
   const isPartiallySelected =
     selectedStudentIds.length > 0 && selectedStudentIds.length < rows.length;
 
-  const activeRow = activeCell ? rows[activeCell.rowIndex] : null;
-  const activeAssessment = activeCell ? assessments[activeCell.colIndex] : null;
-
   return (
-    <Popover
-      open={Boolean(activeCell && activeRow && activeAssessment)}
-      onOpenChange={open => {
-        if (!open) {
-          setActiveCell(null);
-          setInitialDraft(undefined);
-        }
-      }}
-    >
-      <div className="relative w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_24px_rgba(29,78,137,0.04)] dark:border-slate-800 dark:bg-slate-900">
+    <div className="relative w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_24px_rgba(29,78,137,0.04)] dark:border-slate-800 dark:bg-slate-900">
         <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
           <table
             className="w-full min-w-[800px] border-collapse text-left text-sm"
@@ -432,7 +486,7 @@ export function GradeCenterTable({
                   <th
                     key={assessment.id}
                     scope="col"
-                    className="min-w-[110px] max-w-[150px] p-1.5 text-center font-medium"
+                    className="min-w-[115px] max-w-[155px] p-1 text-center font-medium"
                   >
                     <AssessmentStatisticsPopover
                       assessment={assessment}
@@ -440,23 +494,28 @@ export function GradeCenterTable({
                       pendingGrades={pendingGrades}
                       scale={scale}
                       groupAverage={groupAverage}
+                      onEditAssessment={onEditAssessment}
+                      onFilterPending={onFilterPendingForAssessment}
+                      canEdit={canWrite}
                     >
                       <button
                         type="button"
                         className="group flex flex-col items-center justify-center w-full rounded-xl px-2 py-2 transition hover:bg-slate-200/60 dark:hover:bg-slate-800/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
-                        title={`Click para ver estadísticas de ${assessment.title}`}
+                        title={`Click para detalles y edición de ${assessment.title}`}
                       >
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors">
+                          {typeLabel}
+                        </span>
                         <span
-                          className="truncate text-xs font-semibold text-slate-800 dark:text-slate-100 max-w-[130px] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors"
+                          className="truncate text-xs font-bold text-slate-800 dark:text-slate-100 max-w-[130px] mt-0.5 group-hover:text-[var(--edc-primary)] transition-colors"
                           title={assessment.title}
                         >
                           {assessment.title}
                         </span>
-                        <div className="mt-0.5 flex items-center gap-1 text-[11px] font-normal normal-case text-slate-500 dark:text-slate-400">
-                          <span className="truncate max-w-[70px]">{typeLabel}</span>
-                          <span>·</span>
-                          <span className="font-semibold text-[var(--edc-primary)]">
-                            {assessment.weight}%
+                        <div className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-[var(--edc-primary)]">
+                          <span>{assessment.weight}%</span>
+                          <span className="text-[10px] opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity">
+                            ⋯
                           </span>
                         </div>
                       </button>
@@ -468,7 +527,7 @@ export function GradeCenterTable({
               {/* Columna Definitiva */}
               <th
                 scope="col"
-                className="sticky right-0 z-20 min-w-[100px] border-l border-slate-200/80 bg-slate-100/80 px-4 py-3.5 text-center font-bold text-slate-800 shadow-[-2px_0_6px_rgba(0,0,0,0.03)] backdrop-blur-md dark:border-slate-800 dark:bg-slate-850/80 dark:text-white"
+                className="sticky right-0 z-20 min-w-[110px] border-l border-slate-200/80 bg-slate-100/90 px-3 py-3 text-center font-bold text-slate-800 shadow-[-2px_0_6px_rgba(0,0,0,0.03)] backdrop-blur-md dark:border-slate-800 dark:bg-slate-850/90 dark:text-white"
               >
                 <div className="flex flex-col items-center justify-center">
                   <span className="text-xs font-bold tracking-tight">Definitiva</span>
@@ -491,18 +550,38 @@ export function GradeCenterTable({
               const projection = getRowProjection(row);
               const isSelected = selectedStudentIds.includes(studentId);
 
+              // Indicadores según ViewMode (reactivo sin tocar celdas ni foco)
+              const studentGrades = row.values
+                .map(v => getCellValue(v.assessment.id, studentId, v.grade?.value ?? null))
+                .filter((g): g is number => g !== null);
+              const pendingCountForStudent = row.values.filter(
+                v => getCellValue(v.assessment.id, studentId, v.grade?.value ?? null) === null
+              ).length;
+              let trend: "up" | "down" | "stable" | null = null;
+              if (studentGrades.length >= 2) {
+                const latest = studentGrades[studentGrades.length - 1];
+                const prev = studentGrades[studentGrades.length - 2];
+                if (latest - prev >= 0.3) trend = "up";
+                else if (prev - latest >= 0.3) trend = "down";
+                else trend = "stable";
+              }
+
               return (
                 <tr
                   key={row.enrollment.id}
                   className={`group transition-colors duration-150 ${
                     isSelected
                       ? "bg-blue-50/40 dark:bg-blue-950/20"
+                      : viewMode === "RISK" && definitiva !== null && definitiva < 3.0
+                      ? "bg-rose-50/25 hover:bg-rose-50/40 dark:bg-rose-950/20"
+                      : viewMode === "PENDING" && pendingCountForStudent > 0
+                      ? "bg-amber-50/15 hover:bg-amber-50/30 dark:bg-amber-950/15"
                       : "hover:bg-[var(--edc-secondary)]/15 dark:hover:bg-slate-800/40"
                   }`}
                 >
                   {/* Columna Sticky de Checkbox */}
                   <td
-                    className={`sticky left-0 z-20 w-11 min-w-[44px] max-w-[44px] px-2 py-3 text-center shadow-[1px_0_4px_rgba(0,0,0,0.02)] backdrop-blur-sm ${
+                    className={`sticky left-0 z-20 w-11 min-w-[44px] max-w-[44px] px-2 py-2.5 text-center shadow-[1px_0_4px_rgba(0,0,0,0.02)] backdrop-blur-sm ${
                       isSelected
                         ? "bg-blue-50/95 dark:bg-slate-900/95"
                         : "bg-white/95 group-hover:bg-slate-50/95 dark:bg-slate-900/95 dark:group-hover:bg-slate-850"
@@ -519,14 +598,14 @@ export function GradeCenterTable({
 
                   {/* Columna Sticky de Estudiante con StudentSummaryPopover */}
                   <td
-                    className={`sticky left-[44px] z-10 px-3 py-3 shadow-[2px_0_6px_rgba(0,0,0,0.02)] backdrop-blur-sm ${
+                    className={`sticky left-[44px] z-10 px-3 py-2.5 shadow-[2px_0_6px_rgba(0,0,0,0.02)] backdrop-blur-sm ${
                       isSelected
                         ? "bg-blue-50/95 dark:bg-slate-900/95"
                         : "bg-white/95 group-hover:bg-slate-50/95 dark:bg-slate-900/95 dark:group-hover:bg-slate-850"
                     }`}
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--edc-secondary)] text-xs font-bold text-[var(--edc-primary)]">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700 text-xs font-bold dark:bg-slate-800 dark:text-slate-300">
                         {sName
                           .split(" ")
                           .slice(0, 2)
@@ -535,26 +614,72 @@ export function GradeCenterTable({
                           .toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <StudentSummaryPopover
-                          studentRow={row}
-                          courseName={courseName}
-                          subjectName={subjectName}
-                          scale={scale}
-                          groupAverage={groupAverage}
-                          rows={rows}
-                          onViewDetail={() => onStudentClick?.(studentId)}
-                          onOpenSimulator={onOpenSimulator}
-                          onOpenStudentStats={onOpenStudentStats}
-                        >
-                          <button
-                            type="button"
-                            className="block truncate text-left text-xs font-semibold text-slate-800 hover:text-[var(--edc-primary)] focus:outline-none transition dark:text-slate-200 cursor-pointer"
-                            title={`${sName} (Clic para resumen rápido)`}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <StudentSummaryPopover
+                            studentRow={row}
+                            courseName={courseName}
+                            subjectName={subjectName}
+                            scale={scale}
+                            groupAverage={groupAverage}
+                            rows={rows}
+                            pendingGrades={pendingGrades}
+                            open={openStudentSummaryId === studentId}
+                            onOpenChange={isOpen => {
+                              setOpenStudentSummaryId(isOpen ? studentId : null);
+                              if (isOpen) {
+                                setActiveCell(null);
+                                setInitialDraft(undefined);
+                              }
+                            }}
+                            onOpenSimulator={onOpenSimulator}
+                            onOpenStudentStats={onOpenStudentStats}
                           >
-                            {sName}
-                          </button>
-                        </StudentSummaryPopover>
-                        <p className="truncate text-[11px] text-slate-400">ID · {studentId}</p>
+                            <button
+                              type="button"
+                              className="block truncate text-left text-xs font-bold text-slate-800 hover:text-[var(--edc-primary)] focus:outline-none transition dark:text-slate-100 cursor-pointer"
+                              title={`${sName} (Clic para resumen rápido)`}
+                            >
+                              {sName}
+                            </button>
+                          </StudentSummaryPopover>
+
+                          {/* Microindicadores contextuales según ViewMode */}
+                          {viewMode === "PERFORMANCE" && trend && (
+                            <span
+                              className={`inline-flex items-center text-[10px] font-bold px-1 rounded ${
+                                trend === "up"
+                                  ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/50"
+                                  : trend === "down"
+                                  ? "text-rose-700 bg-rose-50 dark:bg-rose-950/50"
+                                  : "text-slate-600 bg-slate-100 dark:bg-slate-800"
+                              }`}
+                              title={
+                                trend === "up"
+                                  ? "Rendimiento mejorando"
+                                  : trend === "down"
+                                  ? "Rendimiento disminuyendo"
+                                  : "Rendimiento estable"
+                              }
+                            >
+                              {trend === "up" ? "↑" : trend === "down" ? "↓" : "→"}
+                            </span>
+                          )}
+
+                          {viewMode === "RISK" && definitiva !== null && definitiva < 3.0 && (
+                            <span className="inline-flex items-center text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 py-0.2 rounded dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300">
+                              Riesgo
+                            </span>
+                          )}
+
+                          {viewMode === "PENDING" && pendingCountForStudent > 0 && (
+                            <span className="inline-flex items-center text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
+                              {pendingCountForStudent} pend.
+                            </span>
+                          )}
+                        </div>
+                        <p className="truncate text-[11px] text-slate-400 font-normal mt-0.5">
+                          ID {studentId} · {courseName ?? "11-2"}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -565,9 +690,9 @@ export function GradeCenterTable({
                     const cellVal = getCellValue(assessment.id, studentId, item?.grade?.value ?? null);
                     const cellComment = getCellComment(assessment.id, studentId, item?.grade?.comment);
                     const isCellOpen =
-                      activeCell?.rowIndex === rowIndex && activeCell?.colIndex === colIndex;
+                      activeCell?.studentUserId === studentId && activeCell?.assessmentId === assessment.id;
                     const isFocused =
-                      focusedCell?.rowIndex === rowIndex && focusedCell?.colIndex === colIndex;
+                      focusedCell?.studentUserId === studentId && focusedCell?.assessmentId === assessment.id;
                     const hasPendingChange = Object.prototype.hasOwnProperty.call(
                       pendingGrades,
                       `${assessment.id}:${studentId}`
@@ -576,11 +701,16 @@ export function GradeCenterTable({
                     const cellButton = (
                       <button
                         type="button"
+                        data-cell-id={`${assessment.id}:${studentId}`}
                         disabled={!canWrite}
                         onClick={() => {
-                          setActiveCell({ rowIndex, colIndex });
+                          setOpenStudentSummaryId(null);
+                          setActiveCell({ studentUserId: studentId, assessmentId: assessment.id });
+                          setFocusedCell({ studentUserId: studentId, assessmentId: assessment.id });
                           setInitialDraft(undefined);
                         }}
+                        onFocus={() => setFocusedCell({ studentUserId: studentId, assessmentId: assessment.id })}
+                        onKeyDown={e => handleCellKeyDown(e, rowIndex, colIndex, cellVal)}
                         className={`relative flex h-9 w-16 items-center justify-center rounded-xl border text-sm font-semibold transition-all select-none cursor-pointer ${
                           isCellOpen
                             ? "border-[var(--edc-primary)] ring-2 ring-[var(--edc-secondary)] shadow-sm scale-105 z-10 font-bold bg-white dark:bg-slate-800 text-[var(--edc-primary)]"
@@ -627,18 +757,45 @@ export function GradeCenterTable({
                         role="gridcell"
                       >
                         <div className="flex items-center justify-center">
-                          <div
-                            className="group/cell relative flex items-center justify-center"
-                            tabIndex={0}
-                            onFocus={() => setFocusedCell({ rowIndex, colIndex })}
-                            onKeyDown={e => handleCellKeyDown(e, rowIndex, colIndex, cellVal)}
-                          >
-                            {isCellOpen ? (
-                              <PopoverAnchor asChild>{cellButton}</PopoverAnchor>
-                            ) : (
-                              cellButton
-                            )}
-                          </div>
+                          {isCellOpen ? (
+                            <Popover
+                              open={true}
+                              onOpenChange={open => {
+                                if (!open) {
+                                  setActiveCell(null);
+                                  setInitialDraft(undefined);
+                                  focusCellElement(assessment.id, studentId);
+                                }
+                              }}
+                            >
+                              <PopoverAnchor asChild>
+                                {cellButton}
+                              </PopoverAnchor>
+                              <GradeCellEditorPopoverContent
+                                key={`${assessment.id}:${studentId}`}
+                                studentName={sName}
+                                studentId={studentId}
+                                assessmentId={assessment.id}
+                                assessmentTitle={assessment.title}
+                                assessmentType={assessment.assessmentType}
+                                assessmentWeight={assessment.weight}
+                                maxValue={assessment.maxValue}
+                                scale={scale}
+                                currentValue={cellVal}
+                                currentComment={cellComment}
+                                initialDraftValue={initialDraft}
+                                onSaveAndNavigate={handleSaveAndAdvance}
+                                onClose={() => {
+                                  setActiveCell(null);
+                                  setInitialDraft(undefined);
+                                  focusCellElement(assessment.id, studentId);
+                                }}
+                                isSaving={isSaving}
+                              />
+                            </Popover>
+                          ) : (
+                            cellButton
+                          )}
                         </div>
                       </td>
                     );
@@ -646,19 +803,34 @@ export function GradeCenterTable({
 
                   {/* Columna Definitiva */}
                   <td
-                    className="sticky right-0 z-10 border-l border-slate-200/80 bg-slate-50/90 px-4 py-3 text-center shadow-[-2px_0_6px_rgba(0,0,0,0.02)] backdrop-blur-sm group-hover:bg-slate-100/90 dark:border-slate-800 dark:bg-slate-850/90 dark:group-hover:bg-slate-800"
+                    className="sticky right-0 z-10 border-l border-slate-200/80 bg-slate-50/90 px-3 py-2.5 text-center shadow-[-2px_0_6px_rgba(0,0,0,0.02)] backdrop-blur-sm group-hover:bg-slate-100/90 dark:border-slate-800 dark:bg-slate-850/90 dark:group-hover:bg-slate-800"
                   >
                     <div className="flex flex-col items-center justify-center">
                       <span
-                        className={`text-base font-bold tracking-tight ${definitivaTone.textColor}`}
+                        className={`text-base font-extrabold tracking-tight leading-tight ${definitivaTone.textColor}`}
                       >
                         {numberValue(definitiva)}
                       </span>
                       {definitiva !== null && (
                         <span
-                          className={`mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-semibold leading-none ${definitivaTone.badgeColor}`}
+                          className={`mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-semibold leading-none ${
+                            definitiva >= 4.0
+                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                              : definitiva >= 3.0
+                              ? "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
+                              : "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
+                          }`}
                         >
-                          {definitivaTone.label}
+                          {definitiva >= 4.0
+                            ? "En buen nivel"
+                            : definitiva >= 3.0
+                            ? "Cerca del límite"
+                            : "Necesita atención"}
+                        </span>
+                      )}
+                      {definitiva === null && (
+                        <span className="mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800">
+                          Sin datos
                         </span>
                       )}
                       {projection.hasPending && projection.projectedDefinitiva !== null && (
@@ -691,37 +863,5 @@ export function GradeCenterTable({
         )}
       </div>
     </div>
-
-    {/* Popover único para la tabla: se desplaza suavemente entre filas al calificar sin desmontarse */}
-    {activeCell && activeRow && activeAssessment && (
-      <GradeCellEditorPopoverContent
-        studentName={studentName(activeRow.student)}
-        studentId={activeRow.enrollment.studentUserId}
-        assessmentId={activeAssessment.id}
-        assessmentTitle={activeAssessment.title}
-        assessmentType={activeAssessment.assessmentType}
-        assessmentWeight={activeAssessment.weight}
-        maxValue={activeAssessment.maxValue}
-        scale={scale}
-        currentValue={getCellValue(
-          activeAssessment.id,
-          activeRow.enrollment.studentUserId,
-          activeRow.values.find(v => v.assessment.id === activeAssessment.id)?.grade?.value ?? null
-        )}
-        currentComment={getCellComment(
-          activeAssessment.id,
-          activeRow.enrollment.studentUserId,
-          activeRow.values.find(v => v.assessment.id === activeAssessment.id)?.grade?.comment
-        )}
-        initialDraftValue={initialDraft}
-        onSaveAndNavigate={handleSaveAndAdvance}
-        onClose={() => {
-          setActiveCell(null);
-          setInitialDraft(undefined);
-        }}
-        isSaving={isSaving}
-      />
-    )}
-  </Popover>
   );
 }

@@ -30,7 +30,8 @@ export interface AssessmentLike {
   assessmentType?: string;
   weight: number | string;
   maxValue: number | string;
-  date?: Date | string;
+  date?: Date | string | null;
+  description?: string | null;
 }
 
 export interface StudentRowLike {
@@ -103,7 +104,7 @@ export interface EvolutionPoint {
   assessmentId: number;
   assessmentTitle: string;
   weight: number;
-  date?: string | Date;
+  date?: string | Date | null;
   groupAverage: number | null;
   passingPercentage: number;
   evaluatedCount?: number;
@@ -115,8 +116,8 @@ export interface PerformanceEvolutionResult {
   timeline: EvolutionPoint[];
   trend: TrendDirection;
   trendLabel: string;
-  firstAssessment: { id: number; title: string; date?: string | Date; average: number | null } | null;
-  latestAssessment: { id: number; title: string; date?: string | Date; average: number | null } | null;
+  firstAssessment: { id: number; title: string; date?: string | Date | null; average: number | null } | null;
+  latestAssessment: { id: number; title: string; date?: string | Date | null; average: number | null } | null;
   overallDelta: number | null;
 }
 
@@ -632,8 +633,8 @@ export function calculatePerformanceEvolution(
 
   let trend: TrendDirection = "INSUFICIENTE";
   let trendLabel = "Datos insuficientes para determinar tendencia.";
-  let firstAssessment: { id: number; title: string; date?: string | Date; average: number | null } | null = null;
-  let latestAssessment: { id: number; title: string; date?: string | Date; average: number | null } | null = null;
+  let firstAssessment: { id: number; title: string; date?: string | Date | null; average: number | null } | null = null;
+  let latestAssessment: { id: number; title: string; date?: string | Date | null; average: number | null } | null = null;
   let overallDelta: number | null = null;
 
   if (evaluatedPoints.length >= 2) {

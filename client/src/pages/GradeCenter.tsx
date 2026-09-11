@@ -12,6 +12,7 @@ import {
 import {
   GradeCenterToolbar,
   type GradeFilterKey,
+  type GradeViewMode,
 } from "@/components/grade-center/GradeCenterToolbar";
 import {
   BulkGradeDialog,
@@ -43,6 +44,7 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
   const [periodId, setPeriodId] = React.useState<number | undefined>();
   const [query, setQuery] = React.useState("");
   const [filter, setFilter] = React.useState<GradeFilterKey>("ALL");
+  const [viewMode, setViewMode] = React.useState<GradeViewMode>("NOTES");
 
   // Almacena cambios en edición pendientes de sincronizar
   const [pendingGrades, setPendingGrades] = React.useState<Record<string, number | null>>({});
@@ -81,8 +83,42 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
 
   const saveGrades = trpc.gradeCenter.saveGrades.useMutation();
   const createAssessment = trpc.gradeCenter.createAssessment.useMutation();
+  const updateAssessment = trpc.gradeCenter.updateAssessment.useMutation();
   const utils = trpc.useUtils();
   const context = contextQuery.data;
+
+  // Edición interactiva y segura de evaluaciones desde el Grade Center (Fase 5.3-E)
+  const handleEditAssessment = React.useCallback(
+    async (
+      assessmentId: number,
+      data: { title?: string; weight?: number; date?: Date; description?: string }
+    ) => {
+      try {
+        await updateAssessment.mutateAsync({
+          role,
+          id: assessmentId,
+          title: data.title,
+          weight: data.weight,
+          date: data.date,
+          description: data.description,
+        });
+        await utils.gradeCenter.context.invalidate();
+        toast.success("Evaluación actualizada correctamente");
+      } catch (error: any) {
+        toast.error(error?.message ?? "Error al actualizar la evaluación.");
+        throw error;
+      }
+    },
+    [role, updateAssessment, utils.gradeCenter.context]
+  );
+
+  // Filtrado rápido de estudiantes con actividad pendiente
+  const handleFilterPendingForAssessment = React.useCallback(
+    (_assessmentId: number) => {
+      setFilter("PENDING");
+    },
+    []
+  );
 
   // Modificación reactiva individual de una celda para calificación ultrarrápida
   const handleCellPendingChange = React.useCallback(
@@ -143,6 +179,64 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
     }
     return calculateMean(definitivas);
   }, [context?.rows, pendingGrades]);
+
+  // Métricas reactivas para la barra de resumen compacto del curso (Fase 5.3-E)
+  const courseSummary = React.useMemo(() => {
+    if (!context?.rows) {
+      return {
+        average: null,
+        passingRate: 0,
+        passingCount: 0,
+        riskCount: 0,
+        pendingTotal: 0,
+        totalStudents: 0,
+      };
+    }
+    let passingCount = 0;
+    let riskCount = 0;
+    let pendingTotal = 0;
+    let evaluatedCount = 0;
+    const totalStudents = context.rows.length;
+
+    for (const row of context.rows) {
+      const sId = row.enrollment.studentUserId;
+      const def = calculateDefinitiva(
+        (row.values ?? []).map((v: any) => {
+          const key = `${v.assessment.id}:${sId}`;
+          const val = Object.prototype.hasOwnProperty.call(pendingGrades, key)
+            ? pendingGrades[key]
+            : v.grade?.value ?? null;
+          return {
+            value: val,
+            maxValue: v.assessment.maxValue,
+            weight: v.assessment.weight,
+          };
+        })
+      );
+      if (def !== null) {
+        evaluatedCount++;
+        if (def >= 3.0) passingCount++;
+        else riskCount++;
+      }
+      for (const v of row.values ?? []) {
+        const key = `${v.assessment.id}:${sId}`;
+        const val = Object.prototype.hasOwnProperty.call(pendingGrades, key)
+          ? pendingGrades[key]
+          : v.grade?.value ?? null;
+        if (val === null) pendingTotal++;
+      }
+    }
+
+    const passingRate = evaluatedCount > 0 ? Math.round((passingCount / evaluatedCount) * 100) : 0;
+    return {
+      average: groupAverage,
+      passingRate,
+      passingCount,
+      riskCount,
+      pendingTotal,
+      totalStudents,
+    };
+  }, [context?.rows, pendingGrades, groupAverage]);
 
   if (contextQuery.isLoading || !context) return <LoadingState />;
   if (contextQuery.isError) {
@@ -412,15 +506,20 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
       {/* Encabezado del Grade Center */}
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--edc-accent)]">
-            Grade Center
-          </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
-            Calificaciones
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--edc-primary)]">
+              Grade Center
+            </span>
+            <span className="text-slate-300 dark:text-slate-700">·</span>
+            <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-[var(--edc-primary)] dark:bg-blue-950/60 dark:text-blue-300">
+              {selected.period?.name ?? "Periodo 2"}
+            </span>
+          </div>
+          <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+            {selected.course?.name ?? "11-2"} · {selected.subject?.name ?? "Matemáticas"}
           </h1>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {selected.course?.name ?? "Curso"} · {selected.subject?.name ?? "Materia"} ·{" "}
-            {selected.period?.name ?? "Periodo"} · {selected.course?.year ?? "2026"}
+            {context.rows?.length ?? 0} estudiantes matriculados · {context.assessments?.length ?? 0} evaluaciones configuradas
           </p>
         </div>
       </div>
@@ -443,6 +542,8 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
         onSearchChange={setQuery}
         currentFilter={filter}
         onFilterChange={setFilter}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
         pendingCount={Object.keys(pendingGrades).length}
         isSavingAll={saveGrades.isPending}
         onSaveAll={handleSaveAll}
@@ -578,6 +679,69 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
         />
       )}
 
+      {/* RESUMEN COMPACTO DEL CURSO (SaaS Moderno / Finova / LearnIQ) */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {/* Promedio General */}
+        <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 py-2.5 shadow-xs dark:border-slate-800 dark:bg-slate-900/90">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[var(--edc-primary)] dark:bg-blue-950/60">
+            <Calculator className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Promedio general</p>
+            <p className="text-sm font-extrabold text-slate-800 dark:text-slate-100">
+              {courseSummary.average !== null ? courseSummary.average.toFixed(2) : "—"}{" "}
+              <span className="text-[10px] font-normal text-slate-400">/ 5.0</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Tasa de Aprobación */}
+        <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 py-2.5 shadow-xs dark:border-slate-800 dark:bg-slate-900/90">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Aprobación</p>
+            <p className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+              {courseSummary.passingRate}%{" "}
+              <span className="text-[10px] font-normal text-slate-400">
+                ({courseSummary.passingCount}/{courseSummary.totalStudents})
+              </span>
+            </p>
+          </div>
+        </div>
+
+        {/* En Riesgo */}
+        <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 py-2.5 shadow-xs dark:border-slate-800 dark:bg-slate-900/90">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400">
+            <AlertTriangle className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">En riesgo</p>
+            <p className="text-sm font-extrabold text-rose-600 dark:text-rose-400">
+              {courseSummary.riskCount}{" "}
+              <span className="text-[10px] font-normal text-slate-400">
+                estudiante{courseSummary.riskCount === 1 ? "" : "s"}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        {/* Pendientes */}
+        <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 py-2.5 shadow-xs dark:border-slate-800 dark:bg-slate-900/90">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
+            <BarChart3 className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pendientes</p>
+            <p className="text-sm font-extrabold text-amber-600 dark:text-amber-400">
+              {courseSummary.pendingTotal}{" "}
+              <span className="text-[10px] font-normal text-slate-400">por calificar</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* TABLA PRINCIPAL DE CALIFICACIONES (EJE CENTRAL ABSOLUTO) */}
       <GradeCenterTable
         assessments={context.assessments ?? []}
@@ -592,11 +756,15 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
         onCellPendingChange={handleCellPendingChange}
         onOpenSimulator={handleOpenSimulator}
         externalTargetCell={externalTargetCell}
+        onClearExternalTargetCell={() => setExternalTargetCell(null)}
         isSaving={saveGrades.isPending}
         selectedStudentIds={selectedStudentIds}
         onToggleStudent={handleToggleStudent}
         onToggleAllVisible={handleToggleAllVisible}
         groupAverage={groupAverage}
+        viewMode={viewMode}
+        onEditAssessment={handleEditAssessment}
+        onFilterPendingForAssessment={handleFilterPendingForAssessment}
         onOpenStudentStats={st => {
           setSelectedStatsStudent(st);
           setShowStudentStatsDialog(true);
@@ -619,15 +787,22 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
       {/* Simulador de Escenarios en Memoria (Fase 5.3-C) */}
       <ScenarioSimulatorDialog
         open={showSimulator}
-        onOpenChange={setShowSimulator}
+        onOpenChange={open => {
+          setShowSimulator(open);
+          if (!open) setSimulatorStudent(null);
+        }}
         studentRow={simulatorStudent}
         scale={context.scale}
+        pendingGrades={pendingGrades}
       />
 
       {/* Diálogo de Estadísticas Individuales del Estudiante (Fase 5.3-D) */}
       <StudentStatisticsDialog
         open={showStudentStatsDialog}
-        onOpenChange={setShowStudentStatsDialog}
+        onOpenChange={open => {
+          setShowStudentStatsDialog(open);
+          if (!open) setSelectedStatsStudent(null);
+        }}
         studentRow={selectedStatsStudent}
         assessments={context.assessments ?? []}
         scale={context.scale}

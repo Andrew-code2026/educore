@@ -192,5 +192,102 @@ describe("EduCore Grade Center", () => {
       expect(studentGrade?.value).toBe(4.8);
       expect(studentGrade?.comment).toBe(commentText);
     });
+
+    describe("Fase 5.3-E: Edición de Evaluaciones y Validación de Pesos", () => {
+      it("rejects assessment weight less than 0 or greater than 100", async () => {
+        const assessment = seededContext!.assessments[0];
+        // Via tRPC schema validation
+        await expect(
+          caller(teacher!.user).gradeCenter.updateAssessment({
+            role: "teacher",
+            id: assessment.id,
+            weight: -10,
+          })
+        ).rejects.toThrow(/Too small/i);
+
+        await expect(
+          caller(teacher!.user).gradeCenter.updateAssessment({
+            role: "teacher",
+            id: assessment.id,
+            weight: 120,
+          })
+        ).rejects.toThrow(/Too big/i);
+
+        // Via direct database helper validation
+        const { updateGradeCenterAssessment } = await import("./gradeCenterDb");
+        await expect(
+          updateGradeCenterAssessment(actor(teacher, "TEACHER"), {
+            id: assessment.id,
+            weight: -5,
+          })
+        ).rejects.toThrow(/entre 0 y 100/);
+      });
+
+      it("rejects assessment title shorter than 3 characters", async () => {
+        const assessment = seededContext!.assessments[0];
+        // Via tRPC schema validation
+        await expect(
+          caller(teacher!.user).gradeCenter.updateAssessment({
+            role: "teacher",
+            id: assessment.id,
+            title: "ab",
+          })
+        ).rejects.toThrow(/Too small|characters/i);
+
+        // Via direct database helper validation
+        const { updateGradeCenterAssessment } = await import("./gradeCenterDb");
+        await expect(
+          updateGradeCenterAssessment(actor(teacher, "TEACHER"), {
+            id: assessment.id,
+            title: "ab",
+          })
+        ).rejects.toThrow(/al menos 3 caracteres/);
+      });
+
+      it("blocks students and guardians from updating assessment attributes", async () => {
+        const assessment = seededContext!.assessments[0];
+        await expect(
+          caller(student!.user).gradeCenter.updateAssessment({
+            role: "student",
+            id: assessment.id,
+            title: "Intento no autorizado",
+          })
+        ).rejects.toThrow(/permisos/);
+
+        await expect(
+          caller(guardian!.user).gradeCenter.updateAssessment({
+            role: "guardian",
+            id: assessment.id,
+            title: "Intento no autorizado",
+          })
+        ).rejects.toThrow(/permisos/);
+      });
+
+      it("allows teacher to update assessment title and weight successfully", async () => {
+        const assessment = seededContext!.assessments[0];
+        const originalWeight = assessment.weight;
+        const originalTitle = assessment.title;
+
+        try {
+          const updated = await caller(teacher!.user).gradeCenter.updateAssessment({
+            role: "teacher",
+            id: assessment.id,
+            title: "Evaluación 5.3-E Modificada",
+            weight: 25,
+          });
+          expect(updated?.title).toBe("Evaluación 5.3-E Modificada");
+          expect(updated?.weight).toBe(25);
+        } finally {
+          // Restore original title & weight
+          await caller(teacher!.user).gradeCenter.updateAssessment({
+            role: "teacher",
+            id: assessment.id,
+            title: originalTitle,
+            weight: Number(originalWeight) || 20,
+          });
+        }
+      });
+    });
   });
 });
+
