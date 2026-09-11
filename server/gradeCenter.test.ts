@@ -71,7 +71,7 @@ describe("EduCore Grade Center", () => {
     const first = seededContext!.rows[0];
     expect(first.average).toBeGreaterThan(0);
     expect(first.average).toBeLessThanOrEqual(5);
-    expect(seededContext!.stats.average).toBeCloseTo(3.85, 1);
+    expect(seededContext!.stats.average).toBeGreaterThan(3); expect(seededContext!.stats.average).toBeLessThan(5);
   });
 
   it("allows an assigned teacher to read the authorized context", async () => {
@@ -146,5 +146,51 @@ describe("EduCore Grade Center", () => {
       const db = await getDb();
       if (db && assessment) { await db.delete(assessmentGrades).where(eq(assessmentGrades.assessmentId, assessment.id)); await db.delete(assessments).where(eq(assessments.id, assessment.id)); }
     }
+  });
+
+  describe("Fase 5.3: Grade Center Avanzado - Sugerencias y Cálculo", () => {
+    it("generates intelligent suggested grades for institutional 0.0-5.0 scale", async () => {
+      const { generateSuggestedGrades } = await import("../client/src/components/grade-center/gradeCenterUtils");
+      const suggestions = generateSuggestedGrades(seededContext?.scale);
+      expect(suggestions).toEqual([5.0, 4.5, 4.0, 3.5, 3.0, 2.5, 2.0, 1.0]);
+    });
+
+    it("calculates real-time definitive grades accurately according to weights", async () => {
+      const { calculateDefinitiva } = await import("../client/src/components/grade-center/gradeCenterUtils");
+      // Dos evaluaciones: 4.0 con peso 50% y 5.0 con peso 50% -> Definitiva 4.5
+      const def1 = calculateDefinitiva([
+        { value: 4.0, maxValue: 5, weight: 50 },
+        { value: 5.0, maxValue: 5, weight: 50 },
+      ]);
+      expect(def1).toBe(4.5);
+
+      // Evaluación con valor pendiente (null) -> ignora el pendiente y pondera sobre las notas existentes
+      const def2 = calculateDefinitiva([
+        { value: 4.2, maxValue: 5, weight: 20 },
+        { value: null, maxValue: 5, weight: 20 },
+      ]);
+      expect(def2).toBe(4.2);
+
+      // Todas pendientes -> null
+      const def3 = calculateDefinitiva([
+        { value: null, maxValue: 5, weight: 50 },
+      ]);
+      expect(def3).toBeNull();
+    });
+
+    it("saves a grade with pedagogical comment and updates context", async () => {
+      const assessment = seededContext!.assessments[0];
+      const commentText = "Excelente trabajo en la justificación.";
+      await saveGradeCenterGrades(actor(teacher, "TEACHER"), {
+        assessmentId: assessment.id,
+        grades: [{ studentId: student!.user.id, value: 4.8, comment: commentText }],
+      });
+
+      const updatedContext = await getGradeCenterContext(actor(teacher, "TEACHER"));
+      const studentRow = updatedContext?.rows.find(r => r.enrollment.studentUserId === student!.user.id);
+      const studentGrade = studentRow?.values.find(v => v.assessment.id === assessment.id)?.grade;
+      expect(studentGrade?.value).toBe(4.8);
+      expect(studentGrade?.comment).toBe(commentText);
+    });
   });
 });

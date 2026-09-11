@@ -106,9 +106,13 @@ const d = (daysFromNow: number, hour = 9) => {
 export async function ensureEduCoreSeeded() {
   const db = await getDb();
   if (!db) return null;
-  let school = (await db.select().from(schools).where(eq(schools.name, "Gimnasio Moderno del Valle")).limit(1))[0];
+  let school = (await db.select().from(schools).where(eq(schools.id, DEMO_SCHOOL_ID)).limit(1))[0];
+  if (!school) {
+    school = (await db.select().from(schools).where(eq(schools.name, "Gimnasio Moderno del Valle")).limit(1))[0];
+  }
   if (!school) {
     await db.insert(schools).values({
+      id: DEMO_SCHOOL_ID,
       name: "Gimnasio Moderno del Valle",
       city: "Bogotá, Colombia",
       academicYear: "2026",
@@ -117,7 +121,13 @@ export async function ensureEduCoreSeeded() {
       secondaryColor: "#eaf4ff",
       logoUrl: null,
     });
-    school = (await db.select().from(schools).where(eq(schools.name, "Gimnasio Moderno del Valle")).limit(1))[0];
+    school = (await db.select().from(schools).where(eq(schools.id, DEMO_SCHOOL_ID)).limit(1))[0];
+  } else if (school.name !== "Gimnasio Moderno del Valle") {
+    await db.update(schools).set({
+      name: "Gimnasio Moderno del Valle",
+      tagline: "Menos administración. Más educación.",
+    }).where(eq(schools.id, school.id));
+    school.name = "Gimnasio Moderno del Valle";
   }
   if (!school) return null;
   const schoolId = school.id;
@@ -348,11 +358,16 @@ export const ROLE_NAMES: Record<EduRole, string> = {
   guardian: "Acudiente",
 };
 
-export async function getEduCoreSnapshot(role: EduRole, selectedStudentId?: number) {
+export async function getEduCoreSnapshot(
+  role: EduRole,
+  selectedStudentId?: number,
+  actor?: { schoolId: number; userId: number; roleKey: IdentityRole; permissions: string[] }
+) {
   const school = await ensureEduCoreSeeded();
   const db = await getDb();
   if (!db || !school) return null;
-  const schoolId = school.id;
+  const schoolId = actor?.schoolId ?? school.id;
+  const currentSchool = (await db.select().from(schools).where(eq(schools.id, schoolId)).limit(1))[0] ?? school;
   const [courseRows, studentRows, teacherRows, subjectRows, gradeRows, attendanceRows, assignmentRows, submissionRows, eventRows, announcementRows, notificationRows, reportCardRows, planningRows, periodRows] = await Promise.all([
     db.select().from(courses).where(eq(courses.schoolId, schoolId)),
     db.select().from(students).where(eq(students.schoolId, schoolId)),
@@ -369,33 +384,62 @@ export async function getEduCoreSnapshot(role: EduRole, selectedStudentId?: numb
     db.select().from(planning).where(eq(planning.schoolId, schoolId)).orderBy(desc(planning.createdAt)),
     db.select().from(academicPeriods).where(eq(academicPeriods.schoolId, schoolId)).orderBy(academicPeriods.startDate),
   ]);
-  const guardianContext = role === "guardian" ? await getDemoIdentityContext("guardian", schoolId) : null;
-  const authorizedRelationship = role === "guardian" && guardianContext && selectedStudentId
-    ? (await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, schoolId), eq(guardianStudentRelationships.guardianUserId, guardianContext.user.id), eq(guardianStudentRelationships.studentUserId, selectedStudentId))).limit(1))[0]
-    : null;
-  const scopedSelectedStudentId = role === "guardian" ? authorizedRelationship?.studentUserId : selectedStudentId;
-  const selectedStudent = scopedSelectedStudentId ? (await db.select().from(users).where(eq(users.id, scopedSelectedStudentId)).limit(1))[0] : undefined;
-  const demoStudent = selectedStudent?.name ?? "Sofía Martínez";
-  const scopedCourseNames = role === "teacher" ? ["11-1", "11-2"] : role === "student" || role === "guardian" ? ["11-2"] : courseRows.map(row => row.name);
-  const scopedStudents = role === "student" || role === "guardian" ? studentRows.filter(row => row.name === demoStudent) : role === "teacher" ? studentRows.filter(row => scopedCourseNames.includes(row.course)) : studentRows;
-  const scopedAssignments = role === "student" || role === "guardian" ? assignmentRows.filter(row => row.course === "11-2") : role === "teacher" ? assignmentRows.filter(row => row.teacherName === "Laura Gómez" || row.course === "11-2") : assignmentRows;
-  const scopedGrades = role === "student" || role === "guardian" ? gradeRows.filter(row => row.studentName === demoStudent) : role === "teacher" ? gradeRows.filter(row => scopedCourseNames.includes(row.course)) : gradeRows;
-  const scopedAttendance = role === "student" || role === "guardian" ? attendanceRows.filter(row => row.studentName === demoStudent) : role === "teacher" ? attendanceRows.filter(row => scopedCourseNames.includes(row.course)) : attendanceRows;
-  const scopedSubmissions = role === "student" || role === "guardian" ? submissionRows.filter(row => row.studentName === demoStudent) : role === "teacher" ? submissionRows.filter(row => scopedCourseNames.includes(assignmentRows.find(a => a.id === row.assignmentId)?.course ?? "")) : submissionRows;
+
+  const effectiveRoleKey = actor?.roleKey ?? ({ admin: "SCHOOL_ADMIN", teacher: "TEACHER", student: "STUDENT", guardian: "GUARDIAN" } as const)[role];
+
+  let targetStudentName = "Sofía Martínez";
+
+  if (effectiveRoleKey === "STUDENT" && actor?.userId) {
+    const studentUser = (await db.select().from(users).where(and(eq(users.schoolId, schoolId), eq(users.id, actor.userId))).limit(1))[0];
+    if (studentUser?.name) {
+      targetStudentName = studentUser.name;
+    }
+  } else if (effectiveRoleKey === "GUARDIAN") {
+    const guardianUserId = actor?.userId ?? (await getDemoIdentityContext("guardian", schoolId))?.user.id;
+    if (guardianUserId) {
+      const linkedRelationships = await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, schoolId), eq(guardianStudentRelationships.guardianUserId, guardianUserId)));
+      const linkedStudentIds = new Set(linkedRelationships.map(r => r.studentUserId));
+      const chosenStudentId = (selectedStudentId && linkedStudentIds.has(selectedStudentId))
+        ? selectedStudentId
+        : linkedRelationships[0]?.studentUserId;
+      if (chosenStudentId) {
+        const studentUser = (await db.select().from(users).where(and(eq(users.schoolId, schoolId), eq(users.id, chosenStudentId))).limit(1))[0];
+        if (studentUser?.name) {
+          targetStudentName = studentUser.name;
+        }
+      }
+    }
+  } else if (selectedStudentId) {
+    const studentUser = (await db.select().from(users).where(and(eq(users.schoolId, schoolId), eq(users.id, selectedStudentId))).limit(1))[0];
+    if (studentUser?.name) {
+      targetStudentName = studentUser.name;
+    }
+  }
+
+  const isStudentOrGuardian = effectiveRoleKey === "STUDENT" || effectiveRoleKey === "GUARDIAN";
+  const isTeacher = effectiveRoleKey === "TEACHER";
+
+  const scopedCourseNames = isTeacher ? ["11-1", "11-2"] : isStudentOrGuardian ? ["11-2"] : courseRows.map(row => row.name);
+  const scopedStudents = isStudentOrGuardian ? studentRows.filter(row => row.name === targetStudentName) : isTeacher ? studentRows.filter(row => scopedCourseNames.includes(row.course)) : studentRows;
+  const scopedAssignments = isStudentOrGuardian ? assignmentRows.filter(row => row.course === "11-2") : isTeacher ? assignmentRows.filter(row => row.teacherName === "Laura Gómez" || row.course === "11-2") : assignmentRows;
+  const scopedGrades = isStudentOrGuardian ? gradeRows.filter(row => row.studentName === targetStudentName) : isTeacher ? gradeRows.filter(row => scopedCourseNames.includes(row.course)) : gradeRows;
+  const scopedAttendance = isStudentOrGuardian ? attendanceRows.filter(row => row.studentName === targetStudentName) : isTeacher ? attendanceRows.filter(row => scopedCourseNames.includes(row.course)) : attendanceRows;
+  const scopedSubmissions = isStudentOrGuardian ? submissionRows.filter(row => row.studentName === targetStudentName) : isTeacher ? submissionRows.filter(row => scopedCourseNames.includes(assignmentRows.find(a => a.id === row.assignmentId)?.course ?? "")) : submissionRows;
+
   return {
-    school,
+    school: currentSchool,
     courses: courseRows.filter(row => scopedCourseNames.includes(row.name)),
     students: scopedStudents,
     teachers: teacherRows,
-    subjects: role === "teacher" ? subjectRows.filter(row => scopedCourseNames.includes(row.course)) : subjectRows,
+    subjects: isTeacher ? subjectRows.filter(row => scopedCourseNames.includes(row.course)) : subjectRows,
     grades: scopedGrades,
     attendance: scopedAttendance,
     assignments: scopedAssignments,
     submissions: scopedSubmissions,
     events: eventRows,
-    announcements: role === "student" ? announcementRows.filter(row => row.audience === "Todo el colegio" || row.audience.includes("Estudiantes")) : announcementRows,
+    announcements: effectiveRoleKey === "STUDENT" ? announcementRows.filter(row => row.audience === "Todo el colegio" || row.audience.includes("Estudiantes")) : announcementRows,
     notifications: notificationRows,
-    reportCards: role === "student" || role === "guardian" ? reportCardRows.filter(row => row.studentName === demoStudent) : reportCardRows,
+    reportCards: isStudentOrGuardian ? reportCardRows.filter(row => row.studentName === targetStudentName) : reportCardRows,
     planning: planningRows,
     academicPeriods: periodRows,
     role,
@@ -403,38 +447,42 @@ export async function getEduCoreSnapshot(role: EduRole, selectedStudentId?: numb
   };
 }
 
-export async function writeAuditLog(actorRole: EduRole, action: string, detail: string) {
+export async function writeAuditLog(actorRole: EduRole, action: string, detail: string, targetSchoolId?: number) {
   const db = await getDb();
   if (!db) return;
   const school = await ensureEduCoreSeeded();
   if (!school) return;
-  await db.insert(auditLogs).values({ schoolId: school.id, actorRole, action, detail });
+  const schoolId = targetSchoolId ?? school.id;
+  await db.insert(auditLogs).values({ schoolId, actorRole, action, detail });
 }
 
-export async function updateSchoolSettings(input: Partial<typeof schools.$inferInsert> & { id?: number; role?: string }) {
+export async function updateSchoolSettings(input: Partial<typeof schools.$inferInsert> & { id?: number; role?: string; schoolId?: number }) {
   const db = await getDb();
   const school = await ensureEduCoreSeeded();
   if (!db || !school) return null;
-  const { id: _id, role: _role, ...changes } = input;
-  await db.update(schools).set(changes).where(eq(schools.id, school.id));
-  return (await db.select().from(schools).where(eq(schools.id, school.id)).limit(1))[0];
+  const targetId = input.schoolId ?? input.id ?? school.id;
+  const { id: _id, role: _role, schoolId: _schoolId, ...changes } = input;
+  await db.update(schools).set(changes).where(eq(schools.id, targetId));
+  return (await db.select().from(schools).where(eq(schools.id, targetId)).limit(1))[0];
 }
 
-export async function createAcademicPeriod(input: { name: string; startDate: Date; endDate: Date; status: string }) {
+export async function createAcademicPeriod(input: { name: string; startDate: Date; endDate: Date; status: string }, targetSchoolId?: number) {
   const db = await getDb();
   const school = await ensureEduCoreSeeded();
   if (!db || !school) return null;
-  await db.insert(academicPeriods).values({ schoolId: school.id, ...input });
-  return (await db.select().from(academicPeriods).where(eq(academicPeriods.schoolId, school.id)).orderBy(desc(academicPeriods.id)).limit(1))[0];
+  const schoolId = targetSchoolId ?? school.id;
+  await db.insert(academicPeriods).values({ schoolId, ...input });
+  return (await db.select().from(academicPeriods).where(eq(academicPeriods.schoolId, schoolId)).orderBy(desc(academicPeriods.id)).limit(1))[0];
 }
 
-export async function updateAcademicPeriod(input: { id: number; name: string; startDate: Date; endDate: Date; status: string }) {
+export async function updateAcademicPeriod(input: { id: number; name: string; startDate: Date; endDate: Date; status: string }, targetSchoolId?: number) {
   const db = await getDb();
   const school = await ensureEduCoreSeeded();
   if (!db || !school) return null;
+  const schoolId = targetSchoolId ?? school.id;
   const { id, ...changes } = input;
-  await db.update(academicPeriods).set(changes).where(and(eq(academicPeriods.id, id), eq(academicPeriods.schoolId, school.id)));
-  return (await db.select().from(academicPeriods).where(and(eq(academicPeriods.id, id), eq(academicPeriods.schoolId, school.id))).limit(1))[0];
+  await db.update(academicPeriods).set(changes).where(and(eq(academicPeriods.id, id), eq(academicPeriods.schoolId, schoolId)));
+  return (await db.select().from(academicPeriods).where(and(eq(academicPeriods.id, id), eq(academicPeriods.schoolId, schoolId))).limit(1))[0];
 }
 
 export async function createDemoAssignment(input: { title: string; subject: string; course: string; description: string; dueAt: Date; points: number; teacherName: string }) {

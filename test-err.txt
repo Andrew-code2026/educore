@@ -1,0 +1,6 @@
+[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.
+[33m[1m(!) %VITE_ANALYTICS_ENDPOINT% is not defined in env variables found in /.. Is the variable mistyped?[22m[39m
+[33m[1m(!) %VITE_ANALYTICS_WEBSITE_ID% is not defined in env variables found in /.. Is the variable mistyped?[22m[39m
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[Auth] Missing session cookie
+[Auth] Missing session cookie

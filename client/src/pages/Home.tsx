@@ -380,6 +380,8 @@ function LoginScreen({ onDemo, school }: { onDemo: (role: EduRole) => void; scho
 
 export default function Home() {
   const { user, loading, isAuthenticated, logout } = useAuth();
+  const utils = trpc.useUtils();
+  const loginDemoMutation = trpc.auth.loginDemo.useMutation();
   const [demoMode, setDemoMode] = useState(false);
   const [role, setRole] = useState<EduRole>(() => (localStorage.getItem("educore-demo-role") as EduRole) || "admin");
   const [selectedStudentId, setSelectedStudentId] = useState<number | undefined>();
@@ -387,13 +389,62 @@ export default function Home() {
   const effectiveRole = role;
   const snapshotInput = useMemo(() => ({ role: effectiveRole, selectedStudentId: effectiveRole === "guardian" ? selectedStudentId : undefined }), [effectiveRole, selectedStudentId]);
   const { data, isLoading, refetch } = trpc.educore.snapshot.useQuery(snapshotInput, { enabled: !loading });
+
+  useEffect(() => {
+    if (user?.openId === "educore-demo-teacher-1") setRole("teacher");
+    else if (user?.openId === "educore-demo-admin") setRole("admin");
+    else if (user?.openId === "educore-demo-student-1") setRole("student");
+    else if (user?.openId === "educore-demo-guardian-1") setRole("guardian");
+  }, [user?.openId]);
+
   useEffect(() => { if (data?.school?.name) document.title = `EduCore — ${data.school.name}`; }, [data?.school?.name]);
   const schoolName = data?.school?.name ?? "Gimnasio Moderno del Valle";
-  const handleRoleChange = (nextRole: EduRole) => { setRole(nextRole); setSelectedStudentId(undefined); localStorage.setItem("educore-demo-role", nextRole); setSection("overview"); toast.success(`Vista cambiada a ${roleLabels[nextRole]}`); };
+
+  const handleDemoLogin = async (selectedRole: EduRole) => {
+    try {
+      await loginDemoMutation.mutateAsync({ role: selectedRole });
+      setRole(selectedRole);
+      setDemoMode(true);
+      localStorage.setItem("educore-demo-role", selectedRole);
+      setSection("overview");
+      await utils.auth.me.invalidate();
+      await refetch();
+      toast.success(`Sesión demo iniciada como ${roleLabels[selectedRole]}`);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Error al iniciar sesión demo");
+    }
+  };
+
+  const handleRoleChange = async (nextRole: EduRole) => {
+    setRole(nextRole);
+    setSelectedStudentId(undefined);
+    localStorage.setItem("educore-demo-role", nextRole);
+    setSection("overview");
+    if (demoMode || user?.openId?.startsWith("educore-demo-")) {
+      try {
+        await loginDemoMutation.mutateAsync({ role: nextRole });
+        await utils.auth.me.invalidate();
+        await refetch();
+      } catch {
+        // En caso de fallo de red en cambio de rol
+      }
+    }
+    toast.success(`Vista cambiada a ${roleLabels[nextRole]}`);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setDemoMode(false);
+    localStorage.removeItem("educore-demo-role");
+    await utils.auth.me.invalidate();
+    await refetch();
+  };
+
   const refresh = () => { void refetch(); };
   if (loading || isLoading) return <div className="flex min-h-screen items-center justify-center bg-[var(--edc-background)]"><div className="flex items-center gap-3 text-sm text-slate-500"><div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--edc-accent)] border-t-[#368de8]" />Preparando tu espacio EduCore...</div></div>;
-  if (!isAuthenticated && !demoMode) return <LoginScreen school={data?.school} onDemo={selectedRole => { handleRoleChange(selectedRole); setDemoMode(true); }} />;
+  const isDemoSession = Boolean(demoMode || (isAuthenticated && user?.openId?.startsWith("educore-demo-")));
+  if (!isAuthenticated && !isDemoSession) return <LoginScreen school={data?.school} onDemo={handleDemoLogin} />;
   if (!data) return <div className="flex min-h-screen items-center justify-center bg-[var(--edc-background)] p-6"><EmptyState title="No pudimos cargar tu espacio" detail="Revisa la conexión e inténtalo de nuevo." /></div>;
   const content = section === "overview" ? effectiveRole === "admin" ? <AdminDashboard data={data} setSection={setSection} /> : effectiveRole === "teacher" ? <TeacherDashboard data={data} setSection={setSection} /> : <StudentDashboard data={data} role={effectiveRole} setSection={setSection} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} /> : section === "academic" ? <AcademicPage data={data} role={effectiveRole} setSection={setSection} onGradeSaved={refresh} /> : section === "grades" ? <GradeCenterPage role={effectiveRole} school={data.school} /> : section === "classroom" ? <ClassroomPage data={data} role={effectiveRole} onChanged={refresh} setSection={setSection} /> : section === "attendance" ? <AttendancePage data={data} role={effectiveRole} onChanged={refresh} /> : section === "calendar" ? <CalendarPage data={data} /> : section === "communications" ? <CommunicationsPage data={data} role={effectiveRole} onChanged={refresh} /> : section === "reports" ? <ReportsPage data={data} role={effectiveRole} setSection={setSection} /> : section === "ai" ? <AiPage data={data} role={effectiveRole} /> : section === "users" ? <UsersPage role={effectiveRole} onPreview={handleRoleChange} /> : <SettingsPage data={data} role={effectiveRole} onChanged={refresh} />;
-  return <AppShell role={effectiveRole} section={section} setSection={setSection} schoolName={schoolName} school={data.school} onRoleChange={handleRoleChange} onLogout={async () => { if (isAuthenticated) await logout(); setDemoMode(false); }} notificationCount={data.notifications.filter((item: any) => !item.read).length}>{content}</AppShell>;
+  return <AppShell role={effectiveRole} section={section} setSection={setSection} schoolName={schoolName} school={data.school} onRoleChange={handleRoleChange} onLogout={handleLogout} notificationCount={data.notifications.filter((item: any) => !item.read).length}>{content}</AppShell>;
 }

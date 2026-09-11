@@ -1,126 +1,951 @@
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { BarChart3, Check, ChevronDown, Download, FileText, Filter, Search, Sparkles, Users, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { BarChart3, ChevronDown, Sparkles, X, Calculator, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import {
+  GradeCenterTable,
+  type GradeCenterTableRow,
+} from "@/components/grade-center/GradeCenterTable";
+import {
+  GradeCenterToolbar,
+  type GradeFilterKey,
+} from "@/components/grade-center/GradeCenterToolbar";
+import {
+  BulkGradeDialog,
+  type BulkGradeTarget,
+} from "@/components/grade-center/BulkGradeDialog";
+import { GroupIntelligenceBar } from "@/components/grade-center/GroupIntelligenceBar";
+import { ScenarioSimulatorDialog } from "@/components/grade-center/ScenarioSimulatorDialog";
+import { GradeStatisticsPanel } from "@/components/grade-center/GradeStatisticsPanel";
+import { StudentStatisticsDialog } from "@/components/grade-center/StudentStatisticsDialog";
+import { calculateMean } from "@/components/grade-center/gradeStatisticsUtils";
+import {
+  studentName,
+  numberValue,
+  calculateDefinitiva,
+  assessmentLabels,
+  getPerformanceTone,
+} from "@/components/grade-center/gradeCenterUtils";
+import {
+  calculateStudentProjection,
+  calculateWhatIsNeededToPass,
+} from "@/components/grade-center/gradeIntelligenceUtils";
 
 type EduRole = "admin" | "teacher" | "student" | "guardian";
 type GradeCenterProps = { role: EduRole; school: any };
-const assessmentLabels: Record<string, string> = { QUIZ: "Quiz", TALLER: "Taller", EXAMEN: "Examen", PROYECTO: "Proyecto", ACTIVIDAD: "Actividad", PARTICIPACION: "Participación", RECUPERACION: "Recuperación", OTRO: "Otro" };
-const numberValue = (value: number | null | undefined) => value === null || value === undefined ? "—" : Number(value).toFixed(1);
-const studentName = (student: any) => (student?.name ?? `${student?.firstName ?? ""} ${student?.lastName ?? ""}`.trim()) || "Estudiante";
-
-type Context = any;
 
 export function GradeCenterPage({ role }: GradeCenterProps) {
-  const [courseId, setCourseId] = useState<number | undefined>();
-  const [subjectId, setSubjectId] = useState<number | undefined>();
-  const [periodId, setPeriodId] = useState<number | undefined>();
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("ALL");
-  const [pending, setPending] = useState<Record<string, number | null>>({});
-  const [selectedCell, setSelectedCell] = useState<{ assessmentId: number; studentId: number } | null>(null);
-  const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
-  const [showAssessmentForm, setShowAssessmentForm] = useState(false);
-  const [showStats, setShowStats] = useState(false);
-  const [selectedAssessmentId, setSelectedAssessmentId] = useState<number | null>(null);
-  const [newAssessment, setNewAssessment] = useState({ title: "", type: "ACTIVIDAD", weight: "10", date: new Date().toISOString().slice(0, 10), maxValue: "5", description: "" });
-  const [observationDraft, setObservationDraft] = useState("");
-  const [cellComment, setCellComment] = useState("");
-  const contextQuery = trpc.gradeCenter.context.useQuery({ role, courseId, subjectId, academicPeriodId: periodId }, { staleTime: 10_000 });
+  const [courseId, setCourseId] = React.useState<number | undefined>();
+  const [subjectId, setSubjectId] = React.useState<number | undefined>();
+  const [periodId, setPeriodId] = React.useState<number | undefined>();
+  const [query, setQuery] = React.useState("");
+  const [filter, setFilter] = React.useState<GradeFilterKey>("ALL");
+
+  // Almacena cambios en edición pendientes de sincronizar
+  const [pendingGrades, setPendingGrades] = React.useState<Record<string, number | null>>({});
+  const [pendingComments, setPendingComments] = React.useState<Record<string, string>>({});
+  const [selectedStudentIds, setSelectedStudentIds] = React.useState<number[]>([]);
+  const [showBulkDialog, setShowBulkDialog] = React.useState(false);
+
+  // Estado para Inteligencia de Calificaciones (Fase 5.3-C)
+  const [simulatorStudent, setSimulatorStudent] = React.useState<GradeCenterTableRow | null>(null);
+  const [showSimulator, setShowSimulator] = React.useState(false);
+  const [externalTargetCell, setExternalTargetCell] = React.useState<{
+    studentUserId: number;
+    assessmentId: number;
+    ts: number;
+  } | null>(null);
+
+  const [showAssessmentForm, setShowAssessmentForm] = React.useState(false);
+  const [showStats, setShowStats] = React.useState(false);
+  const [selectedAssessmentId, setSelectedAssessmentId] = React.useState<number | null>(null);
+  const [selectedStatsStudent, setSelectedStatsStudent] = React.useState<GradeCenterTableRow | null>(null);
+  const [showStudentStatsDialog, setShowStudentStatsDialog] = React.useState(false);
+
+  const [newAssessment, setNewAssessment] = React.useState({
+    title: "",
+    type: "ACTIVIDAD",
+    weight: "10",
+    date: new Date().toISOString().slice(0, 10),
+    maxValue: "5",
+    description: "",
+  });
+
+  const contextQuery = trpc.gradeCenter.context.useQuery(
+    { role, courseId, subjectId, academicPeriodId: periodId },
+    { staleTime: 10_000 }
+  );
+
   const saveGrades = trpc.gradeCenter.saveGrades.useMutation();
   const createAssessment = trpc.gradeCenter.createAssessment.useMutation();
-  const generateReportCards = trpc.gradeCenter.generateReportCards.useMutation();
-  const generateDraft = trpc.gradeCenter.generateObservationDraft.useMutation();
-  const saveObservation = trpc.gradeCenter.saveObservation.useMutation();
   const utils = trpc.useUtils();
-  const context = contextQuery.data as Context | undefined;
+  const context = contextQuery.data;
 
-  useEffect(() => {
+  // Modificación reactiva individual de una celda para calificación ultrarrápida
+  const handleCellPendingChange = React.useCallback(
+    (assessmentId: number, studentId: number, value: number | null) => {
+      setPendingGrades(prev => ({
+        ...prev,
+        [`${assessmentId}:${studentId}`]: value,
+      }));
+    },
+    []
+  );
+
+  // Abrir simulador de escenarios en memoria para un estudiante
+  const handleOpenSimulator = React.useCallback((studentRow: GradeCenterTableRow) => {
+    setSimulatorStudent(studentRow);
+    setShowSimulator(true);
+  }, []);
+
+  // Navegar y enfocar directamente la celda de una evaluación pendiente
+  const handleNavigateToCell = React.useCallback((studentUserId: number, assessmentId: number) => {
+    setExternalTargetCell({
+      studentUserId,
+      assessmentId,
+      ts: Date.now(),
+    });
+  }, []);
+
+  // Sincronizar selectores iniciales
+  React.useEffect(() => {
     if (!context?.selected) return;
     if (courseId === undefined && context.selected.course?.id) setCourseId(context.selected.course.id);
     if (subjectId === undefined && context.selected.subject?.id) setSubjectId(context.selected.subject.id);
     if (periodId === undefined && context.selected.period?.id) setPeriodId(context.selected.period.id);
   }, [context, courseId, subjectId, periodId]);
-  useEffect(() => {
-    if (!context) return;
-    const next: Record<string, number | null> = {};
-    for (const row of context.rows ?? []) for (const item of row.values ?? []) next[`${item.assessment.id}:${row.enrollment.studentUserId}`] = item.grade?.value ?? null;
-    setPending(next);
-  }, [context?.selected?.course?.id, context?.selected?.subject?.id, context?.selected?.period?.id, context?.assessments?.length, context?.rows?.length]);
-  const selectedCellData = selectedCell ? context?.rows?.find((row: any) => row.enrollment.studentUserId === selectedCell.studentId)?.values.find((item: any) => item.assessment.id === selectedCell.assessmentId) : null;
-  useEffect(() => { setCellComment(selectedCellData?.grade?.comment ?? ""); }, [selectedCell?.assessmentId, selectedCell?.studentId, selectedCellData?.grade?.comment]);
+
+  // Promedio reactivo del grupo para desviaciones y estadísticas (regla de hooks: incondicional)
+  const groupAverage = React.useMemo(() => {
+    if (!context?.rows) return null;
+    const definitivas: number[] = [];
+    for (const row of context.rows) {
+      const sId = row.enrollment.studentUserId;
+      const def = calculateDefinitiva(
+        (row.values ?? []).map((v: any) => {
+          const key = `${v.assessment.id}:${sId}`;
+          const val = Object.prototype.hasOwnProperty.call(pendingGrades, key)
+            ? pendingGrades[key]
+            : v.grade?.value ?? null;
+          return {
+            value: val,
+            maxValue: v.assessment.maxValue,
+            weight: v.assessment.weight,
+          };
+        })
+      );
+      if (def !== null) {
+        definitivas.push(def);
+      }
+    }
+    return calculateMean(definitivas);
+  }, [context?.rows, pendingGrades]);
 
   if (contextQuery.isLoading || !context) return <LoadingState />;
-  if (contextQuery.isError) return <Card className="rounded-2xl border-rose-100 bg-rose-50"><CardContent className="p-6 text-sm text-rose-700">No pudimos cargar esta información académica. Intenta nuevamente.</CardContent></Card>;
-  if (role === "student") return <StudentGradesView context={context} subjectId={subjectId} onSubjectChange={setSubjectId} />;
-  if (role === "guardian") return <GuardianPerformanceView context={context} subjectId={subjectId} onSubjectChange={setSubjectId} />;
-  if (role === "admin") return <AdminPerformanceView context={context} courseId={courseId} subjectId={subjectId} periodId={periodId} onCourseChange={(value: number) => { setCourseId(value); setSubjectId(undefined); }} onSubjectChange={setSubjectId} onPeriodChange={setPeriodId} showStats={showStats} setShowStats={setShowStats} />;
+  if (contextQuery.isError) {
+    return (
+      <Card className="rounded-2xl border-rose-100 bg-rose-50/70">
+        <CardContent className="p-6 text-sm text-rose-700">
+          No pudimos cargar la información académica. Intenta nuevamente.
+        </CardContent>
+      </Card>
+    );
+  }
 
+  // Vistas segmentadas por rol protegido
+  if (role === "student") {
+    return <StudentGradesView context={context} subjectId={subjectId} onSubjectChange={setSubjectId} />;
+  }
+  if (role === "guardian") {
+    return <GuardianPerformanceView context={context} subjectId={subjectId} onSubjectChange={setSubjectId} />;
+  }
+  if (role === "admin") {
+    return (
+      <AdminPerformanceView
+        context={context}
+        courseId={courseId}
+        subjectId={subjectId}
+        periodId={periodId}
+        onCourseChange={(val: number) => {
+          setCourseId(val);
+          setSubjectId(undefined);
+        }}
+        onSubjectChange={setSubjectId}
+        onPeriodChange={setPeriodId}
+        showStats={showStats}
+        setShowStats={setShowStats}
+      />
+    );
+  }
+
+  // VISTA PRINCIPAL DEL DOCENTE
   const selected: any = context.selected ?? {};
-  const canWrite = true;
-  const weightTotal = (context.assessments ?? []).reduce((sum: number, item: any) => sum + Number(item.weight), 0);
-  const pendingValue = (item: any, studentId: number) => { const key = `${item.assessment.id}:${studentId}`; return Object.prototype.hasOwnProperty.call(pending, key) ? pending[key] : item.grade?.value ?? null; };
-  const pendingCount = (context.rows ?? []).reduce((sum: number, row: any) => sum + row.values.filter((item: any) => pendingValue(item, row.enrollment.studentUserId) === null).length, 0);
-  const filteredRows = (context.rows ?? []).filter((row: any) => { const name = studentName(row.student); if (query && !name.toLowerCase().includes(query.toLowerCase())) return false; if (filter === "PENDING") return row.values.some((item: any) => pendingValue(item, row.enrollment.studentUserId) === null); if (filter === "LOW") return row.average !== null && row.average < 3; if (filter === "MID") return row.average !== null && row.average >= 3 && row.average < 4; if (filter === "HIGH") return row.average !== null && row.average >= 4; if (filter === "COMMENT") return row.values.some((item: any) => item.grade?.comment); return true; });
-  const selectedRow = context.rows.find((row: any) => row.enrollment.studentUserId === selectedStudent);
+  const weightTotal = (context.assessments ?? []).reduce(
+    (sum: number, item: any) => sum + Number(item.weight),
+    0
+  );
 
-  const saveAll = async () => {
+  // Filtrado reactivo de filas
+  const filteredRows = (context.rows ?? []).filter((row: any) => {
+    const name = studentName(row.student);
+    if (query.trim() && !name.toLowerCase().includes(query.toLowerCase().trim())) {
+      return false;
+    }
+
+    const rowDefinitiva = calculateDefinitiva(
+      row.values.map((v: any) => ({
+        value: Object.prototype.hasOwnProperty.call(pendingGrades, `${v.assessment.id}:${row.enrollment.studentUserId}`)
+          ? pendingGrades[`${v.assessment.id}:${row.enrollment.studentUserId}`]
+          : v.grade?.value ?? null,
+        maxValue: v.assessment.maxValue,
+        weight: v.assessment.weight,
+      }))
+    );
+
+    if (filter === "PENDING") {
+      return row.values.some((item: any) => {
+        const key = `${item.assessment.id}:${row.enrollment.studentUserId}`;
+        const val = Object.prototype.hasOwnProperty.call(pendingGrades, key)
+          ? pendingGrades[key]
+          : item.grade?.value ?? null;
+        return val === null;
+      });
+    }
+    if (filter === "LOW") {
+      return rowDefinitiva !== null && rowDefinitiva < 3.0;
+    }
+    if (filter === "PASSING") {
+      return rowDefinitiva !== null && rowDefinitiva >= 3.0;
+    }
+    if (filter === "COMMENT") {
+      return row.values.some((item: any) => {
+        const key = `${item.assessment.id}:${row.enrollment.studentUserId}`;
+        const com = Object.prototype.hasOwnProperty.call(pendingComments, key)
+          ? pendingComments[key]
+          : item.grade?.comment;
+        return Boolean(com && com.trim());
+      });
+    }
+    return true;
+  });
+
+  // Guardar calificación individual desde el popover contextual
+  const handleSaveCellGrade = async (
+    assessmentId: number,
+    studentId: number,
+    value: number | null,
+    comment?: string
+  ) => {
     try {
-      for (const assessment of context.assessments ?? []) {
-        const grades = context.rows.map((row: any) => { const item = row.values.find((value: any) => value.assessment.id === assessment.id); return { studentId: row.enrollment.studentUserId, value: pendingValue(item, row.enrollment.studentUserId), comment: item?.grade?.comment ?? undefined }; });
-        await saveGrades.mutateAsync({ role, assessmentId: assessment.id, grades });
-      }
+      await saveGrades.mutateAsync({
+        role,
+        assessmentId,
+        grades: [{ studentId, value, comment }],
+      });
+      setPendingGrades(prev => {
+        const next = { ...prev };
+        delete next[`${assessmentId}:${studentId}`];
+        return next;
+      });
+      setPendingComments(prev => {
+        const next = { ...prev };
+        delete next[`${assessmentId}:${studentId}`];
+        return next;
+      });
       await utils.gradeCenter.context.invalidate();
-      toast.success("Calificaciones guardadas");
-    } catch (error: any) { toast.error(error?.message ?? "No pudimos guardar esta calificación."); }
+      toast.success("Calificación actualizada correctamente");
+    } catch (error: any) {
+      toast.error(error?.message ?? "No pudimos guardar la calificación.");
+    }
   };
-  const createNewAssessment = async () => {
-    if (!selected.course?.academicYearId || !selected.course?.id || !selected.subject?.id || !selected.period?.id || !newAssessment.title.trim()) return;
-    try {
-      await createAssessment.mutateAsync({ role, academicYearId: selected.course.academicYearId, academicPeriodId: selected.period.id, courseId: selected.course.id, subjectId: selected.subject.id, title: newAssessment.title.trim(), assessmentType: newAssessment.type as any, date: new Date(newAssessment.date), maxValue: Number(newAssessment.maxValue), weight: Number(newAssessment.weight), description: newAssessment.description || undefined, status: "DRAFT" });
-      setShowAssessmentForm(false); setNewAssessment({ title: "", type: "ACTIVIDAD", weight: "10", date: new Date().toISOString().slice(0, 10), maxValue: "5", description: "" }); await utils.gradeCenter.context.invalidate(); toast.success("Evaluación creada. Ya puedes abrirla en el calificador.");
-    } catch (error: any) { toast.error(error?.message ?? "No pudimos crear la evaluación."); }
-  };
-  const saveSelectedCell = async () => {
-    if (!selectedCell || !selectedCellData) return;
-    try { await saveGrades.mutateAsync({ role, assessmentId: selectedCell.assessmentId, grades: [{ studentId: selectedCell.studentId, value: pendingValue(selectedCellData, selectedCell.studentId), comment: cellComment || undefined }] }); await utils.gradeCenter.context.invalidate(); toast.success("Calificación actualizada."); } catch (error: any) { toast.error(error?.message ?? "No pudimos guardar esta calificación."); }
-  };
-  const draftObservation = async () => {
-    if (!selectedStudent || !selectedRow) return;
-    try { const response = await generateDraft.mutateAsync({ role, studentName: studentName(selectedRow.student), context: `Curso: ${selected.course?.name}. Materia: ${selected.subject?.name}. Promedio: ${selectedRow.average ?? "sin datos"}. Notas: ${selectedRow.values.map((item: any) => `${item.assessment.title}: ${item.grade?.value ?? "pendiente"}`).join(", ")}` }); setObservationDraft(response.text); } catch (error: any) { toast.error(error?.message ?? "No pudimos generar el borrador."); }
-  };
-  const saveDraft = async () => { if (!selectedStudent || !observationDraft || !selected.course?.academicYearId || !selected.period?.id) return; try { await saveObservation.mutateAsync({ role, studentId: selectedStudent, academicYearId: selected.course.academicYearId, academicPeriodId: selected.period.id, text: observationDraft, status: "DRAFT" }); setObservationDraft(""); toast.success("Borrador guardado; queda pendiente de revisión."); await utils.gradeCenter.context.invalidate(); } catch (error: any) { toast.error(error?.message ?? "No pudimos guardar el borrador."); } };
 
-  return <div className="space-y-5">
-    <TeacherHeader selected={selected} showStats={showStats} setShowStats={setShowStats} onNew={() => setShowAssessmentForm(value => !value)} />
-    <CompactSummary context={context} pendingCount={pendingCount} weightTotal={weightTotal} />
-    <ContextSelectors context={context} selected={selected} onCourseChange={(value: number) => { setCourseId(value); setSubjectId(undefined); }} onSubjectChange={setSubjectId} onPeriodChange={setPeriodId} />
-    {showAssessmentForm ? <AssessmentForm selected={selected} state={newAssessment} setState={setNewAssessment} onCancel={() => setShowAssessmentForm(false)} onCreate={createNewAssessment} pending={createAssessment.isPending} /> : null}
-    <div className="relative"><Card className="min-w-0 rounded-2xl border-0 shadow-[0_10px_34px_rgba(29,78,137,0.07)]"><CardHeader className="gap-4 pb-3"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><CardTitle className="text-base">Grade Center</CardTitle><p className="mt-1 text-xs text-slate-400">La tabla es el centro · {context.assessments.length} evaluaciones · {context.rows.length} estudiantes visibles</p></div><Button onClick={saveAll} disabled={saveGrades.isPending} size="sm" className="rounded-xl bg-[var(--edc-primary)]">{saveGrades.isPending ? "Guardando…" : "Guardar cambios"}</Button></div><div className="flex flex-col gap-2 md:flex-row"><div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" /><Input className="rounded-xl pl-9" aria-label="Buscar estudiante" placeholder="Buscar estudiante" value={query} onChange={event => setQuery(event.target.value)} /></div><div className="flex items-center gap-2 overflow-x-auto"><Filter className="h-4 w-4 shrink-0 text-slate-400" />{[["ALL", "Todos"], ["PENDING", "Sin calificar"], ["LOW", "< 3.0"], ["MID", "3.0–4.0"], ["HIGH", "4.0+"], ["COMMENT", "Comentario"]].map(([key, label]) => <button key={key} onClick={() => setFilter(key)} className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium ${filter === key ? "bg-[var(--edc-secondary)] text-[var(--edc-primary)]" : "bg-slate-50 text-slate-500 hover:bg-slate-100"}`}>{label}</button>)}</div></div></CardHeader><CardContent className="p-0"><GradeTable context={context} rows={filteredRows} pendingValue={pendingValue} canWrite={canWrite} onCellChange={(assessmentId: number, studentId: number, value: string) => setPending(previous => ({ ...previous, [`${assessmentId}:${studentId}`]: value === "" ? null : Number(value) }))} onCellClick={(cell: { assessmentId: number; studentId: number }) => { setSelectedCell(cell); setSelectedAssessmentId(cell.assessmentId); }} onStudentClick={(studentId: number) => setSelectedStudent(studentId)} /></CardContent></Card>
-      {selectedCellData && selectedCell ? <QuickPopover context={context} selected={selected} selectedCell={selectedCell} selectedCellData={selectedCellData} selectedRow={context.rows.find((row: any) => row.enrollment.studentUserId === selectedCell.studentId)} value={pendingValue(selectedCellData, selectedCell.studentId)} onValueChange={(value: number | null) => setPending(previous => ({ ...previous, [`${selectedCell.assessmentId}:${selectedCell.studentId}`]: value }))} comment={cellComment} setComment={setCellComment} observationDraft={observationDraft} setObservationDraft={setObservationDraft} onSave={saveSelectedCell} onClose={() => setSelectedCell(null)} onDraft={draftObservation} onSaveDraft={saveDraft} generating={generateDraft.isPending} /> : null}
+  // Guardar todos los cambios pendientes acumulados
+  const handleSaveAll = async () => {
+    const keys = Object.keys(pendingGrades);
+    if (!keys.length) return;
+    try {
+      const byAssessment: Record<number, Array<{ studentId: number; value: number | null; comment?: string }>> = {};
+      for (const key of keys) {
+        const [assessmentIdStr, studentIdStr] = key.split(":");
+        const aId = Number(assessmentIdStr);
+        const sId = Number(studentIdStr);
+        if (!byAssessment[aId]) byAssessment[aId] = [];
+        byAssessment[aId].push({
+          studentId: sId,
+          value: pendingGrades[key],
+          comment: pendingComments[key] || undefined,
+        });
+      }
+      for (const aIdStr of Object.keys(byAssessment)) {
+        const aId = Number(aIdStr);
+        await saveGrades.mutateAsync({
+          role,
+          assessmentId: aId,
+          grades: byAssessment[aId],
+        });
+      }
+      setPendingGrades({});
+      setPendingComments({});
+      await utils.gradeCenter.context.invalidate();
+      toast.success("Todas las calificaciones pendientes fueron guardadas");
+    } catch (error: any) {
+      toast.error(error?.message ?? "Error al guardar calificaciones.");
+    }
+  };
+
+  // Selección de estudiantes
+  const handleToggleStudent = (studentId: number) => {
+    setSelectedStudentIds(prev =>
+      prev.includes(studentId) ? prev.filter(id => id !== studentId) : [...prev, studentId]
+    );
+  };
+
+  const handleToggleAllVisible = () => {
+    const visibleIds: number[] = filteredRows.map((r: any) => r.enrollment.studentUserId);
+    const allSelected =
+      visibleIds.length > 0 && visibleIds.every(id => selectedStudentIds.includes(id));
+    if (allSelected) {
+      setSelectedStudentIds(prev => prev.filter(id => !visibleIds.includes(id)));
+    } else {
+      setSelectedStudentIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
+  // Calificación masiva
+  const handleApplyBulkGrade = (
+    assessmentId: number,
+    value: number,
+    target: BulkGradeTarget
+  ) => {
+    let targetRows = filteredRows;
+    if (target === "SELECTED") {
+      targetRows = filteredRows.filter((r: any) =>
+        selectedStudentIds.includes(r.enrollment.studentUserId)
+      );
+    }
+
+    const updates: Record<string, number | null> = {};
+    let affectedCount = 0;
+
+    for (const row of targetRows) {
+      const studentId = row.enrollment.studentUserId;
+      const key = `${assessmentId}:${studentId}`;
+
+      if (target === "EMPTY_ONLY") {
+        const currentVal = Object.prototype.hasOwnProperty.call(pendingGrades, key)
+          ? pendingGrades[key]
+          : row.values.find((v: any) => v.assessment.id === assessmentId)?.grade?.value ?? null;
+
+        // IMPORTANTE: NUNCA sobrescribir notas existentes cuando se utiliza esta opción
+        if (currentVal !== null && currentVal !== undefined) {
+          continue;
+        }
+      }
+
+      updates[key] = value;
+      affectedCount++;
+    }
+
+    if (affectedCount === 0) {
+      toast.info("No se modificó ninguna celda (no había celdas que cumplieran la condición).");
+      return;
+    }
+
+    setPendingGrades(prev => ({
+      ...prev,
+      ...updates,
+    }));
+
+    toast.success(
+      `Se aplicó ${value} a ${affectedCount} estudiante${affectedCount === 1 ? "" : "s"} (${
+        target === "EMPTY_ONLY" ? "solo celdas vacías" : "cambios pendientes"
+      })`
+    );
+  };
+
+  // Creación de nueva evaluación
+  const handleCreateAssessment = async () => {
+    if (!selected.course?.academicYearId || !selected.course?.id || !selected.subject?.id || !selected.period?.id) {
+      toast.error("Contexto académico incompleto.");
+      return;
+    }
+    if (!newAssessment.title.trim()) {
+      toast.error("El nombre de la evaluación es requerido.");
+      return;
+    }
+    try {
+      await createAssessment.mutateAsync({
+        role,
+        academicYearId: selected.course.academicYearId,
+        academicPeriodId: selected.period.id,
+        courseId: selected.course.id,
+        subjectId: selected.subject.id,
+        title: newAssessment.title.trim(),
+        assessmentType: newAssessment.type as any,
+        date: new Date(newAssessment.date),
+        maxValue: Number(newAssessment.maxValue),
+        weight: Number(newAssessment.weight),
+        description: newAssessment.description.trim() || undefined,
+        status: "DRAFT",
+      });
+      setShowAssessmentForm(false);
+      setNewAssessment({
+        title: "",
+        type: "ACTIVIDAD",
+        weight: "10",
+        date: new Date().toISOString().slice(0, 10),
+        maxValue: "5",
+        description: "",
+      });
+      await utils.gradeCenter.context.invalidate();
+      toast.success("Evaluación creada exitosamente");
+    } catch (error: any) {
+      toast.error(error?.message ?? "No pudimos crear la evaluación.");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Encabezado del Grade Center */}
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--edc-accent)]">
+            Grade Center
+          </p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+            Calificaciones
+          </h1>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {selected.course?.name ?? "Curso"} · {selected.subject?.name ?? "Materia"} ·{" "}
+            {selected.period?.name ?? "Periodo"} · {selected.course?.year ?? "2026"}
+          </p>
+        </div>
+      </div>
+
+      {/* Barra de herramientas y filtros (Liquid Glass sutil) */}
+      <GradeCenterToolbar
+        courses={context.courses ?? []}
+        subjects={context.subjects ?? []}
+        periods={context.periods ?? []}
+        selectedCourseId={selected.course?.id}
+        selectedSubjectId={selected.subject?.id}
+        selectedPeriodId={selected.period?.id}
+        onCourseChange={(val: number) => {
+          setCourseId(val);
+          setSubjectId(undefined);
+        }}
+        onSubjectChange={setSubjectId}
+        onPeriodChange={setPeriodId}
+        searchQuery={query}
+        onSearchChange={setQuery}
+        currentFilter={filter}
+        onFilterChange={setFilter}
+        pendingCount={Object.keys(pendingGrades).length}
+        isSavingAll={saveGrades.isPending}
+        onSaveAll={handleSaveAll}
+        onNewAssessment={() => setShowAssessmentForm(prev => !prev)}
+        stats={context.stats}
+        weightTotal={weightTotal}
+        selectedCount={selectedStudentIds.length}
+        onClearSelection={() => setSelectedStudentIds([])}
+        onOpenBulkGrade={() => setShowBulkDialog(true)}
+        canWrite={true}
+        showStats={showStats}
+        onToggleStats={() => setShowStats(prev => !prev)}
+      />
+
+      {/* Formulario de nueva evaluación (desplegable) */}
+      {showAssessmentForm && (
+        <Card className="rounded-2xl border border-[var(--edc-accent)]/60 bg-[var(--edc-secondary)]/25 p-4 shadow-sm">
+          <CardHeader className="p-0 pb-3">
+            <CardTitle className="text-sm font-bold text-slate-800">
+              Nueva evaluación
+              <span className="ml-2 text-xs font-normal text-slate-500">
+                Contexto: {selected.course?.name} · {selected.subject?.name} · {selected.period?.name}
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4">
+            <Input
+              aria-label="Nombre de evaluación"
+              placeholder="Nombre (ej. Parcial 1)"
+              value={newAssessment.title}
+              onChange={e => setNewAssessment({ ...newAssessment, title: e.target.value })}
+              className="h-9 rounded-xl bg-white text-xs"
+            />
+            <select
+              aria-label="Tipo"
+              value={newAssessment.type}
+              onChange={e => setNewAssessment({ ...newAssessment, type: e.target.value })}
+              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-700"
+            >
+              <option value="ACTIVIDAD">Actividad</option>
+              <option value="QUIZ">Quiz</option>
+              <option value="TALLER">Taller</option>
+              <option value="EXAMEN">Examen</option>
+              <option value="PROYECTO">Proyecto</option>
+            </select>
+            <Input
+              aria-label="Valor máximo"
+              type="number"
+              min="0.1"
+              max="100"
+              step="0.1"
+              value={newAssessment.maxValue}
+              onChange={e => setNewAssessment({ ...newAssessment, maxValue: e.target.value })}
+              placeholder="Valor máx (5)"
+              className="h-9 rounded-xl bg-white text-xs"
+            />
+            <Input
+              aria-label="Peso porcentaje"
+              type="number"
+              min="0"
+              max="100"
+              value={newAssessment.weight}
+              onChange={e => setNewAssessment({ ...newAssessment, weight: e.target.value })}
+              placeholder="Peso % (ej. 20)"
+              className="h-9 rounded-xl bg-white text-xs"
+            />
+            <Input
+              aria-label="Fecha"
+              type="date"
+              value={newAssessment.date}
+              onChange={e => setNewAssessment({ ...newAssessment, date: e.target.value })}
+              className="h-9 rounded-xl bg-white text-xs"
+            />
+            <Input
+              aria-label="Descripción"
+              placeholder="Descripción opcional..."
+              value={newAssessment.description}
+              onChange={e => setNewAssessment({ ...newAssessment, description: e.target.value })}
+              className="h-9 rounded-xl bg-white text-xs sm:col-span-2 lg:col-span-3"
+            />
+            <div className="flex gap-2 sm:col-span-2 lg:col-span-4">
+              <Button
+                size="sm"
+                onClick={handleCreateAssessment}
+                disabled={createAssessment.isPending || !newAssessment.title.trim()}
+                className="h-8 rounded-xl bg-[var(--edc-primary)] px-4 text-xs font-semibold text-white"
+              >
+                {createAssessment.isPending ? "Creando..." : "Crear evaluación"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowAssessmentForm(false)}
+                className="h-8 rounded-xl px-3 text-xs"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* BARRA DE INTELIGENCIA DE CALIFICACIONES (FASE 5.3-C) */}
+      <GroupIntelligenceBar
+        rows={filteredRows}
+        assessments={context.assessments ?? []}
+        pendingGrades={pendingGrades}
+        scale={context.scale}
+        courseName={selected.course?.name}
+        subjectName={selected.subject?.name}
+        onNavigateToCell={handleNavigateToCell}
+        onOpenSimulator={handleOpenSimulator}
+      />
+
+      {/* PANEL DE ESTADÍSTICAS AVANZADAS (FASE 5.3-D) */}
+      {showStats && (
+        <GradeStatisticsPanel
+          rows={filteredRows}
+          assessments={context.assessments ?? []}
+          scale={context.scale}
+          pendingGrades={pendingGrades}
+          onNavigateToCell={handleNavigateToCell}
+          onOpenStudentStats={(st: GradeCenterTableRow) => {
+            setSelectedStatsStudent(st);
+            setShowStudentStatsDialog(true);
+          }}
+          onSelectAssessment={aId => {
+            const firstStudent = filteredRows[0]?.enrollment.studentUserId;
+            if (firstStudent) {
+              handleNavigateToCell(firstStudent, aId);
+            }
+          }}
+        />
+      )}
+
+      {/* TABLA PRINCIPAL DE CALIFICACIONES (EJE CENTRAL ABSOLUTO) */}
+      <GradeCenterTable
+        assessments={context.assessments ?? []}
+        rows={filteredRows}
+        courseName={selected.course?.name}
+        subjectName={selected.subject?.name}
+        scale={context.scale}
+        pendingGrades={pendingGrades}
+        pendingComments={pendingComments}
+        canWrite={true}
+        onSaveCellGrade={handleSaveCellGrade}
+        onCellPendingChange={handleCellPendingChange}
+        onOpenSimulator={handleOpenSimulator}
+        externalTargetCell={externalTargetCell}
+        isSaving={saveGrades.isPending}
+        selectedStudentIds={selectedStudentIds}
+        onToggleStudent={handleToggleStudent}
+        onToggleAllVisible={handleToggleAllVisible}
+        groupAverage={groupAverage}
+        onOpenStudentStats={st => {
+          setSelectedStatsStudent(st);
+          setShowStudentStatsDialog(true);
+        }}
+      />
+
+      {/* Diálogo de Calificación Masiva */}
+      <BulkGradeDialog
+        open={showBulkDialog}
+        onOpenChange={setShowBulkDialog}
+        assessments={context.assessments ?? []}
+        selectedAssessmentId={selectedAssessmentId ?? undefined}
+        rows={filteredRows}
+        selectedStudentIds={selectedStudentIds}
+        scale={context.scale}
+        pendingGrades={pendingGrades}
+        onApply={handleApplyBulkGrade}
+      />
+
+      {/* Simulador de Escenarios en Memoria (Fase 5.3-C) */}
+      <ScenarioSimulatorDialog
+        open={showSimulator}
+        onOpenChange={setShowSimulator}
+        studentRow={simulatorStudent}
+        scale={context.scale}
+      />
+
+      {/* Diálogo de Estadísticas Individuales del Estudiante (Fase 5.3-D) */}
+      <StudentStatisticsDialog
+        open={showStudentStatsDialog}
+        onOpenChange={setShowStudentStatsDialog}
+        studentRow={selectedStatsStudent}
+        assessments={context.assessments ?? []}
+        scale={context.scale}
+        pendingGrades={pendingGrades}
+        groupAverage={groupAverage}
+      />
     </div>
-    {selectedStudent && !selectedCell ? <QuickProfile context={context} student={selectedRow} onClose={() => setSelectedStudent(null)} /> : null}
-    {showStats ? <StatsDrawer context={context} selectedAssessmentId={selectedAssessmentId} onAssessmentChange={setSelectedAssessmentId} onClose={() => setShowStats(false)} /> : null}
-  </div>;
+  );
 }
 
-function TeacherHeader({ selected, showStats, setShowStats, onNew }: any) { return <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--edc-accent)]">Grade Center</p><h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-[30px]">Calificaciones</h1><p className="mt-2 text-sm text-slate-500">{selected.course?.name} · {selected.subject?.name} · {selected.period?.name} · {selected.course?.year}</p></div><div className="flex flex-wrap gap-2"><Button onClick={onNew} className="rounded-xl bg-[var(--edc-primary)]">+ Nueva evaluación</Button><Button variant="outline" onClick={() => setShowStats(!showStats)} className="rounded-xl">{showStats ? "Ocultar estadísticas" : "Ver estadísticas"}</Button></div></div>; }
-function CompactSummary({ context, pendingCount, weightTotal }: any) { return <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-slate-50/80 px-4 py-2.5 text-sm text-slate-600"><span><strong className="text-slate-900">{numberValue(context.stats.average)}</strong> promedio</span><span className="text-slate-300">·</span><span><strong className="text-slate-900">{context.stats.students}</strong> estudiantes</span><span className="text-slate-300">·</span><span><strong className="text-slate-900">{context.stats.assessments}</strong> evaluaciones</span><span className="text-slate-300">·</span><span><strong className="text-slate-900">{context.stats.completion}%</strong> completado</span>{pendingCount ? <><span className="text-slate-300">·</span><span className="font-medium text-amber-700">{pendingCount} pendientes</span></> : null}{weightTotal > 100 ? <span className="font-medium text-amber-700">Peso acumulado: {weightTotal}%</span> : null}</div>; }
-function ContextSelectors({ context, selected, onCourseChange, onSubjectChange, onPeriodChange }: any) { return <Card className="rounded-2xl border-0 bg-white/85 shadow-[0_8px_24px_rgba(29,78,137,0.05)]"><CardContent className="grid gap-3 p-4 md:grid-cols-3"><SelectField label="Curso" value={selected.course?.id} onChange={onCourseChange} options={context.courses} placeholder="Seleccionar curso" /><SelectField label="Materia" value={selected.subject?.id} onChange={onSubjectChange} options={context.subjects} placeholder="Seleccionar materia" /><SelectField label="Periodo" value={selected.period?.id} onChange={onPeriodChange} options={context.periods} placeholder="Seleccionar periodo" /></CardContent></Card>; }
-function SelectField({ label, value, onChange, options, placeholder }: any) { return <label className="text-xs font-semibold text-slate-500">{label}<select value={value ?? ""} onChange={event => onChange(Number(event.target.value))} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700"><option value="">{placeholder}</option>{options.map((item: any) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>; }
-function AssessmentForm({ selected, state, setState, onCancel, onCreate, pending }: any) { return <Card className="rounded-2xl border-[var(--edc-accent)] bg-[var(--edc-secondary)]/35"><CardHeader><CardTitle className="text-base">Nueva evaluación <span className="ml-2 text-xs font-normal text-slate-500">Contexto preseleccionado: {selected.course?.name} · {selected.subject?.name} · {selected.period?.name}</span></CardTitle></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Input aria-label="Nombre de evaluación" placeholder="Nombre" value={state.title} onChange={event => setState({ ...state, title: event.target.value })} /><select aria-label="Tipo" value={state.type} onChange={event => setState({ ...state, type: event.target.value })} className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm"><option value="ACTIVIDAD">Actividad</option><option value="QUIZ">Quiz</option><option value="TALLER">Taller</option><option value="EXAMEN">Examen</option><option value="PROYECTO">Proyecto</option></select><Input aria-label="Valor máximo" type="number" min="0.1" max="100" step="0.1" value={state.maxValue} onChange={event => setState({ ...state, maxValue: event.target.value })} placeholder="Valor máximo" /><Input aria-label="Peso" type="number" min="0" max="100" value={state.weight} onChange={event => setState({ ...state, weight: event.target.value })} placeholder="Peso %" /><Input aria-label="Fecha" type="date" value={state.date} onChange={event => setState({ ...state, date: event.target.value })} /><Input aria-label="Descripción" placeholder="Descripción opcional" value={state.description} onChange={event => setState({ ...state, description: event.target.value })} className="sm:col-span-2" /><div className="flex gap-2 sm:col-span-2 lg:col-span-4"><Button onClick={onCreate} disabled={pending || !state.title.trim()} className="rounded-xl bg-[var(--edc-primary)]">{pending ? "Creando…" : "Crear evaluación"}</Button><Button variant="ghost" onClick={onCancel} className="rounded-xl">Cancelar</Button></div></CardContent></Card>; }
-function GradeTable({ context, rows, pendingValue, canWrite, onCellChange, onCellClick, onStudentClick }: any) { return <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead><tr className="border-y border-slate-100 bg-slate-50/70 text-[11px] uppercase tracking-wider text-slate-400"><th className="sticky left-0 z-10 min-w-[180px] bg-slate-50/95 px-4 py-3">Estudiante</th>{context.assessments.map((assessment: any) => <th key={assessment.id} className="px-3 py-3 text-center"><button onClick={() => onCellClick({ assessmentId: assessment.id, studentId: rows[0]?.enrollment.studentUserId })} className="normal-case tracking-normal text-slate-600 hover:text-[var(--edc-primary)]">{assessment.title}</button><div className="mt-1 font-normal">{assessmentLabels[assessment.assessmentType] ?? assessment.assessmentType} · {assessment.weight}%</div></th>)}<th className="px-3 py-3 text-center">Promedio</th></tr></thead><tbody>{rows.map((row: any) => <tr key={row.enrollment.id} className="group border-b border-slate-100 last:border-0 hover:bg-[var(--edc-secondary)]/25"><td className="sticky left-0 z-10 bg-white px-4 py-3"><button onClick={() => onStudentClick(row.enrollment.studentUserId)} className="text-left font-semibold text-slate-700 hover:text-[var(--edc-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--edc-accent)]">{studentName(row.student)}</button><p className="mt-0.5 text-[11px] text-slate-400">ID académico · {row.enrollment.studentUserId}</p></td>{row.values.map((item: any) => { const value = pendingValue(item, row.enrollment.studentUserId); return <td key={item.assessment.id} className="px-3 py-3 text-center"><div className="flex items-center justify-center gap-1"><input aria-label={`${item.assessment.title} · ${studentName(row.student)}`} disabled={!canWrite} type="number" min="0" max={item.assessment.maxValue} step="0.1" value={value ?? ""} onChange={event => onCellChange(item.assessment.id, row.enrollment.studentUserId, event.target.value)} onClick={() => onCellClick({ assessmentId: item.assessment.id, studentId: row.enrollment.studentUserId })} onKeyDown={event => { if (event.key === "Escape") (event.currentTarget as HTMLInputElement).blur(); }} className={`h-9 w-16 rounded-lg border bg-white text-center text-sm font-semibold outline-none transition focus:border-[var(--edc-accent)] focus:ring-2 focus:ring-[var(--edc-secondary)] ${value !== null && value < 3 ? "border-rose-100 text-rose-600" : "border-slate-200 text-slate-700"}`} /><button aria-label="Abrir detalle" onClick={() => onCellClick({ assessmentId: item.assessment.id, studentId: row.enrollment.studentUserId })} className="rounded-md p-1 text-slate-300 opacity-0 transition hover:text-[var(--edc-primary)] group-hover:opacity-100"><ChevronDown className="h-3 w-3" /></button></div></td>; })}<td className={`px-3 py-3 text-center text-base font-semibold ${row.average !== null && row.average < 3 ? "text-rose-500" : "text-slate-800"}`}>{numberValue(row.average)}</td></tr>)}</tbody></table>{!rows.length ? <div className="p-10 text-center text-sm text-slate-500">No hay estudiantes con este filtro.</div> : null}</div>; }
-function QuickPopover({ context, selected, selectedCell, selectedCellData, selectedRow, value, onValueChange, comment, setComment, observationDraft, setObservationDraft, onSave, onClose, onDraft, onSaveDraft, generating }: any) { const recent = selectedRow?.values.map((item: any) => numberValue(item.grade?.value)).join(" · "); const suggestion = value !== null && value < 3 ? "Esta es una de las calificaciones más bajas visibles del estudiante durante el periodo." : "La nota está dentro del rango esperado de la escala institucional."; return <div role="dialog" aria-label="Quick Student Popover" className="mt-3 rounded-2xl border border-white/70 bg-white/95 p-5 shadow-[0_18px_48px_rgba(29,78,137,0.16)] backdrop-blur-xl"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-wider text-[var(--edc-accent)]">Quick Student Popover</p><h3 className="mt-1 text-lg font-semibold text-slate-800">{studentName(selectedRow?.student)}</h3><p className="text-xs text-slate-500">{selected.course?.name} · {selected.subject?.name}</p></div><button aria-label="Cerrar" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button></div><div className="mt-4 grid gap-4 md:grid-cols-4"><div><p className="text-xs text-slate-400">Evaluación</p><p className="mt-1 font-medium text-slate-700">{selectedCellData.assessment.title}</p><p className="mt-1 text-xs text-slate-500">{assessmentLabels[selectedCellData.assessment.assessmentType] ?? selectedCellData.assessment.assessmentType} · {selectedCellData.assessment.weight}%</p></div><div><p className="text-xs text-slate-400">Calificación · escala {selectedCellData.assessment.maxValue}</p><Input aria-label="Editar nota" type="number" min="0" max={selectedCellData.assessment.maxValue} step="0.1" value={value ?? ""} onChange={event => onValueChange(event.target.value === "" ? null : Number(event.target.value))} className="mt-1 h-10 w-24 rounded-xl text-center text-lg font-semibold" /><p className="mt-1 text-xs text-slate-400">Promedio materia: {numberValue(selectedRow?.average)}</p></div><div><p className="text-xs text-slate-400">Historial reciente</p><p className="mt-2 text-sm font-medium text-slate-700">{recent || "Sin calificaciones"}</p><p className="mt-2 text-xs leading-5 text-slate-500">✦ Sugerencia de EduCore: {suggestion}</p></div><div><p className="text-xs text-slate-400">Comentario de la nota</p><Textarea value={comment} onChange={event => setComment(event.target.value)} placeholder="Agregar comentario…" className="mt-1 min-h-16 rounded-xl" /><div className="mt-2 flex gap-2"><Button size="sm" onClick={onSave} className="rounded-xl bg-[var(--edc-primary)]">Guardar</Button><Button size="sm" variant="ghost" onClick={onClose} className="rounded-xl">Cancelar</Button></div></div></div><div className="mt-4 border-t border-slate-100 pt-4"><p className="text-xs font-semibold text-slate-500">Observación académica</p><div className="mt-2 flex flex-col gap-2 sm:flex-row"><Textarea value={observationDraft} onChange={event => setObservationDraft(event.target.value)} placeholder="Borrador editable, no se publica automáticamente…" className="min-h-14 rounded-xl" /><div className="flex shrink-0 gap-2 sm:flex-col"><Button variant="outline" size="sm" onClick={onDraft} disabled={generating} className="rounded-xl"><Sparkles className="mr-1 h-3 w-3" />{generating ? "Generando…" : "Generar"}</Button>{observationDraft ? <Button size="sm" onClick={onSaveDraft} className="rounded-xl bg-[var(--edc-primary)]">Guardar borrador</Button> : null}</div></div></div></div>; }
-function QuickProfile({ context, student, onClose }: any) { return <Card className="rounded-2xl border-[var(--edc-accent)]"><CardContent className="p-5"><div className="flex items-center justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-wider text-[var(--edc-accent)]">Quick Academic Profile</p><h3 className="mt-1 text-lg font-semibold">{studentName(student?.student)}</h3><p className="text-sm text-slate-500">{context.selected?.course?.name} · Promedio {numberValue(student?.average)}</p></div><Button variant="outline" onClick={onClose} className="rounded-xl">Cerrar</Button></div><div className="mt-4 flex flex-wrap gap-2">{(student?.values ?? []).map((item: any) => <span key={item.assessment.id} className="rounded-full bg-slate-50 px-3 py-1.5 text-xs text-slate-600">{item.assessment.title}: <strong>{numberValue(item.grade?.value)}</strong></span>)}</div></CardContent></Card>; }
-function StatsDrawer({ context, selectedAssessmentId, onAssessmentChange, onClose }: any) { const assessment = context.assessments.find((item: any) => item.id === selectedAssessmentId); const values = assessment ? context.rows.map((row: any) => row.values.find((item: any) => item.assessment.id === assessment.id)?.grade?.value).filter((value: any) => value !== null && value !== undefined) : context.rows.flatMap((row: any) => row.values.map((item: any) => item.grade?.value).filter((value: any) => value !== null && value !== undefined)); const average = values.length ? values.reduce((sum: number, value: number) => sum + value, 0) / values.length : null; const max = values.length ? Math.max(...values) : null; const min = values.length ? Math.min(...values) : null; return <div className="fixed inset-y-0 right-0 z-40 w-full max-w-sm border-l border-white/70 bg-white/95 p-6 shadow-2xl backdrop-blur-xl"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-[var(--edc-accent)]">Análisis</p><h2 className="mt-1 text-xl font-semibold">Estadísticas</h2></div><button aria-label="Cerrar estadísticas" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button></div><label className="mt-6 block text-xs font-semibold text-slate-500">Contexto<select value={selectedAssessmentId ?? ""} onChange={event => onAssessmentChange(event.target.value ? Number(event.target.value) : null)} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"><option value="">Curso · materia · periodo</option>{context.assessments.map((item: any) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label><div className="mt-6 space-y-3"><StatLine label="Promedio" value={numberValue(average)} /><StatLine label="Máximo" value={numberValue(max)} /><StatLine label="Mínimo" value={numberValue(min)} /><StatLine label="Pendientes" value={String(assessment ? context.rows.length - values.length : context.stats.total - context.stats.graded)} /><StatLine label="Completitud" value={`${assessment ? Math.round(values.length / Math.max(1, context.rows.length) * 100) : context.stats.completion}%`} /></div><div className="mt-7 rounded-xl bg-[var(--edc-secondary)]/45 p-4"><p className="text-xs font-semibold text-slate-600">EduCore Insights</p>{context.insights.map((item: string) => <p key={item} className="mt-3 text-xs leading-5 text-slate-600">{item}</p>)}{!context.insights.length ? <p className="mt-3 text-xs text-slate-500">Aún no hay suficientes datos.</p> : null}</div><p className="mt-6 text-xs leading-5 text-slate-400">El panel usa únicamente el contexto académico autorizado y no altera calificaciones.</p></div>; }
-function StatLine({ label, value }: any) { return <div className="flex justify-between border-b border-slate-100 pb-2 text-sm text-slate-600"><span>{label}</span><strong className="text-slate-900">{value}</strong></div>; }
-function StudentGradesView({ context, subjectId, onSubjectChange }: any) { const [detail, setDetail] = useState(false); const row = context.rows[0]; return <div className="space-y-6"><PageIntro eyebrow="Mis calificaciones" title="Mi progreso académico" detail={`${studentName(row?.student)} · ${context.selected?.course?.name ?? "Curso"}`} /><ContextSelectors context={context} selected={context.selected ?? {}} onCourseChange={() => undefined} onSubjectChange={(value: number) => onSubjectChange(value)} onPeriodChange={() => undefined} /><div className="grid gap-4 sm:grid-cols-3"><PersonalMetric label="Promedio general" value={numberValue(row?.average)} /><PersonalMetric label="Evaluaciones" value={context.assessments.length} /><PersonalMetric label="Completitud" value={`${context.stats.completion}%`} /></div><Card className="rounded-2xl border-0 shadow-[0_10px_34px_rgba(29,78,137,0.07)]"><CardHeader><CardTitle className="text-base">{context.selected?.subject?.name ?? "Materia"} · {context.selected?.period?.name}</CardTitle></CardHeader><CardContent className="space-y-2">{context.assessments.map((assessment: any) => { const item = row?.values.find((value: any) => value.assessment.id === assessment.id); return <button key={assessment.id} onClick={() => setDetail(true)} className="flex w-full items-center justify-between rounded-xl border border-slate-100 p-4 text-left transition hover:bg-slate-50"><span><span className="block font-medium text-slate-700">{assessment.title}</span><span className="text-xs text-slate-400">{assessmentLabels[assessment.assessmentType] ?? assessment.assessmentType} · {assessment.weight}%</span></span><strong className="text-lg text-slate-900">{numberValue(item?.grade?.value)}</strong></button>; })}{!context.assessments.length ? <p className="py-6 text-sm text-slate-500">Aún no hay evaluaciones.</p> : null}</CardContent></Card>{detail ? <Card className="rounded-2xl border-[var(--edc-accent)]"><CardContent className="p-5"><div className="flex justify-between"><div><p className="text-xs uppercase tracking-wider text-[var(--edc-accent)]">Detalle personal</p><h3 className="mt-1 text-lg font-semibold">Mis evaluaciones</h3></div><Button variant="outline" onClick={() => setDetail(false)} className="rounded-xl">Cerrar</Button></div><p className="mt-4 text-sm text-slate-500">Solo se muestran tus propias notas y comentarios.</p></CardContent></Card> : null}</div>; }
-function GuardianPerformanceView({ context, subjectId, onSubjectChange }: any) { const [studentId, setStudentId] = useState<number | undefined>(context.rows[0]?.enrollment.studentUserId); const row = context.rows.find((item: any) => item.enrollment.studentUserId === studentId) ?? context.rows[0]; return <div className="space-y-6"><PageIntro eyebrow="Rendimiento" title="Acompaña su progreso" detail="Consulta el rendimiento de los estudiantes vinculados a tu cuenta." /><div className="grid gap-3 md:grid-cols-2"><label className="text-xs font-semibold text-slate-500">Estudiante<select value={studentId ?? ""} onChange={event => setStudentId(Number(event.target.value))} className="mt-1 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"><option value="">Seleccionar estudiante</option>{context.rows.map((item: any) => <option key={item.enrollment.studentUserId} value={item.enrollment.studentUserId}>{studentName(item.student)} · {context.selected?.course?.name}</option>)}</select></label><SelectField label="Materia" value={context.selected?.subject?.id} onChange={onSubjectChange} options={context.subjects} placeholder="Seleccionar materia" /></div><div className="grid gap-4 sm:grid-cols-3"><PersonalMetric label="Promedio general" value={numberValue(row?.average)} /><PersonalMetric label="Evaluaciones" value={context.assessments.length} /><PersonalMetric label="Periodo" value={context.selected?.period?.name ?? "—"} /></div><Card className="rounded-2xl border-0 shadow-[0_10px_34px_rgba(29,78,137,0.07)]"><CardHeader><CardTitle className="text-base">Evaluaciones de {studentName(row?.student)}</CardTitle></CardHeader><CardContent className="space-y-2">{(row?.values ?? []).map((item: any) => <div key={item.assessment.id} className="flex items-center justify-between rounded-xl border border-slate-100 p-4"><span><span className="block font-medium text-slate-700">{item.assessment.title}</span><span className="text-xs text-slate-400">{assessmentLabels[item.assessment.assessmentType] ?? item.assessment.assessmentType}</span></span><strong className="text-lg text-slate-900">{numberValue(item.grade?.value)}</strong></div>)}</CardContent></Card><p className="text-xs text-slate-400">Solo se muestran estudiantes vinculados institucionalmente; no hay información de terceros.</p></div>; }
-function AdminPerformanceView({ context, onCourseChange, onSubjectChange, onPeriodChange, showStats, setShowStats }: any) { return <div className="space-y-6"><PageIntro eyebrow="Rendimiento académico" title="Supervisión institucional" detail="Consulta tendencias y completitud sin entrar en el calificador docente." action={<Button variant="outline" onClick={() => setShowStats(!showStats)} className="rounded-xl">{showStats ? "Ocultar análisis" : "Ver análisis"}</Button>} /><ContextSelectors context={context} selected={context.selected ?? {}} onCourseChange={onCourseChange} onSubjectChange={onSubjectChange} onPeriodChange={onPeriodChange} /><CompactSummary context={context} pendingCount={context.stats.total - context.stats.graded} weightTotal={context.assessments.reduce((sum: number, item: any) => sum + Number(item.weight), 0)} /><Card className="rounded-2xl border-0 shadow-[0_10px_34px_rgba(29,78,137,0.07)]"><CardHeader><CardTitle className="text-base">Lectura institucional</CardTitle></CardHeader><CardContent className="grid gap-4 md:grid-cols-3"><PersonalMetric label="Promedio" value={numberValue(context.stats.average)} /><PersonalMetric label="Evaluaciones" value={context.stats.assessments} /><PersonalMetric label="Completitud" value={`${context.stats.completion}%`} /></CardContent></Card>{showStats ? <StatsDrawer context={context} selectedAssessmentId={null} onAssessmentChange={() => undefined} onClose={() => setShowStats(false)} /> : null}</div>; }
-function PageIntro({ eyebrow, title, detail, action }: any) { return <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--edc-accent)]">{eyebrow}</p><h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-[30px]">{title}</h1><p className="mt-2 text-sm text-slate-500">{detail}</p></div>{action}</div>; }
-function PersonalMetric({ label, value }: any) { return <Card className="rounded-2xl border-0 shadow-[0_8px_26px_rgba(29,78,137,0.06)]"><CardContent className="p-5"><p className="text-xs uppercase tracking-[0.14em] text-slate-400">{label}</p><p className="mt-3 text-2xl font-semibold text-slate-900">{value}</p></CardContent></Card>; }
-function LoadingState() { return <div className="space-y-5"><div className="h-8 w-56 animate-pulse rounded-xl bg-slate-100" /><div className="h-24 animate-pulse rounded-2xl bg-slate-100" /><div className="h-80 animate-pulse rounded-2xl bg-slate-100" /></div>; }
+// =======================================================
+// VISTAS PROTEGIDAS SEGÚN ROL (FASE 5.2-A PRESERVADAS)
+// =======================================================
+
+function StudentGradesView({ context, subjectId, onSubjectChange }: any) {
+  const row = context.rows?.[0];
+  const sName = studentName(row?.student);
+  const definitiva = row?.average;
+  const tone = getPerformanceTone(definitiva);
+  const [showSimulator, setShowSimulator] = React.useState(false);
+
+  // Normalizar valores para el motor de inteligencia
+  const normalizedValues = React.useMemo(() => {
+    return (context.assessments ?? []).map((a: any) => {
+      const item = row?.values.find((v: any) => v.assessment.id === a.id);
+      return {
+        value:
+          item?.grade?.value !== null &&
+          item?.grade?.value !== undefined &&
+          !isNaN(Number(item?.grade?.value))
+            ? Number(item?.grade?.value)
+            : null,
+        maxValue: Number(a.maxValue) || (context.scale?.maxValue ?? 5),
+        weight: Number(a.weight) || 0,
+      };
+    });
+  }, [context.assessments, row, context.scale?.maxValue]);
+
+  const projection = React.useMemo(() => {
+    return calculateStudentProjection(normalizedValues, context.scale);
+  }, [normalizedValues, context.scale]);
+
+  const neededToPass = React.useMemo(() => {
+    return calculateWhatIsNeededToPass(normalizedValues, context.scale);
+  }, [normalizedValues, context.scale]);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--edc-accent)]">
+            Mis Calificaciones
+          </p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+            Mi Progreso Académico
+          </h1>
+          <p className="mt-1 text-xs text-slate-500">
+            {sName} · {context.selected?.course?.name ?? "Curso"} · {context.selected?.period?.name}
+          </p>
+        </div>
+      </div>
+
+      {/* Tarjeta Inteligente: "¿Qué necesito para aprobar?" y Proyección */}
+      {neededToPass.hasPending && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-indigo-200/80 bg-gradient-to-r from-indigo-50/70 to-blue-50/70 p-4 dark:border-indigo-900/60 dark:from-indigo-950/30 dark:to-blue-950/30">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5" /> Meta de Aprobación & Proyección
+              </span>
+              {projection.projectedDefinitiva !== null && (
+                <span className="rounded-md bg-indigo-100 px-1.5 py-0.5 text-xs font-bold text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200">
+                  Proyección estimada: {numberValue(projection.projectedDefinitiva)}
+                </span>
+              )}
+            </div>
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+              {neededToPass.message}
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setShowSimulator(true)}
+            className="rounded-xl bg-[var(--edc-primary)] text-white text-xs font-semibold hover:bg-[var(--edc-primary)]/90 shrink-0"
+          >
+            <Calculator className="h-3.5 w-3.5 mr-1.5" />
+            Simular mis notas
+          </Button>
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+          <p className="text-xs font-semibold uppercase text-slate-400">Definitiva materia</p>
+          <p className={`mt-2 text-3xl font-extrabold ${tone.textColor}`}>{numberValue(definitiva)}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+          <p className="text-xs font-semibold uppercase text-slate-400">Evaluaciones</p>
+          <p className="mt-2 text-3xl font-extrabold text-slate-800">{context.assessments.length}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+          <p className="text-xs font-semibold uppercase text-slate-400">Completitud</p>
+          <p className="mt-2 text-3xl font-extrabold text-slate-800">{context.stats.completion}%</p>
+        </div>
+      </div>
+
+      <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-bold text-slate-800">
+            {context.selected?.subject?.name ?? "Materia"} · Calificaciones Registradas
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {context.assessments.map((assessment: any) => {
+            const item = row?.values.find((v: any) => v.assessment.id === assessment.id);
+            const valTone = getPerformanceTone(item?.grade?.value);
+            return (
+              <div
+                key={assessment.id}
+                className="flex items-center justify-between rounded-xl border border-slate-100 p-3.5 transition hover:bg-slate-50/80"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">{assessment.title}</p>
+                  <p className="text-xs text-slate-400">
+                    {assessmentLabels[assessment.assessmentType] ?? assessment.assessmentType} · {assessment.weight}%
+                  </p>
+                  {item?.grade?.comment && (
+                    <p className="mt-1 text-xs italic text-slate-600 bg-slate-50 rounded-md p-1.5 border border-slate-100">
+                      Docente: {item.grade.comment}
+                    </p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className={`text-lg font-bold ${valTone.textColor}`}>
+                    {numberValue(item?.grade?.value)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+          {!context.assessments.length && (
+            <p className="py-6 text-center text-xs text-slate-400">No hay evaluaciones registradas en este periodo.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Simulador de Escenarios en Memoria para el estudiante */}
+      <ScenarioSimulatorDialog
+        open={showSimulator}
+        onOpenChange={setShowSimulator}
+        studentRow={row}
+        scale={context.scale}
+      />
+    </div>
+  );
+}
+
+function GuardianPerformanceView({ context, subjectId, onSubjectChange }: any) {
+  const [studentId, setStudentId] = React.useState<number | undefined>(
+    context.rows[0]?.enrollment.studentUserId
+  );
+  const row = context.rows.find((item: any) => item.enrollment.studentUserId === studentId) ?? context.rows[0];
+  const sName = studentName(row?.student);
+  const definitiva = row?.average;
+  const tone = getPerformanceTone(definitiva);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--edc-accent)]">
+            Acompañamiento Familiar
+          </p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+            Progreso Académico
+          </h1>
+          <p className="mt-1 text-xs text-slate-500">
+            Consulta el rendimiento de tus estudiantes vinculados formalmente.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <label className="text-xs font-semibold text-slate-600 flex-1">
+          Estudiante
+          <select
+            value={studentId ?? ""}
+            onChange={e => setStudentId(Number(e.target.value))}
+            className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700"
+          >
+            {context.rows.map((item: any) => (
+              <option key={item.enrollment.studentUserId} value={item.enrollment.studentUserId}>
+                {studentName(item.student)} · {context.selected?.course?.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+          <p className="text-xs font-semibold uppercase text-slate-400">Definitiva actual</p>
+          <p className={`mt-2 text-3xl font-extrabold ${tone.textColor}`}>{numberValue(definitiva)}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+          <p className="text-xs font-semibold uppercase text-slate-400">Evaluaciones</p>
+          <p className="mt-2 text-3xl font-extrabold text-slate-800">{context.assessments.length}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+          <p className="text-xs font-semibold uppercase text-slate-400">Periodo</p>
+          <p className="mt-2 text-xl font-bold text-slate-800">{context.selected?.period?.name ?? "—"}</p>
+        </div>
+      </div>
+
+      <Card className="rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-bold text-slate-800">
+            Calificaciones de {sName} · {context.selected?.subject?.name}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {(row?.values ?? []).map((item: any) => {
+            const valTone = getPerformanceTone(item.grade?.value);
+            return (
+              <div
+                key={item.assessment.id}
+                className="flex items-center justify-between rounded-xl border border-slate-100 p-3.5"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">{item.assessment.title}</p>
+                  <p className="text-xs text-slate-400">
+                    {assessmentLabels[item.assessment.assessmentType] ?? item.assessment.assessmentType} · {item.assessment.weight}%
+                  </p>
+                  {item.grade?.comment && (
+                    <p className="mt-1 text-xs italic text-slate-600 bg-slate-50 rounded-md p-1.5 border border-slate-100">
+                      Retroalimentación: {item.grade.comment}
+                    </p>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className={`text-lg font-bold ${valTone.textColor}`}>
+                    {numberValue(item.grade?.value)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function AdminPerformanceView({
+  context,
+  courseId,
+  subjectId,
+  periodId,
+  onCourseChange,
+  onSubjectChange,
+  onPeriodChange,
+  showStats,
+  setShowStats,
+}: any) {
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--edc-accent)]">
+            Rendimiento Institucional
+          </p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl dark:text-white">
+            Supervisión del Grade Center
+          </h1>
+          <p className="mt-1 text-xs text-slate-500">
+            Lectura institucional de completitud y promedios académicos sin invadir el calificador docente.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+          <p className="text-xs font-semibold uppercase text-slate-400">Promedio general</p>
+          <p className="mt-2 text-3xl font-extrabold text-[var(--edc-primary)]">
+            {numberValue(context.stats.average)}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+          <p className="text-xs font-semibold uppercase text-slate-400">Estudiantes</p>
+          <p className="mt-2 text-3xl font-extrabold text-slate-800">{context.stats.students}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+          <p className="text-xs font-semibold uppercase text-slate-400">Completitud</p>
+          <p className="mt-2 text-3xl font-extrabold text-emerald-600">{context.stats.completion}%</p>
+        </div>
+      </div>
+
+      {/* Tabla en modo lectura supervisada */}
+      <GradeCenterTable
+        assessments={context.assessments ?? []}
+        rows={context.rows ?? []}
+        scale={context.scale}
+        pendingGrades={{}}
+        pendingComments={{}}
+        canWrite={false}
+        onSaveCellGrade={() => {}}
+      />
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="space-y-4">
+      <div className="h-8 w-56 animate-pulse rounded-xl bg-slate-100" />
+      <div className="h-20 animate-pulse rounded-2xl bg-slate-100" />
+      <div className="h-96 animate-pulse rounded-2xl bg-slate-100" />
+    </div>
+  );
+}
