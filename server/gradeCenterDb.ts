@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, or } from "drizzle-orm";
 import {
   academicPeriods,
   academicYears,
@@ -101,7 +101,7 @@ export async function getGradeCenterContext(actor: GradeCenterActor, input: Grad
   if (input.courseId !== undefined && !courseIds.includes(input.courseId)) throw new Error("No tienes permiso para acceder a este curso.");
   const courseRows = courseIds.length ? await db.select().from(courses).where(and(eq(courses.schoolId, actor.schoolId), inArray(courses.id, courseIds))).orderBy(courses.name) : [];
   const course = courseRows.find(row => row.id === input.courseId) ?? courseRows.find(row => row.name === "11-2") ?? courseRows[0];
-  if (!course) return { courses: [], subjects: [], periods: [], assessments: [], students: [], rows: [], stats: { average: null, max: null, min: null, assessments: 0, students: 0, graded: 0, total: 0, completion: 0 }, distribution: [], insights: [], observations: [], scale: null, selected: null, reportCards: [] };
+  if (!course) return { courses: [], subjects: [], periods: [], assessments: [], students: [], rows: [], stats: { average: null, max: null, min: null, assessments: 0, students: 0, graded: 0, total: 0, completion: 0, weightTotal: 0, remainingWeight: 100, weightStatus: "INCOMPLETE" as const }, distribution: [], insights: [], observations: [], scale: null, selected: null, reportCards: [] };
   const links = await db.select().from(courseSubjects).where(and(eq(courseSubjects.schoolId, actor.schoolId), eq(courseSubjects.courseId, course.id), eq(courseSubjects.status, "ACTIVE")));
   const linkedSubjectIds = links.map(link => link.subjectId);
   let subjectRows = linkedSubjectIds.length ? await db.select().from(subjects).where(and(eq(subjects.schoolId, actor.schoolId), inArray(subjects.id, linkedSubjectIds))).orderBy(subjects.name) : [];
@@ -112,11 +112,11 @@ export async function getGradeCenterContext(actor: GradeCenterActor, input: Grad
   }
   if (input.subjectId !== undefined && !subjectRows.some(row => row.id === input.subjectId)) throw new Error("No tienes permiso para acceder a esta materia.");
   const subject = subjectRows.find(row => row.id === input.subjectId) ?? subjectRows.find(row => row.name === "Matemáticas") ?? subjectRows[0];
-  if (!subject) return { courses: courseRows, subjects: [], periods: [], assessments: [], students: [], rows: [], stats: { average: null, max: null, min: null, assessments: 0, students: 0, graded: 0, total: 0, completion: 0 }, distribution: [], insights: [], observations: [], scale: null, selected: { course }, reportCards: [] };
+  if (!subject) return { courses: courseRows, subjects: [], periods: [], assessments: [], students: [], rows: [], stats: { average: null, max: null, min: null, assessments: 0, students: 0, graded: 0, total: 0, completion: 0, weightTotal: 0, remainingWeight: 100, weightStatus: "INCOMPLETE" as const }, distribution: [], insights: [], observations: [], scale: null, selected: { course }, reportCards: [] };
   const periods = await db.select().from(academicPeriods).where(and(eq(academicPeriods.schoolId, actor.schoolId), eq(academicPeriods.academicYearId, course.academicYearId ?? 0))).orderBy(academicPeriods.orderIndex);
   if (input.academicPeriodId !== undefined && !periods.some(row => row.id === input.academicPeriodId)) throw new Error("No tienes permiso para acceder a este periodo.");
   const period = periods.find(row => row.id === input.academicPeriodId) ?? periods.find(row => row.status === "Activo" || row.status === "ACTIVE") ?? periods[0];
-  if (!period) return { courses: courseRows, subjects: subjectRows, periods: [], assessments: [], students: [], rows: [], stats: { average: null, max: null, min: null, assessments: 0, students: 0, graded: 0, total: 0, completion: 0 }, distribution: [], insights: [], observations: [], scale: null, selected: { course, subject }, reportCards: [] };
+  if (!period) return { courses: courseRows, subjects: subjectRows, periods: [], assessments: [], students: [], rows: [], stats: { average: null, max: null, min: null, assessments: 0, students: 0, graded: 0, total: 0, completion: 0, weightTotal: 0, remainingWeight: 100, weightStatus: "INCOMPLETE" as const }, distribution: [], insights: [], observations: [], scale: null, selected: { course, subject }, reportCards: [] };
   const valid = await assertContext(actor, { courseId: course.id, subjectId: subject.id, academicPeriodId: period.id });
   const assessmentsRows = await db.select().from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), eq(assessments.academicYearId, valid.academicYearId), eq(assessments.academicPeriodId, period.id), eq(assessments.courseId, course.id), eq(assessments.subjectId, subject.id))).orderBy(desc(assessments.date), desc(assessments.id));
   const enrollmentRows = await db.select().from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, actor.schoolId), eq(studentEnrollments.academicYearId, valid.academicYearId), eq(studentEnrollments.courseId, course.id), eq(studentEnrollments.enrollmentStatus, "ACTIVE")));
@@ -154,7 +154,11 @@ export async function getGradeCenterContext(actor: GradeCenterActor, input: Grad
   const observations = studentIds.length ? await db.select().from(academicObservations).where(and(eq(academicObservations.schoolId, actor.schoolId), eq(academicObservations.academicYearId, valid.academicYearId), eq(academicObservations.academicPeriodId, period.id), inArray(academicObservations.studentId, studentIds))) : [];
   const scale = (await db.select().from(gradingScales).where(and(eq(gradingScales.schoolId, actor.schoolId), eq(gradingScales.status, "ACTIVE"))).limit(1))[0] ?? null;
   const reportCards = studentIds.length ? await db.select().from(reportCardRuns).where(and(eq(reportCardRuns.schoolId, actor.schoolId), eq(reportCardRuns.academicYearId, valid.academicYearId), eq(reportCardRuns.academicPeriodId, period.id), eq(reportCardRuns.courseId, course.id), inArray(reportCardRuns.studentId, studentIds))).orderBy(desc(reportCardRuns.generatedAt)) : [];
-  return { courses: courseRows, subjects: subjectRows, periods, assessments: assessmentsRows, students: people, rows, stats: { average, max: recorded.length ? Math.max(...recorded.map(item => item.value)) : null, min: recorded.length ? Math.min(...recorded.map(item => item.value)) : null, assessments: assessmentsRows.length, students: rows.length, graded: recorded.length, total: assessmentsRows.length * rows.length, completion: assessmentsRows.length && rows.length ? Math.round((recorded.length / (assessmentsRows.length * rows.length)) * 100) : 0 }, distribution, insights, observations, scale, selected: { course, subject, period, academicYearId: valid.academicYearId }, reportCards };
+  const weightTotal = assessmentsRows.reduce((sum, item) => sum + Number(item.weight), 0);
+  const remainingWeight = Math.max(0, 100 - weightTotal);
+  const weightStatus: "COMPLETE" | "INCOMPLETE" | "EXCEEDED" =
+    weightTotal === 100 ? "COMPLETE" : weightTotal < 100 ? "INCOMPLETE" : "EXCEEDED";
+  return { courses: courseRows, subjects: subjectRows, periods, assessments: assessmentsRows, students: people, rows, stats: { average, max: recorded.length ? Math.max(...recorded.map(item => item.value)) : null, min: recorded.length ? Math.min(...recorded.map(item => item.value)) : null, assessments: assessmentsRows.length, students: rows.length, graded: recorded.length, total: assessmentsRows.length * rows.length, completion: assessmentsRows.length && rows.length ? Math.round((recorded.length / (assessmentsRows.length * rows.length)) * 100) : 0, weightTotal, remainingWeight, weightStatus }, distribution, insights, observations, scale, selected: { course, subject, period, academicYearId: valid.academicYearId }, reportCards };
 }
 
 export async function ensureGradeScale(schoolId: number) {
@@ -173,6 +177,19 @@ export async function createGradeCenterAssessment(actor: GradeCenterActor, input
   const valid = await assertContext(actor, input);
   const scale = await ensureGradeScale(actor.schoolId);
   if (!scale || input.maxValue < scale.minValue || input.maxValue > scale.maxValue || input.weight < 0 || input.weight > 100) throw new Error("La escala o el peso de la evaluación no son válidos.");
+  
+  // Validar que la ponderación total de las evaluaciones no supere el 100%
+  const currentAssessments = await db.select({ id: assessments.id, weight: assessments.weight }).from(assessments).where(and(
+    eq(assessments.schoolId, actor.schoolId),
+    eq(assessments.courseId, input.courseId),
+    eq(assessments.subjectId, input.subjectId),
+    eq(assessments.academicPeriodId, input.academicPeriodId)
+  ));
+  const currentTotal = currentAssessments.reduce((sum, a) => sum + Number(a.weight), 0);
+  if (currentTotal + input.weight > 100) {
+    throw new Error(`La ponderación total de las evaluaciones no puede superar el 100%. (Actualmente asignado: ${currentTotal}%, nuevo peso: ${input.weight}%, total resultante: ${currentTotal + input.weight}%).`);
+  }
+
   await db.insert(assessments).values({ schoolId: actor.schoolId, ...input, description: input.description ?? null, status: input.status ?? "DRAFT", teacherId: actor.userId });
   const assessment = (await db.select().from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), eq(assessments.courseId, input.courseId), eq(assessments.subjectId, input.subjectId), eq(assessments.academicPeriodId, input.academicPeriodId), eq(assessments.title, input.title))).orderBy(desc(assessments.id)).limit(1))[0];
   if (!assessment) return null;
@@ -194,6 +211,19 @@ export async function updateGradeCenterAssessment(actor: GradeCenterActor, input
   }
   if (input.title !== undefined && (!input.title.trim() || input.title.trim().length < 3)) {
     throw new Error("El título de la evaluación debe tener al menos 3 caracteres.");
+  }
+  if (input.weight !== undefined) {
+    const otherAssessments = await db.select({ id: assessments.id, weight: assessments.weight }).from(assessments).where(and(
+      eq(assessments.schoolId, actor.schoolId),
+      eq(assessments.courseId, assessment.courseId),
+      eq(assessments.subjectId, assessment.subjectId),
+      eq(assessments.academicPeriodId, assessment.academicPeriodId),
+      ne(assessments.id, assessment.id)
+    ));
+    const otherTotal = otherAssessments.reduce((sum, a) => sum + Number(a.weight), 0);
+    if (otherTotal + input.weight > 100) {
+      throw new Error(`La ponderación total de las evaluaciones no puede superar el 100%. (Asignado en otras evaluaciones: ${otherTotal}%, nuevo peso: ${input.weight}%, total resultante: ${otherTotal + input.weight}%).`);
+    }
   }
   await db.update(assessments).set({ title: input.title ? input.title.trim() : assessment.title, description: input.description !== undefined ? input.description : assessment.description, weight: input.weight !== undefined ? input.weight : assessment.weight, date: input.date !== undefined ? input.date : assessment.date, status: input.status !== undefined ? input.status : assessment.status }).where(eq(assessments.id, input.id));
   await writeAcademicAudit(actor, input.status === "PUBLISHED" ? "assessment_published" : input.status === "CLOSED" ? "assessment_closed" : "assessment_updated", "assessment", String(input.id));

@@ -18,7 +18,6 @@ import {
   BulkGradeDialog,
   type BulkGradeTarget,
 } from "@/components/grade-center/BulkGradeDialog";
-import { GroupIntelligenceBar } from "@/components/grade-center/GroupIntelligenceBar";
 import { ScenarioSimulatorDialog } from "@/components/grade-center/ScenarioSimulatorDialog";
 import { GradeStatisticsPanel } from "@/components/grade-center/GradeStatisticsPanel";
 import { StudentStatisticsDialog } from "@/components/grade-center/StudentStatisticsDialog";
@@ -510,16 +509,12 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
             <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--edc-primary)]">
               Grade Center
             </span>
-            <span className="text-slate-300 dark:text-slate-700">·</span>
-            <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-[var(--edc-primary)] dark:bg-blue-950/60 dark:text-blue-300">
-              {selected.period?.name ?? "Periodo 2"}
-            </span>
           </div>
           <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl dark:text-white">
             {selected.course?.name ?? "11-2"} · {selected.subject?.name ?? "Matemáticas"}
           </h1>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {context.rows?.length ?? 0} estudiantes matriculados · {context.assessments?.length ?? 0} evaluaciones configuradas
+            {selected.period?.name ?? "Periodo 2"} · {context.rows?.length ?? 0} estudiantes matriculados · {context.assessments?.length ?? 0} evaluaciones configuradas
           </p>
         </div>
       </div>
@@ -646,17 +641,84 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
         </Card>
       )}
 
-      {/* BARRA DE INTELIGENCIA DE CALIFICACIONES (FASE 5.3-C) */}
-      <GroupIntelligenceBar
-        rows={filteredRows}
-        assessments={context.assessments ?? []}
-        pendingGrades={pendingGrades}
-        scale={context.scale}
-        courseName={selected.course?.name}
-        subjectName={selected.subject?.name}
-        onNavigateToCell={handleNavigateToCell}
-        onOpenSimulator={handleOpenSimulator}
-      />
+      {/* BARRA COMPACTA DE MÉTRICAS Y ACCIONES RÁPIDAS (Fase 5.3-E) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-2.5 shadow-xs backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/90 text-xs">
+        {/* Métricas directas del curso */}
+        <div className="flex flex-wrap items-center gap-3.5 text-slate-600 dark:text-slate-300">
+          {/* Promedio General */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-400 font-medium">Promedio:</span>
+            <span className="font-extrabold text-slate-900 dark:text-white">
+              {courseSummary.average !== null ? courseSummary.average.toFixed(2) : "—"}
+            </span>
+            <span className="text-[11px] text-slate-400">/ 5.0</span>
+          </div>
+
+          <span className="hidden sm:inline text-slate-200 dark:text-slate-700">·</span>
+
+          {/* Tasa de Aprobación */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-400 font-medium">Aprobación:</span>
+            <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
+              {courseSummary.passingRate}%
+            </span>
+            <span className="text-[11px] text-slate-400">
+              ({courseSummary.passingCount}/{courseSummary.totalStudents})
+            </span>
+          </div>
+
+          <span className="hidden sm:inline text-slate-200 dark:text-slate-700">·</span>
+
+          {/* Indicador de Ponderación */}
+          <div>
+            {weightTotal >= 100 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                ✓ 100% ponderado
+              </span>
+            ) : (
+              <span
+                className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                title="Para que el cálculo de la definitiva sea completo, la suma de las evaluaciones debe alcanzar el 100%."
+              >
+                ⚠ Ponderación incompleta: {weightTotal}% asignado · {100 - weightTotal}% restante
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Píldoras de filtrado rápido accionable */}
+        <div className="flex items-center gap-2">
+          {/* Píldora En Riesgo */}
+          <button
+            type="button"
+            onClick={() => setFilter(prev => (prev === "LOW" ? "ALL" : "LOW"))}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
+              filter === "LOW"
+                ? "border border-rose-400 bg-rose-100 text-rose-800 shadow-xs ring-1 ring-rose-400 dark:bg-rose-950/80 dark:text-rose-200"
+                : "border border-rose-200/90 bg-rose-50/70 text-rose-700 hover:bg-rose-100/80 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
+            }`}
+            title="Clic para filtrar únicamente estudiantes con promedio bajo (< 3.0)"
+          >
+            <AlertTriangle className="h-3.5 w-3.5" />
+            <span>{courseSummary.riskCount} en riesgo</span>
+          </button>
+
+          {/* Píldora Por Calificar */}
+          <button
+            type="button"
+            onClick={() => setFilter(prev => (prev === "PENDING" ? "ALL" : "PENDING"))}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
+              filter === "PENDING"
+                ? "border border-amber-400 bg-amber-100 text-amber-800 shadow-xs ring-1 ring-amber-400 dark:bg-amber-950/80 dark:text-amber-200"
+                : "border border-amber-200/90 bg-amber-50/70 text-amber-700 hover:bg-amber-100/80 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
+            }`}
+            title="Clic para filtrar estudiantes con notas pendientes"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            <span>{courseSummary.pendingTotal} por calificar</span>
+          </button>
+        </div>
+      </div>
 
       {/* PANEL DE ESTADÍSTICAS AVANZADAS (FASE 5.3-D) */}
       {showStats && (
@@ -678,69 +740,6 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
           }}
         />
       )}
-
-      {/* RESUMEN COMPACTO DEL CURSO (SaaS Moderno / Finova / LearnIQ) */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {/* Promedio General */}
-        <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 py-2.5 shadow-xs dark:border-slate-800 dark:bg-slate-900/90">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[var(--edc-primary)] dark:bg-blue-950/60">
-            <Calculator className="h-4 w-4" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Promedio general</p>
-            <p className="text-sm font-extrabold text-slate-800 dark:text-slate-100">
-              {courseSummary.average !== null ? courseSummary.average.toFixed(2) : "—"}{" "}
-              <span className="text-[10px] font-normal text-slate-400">/ 5.0</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Tasa de Aprobación */}
-        <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 py-2.5 shadow-xs dark:border-slate-800 dark:bg-slate-900/90">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-            <Sparkles className="h-4 w-4" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Aprobación</p>
-            <p className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
-              {courseSummary.passingRate}%{" "}
-              <span className="text-[10px] font-normal text-slate-400">
-                ({courseSummary.passingCount}/{courseSummary.totalStudents})
-              </span>
-            </p>
-          </div>
-        </div>
-
-        {/* En Riesgo */}
-        <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 py-2.5 shadow-xs dark:border-slate-800 dark:bg-slate-900/90">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400">
-            <AlertTriangle className="h-4 w-4" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">En riesgo</p>
-            <p className="text-sm font-extrabold text-rose-600 dark:text-rose-400">
-              {courseSummary.riskCount}{" "}
-              <span className="text-[10px] font-normal text-slate-400">
-                estudiante{courseSummary.riskCount === 1 ? "" : "s"}
-              </span>
-            </p>
-          </div>
-        </div>
-
-        {/* Pendientes */}
-        <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/90 px-3.5 py-2.5 shadow-xs dark:border-slate-800 dark:bg-slate-900/90">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
-            <BarChart3 className="h-4 w-4" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pendientes</p>
-            <p className="text-sm font-extrabold text-amber-600 dark:text-amber-400">
-              {courseSummary.pendingTotal}{" "}
-              <span className="text-[10px] font-normal text-slate-400">por calificar</span>
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* TABLA PRINCIPAL DE CALIFICACIONES (EJE CENTRAL ABSOLUTO) */}
       <GradeCenterTable
