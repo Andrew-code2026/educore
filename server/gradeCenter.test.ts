@@ -43,16 +43,16 @@ describe("EduCore Grade Center", () => {
 
   it("creates an assessment with valid academic context", async () => {
     const selected = seededContext!.selected!;
-    const result = await createGradeCenterAssessment(actor(teacher, "TEACHER"), { academicYearId: selected.academicYearId, academicPeriodId: selected.period.id, courseId: selected.course.id, subjectId: selected.subject.id, title: `Prueba Grade Center ${Date.now()}`, description: "Prueba automatizada", assessmentType: "QUIZ", date: new Date(), maxValue: 5, weight: 10, status: "DRAFT" });
+    const result = await createGradeCenterAssessment(actor(teacher, "TEACHER"), { academicYearId: selected.academicYearId, academicPeriodId: selected.period.id, courseId: selected.course.id, subjectId: selected.subject.id, title: `Prueba Grade Center ${Date.now()}`, description: "Prueba automatizada", assessmentType: "QUIZ", date: new Date(), maxValue: 5, weight: 5, status: "DRAFT" });
     createdAssessmentId = result!.id;
     expect(result?.status).toBe("DRAFT");
   });
 
   it("updates and publishes an assessment", async () => {
     expect(createdAssessmentId).toBeTruthy();
-    const result = await caller(teacher!.user).gradeCenter.updateAssessment({ role: "teacher", id: createdAssessmentId!, status: "PUBLISHED", weight: 15 });
+    const result = await caller(teacher!.user).gradeCenter.updateAssessment({ role: "teacher", id: createdAssessmentId!, status: "PUBLISHED", weight: 5 });
     expect(result?.status).toBe("PUBLISHED");
-    expect(result?.weight).toBe(15);
+    expect(result?.weight).toBe(5);
   });
 
   it("creates pending grade rows only for enrolled students", async () => {
@@ -273,10 +273,10 @@ describe("EduCore Grade Center", () => {
             role: "teacher",
             id: assessment.id,
             title: "Evaluación 5.3-E Modificada",
-            weight: 25,
+            weight: 20,
           });
           expect(updated?.title).toBe("Evaluación 5.3-E Modificada");
-          expect(updated?.weight).toBe(25);
+          expect(updated?.weight).toBe(20);
         } finally {
           // Restore original title & weight
           await caller(teacher!.user).gradeCenter.updateAssessment({
@@ -287,7 +287,89 @@ describe("EduCore Grade Center", () => {
           });
         }
       });
+
+      it("rejects assessment update if total weight of all assessments exceeds 100%", async () => {
+        const assessment = seededContext!.assessments[0];
+        // Asignar un peso desmedido que haga superar el 100%
+        const { updateGradeCenterAssessment } = await import("./gradeCenterDb");
+        await expect(
+          updateGradeCenterAssessment(actor(teacher, "TEACHER"), {
+            id: assessment.id,
+            weight: 50,
+          })
+        ).rejects.toThrow(/no puede superar el 100%/);
+      });
+
+      it("exposes weightTotal, remainingWeight, and weightStatus in context stats", async () => {
+        const ctx = await getGradeCenterContext(actor(teacher, "TEACHER"));
+        expect(ctx?.stats).toBeDefined();
+        expect(typeof (ctx?.stats as any)?.weightTotal).toBe("number");
+        expect(typeof (ctx?.stats as any)?.remainingWeight).toBe("number");
+        expect(["COMPLETE", "INCOMPLETE", "EXCEEDED"]).toContain((ctx?.stats as any)?.weightStatus);
+      });
+    });
+
+    describe("Fase 5.3-E: Reglas Académicas de Definitiva y Evaluaciones Pendientes", () => {
+      it("calculates definitive when all assessments are graded", async () => {
+        const { calculateDefinitiva } = await import("../client/src/components/grade-center/gradeCenterUtils");
+        // 4 evaluaciones de 25% con notas 4.0, 3.0, 5.0, 4.0 -> promedio ponderado 4.0
+        const result = calculateDefinitiva([
+          { value: 4.0, maxValue: 5, weight: 25 },
+          { value: 3.0, maxValue: 5, weight: 25 },
+          { value: 5.0, maxValue: 5, weight: 25 },
+          { value: 4.0, maxValue: 5, weight: 25 },
+        ]);
+        expect(result).toBe(4.0);
+      });
+
+      it("calculates accumulated average excluding pending assessments and normalizing weights", async () => {
+        const { calculateDefinitiva } = await import("../client/src/components/grade-center/gradeCenterUtils");
+        // 2 calificadas (4.0 con peso 20% y 5.0 con peso 30%) y 2 pendientes (null)
+        // (4.0 * 20 + 5.0 * 30) / (20 + 30) = (80 + 150) / 50 = 230 / 50 = 4.60
+        const result = calculateDefinitiva([
+          { value: 4.0, maxValue: 5, weight: 20 },
+          { value: 5.0, maxValue: 5, weight: 30 },
+          { value: null, maxValue: 5, weight: 25 },
+          { value: null, maxValue: 5, weight: 25 },
+        ]);
+        expect(result).toBe(4.6);
+      });
+
+      it("correctly factors in a grade of 0.0 without treating it as pending", async () => {
+        const { calculateDefinitiva } = await import("../client/src/components/grade-center/gradeCenterUtils");
+        // Nota 0.0 con peso 50% y nota 4.0 con peso 50% -> (0 + 200) / 100 = 2.0
+        const result = calculateDefinitiva([
+          { value: 0.0, maxValue: 5, weight: 50 },
+          { value: 4.0, maxValue: 5, weight: 50 },
+        ]);
+        expect(result).toBe(2.0);
+      });
+
+      it("correctly handles maximum grades of 5.0", async () => {
+        const { calculateDefinitiva } = await import("../client/src/components/grade-center/gradeCenterUtils");
+        const result = calculateDefinitiva([
+          { value: 5.0, maxValue: 5, weight: 40 },
+          { value: 5.0, maxValue: 5, weight: 60 },
+        ]);
+        expect(result).toBe(5.0);
+      });
+
+      it("handles incomplete weighting (< 100%) by normalizing to current active weights", async () => {
+        const { calculateDefinitiva } = await import("../client/src/components/grade-center/gradeCenterUtils");
+        // Evaluaciones que suman 95% total (20 + 20 + 30 + 25)
+        // Notas: 4.0 (20), 4.0 (20), 5.0 (30), 4.0 (25)
+        // weightedSum = 4*20 + 4*20 + 5*30 + 4*25 = 80 + 80 + 150 + 100 = 410
+        // 410 / 95 = 4.3157... -> 4.32
+        const result = calculateDefinitiva([
+          { value: 4.0, maxValue: 5, weight: 20 },
+          { value: 4.0, maxValue: 5, weight: 20 },
+          { value: 5.0, maxValue: 5, weight: 30 },
+          { value: 4.0, maxValue: 5, weight: 25 },
+        ]);
+        expect(result).toBe(4.32);
+      });
     });
   });
 });
+
 

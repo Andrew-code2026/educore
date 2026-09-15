@@ -43,6 +43,7 @@ interface AssessmentStatisticsPopoverProps {
   ) => Promise<void> | void;
   onFilterPending?: (assessmentId: number) => void;
   canEdit?: boolean;
+  otherTotalWeight?: number;
 }
 
 export function AssessmentStatisticsPopover({
@@ -57,6 +58,7 @@ export function AssessmentStatisticsPopover({
   onEditAssessment,
   onFilterPending,
   canEdit = true,
+  otherTotalWeight,
 }: AssessmentStatisticsPopoverProps) {
   const [internalOpen, setInternalOpen] = React.useState(false);
   const isControlled = open !== undefined;
@@ -98,6 +100,8 @@ export function AssessmentStatisticsPopover({
   const typeLabel = assessmentLabels[assessment.assessmentType] ?? assessment.assessmentType;
   const avgTone = getPerformanceTone(stats.average);
 
+  const maxAllowedWeight = otherTotalWeight !== undefined ? Math.max(0, 100 - otherTotalWeight) : 100;
+
   const handleSaveEdit = async () => {
     const trimmedTitle = formTitle.trim();
     if (!trimmedTitle || trimmedTitle.length < 3) {
@@ -108,6 +112,11 @@ export function AssessmentStatisticsPopover({
     const numWeight = Number(formWeight);
     if (isNaN(numWeight) || numWeight < 0 || numWeight > 100) {
       toast.error("El peso de la evaluación debe ser un número entre 0 y 100%.");
+      return;
+    }
+
+    if (numWeight > maxAllowedWeight) {
+      toast.error(`El peso no puede superar el ${maxAllowedWeight}% (la ponderación total no puede superar el 100%).`);
       return;
     }
 
@@ -220,13 +229,13 @@ export function AssessmentStatisticsPopover({
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                  Peso (%)
+                  Peso (%) <span className="text-[9px] font-normal text-slate-400">(máx. {maxAllowedWeight}%)</span>
                 </label>
                 <Input
                   aria-label="Peso de la evaluación"
                   type="number"
                   min="0"
-                  max="100"
+                  max={maxAllowedWeight}
                   value={formWeight}
                   onChange={e => setFormWeight(e.target.value)}
                   placeholder="ej. 30"
@@ -265,6 +274,12 @@ export function AssessmentStatisticsPopover({
               />
             </div>
 
+            {Number(formWeight) > maxAllowedWeight && (
+              <p className="text-[11px] font-medium text-rose-600 dark:text-rose-400">
+                El peso no puede superar el {maxAllowedWeight}% (la ponderación total superaría el 100%).
+              </p>
+            )}
+
             <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">
               <Button
                 type="button"
@@ -285,7 +300,7 @@ export function AssessmentStatisticsPopover({
               <Button
                 type="button"
                 size="sm"
-                disabled={isSaving || !formTitle.trim()}
+                disabled={isSaving || !formTitle.trim() || Number(formWeight) > maxAllowedWeight}
                 onClick={handleSaveEdit}
                 className="h-7.5 rounded-xl bg-[var(--edc-primary)] px-3 text-xs font-semibold text-white hover:bg-[var(--edc-primary)]/90"
               >
