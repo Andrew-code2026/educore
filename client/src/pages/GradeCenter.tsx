@@ -20,6 +20,9 @@ import {
 } from "@/components/grade-center/BulkGradeDialog";
 import { ScenarioSimulatorDialog } from "@/components/grade-center/ScenarioSimulatorDialog";
 import { GradeStatisticsPanel } from "@/components/grade-center/GradeStatisticsPanel";
+import { GradeAnalyticsMiniPanel } from "@/components/grade-center/GradeAnalyticsMiniPanel";
+import { GradeCenterAnalyticsDashboard } from "@/components/grade-center/GradeCenterAnalyticsDashboard";
+import { NewAssessmentSheet } from "@/components/grade-center/NewAssessmentSheet";
 import { StudentStatisticsDialog } from "@/components/grade-center/StudentStatisticsDialog";
 import { calculateMean } from "@/components/grade-center/gradeStatisticsUtils";
 import {
@@ -33,11 +36,19 @@ import {
   calculateStudentProjection,
   calculateWhatIsNeededToPass,
 } from "@/components/grade-center/gradeIntelligenceUtils";
+import { useShellContext } from "@/components/shell";
 
 type EduRole = "admin" | "teacher" | "student" | "guardian";
 type GradeCenterProps = { role: EduRole; school: any };
 
 export function GradeCenterPage({ role }: GradeCenterProps) {
+  const handleSaveAllRef = React.useRef<() => void>(() => {});
+  let shellContext: ReturnType<typeof useShellContext> | null = null;
+  try {
+    shellContext = useShellContext();
+  } catch {
+    // Soporte seguro para ejecuciones fuera de ShellContextProvider (ej. tests aislados)
+  }
   const [courseId, setCourseId] = React.useState<number | undefined>();
   const [subjectId, setSubjectId] = React.useState<number | undefined>();
   const [periodId, setPeriodId] = React.useState<number | undefined>();
@@ -62,18 +73,10 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
 
   const [showAssessmentForm, setShowAssessmentForm] = React.useState(false);
   const [showStats, setShowStats] = React.useState(false);
+  const [analyticsViewMode, setAnalyticsViewMode] = React.useState<"TABLE" | "ANALYTICS">("TABLE");
   const [selectedAssessmentId, setSelectedAssessmentId] = React.useState<number | null>(null);
   const [selectedStatsStudent, setSelectedStatsStudent] = React.useState<GradeCenterTableRow | null>(null);
   const [showStudentStatsDialog, setShowStudentStatsDialog] = React.useState(false);
-
-  const [newAssessment, setNewAssessment] = React.useState({
-    title: "",
-    type: "ACTIVIDAD",
-    weight: "10",
-    date: new Date().toISOString().slice(0, 10),
-    maxValue: "5",
-    description: "",
-  });
 
   const contextQuery = trpc.gradeCenter.context.useQuery(
     { role, courseId, subjectId, academicPeriodId: periodId },
@@ -237,6 +240,51 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
     };
   }, [context?.rows, pendingGrades, groupAverage]);
 
+  const pendingCount = Object.keys(pendingGrades).length;
+  const setModuleContext = shellContext?.setModuleContext;
+
+  // Sincronizar contexto dinámico con el Header del Shell Global
+  React.useEffect(() => {
+    if (!setModuleContext || !context) return;
+    const cName = context.selected?.course?.name ?? "11-2";
+    const sName = context.selected?.subject?.name ?? "Matemáticas";
+    const pName = context.selected?.period?.name ?? "Periodo 2";
+
+    setModuleContext({
+      title: role === "student" ? "Mis Calificaciones" : role === "guardian" ? "Rendimiento" : "Grade Center",
+      subtitle: `${cName} · ${sName}`,
+      breadcrumbs: [
+        { label: "Académico" },
+        { label: role === "student" ? "Calificaciones" : "Grade Center", isCurrent: true },
+      ],
+      contextPills: [
+        { label: `${cName} · ${sName}`, tone: "primary" },
+        { label: pName, tone: "default" },
+        ...(pendingCount > 0
+          ? [{ label: `${pendingCount} pendiente${pendingCount === 1 ? "" : "s"}`, tone: "amber" as const }]
+          : []),
+      ],
+      actions: pendingCount > 0 ? (
+        <Button
+          size="sm"
+          onClick={() => handleSaveAllRef.current()}
+          disabled={saveGrades.isPending}
+          className="rounded-xl bg-[var(--edc-primary)] text-white shadow-xs text-xs font-semibold h-8"
+        >
+          {saveGrades.isPending ? "Guardando..." : `Guardar (${pendingCount})`}
+        </Button>
+      ) : undefined,
+    });
+  }, [
+    context?.selected?.course?.name,
+    context?.selected?.subject?.name,
+    context?.selected?.period?.name,
+    pendingCount,
+    role,
+    saveGrades.isPending,
+    setModuleContext,
+  ]);
+
   if (contextQuery.isLoading || !context) return <LoadingState />;
   if (contextQuery.isError) {
     return (
@@ -388,6 +436,7 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
       toast.error(error?.message ?? "Error al guardar calificaciones.");
     }
   };
+  handleSaveAllRef.current = handleSaveAll;
 
   // Selección de estudiantes
   const handleToggleStudent = (studentId: number) => {
@@ -459,46 +508,41 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
     );
   };
 
-  // Creación de nueva evaluación
-  const handleCreateAssessment = async () => {
-    if (!selected.course?.academicYearId || !selected.course?.id || !selected.subject?.id || !selected.period?.id) {
-      toast.error("Contexto académico incompleto.");
-      return;
-    }
-    if (!newAssessment.title.trim()) {
-      toast.error("El nombre de la evaluación es requerido.");
-      return;
-    }
-    try {
-      await createAssessment.mutateAsync({
-        role,
-        academicYearId: selected.course.academicYearId,
-        academicPeriodId: selected.period.id,
-        courseId: selected.course.id,
-        subjectId: selected.subject.id,
-        title: newAssessment.title.trim(),
-        assessmentType: newAssessment.type as any,
-        date: new Date(newAssessment.date),
-        maxValue: Number(newAssessment.maxValue),
-        weight: Number(newAssessment.weight),
-        description: newAssessment.description.trim() || undefined,
-        status: "DRAFT",
-      });
-      setShowAssessmentForm(false);
-      setNewAssessment({
-        title: "",
-        type: "ACTIVIDAD",
-        weight: "10",
-        date: new Date().toISOString().slice(0, 10),
-        maxValue: "5",
-        description: "",
-      });
-      await utils.gradeCenter.context.invalidate();
-      toast.success("Evaluación creada exitosamente");
-    } catch (error: any) {
-      toast.error(error?.message ?? "No pudimos crear la evaluación.");
-    }
-  };
+  if (analyticsViewMode === "ANALYTICS") {
+    return (
+      <GradeCenterAnalyticsDashboard
+        rows={filteredRows}
+        assessments={context.assessments ?? []}
+        pendingGrades={pendingGrades}
+        scale={context.scale}
+        courseName={selected.course?.name ?? "11-2"}
+        subjectName={selected.subject?.name ?? "Matemáticas"}
+        periodName={selected.period?.name ?? "Periodo 2"}
+        weightTotal={weightTotal}
+        onBackToGradeCenter={() => setAnalyticsViewMode("TABLE")}
+        onNavigateToAssessment={(assessmentId: number) => {
+          setAnalyticsViewMode("TABLE");
+          const firstStudent = filteredRows[0]?.enrollment.studentUserId;
+          if (firstStudent) {
+            handleNavigateToCell(firstStudent, assessmentId);
+          }
+        }}
+        onNavigateToPending={() => {
+          setAnalyticsViewMode("TABLE");
+          setFilter("PENDING");
+        }}
+        onNavigateToRisk={() => {
+          setAnalyticsViewMode("TABLE");
+          setFilter("LOW");
+        }}
+        onOpenStudentStats={(st: GradeCenterTableRow) => {
+          setAnalyticsViewMode("TABLE");
+          setSelectedStatsStudent(st);
+          setShowStudentStatsDialog(true);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -553,93 +597,25 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
         onToggleStats={() => setShowStats(prev => !prev)}
       />
 
-      {/* Formulario de nueva evaluación (desplegable) */}
-      {showAssessmentForm && (
-        <Card className="rounded-2xl border border-[var(--edc-accent)]/60 bg-[var(--edc-secondary)]/25 p-4 shadow-sm">
-          <CardHeader className="p-0 pb-3">
-            <CardTitle className="text-sm font-bold text-slate-800">
-              Nueva evaluación
-              <span className="ml-2 text-xs font-normal text-slate-500">
-                Contexto: {selected.course?.name} · {selected.subject?.name} · {selected.period?.name}
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 p-0 sm:grid-cols-2 lg:grid-cols-4">
-            <Input
-              aria-label="Nombre de evaluación"
-              placeholder="Nombre (ej. Parcial 1)"
-              value={newAssessment.title}
-              onChange={e => setNewAssessment({ ...newAssessment, title: e.target.value })}
-              className="h-9 rounded-xl bg-white text-xs"
-            />
-            <select
-              aria-label="Tipo"
-              value={newAssessment.type}
-              onChange={e => setNewAssessment({ ...newAssessment, type: e.target.value })}
-              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-700"
-            >
-              <option value="ACTIVIDAD">Actividad</option>
-              <option value="QUIZ">Quiz</option>
-              <option value="TALLER">Taller</option>
-              <option value="EXAMEN">Examen</option>
-              <option value="PROYECTO">Proyecto</option>
-            </select>
-            <Input
-              aria-label="Valor máximo"
-              type="number"
-              min="0.1"
-              max="100"
-              step="0.1"
-              value={newAssessment.maxValue}
-              onChange={e => setNewAssessment({ ...newAssessment, maxValue: e.target.value })}
-              placeholder="Valor máx (5)"
-              className="h-9 rounded-xl bg-white text-xs"
-            />
-            <Input
-              aria-label="Peso porcentaje"
-              type="number"
-              min="0"
-              max="100"
-              value={newAssessment.weight}
-              onChange={e => setNewAssessment({ ...newAssessment, weight: e.target.value })}
-              placeholder="Peso % (ej. 20)"
-              className="h-9 rounded-xl bg-white text-xs"
-            />
-            <Input
-              aria-label="Fecha"
-              type="date"
-              value={newAssessment.date}
-              onChange={e => setNewAssessment({ ...newAssessment, date: e.target.value })}
-              className="h-9 rounded-xl bg-white text-xs"
-            />
-            <Input
-              aria-label="Descripción"
-              placeholder="Descripción opcional..."
-              value={newAssessment.description}
-              onChange={e => setNewAssessment({ ...newAssessment, description: e.target.value })}
-              className="h-9 rounded-xl bg-white text-xs sm:col-span-2 lg:col-span-3"
-            />
-            <div className="flex gap-2 sm:col-span-2 lg:col-span-4">
-              <Button
-                size="sm"
-                onClick={handleCreateAssessment}
-                disabled={createAssessment.isPending || !newAssessment.title.trim()}
-                className="h-8 rounded-xl bg-[var(--edc-primary)] px-4 text-xs font-semibold text-white"
-              >
-                {createAssessment.isPending ? "Creando..." : "Crear evaluación"}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setShowAssessmentForm(false)}
-                className="h-8 rounded-xl px-3 text-xs"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Laboratorio UX: Nueva Evaluación 2.0 (Panel Lateral / Sheet) */}
+      <NewAssessmentSheet
+        isOpen={showAssessmentForm}
+        onClose={() => setShowAssessmentForm(false)}
+        courseName={selected.course?.name ?? "11-2"}
+        subjectName={selected.subject?.name ?? "Matemáticas"}
+        periodName={selected.period?.name ?? "Periodo 2"}
+        academicYearId={selected.course?.academicYearId ?? 0}
+        academicPeriodId={selected.period?.id ?? 0}
+        courseId={selected.course?.id ?? 0}
+        subjectId={selected.subject?.id ?? 0}
+        weightTotal={weightTotal}
+        maxValue={context.scale?.maxValue ?? 5}
+        role={role}
+        onSuccess={async () => {
+          setShowAssessmentForm(false);
+          await utils.gradeCenter.context.invalidate();
+        }}
+      />
 
       {/* BARRA COMPACTA DE MÉTRICAS Y ACCIONES RÁPIDAS (Fase 5.3-E) */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-2.5 shadow-xs backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/90 text-xs">
@@ -720,26 +696,36 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
         </div>
       </div>
 
-      {/* PANEL DE ESTADÍSTICAS AVANZADAS (FASE 5.3-D) */}
-      {showStats && (
-        <GradeStatisticsPanel
-          rows={filteredRows}
-          assessments={context.assessments ?? []}
-          scale={context.scale}
-          pendingGrades={pendingGrades}
-          onNavigateToCell={handleNavigateToCell}
-          onOpenStudentStats={(st: GradeCenterTableRow) => {
-            setSelectedStatsStudent(st);
-            setShowStudentStatsDialog(true);
-          }}
-          onSelectAssessment={aId => {
-            const firstStudent = filteredRows[0]?.enrollment.studentUserId;
-            if (firstStudent) {
-              handleNavigateToCell(firstStudent, aId);
-            }
-          }}
-        />
-      )}
+      {/* MINI PANEL DE ANÁLISIS INTELIGENTE (FASE 5.3-F) */}
+      <GradeAnalyticsMiniPanel
+        isOpen={showStats}
+        onClose={() => setShowStats(false)}
+        rows={filteredRows}
+        assessments={context.assessments ?? []}
+        pendingGrades={pendingGrades}
+        scale={context.scale}
+        courseName={selected.course?.name ?? "11-2"}
+        subjectName={selected.subject?.name ?? "Matemáticas"}
+        periodName={selected.period?.name ?? "Periodo 2"}
+        weightTotal={weightTotal}
+        onNavigateToCell={handleNavigateToCell}
+        onSelectAssessment={aId => {
+          const firstStudent = filteredRows[0]?.enrollment.studentUserId;
+          if (firstStudent) {
+            handleNavigateToCell(firstStudent, aId);
+          }
+        }}
+        onFilterPending={() => setFilter("PENDING")}
+        onFilterRisk={() => setFilter("LOW")}
+        onOpenStudentStats={(st: GradeCenterTableRow) => {
+          setSelectedStatsStudent(st);
+          setShowStudentStatsDialog(true);
+        }}
+        onOpenFullAnalytics={() => {
+          setShowStats(false);
+          setAnalyticsViewMode("ANALYTICS");
+        }}
+      />
 
       {/* TABLA PRINCIPAL DE CALIFICACIONES (EJE CENTRAL ABSOLUTO) */}
       <GradeCenterTable
