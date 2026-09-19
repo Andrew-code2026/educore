@@ -156,44 +156,23 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
     if (periodId === undefined && context.selected.period?.id) setPeriodId(context.selected.period.id);
   }, [context, courseId, subjectId, periodId]);
 
-  // Promedio reactivo del grupo para desviaciones y estadísticas (regla de hooks: incondicional)
-  const groupAverage = React.useMemo(() => {
-    if (!context?.rows) return null;
-    const definitivas: number[] = [];
-    for (const row of context.rows) {
-      const sId = row.enrollment.studentUserId;
-      const def = calculateDefinitiva(
-        (row.values ?? []).map((v: any) => {
-          const key = `${v.assessment.id}:${sId}`;
-          const val = Object.prototype.hasOwnProperty.call(pendingGrades, key)
-            ? pendingGrades[key]
-            : v.grade?.value ?? null;
-          return {
-            value: val,
-            maxValue: v.assessment.maxValue,
-            weight: v.assessment.weight,
-          };
-        })
-      );
-      if (def !== null) {
-        definitivas.push(def);
-      }
-    }
-    return calculateMean(definitivas);
-  }, [context?.rows, pendingGrades]);
-
-  // Métricas reactivas para la barra de resumen compacto del curso (Fase 5.3-E)
-  const courseSummary = React.useMemo(() => {
-    if (!context?.rows) {
+  // Métricas reactivas globales unificadas en una sola pasada O(N) para máxima velocidad
+  const { groupAverage, courseSummary } = React.useMemo(() => {
+    if (!context?.rows || !context.rows.length) {
       return {
-        average: null,
-        passingRate: 0,
-        passingCount: 0,
-        riskCount: 0,
-        pendingTotal: 0,
-        totalStudents: 0,
+        groupAverage: null,
+        courseSummary: {
+          average: null,
+          passingRate: 0,
+          passingCount: 0,
+          riskCount: 0,
+          pendingTotal: 0,
+          totalStudents: 0,
+        },
       };
     }
+
+    const definitivas: number[] = [];
     let passingCount = 0;
     let riskCount = 0;
     let pendingTotal = 0;
@@ -202,43 +181,44 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
 
     for (const row of context.rows) {
       const sId = row.enrollment.studentUserId;
-      const def = calculateDefinitiva(
-        (row.values ?? []).map((v: any) => {
-          const key = `${v.assessment.id}:${sId}`;
-          const val = Object.prototype.hasOwnProperty.call(pendingGrades, key)
-            ? pendingGrades[key]
-            : v.grade?.value ?? null;
-          return {
-            value: val,
-            maxValue: v.assessment.maxValue,
-            weight: v.assessment.weight,
-          };
-        })
-      );
-      if (def !== null) {
-        evaluatedCount++;
-        if (def >= 3.0) passingCount++;
-        else riskCount++;
-      }
-      for (const v of row.values ?? []) {
+      const values = row.values ?? [];
+      const liveValues = values.map((v: any) => {
         const key = `${v.assessment.id}:${sId}`;
         const val = Object.prototype.hasOwnProperty.call(pendingGrades, key)
           ? pendingGrades[key]
           : v.grade?.value ?? null;
         if (val === null) pendingTotal++;
+        return {
+          value: val,
+          maxValue: v.assessment.maxValue,
+          weight: v.assessment.weight,
+        };
+      });
+
+      const def = calculateDefinitiva(liveValues);
+      if (def !== null) {
+        definitivas.push(def);
+        evaluatedCount++;
+        if (def >= 3.0) passingCount++;
+        else riskCount++;
       }
     }
 
+    const avg = calculateMean(definitivas);
     const passingRate = evaluatedCount > 0 ? Math.round((passingCount / evaluatedCount) * 100) : 0;
+
     return {
-      average: groupAverage,
-      passingRate,
-      passingCount,
-      riskCount,
-      pendingTotal,
-      totalStudents,
+      groupAverage: avg,
+      courseSummary: {
+        average: avg,
+        passingRate,
+        passingCount,
+        riskCount,
+        pendingTotal,
+        totalStudents,
+      },
     };
-  }, [context?.rows, pendingGrades, groupAverage]);
+  }, [context?.rows, pendingGrades]);
 
   const pendingCount = Object.keys(pendingGrades).length;
   const setModuleContext = shellContext?.setModuleContext;
@@ -285,6 +265,218 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
     setModuleContext,
   ]);
 
+  // Filtrado reactivo ultraeficiente de filas (con memoización y evaluación condicional de definitivas)
+  const filteredRows = React.useMemo(() => {
+    const rawRows = context?.rows ?? [];
+    const trimmedQuery = query.trim().toLowerCase();
+
+    if (!trimmedQuery && filter === "ALL") {
+      return rawRows;
+    }
+
+    return rawRows.filter((row: any) => {
+      if (trimmedQuery) {
+        const name = studentName(row.student);
+        if (!name.toLowerCase().includes(trimmedQuery)) {
+          return false;
+        }
+      }
+
+      if (filter === "ALL") {
+        return true;
+      }
+
+      if (filter === "PENDING") {
+        return row.values.some((item: any) => {
+          const key = `${item.assessment.id}:${row.enrollment.studentUserId}`;
+          const val = Object.prototype.hasOwnProperty.call(pendingGrades, key)
+            ? pendingGrades[key]
+            : item.grade?.value ?? null;
+          return val === null;
+        });
+      }
+
+      if (filter === "COMMENT") {
+        return row.values.some((item: any) => {
+          const key = `${item.assessment.id}:${row.enrollment.studentUserId}`;
+          const com = Object.prototype.hasOwnProperty.call(pendingComments, key)
+            ? pendingComments[key]
+            : item.grade?.comment;
+          return Boolean(com && com.trim());
+        });
+      }
+
+      // Solo computar rowDefinitiva si el filtro realmente lo requiere (LOW o PASSING)
+      const rowDefinitiva = calculateDefinitiva(
+        row.values.map((v: any) => ({
+          value: Object.prototype.hasOwnProperty.call(pendingGrades, `${v.assessment.id}:${row.enrollment.studentUserId}`)
+            ? pendingGrades[`${v.assessment.id}:${row.enrollment.studentUserId}`]
+            : v.grade?.value ?? null,
+          maxValue: v.assessment.maxValue,
+          weight: v.assessment.weight,
+        }))
+      );
+
+      if (filter === "LOW") {
+        return rowDefinitiva !== null && rowDefinitiva < 3.0;
+      }
+      if (filter === "PASSING") {
+        return rowDefinitiva !== null && rowDefinitiva >= 3.0;
+      }
+      return true;
+    });
+  }, [context?.rows, query, filter, pendingGrades, pendingComments]);
+
+  // Guardar calificación individual desde el popover contextual
+  const handleSaveCellGrade = React.useCallback(
+    async (
+      assessmentId: number,
+      studentId: number,
+      value: number | null,
+      comment?: string
+    ) => {
+      try {
+        await saveGrades.mutateAsync({
+          role,
+          assessmentId,
+          grades: [{ studentId, value, comment }],
+        });
+        setPendingGrades(prev => {
+          const next = { ...prev };
+          delete next[`${assessmentId}:${studentId}`];
+          return next;
+        });
+        setPendingComments(prev => {
+          const next = { ...prev };
+          delete next[`${assessmentId}:${studentId}`];
+          return next;
+        });
+        await utils.gradeCenter.context.invalidate();
+        toast.success("Calificación actualizada correctamente");
+      } catch (error: any) {
+        toast.error(error?.message ?? "No pudimos guardar la calificación.");
+      }
+    },
+    [role, saveGrades, utils.gradeCenter.context]
+  );
+
+  // Guardar todos los cambios pendientes acumulados
+  const handleSaveAll = React.useCallback(async () => {
+    const keys = Object.keys(pendingGrades);
+    if (!keys.length) return;
+    try {
+      const byAssessment: Record<number, Array<{ studentId: number; value: number | null; comment?: string }>> = {};
+      for (const key of keys) {
+        const [assessmentIdStr, studentIdStr] = key.split(":");
+        const aId = Number(assessmentIdStr);
+        const sId = Number(studentIdStr);
+        if (!byAssessment[aId]) byAssessment[aId] = [];
+        byAssessment[aId].push({
+          studentId: sId,
+          value: pendingGrades[key],
+          comment: pendingComments[key] || undefined,
+        });
+      }
+      for (const aIdStr of Object.keys(byAssessment)) {
+        const aId = Number(aIdStr);
+        await saveGrades.mutateAsync({
+          role,
+          assessmentId: aId,
+          grades: byAssessment[aId],
+        });
+      }
+      setPendingGrades({});
+      setPendingComments({});
+      await utils.gradeCenter.context.invalidate();
+      toast.success("Todas las calificaciones pendientes fueron guardadas");
+    } catch (error: any) {
+      toast.error(error?.message ?? "Error al guardar calificaciones.");
+    }
+  }, [pendingGrades, pendingComments, role, saveGrades, utils.gradeCenter.context]);
+  handleSaveAllRef.current = handleSaveAll;
+
+  // Selección de estudiantes
+  const handleToggleStudent = React.useCallback((studentId: number) => {
+    setSelectedStudentIds(prev =>
+      prev.includes(studentId) ? prev.filter(id => id !== studentId) : [...prev, studentId]
+    );
+  }, []);
+
+  const handleToggleAllVisible = React.useCallback(() => {
+    const visibleIds: number[] = filteredRows.map((r: any) => r.enrollment.studentUserId);
+    const allSelected =
+      visibleIds.length > 0 && visibleIds.every(id => selectedStudentIds.includes(id));
+    if (allSelected) {
+      setSelectedStudentIds(prev => prev.filter(id => !visibleIds.includes(id)));
+    } else {
+      setSelectedStudentIds(prev => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  }, [filteredRows, selectedStudentIds]);
+
+  const handleClearExternalTargetCell = React.useCallback(() => {
+    setExternalTargetCell(null);
+  }, []);
+
+  const handleOpenStudentStats = React.useCallback((st: GradeCenterTableRow) => {
+    setSelectedStatsStudent(st);
+    setShowStudentStatsDialog(true);
+  }, []);
+
+  // Calificación masiva
+  const handleApplyBulkGrade = React.useCallback(
+    (
+      assessmentId: number,
+      value: number,
+      target: BulkGradeTarget
+    ) => {
+      let targetRows = filteredRows;
+      if (target === "SELECTED") {
+        targetRows = filteredRows.filter((r: any) =>
+          selectedStudentIds.includes(r.enrollment.studentUserId)
+        );
+      }
+
+      const updates: Record<string, number | null> = {};
+      let affectedCount = 0;
+
+      for (const row of targetRows) {
+        const studentId = row.enrollment.studentUserId;
+        const key = `${assessmentId}:${studentId}`;
+
+        if (target === "EMPTY_ONLY") {
+          const currentVal = Object.prototype.hasOwnProperty.call(pendingGrades, key)
+            ? pendingGrades[key]
+            : row.values.find((v: any) => v.assessment.id === assessmentId)?.grade?.value ?? null;
+
+          // IMPORTANTE: NUNCA sobrescribir notas existentes cuando se utiliza esta opción
+          if (currentVal !== null && currentVal !== undefined) {
+            continue;
+          }
+        }
+
+        updates[key] = value;
+        affectedCount++;
+      }
+
+      if (affectedCount === 0) {
+        toast.info("No se modificó ninguna celda (no había celdas que cumplieran la condición).");
+        return;
+      }
+
+      setPendingGrades(prev => ({
+        ...prev,
+        ...updates,
+      }));
+
+      toast.success(
+        `Se aplicó ${value} a ${affectedCount} estudiante${affectedCount === 1 ? "" : "s"} (${
+          target === "EMPTY_ONLY" ? "solo celdas vacías" : "cambios pendientes"
+        })`
+      );
+    },
+    [filteredRows, selectedStudentIds, pendingGrades]
+  );
+
   if (contextQuery.isLoading || !context) return <LoadingState />;
   if (contextQuery.isError) {
     return (
@@ -328,185 +520,6 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
     (sum: number, item: any) => sum + Number(item.weight),
     0
   );
-
-  // Filtrado reactivo de filas
-  const filteredRows = (context.rows ?? []).filter((row: any) => {
-    const name = studentName(row.student);
-    if (query.trim() && !name.toLowerCase().includes(query.toLowerCase().trim())) {
-      return false;
-    }
-
-    const rowDefinitiva = calculateDefinitiva(
-      row.values.map((v: any) => ({
-        value: Object.prototype.hasOwnProperty.call(pendingGrades, `${v.assessment.id}:${row.enrollment.studentUserId}`)
-          ? pendingGrades[`${v.assessment.id}:${row.enrollment.studentUserId}`]
-          : v.grade?.value ?? null,
-        maxValue: v.assessment.maxValue,
-        weight: v.assessment.weight,
-      }))
-    );
-
-    if (filter === "PENDING") {
-      return row.values.some((item: any) => {
-        const key = `${item.assessment.id}:${row.enrollment.studentUserId}`;
-        const val = Object.prototype.hasOwnProperty.call(pendingGrades, key)
-          ? pendingGrades[key]
-          : item.grade?.value ?? null;
-        return val === null;
-      });
-    }
-    if (filter === "LOW") {
-      return rowDefinitiva !== null && rowDefinitiva < 3.0;
-    }
-    if (filter === "PASSING") {
-      return rowDefinitiva !== null && rowDefinitiva >= 3.0;
-    }
-    if (filter === "COMMENT") {
-      return row.values.some((item: any) => {
-        const key = `${item.assessment.id}:${row.enrollment.studentUserId}`;
-        const com = Object.prototype.hasOwnProperty.call(pendingComments, key)
-          ? pendingComments[key]
-          : item.grade?.comment;
-        return Boolean(com && com.trim());
-      });
-    }
-    return true;
-  });
-
-  // Guardar calificación individual desde el popover contextual
-  const handleSaveCellGrade = async (
-    assessmentId: number,
-    studentId: number,
-    value: number | null,
-    comment?: string
-  ) => {
-    try {
-      await saveGrades.mutateAsync({
-        role,
-        assessmentId,
-        grades: [{ studentId, value, comment }],
-      });
-      setPendingGrades(prev => {
-        const next = { ...prev };
-        delete next[`${assessmentId}:${studentId}`];
-        return next;
-      });
-      setPendingComments(prev => {
-        const next = { ...prev };
-        delete next[`${assessmentId}:${studentId}`];
-        return next;
-      });
-      await utils.gradeCenter.context.invalidate();
-      toast.success("Calificación actualizada correctamente");
-    } catch (error: any) {
-      toast.error(error?.message ?? "No pudimos guardar la calificación.");
-    }
-  };
-
-  // Guardar todos los cambios pendientes acumulados
-  const handleSaveAll = async () => {
-    const keys = Object.keys(pendingGrades);
-    if (!keys.length) return;
-    try {
-      const byAssessment: Record<number, Array<{ studentId: number; value: number | null; comment?: string }>> = {};
-      for (const key of keys) {
-        const [assessmentIdStr, studentIdStr] = key.split(":");
-        const aId = Number(assessmentIdStr);
-        const sId = Number(studentIdStr);
-        if (!byAssessment[aId]) byAssessment[aId] = [];
-        byAssessment[aId].push({
-          studentId: sId,
-          value: pendingGrades[key],
-          comment: pendingComments[key] || undefined,
-        });
-      }
-      for (const aIdStr of Object.keys(byAssessment)) {
-        const aId = Number(aIdStr);
-        await saveGrades.mutateAsync({
-          role,
-          assessmentId: aId,
-          grades: byAssessment[aId],
-        });
-      }
-      setPendingGrades({});
-      setPendingComments({});
-      await utils.gradeCenter.context.invalidate();
-      toast.success("Todas las calificaciones pendientes fueron guardadas");
-    } catch (error: any) {
-      toast.error(error?.message ?? "Error al guardar calificaciones.");
-    }
-  };
-  handleSaveAllRef.current = handleSaveAll;
-
-  // Selección de estudiantes
-  const handleToggleStudent = (studentId: number) => {
-    setSelectedStudentIds(prev =>
-      prev.includes(studentId) ? prev.filter(id => id !== studentId) : [...prev, studentId]
-    );
-  };
-
-  const handleToggleAllVisible = () => {
-    const visibleIds: number[] = filteredRows.map((r: any) => r.enrollment.studentUserId);
-    const allSelected =
-      visibleIds.length > 0 && visibleIds.every(id => selectedStudentIds.includes(id));
-    if (allSelected) {
-      setSelectedStudentIds(prev => prev.filter(id => !visibleIds.includes(id)));
-    } else {
-      setSelectedStudentIds(prev => Array.from(new Set([...prev, ...visibleIds])));
-    }
-  };
-
-  // Calificación masiva
-  const handleApplyBulkGrade = (
-    assessmentId: number,
-    value: number,
-    target: BulkGradeTarget
-  ) => {
-    let targetRows = filteredRows;
-    if (target === "SELECTED") {
-      targetRows = filteredRows.filter((r: any) =>
-        selectedStudentIds.includes(r.enrollment.studentUserId)
-      );
-    }
-
-    const updates: Record<string, number | null> = {};
-    let affectedCount = 0;
-
-    for (const row of targetRows) {
-      const studentId = row.enrollment.studentUserId;
-      const key = `${assessmentId}:${studentId}`;
-
-      if (target === "EMPTY_ONLY") {
-        const currentVal = Object.prototype.hasOwnProperty.call(pendingGrades, key)
-          ? pendingGrades[key]
-          : row.values.find((v: any) => v.assessment.id === assessmentId)?.grade?.value ?? null;
-
-        // IMPORTANTE: NUNCA sobrescribir notas existentes cuando se utiliza esta opción
-        if (currentVal !== null && currentVal !== undefined) {
-          continue;
-        }
-      }
-
-      updates[key] = value;
-      affectedCount++;
-    }
-
-    if (affectedCount === 0) {
-      toast.info("No se modificó ninguna celda (no había celdas que cumplieran la condición).");
-      return;
-    }
-
-    setPendingGrades(prev => ({
-      ...prev,
-      ...updates,
-    }));
-
-    toast.success(
-      `Se aplicó ${value} a ${affectedCount} estudiante${affectedCount === 1 ? "" : "s"} (${
-        target === "EMPTY_ONLY" ? "solo celdas vacías" : "cambios pendientes"
-      })`
-    );
-  };
 
   if (analyticsViewMode === "ANALYTICS") {
     return (
@@ -741,7 +754,7 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
         onCellPendingChange={handleCellPendingChange}
         onOpenSimulator={handleOpenSimulator}
         externalTargetCell={externalTargetCell}
-        onClearExternalTargetCell={() => setExternalTargetCell(null)}
+        onClearExternalTargetCell={handleClearExternalTargetCell}
         isSaving={saveGrades.isPending}
         selectedStudentIds={selectedStudentIds}
         onToggleStudent={handleToggleStudent}
@@ -750,10 +763,7 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
         viewMode={viewMode}
         onEditAssessment={handleEditAssessment}
         onFilterPendingForAssessment={handleFilterPendingForAssessment}
-        onOpenStudentStats={st => {
-          setSelectedStatsStudent(st);
-          setShowStudentStatsDialog(true);
-        }}
+        onOpenStudentStats={handleOpenStudentStats}
       />
 
       {/* Diálogo de Calificación Masiva */}

@@ -93,9 +93,9 @@ export function BulkGradeDialog({
     setValidationError(err);
   };
 
-  // Determinar cuántos estudiantes y cuáles celdas se verán afectadas
+  // Determinar cuántos estudiantes y cuáles celdas se verán afectadas (solo cuando el diálogo está abierto)
   const affectedStudentIds = React.useMemo(() => {
-    if (!activeAssessment) return [];
+    if (!open || !activeAssessment) return [];
     const aId = activeAssessment.id;
 
     // Obtener el conjunto base de filas según el target seleccionado

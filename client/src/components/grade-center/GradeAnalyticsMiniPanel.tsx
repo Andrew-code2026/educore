@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import {
   Sheet,
   SheetContent,
@@ -67,7 +67,15 @@ interface GradeAnalyticsMiniPanelProps {
   onOpenFullAnalytics?: () => void;
 }
 
-export function GradeAnalyticsMiniPanel({
+export function GradeAnalyticsMiniPanel(props: GradeAnalyticsMiniPanelProps) {
+  return (
+    <Sheet open={props.isOpen} onOpenChange={open => !open && props.onClose()}>
+      {props.isOpen && <GradeAnalyticsMiniPanelContent {...props} />}
+    </Sheet>
+  );
+}
+
+function GradeAnalyticsMiniPanelContent({
   isOpen,
   onClose,
   rows,
@@ -159,11 +167,10 @@ export function GradeAnalyticsMiniPanel({
   const avgTone = getPerformanceTone(stats.groupAverage);
 
   return (
-    <Sheet open={isOpen} onOpenChange={open => !open && onClose()}>
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-md p-0 flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl z-50 text-slate-800 dark:text-slate-100"
-      >
+    <SheetContent
+      side="right"
+      className="w-full sm:max-w-md p-0 flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl z-50 text-slate-800 dark:text-slate-100"
+    >
         {/* Encabezado del Panel */}
         <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/80 backdrop-blur-md">
           <div className="flex items-start justify-between gap-3">
@@ -648,6 +655,5 @@ export function GradeAnalyticsMiniPanel({
           )}
         </div>
       </SheetContent>
-    </Sheet>
   );
 }
