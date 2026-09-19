@@ -424,10 +424,10 @@ const GradeCenterTableRowComponent = React.memo(function GradeCenterTableRowComp
     >
       {/* Columna Sticky de Checkbox */}
       <td
-        className={`sticky left-0 z-20 w-11 min-w-[44px] max-w-[44px] px-2 py-2.5 text-center shadow-[1px_0_4px_rgba(0,0,0,0.02)] backdrop-blur-sm ${
+        className={`sticky left-0 z-20 w-11 min-w-[44px] max-w-[44px] px-2 py-2.5 text-center shadow-[1px_0_4px_rgba(0,0,0,0.02)] ${
           isSelected
-            ? "bg-blue-50/95 dark:bg-slate-900/95"
-            : "bg-white/95 group-hover:bg-slate-50/95 dark:bg-slate-900/95 dark:group-hover:bg-slate-850"
+            ? "bg-blue-50 dark:bg-slate-900"
+            : "bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-850"
         }`}
       >
         <div className="flex items-center justify-center">
@@ -441,10 +441,10 @@ const GradeCenterTableRowComponent = React.memo(function GradeCenterTableRowComp
 
       {/* Columna Sticky de Estudiante con StudentSummaryPopover perezoso */}
       <td
-        className={`sticky left-[44px] z-10 min-w-[190px] max-w-[240px] px-3 py-2.5 shadow-[2px_0_6px_rgba(0,0,0,0.02)] backdrop-blur-sm ${
+        className={`sticky left-[44px] z-10 min-w-[190px] max-w-[240px] px-3 py-2.5 shadow-[2px_0_6px_rgba(0,0,0,0.02)] ${
           isSelected
-            ? "bg-blue-50/95 dark:bg-slate-900/95"
-            : "bg-white/95 group-hover:bg-slate-50/95 dark:bg-slate-900/95 dark:group-hover:bg-slate-850"
+            ? "bg-blue-50 dark:bg-slate-900"
+            : "bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-850"
         }`}
       >
         <div className="flex items-center gap-2.5">
@@ -569,7 +569,7 @@ const GradeCenterTableRowComponent = React.memo(function GradeCenterTableRowComp
       })}
 
       {/* Columna Definitiva */}
-      <td className="sticky right-0 z-10 min-w-[115px] border-l border-slate-200/80 bg-slate-50/90 px-3 py-2 text-center shadow-[-2px_0_6px_rgba(0,0,0,0.02)] backdrop-blur-sm group-hover:bg-slate-100/90 dark:border-slate-800 dark:bg-slate-850/90 dark:group-hover:bg-slate-800">
+      <td className="sticky right-0 z-10 min-w-[115px] border-l border-slate-200/80 bg-slate-50 px-3 py-2 text-center shadow-[-2px_0_6px_rgba(0,0,0,0.02)] group-hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-850 dark:group-hover:bg-slate-800">
         <div className="flex flex-col items-center justify-center">
           <span
             className={`text-base font-extrabold tracking-tight leading-tight ${definitivaTone.textColor}`}
@@ -669,11 +669,11 @@ const GradeCenterTableHeader = React.memo(function GradeCenterTableHeader({
 }: GradeCenterTableHeaderProps) {
   return (
     <thead>
-      <tr className="border-b border-slate-200/90 bg-slate-50/90 text-xs text-slate-500 uppercase tracking-wider backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90 dark:text-slate-400">
+      <tr className="border-b border-slate-200/90 bg-slate-50 text-xs text-slate-500 uppercase tracking-wider dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
         {/* Columna Sticky de Checkbox de Selección */}
         <th
           scope="col"
-          className="sticky left-0 z-30 w-11 min-w-[44px] max-w-[44px] bg-slate-50/95 px-2 py-3.5 text-center shadow-[1px_0_4px_rgba(0,0,0,0.02)] backdrop-blur-md dark:bg-slate-900/95"
+          className="sticky left-0 z-30 w-11 min-w-[44px] max-w-[44px] bg-slate-50 px-2 py-3.5 text-center shadow-[1px_0_4px_rgba(0,0,0,0.02)] dark:bg-slate-900"
         >
           <div className="flex items-center justify-center">
             <Checkbox
@@ -687,7 +687,7 @@ const GradeCenterTableHeader = React.memo(function GradeCenterTableHeader({
         {/* Columna Sticky de Estudiantes */}
         <th
           scope="col"
-          className="sticky left-[44px] z-20 min-w-[190px] max-w-[240px] bg-slate-50/95 px-3 py-3.5 font-semibold text-slate-700 shadow-[2px_0_6px_rgba(0,0,0,0.03)] backdrop-blur-md dark:bg-slate-900/95 dark:text-slate-200"
+          className="sticky left-[44px] z-20 min-w-[190px] max-w-[240px] bg-slate-50 px-3 py-3.5 font-semibold text-slate-700 shadow-[2px_0_6px_rgba(0,0,0,0.03)] dark:bg-slate-900 dark:text-slate-200"
         >
           <div className="flex items-center gap-2">
             <span>Estudiante</span>
@@ -748,7 +748,7 @@ const GradeCenterTableHeader = React.memo(function GradeCenterTableHeader({
         {/* Columna Definitiva */}
         <th
           scope="col"
-          className="sticky right-0 z-20 min-w-[115px] border-l border-slate-200/80 bg-slate-100/90 px-3 py-3 text-center font-bold text-slate-800 shadow-[-2px_0_6px_rgba(0,0,0,0.03)] backdrop-blur-md dark:border-slate-800 dark:bg-slate-850/90 dark:text-white"
+          className="sticky right-0 z-20 min-w-[115px] border-l border-slate-200/80 bg-slate-100 px-3 py-3 text-center font-bold text-slate-800 shadow-[-2px_0_6px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-850 dark:text-white"
         >
           <div className="flex flex-col items-center justify-center">
             <span className="text-xs font-bold tracking-tight">Definitiva</span>

@@ -6,7 +6,7 @@ export interface TeacherMetricItem {
   label: string;
   value: string | number;
   detail?: string;
-  tone?: "neutral" | "info" | "warning" | "danger" | "success";
+  tone?: "neutral" | "info" | "warning" | "danger" | "success" | "violet";
   onClick?: () => void;
   icon: React.ComponentType<{ className?: string }>;
 }

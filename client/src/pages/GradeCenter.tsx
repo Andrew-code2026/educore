@@ -631,7 +631,7 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
       />
 
       {/* BARRA COMPACTA DE MÉTRICAS Y ACCIONES RÁPIDAS (Fase 5.3-E) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-4 py-2.5 shadow-xs backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/90 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-2.5 shadow-xs dark:border-slate-800 dark:bg-slate-900 text-xs">
         {/* Métricas directas del curso */}
         <div className="flex flex-wrap items-center gap-3.5 text-slate-600 dark:text-slate-300">
           {/* Promedio General */}
@@ -681,7 +681,7 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
           <button
             type="button"
             onClick={() => setFilter(prev => (prev === "LOW" ? "ALL" : "LOW"))}
-            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-semibold transition-colors duration-150 cursor-pointer ${
               filter === "LOW"
                 ? "border border-rose-400 bg-rose-100 text-rose-800 shadow-xs ring-1 ring-rose-400 dark:bg-rose-950/80 dark:text-rose-200"
                 : "border border-rose-200/90 bg-rose-50/70 text-rose-700 hover:bg-rose-100/80 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
@@ -696,7 +696,7 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
           <button
             type="button"
             onClick={() => setFilter(prev => (prev === "PENDING" ? "ALL" : "PENDING"))}
-            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1 text-xs font-semibold transition-colors duration-150 cursor-pointer ${
               filter === "PENDING"
                 ? "border border-amber-400 bg-amber-100 text-amber-800 shadow-xs ring-1 ring-amber-400 dark:bg-amber-950/80 dark:text-amber-200"
                 : "border border-amber-200/90 bg-amber-50/70 text-amber-700 hover:bg-amber-100/80 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
