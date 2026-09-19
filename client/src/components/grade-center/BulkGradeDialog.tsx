@@ -151,8 +151,8 @@ export function BulkGradeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md rounded-2xl border border-white/80 bg-white/95 p-6 shadow-[0_24px_54px_rgba(29,78,137,0.16)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/95">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md w-full rounded-2xl border border-white/80 bg-white/95 p-6 shadow-[0_24px_54px_rgba(29,78,137,0.16)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/95 max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3.5rem)] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0 pb-1">
           <div className="flex items-center gap-2 text-[var(--edc-primary)]">
             <Sparkles className="h-5 w-5" />
             <DialogTitle className="text-base font-bold text-slate-900 dark:text-white">
@@ -164,8 +164,9 @@ export function BulkGradeDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {!confirmStep ? (
-          <div className="space-y-4 py-2">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 py-1">
+          {!confirmStep ? (
+            <div className="space-y-4 py-1">
             {/* 1. Selección de Evaluación */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -333,8 +334,9 @@ export function BulkGradeDialog({
             </div>
           </div>
         )}
+        </div>
 
-        <DialogFooter className="flex items-center justify-between sm:justify-end gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+        <DialogFooter className="shrink-0 flex items-center justify-between sm:justify-end gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
           {!confirmStep ? (
             <>
               <Button
