@@ -1,28 +1,22 @@
-import React from "react";
 import {
-  CalendarDays,
-  ClipboardCheck,
+  Calendar,
+  FileCheck,
   Sparkles,
   ArrowRight,
   Sun,
   Sunset,
   Moon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 interface TeacherHeroProps {
   teacherName: string;
   schoolName: string;
   activePeriodName?: string;
   summaryText: string;
-  aiSuggestion?: {
-    text: string;
-    onAction: () => void;
-  };
   pendingGradesCount: number;
   onOpenGradeCenter: () => void;
   onOpenCalendar: () => void;
+  onOpenClassroom?: () => void;
 }
 
 export function TeacherHero({
@@ -30,10 +24,10 @@ export function TeacherHero({
   schoolName,
   activePeriodName = "Periodo 2",
   summaryText,
-  aiSuggestion,
   pendingGradesCount,
   onOpenGradeCenter,
   onOpenCalendar,
+  onOpenClassroom,
 }: TeacherHeroProps) {
   const currentHour = new Date().getHours();
   const greeting =
@@ -43,102 +37,86 @@ export function TeacherHero({
         ? "Buenas tardes"
         : "Buenas noches";
 
-  const GreetingIcon =
-    currentHour < 12 ? Sun : currentHour < 19 ? Sunset : Moon;
-
   const todayFormatted = new Intl.DateTimeFormat("es-CO", {
     weekday: "long",
     day: "numeric",
     month: "long",
   }).format(new Date());
 
-  // Capitalize first letter of weekday
   const capitalizedDate =
     todayFormatted.charAt(0).toUpperCase() + todayFormatted.slice(1);
 
   return (
-    <section className="relative overflow-hidden rounded-[26px] border border-blue-100/80 bg-gradient-to-br from-[#f0f6ff] via-[#e9f1fd] to-[#deebff] p-5 sm:p-7 shadow-[0_12px_36px_rgba(36,117,207,0.07)]">
-      {/* Decorative ambient blurs */}
-      <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/60 blur-3xl" />
-      <div className="pointer-events-none absolute right-1/4 -bottom-16 h-48 w-48 rounded-full bg-blue-300/20 blur-2xl" />
+    <section
+      data-testid="teacher-hero"
+      className="teacher-hero relative overflow-hidden rounded-[24px] border border-blue-100/80 bg-gradient-to-br from-[#eef5ff] via-[#e5efff] to-[#dbe8ff] p-4 shadow-[0_16px_42px_rgba(69,105,180,0.12)] sm:p-5"
+    >
+      <div className="teacher-glow pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-indigo-300/20 blur-3xl" />
 
       <div className="relative z-10">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0 max-w-2xl">
-            {/* Context Pill */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/90 bg-white/75 px-3 py-1 text-[11px] font-semibold text-blue-800 shadow-xs backdrop-blur-xs">
-              <GreetingIcon className="h-3.5 w-3.5 text-amber-500" />
-              <span>{greeting}, {capitalizedDate}</span>
-              <span className="text-slate-300">·</span>
-              <span className="font-normal text-slate-600">{schoolName}</span>
-              <span className="text-slate-300">·</span>
-              <span className="font-medium text-blue-700">{activePeriodName}</span>
-            </div>
-
-            {/* Main Greeting */}
-            <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-              Hola, Prof. {teacherName}
-            </h1>
-
-            {/* Dynamic Summary */}
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              {summaryText}
-            </p>
+        {/* Top Header Row: Pill + Quick Action Buttons */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/90 bg-white/70 px-3 py-1.5 text-[10px] font-semibold text-slate-600 shadow-sm">
+            <Calendar className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+            <span>
+              {greeting}, {capitalizedDate}
+            </span>
+            <span className="text-slate-300">·</span>
+            <span>{schoolName}</span>
+            <span className="text-blue-700 font-bold">· {activePeriodName}</span>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5 sm:shrink-0">
-            <Button
+          <div className="flex items-center gap-2">
+            <button
               type="button"
               onClick={onOpenGradeCenter}
-              className="relative rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white shadow-md transition hover:bg-slate-800"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-[10px] font-bold text-white shadow-sm transition-transform hover:-translate-y-0.5 active:translate-y-0"
             >
-              <ClipboardCheck className="mr-2 h-4 w-4 text-emerald-400" />
-              Grade Center
+              <FileCheck className="h-3.5 w-3.5 text-emerald-300" />
+              <span>Grade Center</span>
               {pendingGradesCount > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="ml-2 rounded-full bg-amber-400/20 px-1.5 py-0 text-[10px] font-bold text-amber-300"
-                >
+                <span className="rounded-full bg-amber-400 px-1.5 text-[9px] text-slate-950 font-bold">
                   {pendingGradesCount}
-                </Badge>
+                </span>
               )}
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onOpenCalendar}
-              className="rounded-xl border-slate-200/90 bg-white/90 px-4 py-2.5 text-xs font-semibold text-slate-700 shadow-xs transition hover:bg-white hover:text-blue-700"
-            >
-              <CalendarDays className="mr-2 h-4 w-4 text-blue-600" />
-              Ver calendario
-            </Button>
-          </div>
-        </div>
-
-        {/* EduCore AI Contextual Suggestion Banner */}
-        {aiSuggestion && (
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/80 bg-white/60 px-4 py-2.5 backdrop-blur-xs transition hover:bg-white/80">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white shadow-xs">
-                <Sparkles className="h-3.5 w-3.5" />
-              </span>
-              <p className="truncate text-xs text-slate-700">
-                <span className="font-semibold text-blue-900">EduCore AI sugiere:</span>{" "}
-                <span className="text-slate-600">"{aiSuggestion.text}"</span>
-              </p>
-            </div>
+            </button>
 
             <button
               type="button"
-              onClick={aiSuggestion.onAction}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-900 transition ml-auto"
+              onClick={onOpenCalendar}
+              className="inline-flex items-center gap-2 rounded-xl border border-white bg-white/80 px-3 py-2 text-[10px] font-bold text-slate-600 shadow-sm hover:bg-white transition active:translate-y-0"
             >
-              <span>Explorar</span>
-              <ArrowRight className="h-3.5 w-3.5" />
+              <Calendar className="h-3.5 w-3.5 text-blue-600" />
+              <span>Ver calendario</span>
             </button>
           </div>
+        </div>
+
+        {/* Greeting & Summary */}
+        <h1 className="mt-5 text-2xl font-extrabold tracking-[-0.04em] text-[#172554] sm:text-3xl">
+          Hola, {teacherName}
+        </h1>
+        <div
+          className="mt-1 text-xs text-[#52668f] leading-normal"
+          dangerouslySetInnerHTML={{ __html: summaryText }}
+        />
+
+        {/* Suggestion Banner */}
+        {pendingGradesCount > 0 && onOpenClassroom && (
+          <button
+            type="button"
+            onClick={onOpenClassroom}
+            className="mt-4 flex w-full items-center gap-2 rounded-xl border border-white bg-white/75 px-3 py-2.5 text-left text-[10px] font-semibold text-blue-700 shadow-sm transition-all hover:bg-white group"
+          >
+            <Sparkles className="h-4 w-4 shrink-0 text-blue-600" />
+            <span className="truncate min-w-0 flex-1">
+              Sugerencia de jornada:{" "}
+              <span className="font-medium text-slate-600">
+                Revisar {pendingGradesCount} entrega(s) y registrar retroalimentación constructiva.
+              </span>
+            </span>
+            <ArrowRight className="ml-auto h-3.5 w-3.5 shrink-0 text-blue-600 transition-transform group-hover:translate-x-0.5" />
+          </button>
         )}
       </div>
     </section>

@@ -1,0 +1,11 @@
+export * from "./types";
+export { StudentHero } from "./StudentHero";
+export { StudentMetrics } from "./StudentMetrics";
+export { StudentAgenda } from "./StudentAgenda";
+export { StudentPendingWork } from "./StudentPendingWork";
+export { StudentSubjects } from "./StudentSubjects";
+export { StudentPerformance } from "./StudentPerformance";
+export { StudentPrioritySection } from "./StudentPrioritySection";
+export { StudentQuickActions } from "./StudentQuickActions";
+export { StudentAiCallout } from "./StudentAiCallout";
+export { StudentDashboard } from "./StudentDashboard";

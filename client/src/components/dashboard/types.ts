@@ -64,6 +64,24 @@ export interface TeacherQuickActionItem {
   onClick: () => void;
 }
 
+export interface TeacherCourseCardItem {
+  id?: number | string;
+  name: string;
+  studentCount: number;
+  averageGrade: number;
+  pendingCount: number;
+  progress: number;
+  tone?: string;
+  onClick?: () => void;
+}
+
+export interface QuickAnalyticsItem {
+  label: string;
+  value: number;
+  color?: string;
+  onClick?: () => void;
+}
+
 export interface TeacherDashboardProps {
   data: any;
   user?: any;

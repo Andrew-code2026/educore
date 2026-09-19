@@ -115,6 +115,50 @@
   input, textarea, select { border-radius: var(--edc-radius); }
   tr { transition: background-color 180ms var(--ease-out); }
   tbody tr:hover { background: color-mix(in srgb, var(--edc-secondary) 34%, transparent); }
+
+  .teacher-dashboard {
+    --teacher-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .teacher-dashboard .teacher-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.22) 46%, transparent 67%);
+    transform: translateX(-100%);
+    animation: teacher-sheen 9s var(--teacher-ease) infinite;
+  }
+
+  .teacher-dashboard .teacher-glow {
+    animation: teacher-float 7s ease-in-out infinite;
+  }
+
+  .teacher-dashboard .group,
+  .teacher-dashboard button {
+    transition-timing-function: var(--teacher-ease);
+  }
+
+  .teacher-dashboard .rounded-2xl.border.bg-white,
+  .teacher-dashboard .rounded-2xl.border.border-slate-200\/80 {
+    transition: transform 220ms var(--teacher-ease), box-shadow 220ms var(--teacher-ease), border-color 220ms ease;
+  }
+
+  .teacher-dashboard .rounded-2xl.border.bg-white:hover,
+  .teacher-dashboard .rounded-2xl.border.border-slate-200\/80:hover {
+    border-color: rgba(147, 197, 253, 0.62);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.07);
+  }
+}
+
+@keyframes teacher-sheen {
+  0%, 58% { transform: translateX(-100%); }
+  80%, 100% { transform: translateX(100%); }
+}
+
+@keyframes teacher-float {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-10px, 8px, 0) scale(1.06); }
 }
 
 @keyframes spatial-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }

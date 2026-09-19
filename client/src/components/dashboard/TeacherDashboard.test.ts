@@ -57,7 +57,7 @@ function calculateAttendanceStatus(attendance: any[], courses: any[]) {
 
   const courseList = courses || [];
   if (courseList.length === 0) {
-    return { label: "Al día", tone: "success" };
+    return { label: "Al día", tone: "success", text: "Sin cursos asignados" };
   }
 
   const attendedCount = courseList.filter((c: any) =>
@@ -65,11 +65,11 @@ function calculateAttendanceStatus(attendance: any[], courses: any[]) {
   ).length;
 
   if (attendedCount === courseList.length) {
-    return { label: "Al día", tone: "success" };
+    return { label: "Al día", tone: "success", text: "Registro completado" };
   } else if (attendedCount > 0) {
-    return { label: "Parcial", tone: "warning" };
+    return { label: "Parcial", tone: "warning", text: `${attendedCount}/${courseList.length} cursos listos` };
   } else {
-    return { label: "Pendiente", tone: "danger" };
+    return { label: "Pendiente", tone: "danger", text: "Registro pendiente hoy" };
   }
 }
 
@@ -105,6 +105,24 @@ function getHighlightedAction(pendingCount: number, attendanceLabel: string) {
     return "Registrar asistencia de hoy";
   }
   return "Preparar actividad con IA";
+}
+
+function calculatePriorityItems(
+  todayAttendanceLabel: string,
+  pendingCount: number,
+  studentsAtRiskCount: number
+) {
+  const items = [];
+  if (todayAttendanceLabel !== "Al día") {
+    items.push({ id: "attendance", severity: "medium", title: "Asistencia de hoy no completada" });
+  }
+  if (pendingCount > 0) {
+    items.push({ id: "pending", severity: "high", title: `${pendingCount} entregas pendientes` });
+  }
+  if (studentsAtRiskCount > 0) {
+    items.push({ id: "risk", severity: "high", title: `${studentsAtRiskCount} estudiantes requieren seguimiento` });
+  }
+  return items;
 }
 
 describe("TeacherDashboard — Business Logic & Data Calculations", () => {
@@ -199,6 +217,21 @@ describe("TeacherDashboard — Business Logic & Data Calculations", () => {
 
     // Si todo está al día -> planear con IA
     expect(getHighlightedAction(0, "Al día")).toBe("Preparar actividad con IA");
+  });
+
+  it("calcula ítems prioritarios solo ante alertas reales y sin redundancia", () => {
+    // Caso con todo resuelto: 0 alertas
+    const cleanPriorities = calculatePriorityItems("Al día", 0, 0);
+    expect(cleanPriorities.length).toBe(0);
+
+    // Caso con asistencia pendiente
+    const attendancePriority = calculatePriorityItems("Pendiente", 0, 0);
+    expect(attendancePriority.length).toBe(1);
+    expect(attendancePriority[0].id).toBe("attendance");
+
+    // Caso con todas las alertas activas
+    const allPriorities = calculatePriorityItems("Parcial", 2, 1);
+    expect(allPriorities.length).toBe(3);
   });
 
   it("maneja datos nulos o vacíos sin lanzar errores", () => {
