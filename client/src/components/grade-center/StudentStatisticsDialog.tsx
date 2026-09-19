@@ -71,9 +71,9 @@ export function StudentStatisticsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl rounded-2xl p-0 overflow-hidden border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+      <DialogContent className="max-w-xl w-full rounded-2xl p-0 overflow-hidden border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3.5rem)] flex flex-col">
         {/* Encabezado */}
-        <DialogHeader className="p-5 pb-4 border-b border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50">
+        <DialogHeader className="p-5 pb-4 border-b border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--edc-primary)]/10 text-[var(--edc-primary)]">
               <BarChart3 className="h-5 w-5" />
@@ -92,7 +92,7 @@ export function StudentStatisticsDialog({
           </div>
         </DialogHeader>
 
-        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="p-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
           {/* Métricas Clave: Estudiante vs Grupo */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {/* Promedio Estudiante */}
@@ -274,7 +274,7 @@ export function StudentStatisticsDialog({
         </div>
 
         {/* Footer */}
-        <DialogFooter className="p-3 border-t border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50">
+        <DialogFooter className="p-3 border-t border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50 shrink-0">
           <Button
             type="button"
             variant="default"
