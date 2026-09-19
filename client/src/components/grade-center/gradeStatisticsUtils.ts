@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Re-export canónico desde @/lib/gradeStatisticsUtils para compatibilidad
  * de importaciones existentes en componentes del Grade Center.
  */
@@ -10,3 +10,5 @@ export {
   getPendingGradesBreakdown,
   type RiskAssessmentResult,
 } from "./gradeIntelligenceUtils";
+
+export * from "./gradeAnalyticsIntelligence";

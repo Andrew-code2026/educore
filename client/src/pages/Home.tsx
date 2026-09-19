@@ -45,37 +45,16 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { GradeCenterPage } from "./GradeCenter";
+import {
+  EduCoreShell,
+  type EduRole,
+  type Section,
+  ROLE_LABELS,
+  ROLE_GREETINGS,
+} from "@/components/shell";
 
-type EduRole = "admin" | "teacher" | "student" | "guardian";
-type Section = "overview" | "academic" | "grades" | "classroom" | "attendance" | "calendar" | "communications" | "reports" | "ai" | "users" | "settings";
-
-const roleLabels: Record<EduRole, string> = {
-  admin: "Administrador",
-  teacher: "Docente",
-  student: "Estudiante",
-  guardian: "Acudiente",
-};
-
-const roleGreetings: Record<EduRole, string> = {
-  admin: "Resumen institucional",
-  teacher: "Buenos días, Laura.",
-  student: "Hola, Sofía.",
-  guardian: "Buenos días, Mariana.",
-};
-
-const navItems: Array<{ id: Section; label: string; icon: typeof LayoutDashboard; roles: EduRole[] }> = [
-  { id: "overview", label: "Inicio", icon: LayoutDashboard, roles: ["admin", "teacher", "student", "guardian"] },
-  { id: "academic", label: "Académico", icon: GraduationCap, roles: ["admin", "teacher"] },
-  { id: "grades", label: "Calificaciones", icon: BarChart3, roles: ["admin", "teacher", "student", "guardian"] },
-  { id: "classroom", label: "Classroom", icon: ClipboardList, roles: ["admin", "teacher", "student", "guardian"] },
-  { id: "attendance", label: "Asistencia", icon: ClipboardCheck, roles: ["admin", "teacher", "student", "guardian"] },
-  { id: "calendar", label: "Calendario", icon: CalendarDays, roles: ["admin", "teacher", "student", "guardian"] },
-  { id: "communications", label: "Comunicaciones", icon: Megaphone, roles: ["admin", "teacher", "student", "guardian"] },
-  { id: "reports", label: "Reportes", icon: BarChart3, roles: ["admin", "teacher", "student", "guardian"] },
-  { id: "ai", label: "EduCore AI", icon: Sparkles, roles: ["admin", "teacher", "student", "guardian"] },
-  { id: "users", label: "Usuarios", icon: Users, roles: ["admin"] },
-  { id: "settings", label: "Configuración", icon: Settings2, roles: ["admin"] },
-];
+const roleLabels: Record<EduRole, string> = ROLE_LABELS;
+const roleGreetings: Record<EduRole, string> = ROLE_GREETINGS;
 
 const formatDate = (value: Date | string | null | undefined, options?: Intl.DateTimeFormatOptions) =>
   value ? new Date(value).toLocaleDateString("es-CO", options ?? { day: "numeric", month: "short" }) : "—";
@@ -113,37 +92,7 @@ function EmptyState({ title, detail, icon: Icon = FileText }: { title: string; d
   return <div className="flex min-h-44 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-6 text-center"><div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-400 shadow-sm"><Icon className="h-5 w-5" /></div><p className="text-sm font-semibold text-slate-700">{title}</p><p className="mt-1 max-w-xs text-xs leading-5 text-slate-400">{detail}</p></div>;
 }
 
-function AppShell({ children, role, section, setSection, schoolName, school, onRoleChange, onLogout, notificationCount }: {
-  children: React.ReactNode; role: EduRole; section: Section; setSection: (section: Section) => void; schoolName: string; school: any; onRoleChange: (role: EduRole) => void; onLogout: () => void; notificationCount: number;
-}) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const visibleItems = navItems.filter(item => item.roles.includes(role));
-  return <div className="min-h-screen page-shell text-slate-900" style={{ "--edc-primary": school.primaryColor, "--edc-secondary": school.secondaryColor, "--edc-accent": school.accentColor ?? "#8ec6fa", "--edc-background": school.backgroundColor ?? "#f7f9fc", "--edc-surface": school.surfaceColor ?? "#ffffff", "--edc-text": school.textColor ?? "#182131", "--edc-muted": school.mutedTextColor ?? "#7a8798", "--edc-radius": school.borderRadius ?? "12px" } as React.CSSProperties}>
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[218px] flex-col border-r px-3 py-5 sidebar-surface lg:flex">
-      <div className="flex items-center gap-3 px-2">
-        <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[var(--edc-secondary)] text-[var(--edc-primary)]">{school.logoUrl ? <img src={storageUrl(school.logoUrl)} alt="Escudo institucional" className="h-full w-full rounded-[14px] object-contain p-1" /> : <span className="text-lg font-bold">E</span>}</div>
-        <div><p className="text-[15px] font-semibold tracking-tight text-slate-900">EduCore</p><p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">School OS</p></div>
-      </div>
-      <div className="mt-8 flex-1">
-        <p className="px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Workspace</p>
-        <nav className="mt-3 space-y-1">{visibleItems.slice(0, 7).map(item => { const Icon = item.icon; return <button key={item.id} onClick={() => setSection(item.id)} className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${section === item.id ? "bg-[var(--edc-secondary)] font-semibold text-[var(--edc-primary)]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className={`h-[17px] w-[17px] ${section === item.id ? "text-[var(--edc-accent)]" : "text-slate-400 group-hover:text-slate-600"}`} /><span>{item.label}</span>{item.id === "communications" && notificationCount > 0 ? <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--edc-primary)] px-1 text-[10px] font-bold text-white">{notificationCount}</span> : null}</button>; })}</nav>
-        <div className="my-6 border-t border-slate-100" />
-        <p className="px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">Intelligence</p>
-        <nav className="mt-3 space-y-1">{visibleItems.slice(7).map(item => { const Icon = item.icon; return <button key={item.id} onClick={() => setSection(item.id)} className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${section === item.id ? "bg-[var(--edc-secondary)] font-semibold text-[var(--edc-primary)]" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"}`}><Icon className={`h-[17px] w-[17px] ${section === item.id ? "text-[var(--edc-accent)]" : "text-slate-400 group-hover:text-slate-600"}`} /><span>{item.label}</span></button>; })}</nav>
-      </div>
-      <div className="rounded-2xl bg-[var(--edc-secondary)] p-3"><div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-[var(--edc-accent)]" /><span className="text-xs font-medium text-slate-600">Datos protegidos</span></div><p className="mt-1 text-[11px] leading-4 text-slate-400">Acceso segmentado por institución y rol.</p></div>
-      <div className="mt-4 flex items-center gap-3 rounded-xl px-2 py-2"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--edc-secondary)] text-xs font-bold text-[var(--edc-primary)]">{role === "admin" ? "RC" : role === "teacher" ? "LG" : role === "guardian" ? "MM" : "SM"}</div><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold text-slate-700">{role === "admin" ? "Rectoría" : roleLabels[role]}</p><p className="truncate text-[11px] text-slate-400">{schoolName}</p></div><button onClick={onLogout} aria-label="Cerrar sesión" className="text-slate-400 transition hover:text-rose-500"><LogOut className="h-4 w-4" /></button></div>
-    </aside>
-    <div className="lg:pl-[218px]">
-      <header className="sticky top-3 z-30 mx-3 flex h-[60px] items-center justify-between rounded-2xl border px-4 glass-nav sm:mx-5 sm:px-7 lg:mx-7 lg:px-8">
-        <div className="flex items-center gap-3"><button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden" onClick={() => setMobileOpen(true)}><Menu className="h-5 w-5" /></button><div><p className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">{schoolName}</p><p className="mt-0.5 text-sm font-semibold text-slate-700">Año académico 2026</p></div></div>
-        <div className="flex items-center gap-2 sm:gap-4"><div className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-400 sm:flex"><Search className="h-4 w-4" /><span>Buscar en EduCore</span><kbd className="ml-6 rounded bg-slate-100 px-1.5 py-0.5 text-[10px]">⌘ K</kbd></div><button onClick={() => setSection("ai")} className="flex h-9 items-center gap-2 rounded-xl bg-[var(--edc-secondary)] px-3 text-xs font-semibold text-[var(--edc-primary)] transition hover:bg-[var(--edc-secondary)]"><Sparkles className="h-4 w-4" /><span className="hidden sm:inline">Ask EduCore</span></button><button onClick={() => toast.success("No tienes notificaciones pendientes por ver.")} className="relative rounded-xl p-2 text-slate-500 transition hover:bg-slate-100"><Bell className="h-[18px] w-[18px]" />{notificationCount > 0 ? <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#368de8]" /> : null}</button><select value={role} onChange={event => onRoleChange(event.target.value as EduRole)} className="hidden h-9 rounded-xl border border-slate-200 bg-white px-2 text-xs font-medium text-slate-600 outline-none sm:block"><option value="admin">Vista admin</option><option value="teacher">Vista docente</option><option value="student">Vista estudiante</option><option value="guardian">Vista acudiente</option></select></div>
-      </header>
-      {mobileOpen ? <div className="fixed inset-0 z-50 bg-slate-900/20 lg:hidden" onClick={() => setMobileOpen(false)}><div className="h-full w-[280px] bg-white p-5 shadow-2xl" onClick={event => event.stopPropagation()}><div className="flex items-center justify-between"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--edc-secondary)] font-bold text-[var(--edc-primary)]">{school.logoUrl ? <img src={storageUrl(school.logoUrl)} alt="Escudo institucional" className="h-full w-full rounded-xl object-contain p-1" /> : "E"}</div><span className="font-semibold">EduCore</span></div><button onClick={() => setMobileOpen(false)} className="rounded-lg p-2 hover:bg-slate-100"><X className="h-4 w-4" /></button></div><nav className="mt-8 space-y-1">{visibleItems.map(item => { const Icon = item.icon; return <button key={item.id} onClick={() => { setSection(item.id); setMobileOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm ${section === item.id ? "bg-[var(--edc-secondary)] font-semibold text-[var(--edc-primary)]" : "text-slate-500"}`}><Icon className="h-4 w-4" />{item.label}</button>; })}</nav><div className="mt-6 border-t border-slate-100 pt-5"><p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Cambiar vista demo</p>{(["admin", "teacher", "student", "guardian"] as EduRole[]).map(option => <button key={option} onClick={() => { onRoleChange(option); setMobileOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-xs text-slate-600 hover:bg-slate-50">{roleLabels[option]}</button>)}</div></div></div> : null}
-      <main className="page-transition mx-auto max-w-[1440px] px-4 pb-24 pt-7 sm:px-7 lg:px-10 lg:pb-9 lg:pt-8">{children}</main><nav className="mobile-bottom-nav fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 rounded-2xl border p-1.5 lg:hidden">{visibleItems.slice(0, 4).map(item => { const Icon = item.icon; return <button key={item.id} onClick={() => setSection(item.id)} aria-label={item.label} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-medium ${section === item.id ? "bg-[var(--edc-secondary)] text-[var(--edc-primary)]" : "text-slate-400"}`}><Icon className="h-4 w-4" />{item.label}</button>; })}</nav>
-    </div>
-  </div>;
-}
+
 
 function PageHeader({ eyebrow, title, detail, action }: { eyebrow: string; title: string; detail: string; action?: React.ReactNode }) {
   return <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--edc-accent)]">{eyebrow}</p><h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-[30px]">{title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{detail}</p></div>{action}</div>;
@@ -446,5 +395,5 @@ export default function Home() {
   if (!isAuthenticated && !isDemoSession) return <LoginScreen school={data?.school} onDemo={handleDemoLogin} />;
   if (!data) return <div className="flex min-h-screen items-center justify-center bg-[var(--edc-background)] p-6"><EmptyState title="No pudimos cargar tu espacio" detail="Revisa la conexión e inténtalo de nuevo." /></div>;
   const content = section === "overview" ? effectiveRole === "admin" ? <AdminDashboard data={data} setSection={setSection} /> : effectiveRole === "teacher" ? <TeacherDashboard data={data} setSection={setSection} /> : <StudentDashboard data={data} role={effectiveRole} setSection={setSection} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} /> : section === "academic" ? <AcademicPage data={data} role={effectiveRole} setSection={setSection} onGradeSaved={refresh} /> : section === "grades" ? <GradeCenterPage role={effectiveRole} school={data.school} /> : section === "classroom" ? <ClassroomPage data={data} role={effectiveRole} onChanged={refresh} setSection={setSection} /> : section === "attendance" ? <AttendancePage data={data} role={effectiveRole} onChanged={refresh} /> : section === "calendar" ? <CalendarPage data={data} /> : section === "communications" ? <CommunicationsPage data={data} role={effectiveRole} onChanged={refresh} /> : section === "reports" ? <ReportsPage data={data} role={effectiveRole} setSection={setSection} /> : section === "ai" ? <AiPage data={data} role={effectiveRole} /> : section === "users" ? <UsersPage role={effectiveRole} onPreview={handleRoleChange} /> : <SettingsPage data={data} role={effectiveRole} onChanged={refresh} />;
-  return <AppShell role={effectiveRole} section={section} setSection={setSection} schoolName={schoolName} school={data.school} onRoleChange={handleRoleChange} onLogout={handleLogout} notificationCount={data.notifications.filter((item: any) => !item.read).length}>{content}</AppShell>;
+  return <EduCoreShell role={effectiveRole} section={section} setSection={setSection} schoolName={schoolName} school={data.school} onRoleChange={handleRoleChange} onLogout={handleLogout} notificationCount={data.notifications.filter((item: any) => !item.read).length}>{content}</EduCoreShell>;
 }
