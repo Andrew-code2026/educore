@@ -6,6 +6,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
+  GraduationCap,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { EduRole, Section } from "./shell.types";
@@ -67,24 +68,30 @@ export function EduCoreSidebar({
         }`}
       >
         <div className="flex items-center gap-2.5 overflow-hidden">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--edc-secondary)] text-[var(--edc-primary)] shadow-xs">
+          <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-[0_7px_16px_rgba(37,99,235,0.25)]">
             {school?.logoUrl ? (
               <img
                 src={storageUrl(school.logoUrl)}
                 alt="Escudo institucional"
-                className="h-full w-full rounded-xl object-contain p-1"
+                className="h-full w-full rounded-[13px] object-contain p-1"
               />
             ) : (
-              <span className="text-base font-extrabold tracking-tight">E</span>
+              <GraduationCap className="h-[18px] w-[18px]" />
             )}
+            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-cyan-300 ring-2 ring-white" />
           </div>
           {!sidebarCollapsed && (
             <div className="min-w-0 transition-opacity duration-200">
-              <p className="truncate text-[14px] font-bold tracking-tight text-slate-900">
-                EduCore
-              </p>
-              <p className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                School OS
+              <div className="flex items-center gap-1.5">
+                <span className="text-[15px] font-extrabold tracking-[0.16em] text-slate-950">
+                  EDUCORE
+                </span>
+                <span className="rounded-md border border-blue-200 bg-blue-50 px-1.5 py-0 text-[8px] font-bold tracking-wider text-blue-700">
+                  2.0
+                </span>
+              </div>
+              <p className="truncate text-[10px] font-medium tracking-[0.01em] text-slate-500">
+                {schoolName}
               </p>
             </div>
           )}
