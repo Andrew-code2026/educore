@@ -69,12 +69,15 @@ export function EduCoreHeader({
 }: EduCoreHeaderProps) {
   const { moduleContext, setMobileOpen } = useShellContext();
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
-  const [isCompact, setIsCompact] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const roleMenuRef = useRef<HTMLDivElement>(null);
 
-  // Auto-compact on scroll (58px -> 48px)
+  // Subtle elevation on scroll without changing height (Zero CLS layout stability)
   useEffect(() => {
-    const handleScroll = () => setIsCompact(window.scrollY > 56);
+    const handleScroll = () => {
+      const scrolled = window.scrollY > 8;
+      setIsScrolled((prev) => (prev !== scrolled ? scrolled : prev));
+    };
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
@@ -108,14 +111,11 @@ export function EduCoreHeader({
 
   return (
     <header
-      className={`sticky top-0 z-30 flex items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-md transition-all duration-300 sm:px-6 lg:px-8 ${
-        isCompact ? "h-[50px] shadow-xs" : "h-[62px]"
+      className={`sticky top-0 z-30 flex h-[58px] items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-md transition-shadow duration-200 sm:px-6 lg:px-8 ${
+        isScrolled
+          ? "shadow-[0_4px_16px_rgba(15,23,42,0.05)]"
+          : "shadow-[0_1px_3px_rgba(15,23,42,0.02)]"
       }`}
-      style={{
-        boxShadow: isCompact
-          ? "0 4px 16px rgba(15, 23, 42, 0.05)"
-          : "0 1px 3px rgba(15, 23, 42, 0.02)",
-      }}
     >
       {/* Lado Izquierdo: Menú móvil + Barra de Contexto Dinámica */}
       <div className="flex items-center gap-3 overflow-hidden">
