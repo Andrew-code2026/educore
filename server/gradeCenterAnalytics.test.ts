@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   calculateCourseHealth,
   detectCourseProblems,
@@ -276,9 +276,9 @@ describe("Fase 5.3-F: Análisis Inteligente del Grade Center", () => {
     it("distribuye las definitivas en los 4 rangos institucionales correctos", () => {
       const definitivas = [
         4.8, 4.7, // 2 Superior
-        4.2, 4.4, 4.0, // 3 Alto
-        3.5, 3.2, 3.8, // 3 Básico
-        2.5, 2.8, // 2 Bajo
+        4.2, 4.4, 4.0, // 3 Alto (4.0 - 4.6)
+        3.5, 3.6, 3.8, // 3 Básico (3.5 - 3.9)
+        2.5, 2.8, // 2 Bajo (0.0 - 3.4)
       ]; // Total 10
 
       const brackets = calculateCourseDistributionBrackets(definitivas, standardScale);

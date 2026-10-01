@@ -25,8 +25,8 @@ describe("Fase 5.3-C: Inteligencia de Calificaciones", () => {
       expect(getInstitutionalPassingGrade(standardScale)).toBe(3.0);
     });
 
-    it("defaults to 3.0 for standard 0-5 scale if passingGrade is omitted", () => {
-      expect(getInstitutionalPassingGrade({ minValue: 0, maxValue: 5 } as any)).toBe(3.0);
+    it("defaults to 3.5 for standard 0-5 scale if passingGrade is omitted", () => {
+      expect(getInstitutionalPassingGrade({ minValue: 0, maxValue: 5 } as any)).toBe(3.5);
     });
 
     it("calculates 60% of scale for non-standard scales", () => {

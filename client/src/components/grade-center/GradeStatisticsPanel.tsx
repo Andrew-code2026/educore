@@ -167,14 +167,14 @@ export function GradeStatisticsPanel({
           </div>
         </div>
 
-        {/* En Riesgo (Clickable) */}
+        {/* Requiere Atención (Clickable) */}
         <button
           type="button"
           onClick={onOpenRiskModal}
           className="rounded-xl border border-amber-200/70 bg-amber-50/50 p-2.5 text-left transition hover:bg-amber-100/60 dark:border-amber-900/40 dark:bg-amber-950/20 dark:hover:bg-amber-950/40 cursor-pointer"
         >
           <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center justify-between">
-            En Riesgo
+            Requiere Atención
             <AlertTriangle className="h-3 w-3 text-amber-500" />
           </span>
           <div className="mt-1 flex items-baseline gap-1.5">

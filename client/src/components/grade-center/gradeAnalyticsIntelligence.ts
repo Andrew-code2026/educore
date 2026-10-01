@@ -1,4 +1,4 @@
-﻿/**
+/**
  * EDUCORE — FASE 5.3-F: MOTOR DE ANÁLISIS INTELIGENTE DEL GRADE CENTER
  *
  * Funciones puras, deterministas y testeables para:
@@ -122,7 +122,7 @@ export function calculateCourseHealth(
   assessments: AssessmentLike[] = [],
   weightTotal: number = 100
 ): CourseHealthResult {
-  const passingGrade = stats.passingGrade || 3.0;
+  const passingGrade = stats.passingGrade || 3.5;
   const reasons: string[] = [];
 
   // Caso 0: Sin datos
@@ -165,7 +165,7 @@ export function calculateCourseHealth(
   }
   if (atRiskRatio >= 0.25) {
     isCritical = true;
-    reasons.push(`El ${Math.round(atRiskRatio * 100)}% de los estudiantes presenta riesgo académico prioritario.`);
+    reasons.push(`El ${Math.round(atRiskRatio * 100)}% de los estudiantes requiere atención prioritaria.`);
   }
   if (criticalAssessment) {
     isCritical = true;
@@ -195,7 +195,7 @@ export function calculateCourseHealth(
   }
   if (atRiskCount > 0) {
     isAttention = true;
-    reasons.push(`${atRiskCount} estudiante${atRiskCount > 1 ? "s" : ""} presenta${atRiskCount === 1 ? "" : "n"} riesgo académico.`);
+    reasons.push(`${atRiskCount} estudiante${atRiskCount > 1 ? "s" : ""} requiere${atRiskCount === 1 ? "" : "n"} atención.`);
   }
   if (avg < passingGrade + 0.4) {
     isAttention = true;
@@ -289,16 +289,16 @@ export function detectCourseProblems(
     }
   }
 
-  // 2. Detección de estudiantes en riesgo
+  // 2. Detección de estudiantes que requieren atención
   if (stats.totalAtRisk > 0) {
     const isSevere = stats.totalStudents > 0 && stats.totalAtRisk / stats.totalStudents >= 0.2;
     problems.push({
       id: "problem-students-risk",
       severity: isSevere ? "CRITICAL" : "WARNING",
-      title: `${stats.totalAtRisk} estudiante${stats.totalAtRisk > 1 ? "s" : ""} en riesgo académico`,
+      title: `${stats.totalAtRisk} estudiante${stats.totalAtRisk > 1 ? "s" : ""} requieren atención`,
       description: `Su definitiva actual no alcanza la nota mínima aprobatoria (${passingGrade}).`,
       metric: `${stats.totalAtRisk} de ${stats.totalStudents}`,
-      actionLabel: "Ver estudiantes en riesgo",
+      actionLabel: "Ver estudiantes que requieren atención",
       actionType: "RISK",
     });
   }
@@ -508,7 +508,7 @@ export function generateCourseDeterministicInsights(
         title: "Concentración de reprobación académica",
         observation: `El ${100 - stats.passingPercentage}% de los estudiantes evaluados se encuentra por debajo de la nota mínima (${passingGrade}).`,
         significance: "Requiere planes de nivelación o revisión de los criterios de evaluación antes del cierre.",
-        actionLabel: "Ver estudiantes en riesgo",
+        actionLabel: "Ver estudiantes que requieren atención",
         actionType: "RISK",
       });
     } else {
@@ -604,10 +604,10 @@ export function generateCourseDeterministicInsights(
 
 /**
  * Calcula los 4 rangos estándares de desempeño institucional en Colombia:
- * - Superior (4.6 - 5.0)
- * - Alto (4.0 - 4.5)
- * - Básico (3.0 - 3.9)
- * - Bajo (< 3.0)
+ * - Superior (4.7 – 5.0)
+ * - Alto (4.0 – 4.6)
+ * - Básico (3.5 – 3.9)
+ * - Bajo (0.0 – 3.4 / < 3.5)
  * Adaptándose proporcionalmente si la escala institucional difiere de 0-5.
  */
 export function calculateCourseDistributionBrackets(
@@ -624,16 +624,17 @@ export function calculateCourseDistributionBrackets(
 
   const total = valid.length;
 
-  // Umbrales proporcionales
-  const tLow = minVal + range * 0.6;      // ej 3.0
-  const tBasic = minVal + range * 0.8;    // ej 4.0
-  const tHigh = minVal + range * 0.92;    // ej 4.6
+  // Umbrales institucionales sobre 5.0
+  const isDefault0To5 = minVal === 0 && maxVal === 5;
+  const tLow = isDefault0To5 ? 3.5 : minVal + range * 0.7;      // 3.5
+  const tBasic = isDefault0To5 ? 4.0 : minVal + range * 0.8;    // 4.0
+  const tHigh = isDefault0To5 ? 4.7 : minVal + range * 0.94;    // 4.7
 
   const brackets = [
     {
       id: "superior",
       label: "Desempeño Superior",
-      rangeLabel: `${tHigh.toFixed(1)} – ${maxVal.toFixed(1)}`,
+      rangeLabel: isDefault0To5 ? "4.7 – 5.0" : `${tHigh.toFixed(1)} – ${maxVal.toFixed(1)}`,
       min: tHigh,
       max: maxVal,
       count: valid.filter(v => v >= tHigh && v <= maxVal).length,
@@ -645,7 +646,7 @@ export function calculateCourseDistributionBrackets(
     {
       id: "alto",
       label: "Desempeño Alto",
-      rangeLabel: `${tBasic.toFixed(1)} – ${(tHigh - 0.1).toFixed(1)}`,
+      rangeLabel: isDefault0To5 ? "4.0 – 4.6" : `${tBasic.toFixed(1)} – ${(tHigh - 0.1).toFixed(1)}`,
       min: tBasic,
       max: tHigh,
       count: valid.filter(v => v >= tBasic && v < tHigh).length,
@@ -657,7 +658,7 @@ export function calculateCourseDistributionBrackets(
     {
       id: "basico",
       label: "Desempeño Básico",
-      rangeLabel: `${tLow.toFixed(1)} – ${(tBasic - 0.1).toFixed(1)}`,
+      rangeLabel: isDefault0To5 ? "3.5 – 3.9" : `${tLow.toFixed(1)} – ${(tBasic - 0.1).toFixed(1)}`,
       min: tLow,
       max: tBasic,
       count: valid.filter(v => v >= tLow && v < tBasic).length,
@@ -669,7 +670,7 @@ export function calculateCourseDistributionBrackets(
     {
       id: "bajo",
       label: "Desempeño Bajo",
-      rangeLabel: `< ${tLow.toFixed(1)}`,
+      rangeLabel: isDefault0To5 ? "0.0 – 3.4" : `< ${tLow.toFixed(1)}`,
       min: minVal,
       max: tLow,
       count: valid.filter(v => v < tLow).length,

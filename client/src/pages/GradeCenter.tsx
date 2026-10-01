@@ -217,7 +217,7 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
       );
       if (def !== null) {
         evaluatedCount++;
-        if (def >= 3.0) passingCount++;
+        if (def >= 3.5) passingCount++;
         else riskCount++;
       }
       for (const v of row.values ?? []) {
@@ -356,10 +356,10 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
       });
     }
     if (filter === "LOW") {
-      return rowDefinitiva !== null && rowDefinitiva < 3.0;
+      return rowDefinitiva !== null && rowDefinitiva < 3.5;
     }
     if (filter === "PASSING") {
-      return rowDefinitiva !== null && rowDefinitiva >= 3.0;
+      return rowDefinitiva !== null && rowDefinitiva >= 3.5;
     }
     if (filter === "COMMENT") {
       return row.values.some((item: any) => {

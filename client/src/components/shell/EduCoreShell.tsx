@@ -12,6 +12,7 @@ function ShellInner({
   setSection,
   schoolName,
   school,
+  user,
   onRoleChange,
   onLogout,
   notificationCount = 0,
@@ -43,6 +44,7 @@ function ShellInner({
         schoolName={schoolName}
         onLogout={onLogout}
         notificationCount={notificationCount}
+        user={user}
       />
 
       {/* 2. Contenedor principal desplazable que se adapta al ancho de la barra lateral */}
@@ -58,6 +60,7 @@ function ShellInner({
           setSection={setSection}
           onRoleChange={onRoleChange}
           notificationCount={notificationCount}
+          user={user}
         />
 
         {/* Contenido principal de la página */}

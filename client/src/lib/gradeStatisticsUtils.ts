@@ -230,9 +230,9 @@ export function getInstitutionalPassingGrade(scale?: GradeScaleConfig | null): n
   const min = scale?.minValue ?? 0;
   const max = scale?.maxValue ?? 5;
   if (min === 0 && max === 5) {
-    return 3.0;
+    return 3.5;
   }
-  // 60% estándar del rango institucional
+  // 60% estándar del rango institucional si difiere
   const calculated = min + (max - min) * 0.6;
   const decimals = scale?.decimalPlaces ?? 1;
   return Number(calculated.toFixed(decimals));

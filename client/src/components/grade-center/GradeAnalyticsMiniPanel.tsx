@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import {
   Sheet,
   SheetContent,
@@ -262,7 +262,7 @@ export function GradeAnalyticsMiniPanel({
               }`}
             >
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                <span>En riesgo</span>
+                <span>Requiere atención</span>
                 {stats.totalAtRisk > 0 && <AlertTriangle className="h-3 w-3 text-rose-500" />}
               </span>
               <div className="mt-1 flex items-baseline gap-1">
@@ -272,7 +272,7 @@ export function GradeAnalyticsMiniPanel({
                 <span className="text-[10px] text-slate-400">alumnos</span>
               </div>
               <p className="text-[10px] text-slate-500 mt-0.5">
-                {stats.totalAtRisk > 0 ? "Clic para filtrar en riesgo" : "Ningún alumno en riesgo"}
+                {stats.totalAtRisk > 0 ? "Clic para filtrar casos que requieren atención" : "Sin estudiantes que requieran atención"}
               </p>
             </div>
 
@@ -502,7 +502,7 @@ export function GradeAnalyticsMiniPanel({
                     }}
                     className="text-[10px] font-bold text-[var(--edc-primary)] hover:underline cursor-pointer"
                   >
-                    Filtrar riesgo
+                    Filtrar atención
                   </button>
                 )}
               </div>
@@ -612,7 +612,7 @@ export function GradeAnalyticsMiniPanel({
                 }}
                 className="flex-1 h-8 rounded-xl text-xs font-semibold text-rose-700 border-rose-200 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-300"
               >
-                Ver riesgo ({stats.totalAtRisk})
+                Requieren atención ({stats.totalAtRisk})
               </Button>
             )}
 

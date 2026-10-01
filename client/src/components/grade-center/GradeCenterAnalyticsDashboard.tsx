@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -72,7 +72,7 @@ export function GradeCenterAnalyticsDashboard({
   pendingGrades,
   scale,
   courseName = "11-2",
-  subjectName = "MatemÃ¡ticas",
+  subjectName = "Biología",
   periodName = "Periodo 2",
   weightTotal = 100,
   onBackToGradeCenter,
@@ -81,7 +81,7 @@ export function GradeCenterAnalyticsDashboard({
   onNavigateToRisk,
   onOpenStudentStats,
 }: GradeCenterAnalyticsDashboardProps) {
-  // EstadÃ­sticas grupales reactivas
+  // Estadísticas grupales reactivas
   const stats: AdvancedGroupStatistics = React.useMemo(() => {
     return calculateAdvancedGroupStats(rows, assessments, pendingGrades, scale);
   }, [rows, assessments, pendingGrades, scale]);
@@ -101,7 +101,7 @@ export function GradeCenterAnalyticsDashboard({
     return getAssessmentsHighlights(stats.assessmentComparison);
   }, [stats.assessmentComparison]);
 
-  // Estudiantes que requieren atenciÃ³n
+  // Estudiantes que requieren atención
   const attentionStudents: AttentionStudentItem[] = React.useMemo(() => {
     return getStudentsNeedingAttention(rows, assessments, pendingGrades, scale, 6);
   }, [rows, assessments, pendingGrades, scale]);
@@ -111,7 +111,7 @@ export function GradeCenterAnalyticsDashboard({
     return generateCourseDeterministicInsights(stats, health, problems, scale);
   }, [stats, health, problems, scale]);
 
-  // DistribuciÃ³n en 4 rangos institucionales
+  // Distribución en 4 rangos institucionales
   const definitivas = React.useMemo(() => {
     return rows.map(r => r.average);
   }, [rows]);
@@ -135,7 +135,7 @@ export function GradeCenterAnalyticsDashboard({
     }).length;
   }, [rows, assessments, pendingGrades]);
 
-  // EvoluciÃ³n temporal ordenada
+  // Evolución temporal ordenada
   const evolutionPoints = React.useMemo(() => {
     return (stats.evolution || []).filter(p => p.groupAverage !== null);
   }, [stats.evolution]);
@@ -158,13 +158,13 @@ export function GradeCenterAnalyticsDashboard({
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               <span className="font-bold text-[var(--edc-primary)] tracking-wide uppercase">
-                {courseName} Â· {subjectName}
+                {courseName} · {subjectName}
               </span>
-              <span className="text-slate-300 dark:text-slate-700">Â·</span>
+              <span className="text-slate-300 dark:text-slate-700">·</span>
               <span className="font-medium text-slate-600 dark:text-slate-300">
                 {periodName}
               </span>
-              <span className="text-slate-300 dark:text-slate-700">Â·</span>
+              <span className="text-slate-300 dark:text-slate-700">·</span>
               <span className="font-medium text-slate-600 dark:text-slate-300">
                 {stats.totalStudents} estudiantes
               </span>
@@ -172,7 +172,7 @@ export function GradeCenterAnalyticsDashboard({
 
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-                AnÃ¡lisis AcadÃ©mico Integral
+                Análisis Académico Integral
               </h1>
 
               {/* Badge de Salud del Curso */}
@@ -187,7 +187,7 @@ export function GradeCenterAnalyticsDashboard({
             </p>
           </div>
 
-          {/* BotÃ³n de Retorno al Grade Center */}
+          {/* Botón de Retorno al Grade Center */}
           <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
             <Button
               type="button"
@@ -221,7 +221,7 @@ export function GradeCenterAnalyticsDashboard({
               <span className="text-xs text-slate-400">/ 5.0</span>
             </div>
             <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-              <span className="text-slate-400">MÃ­nimo aprobatorio:</span>
+              <span className="text-slate-400">Mínimo aprobatorio:</span>
               <span className="font-bold text-slate-700 dark:text-slate-300">
                 {stats.passingGrade.toFixed(1)}
               </span>
@@ -229,12 +229,12 @@ export function GradeCenterAnalyticsDashboard({
           </CardContent>
         </Card>
 
-        {/* Tasa de AprobaciÃ³n */}
+        {/* Tasa de Aprobación */}
         <Card className="rounded-3xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900 shadow-xs hover:shadow-md transition">
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Tasa de AprobaciÃ³n
+                Tasa de Aprobación
               </span>
               <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400">
                 <CheckCircle2 className="h-4 w-4" />
@@ -257,7 +257,7 @@ export function GradeCenterAnalyticsDashboard({
           </CardContent>
         </Card>
 
-        {/* Estudiantes en Riesgo */}
+        {/* Estudiantes que Requieren Atención */}
         <Card
           onClick={() => {
             if (stats.totalAtRisk > 0 && onNavigateToRisk) {
@@ -273,7 +273,7 @@ export function GradeCenterAnalyticsDashboard({
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                En Riesgo AcadÃ©mico
+                Requiere Atención
               </span>
               <div className={`flex h-9 w-9 items-center justify-center rounded-2xl ${
                 stats.totalAtRisk > 0
@@ -295,7 +295,7 @@ export function GradeCenterAnalyticsDashboard({
             </div>
             <div className="mt-2 flex items-center justify-between text-xs">
               <span className="text-slate-500 dark:text-slate-400">
-                {stats.totalAtRisk > 0 ? "Definitiva < 3.0" : "Sin casos crÃ­ticos"}
+                {stats.totalAtRisk > 0 ? "Definitiva < 3.5" : "Sin casos críticos"}
               </span>
               {stats.totalAtRisk > 0 && (
                 <span className="font-bold text-rose-700 dark:text-rose-300 flex items-center gap-0.5">
@@ -344,7 +344,7 @@ export function GradeCenterAnalyticsDashboard({
               <span className="text-slate-500 dark:text-slate-400 truncate max-w-[170px]">
                 {studentsWithPendingCount > 0
                   ? `${studentsWithPendingCount} estudiantes afectados`
-                  : "Al 100% al dÃ­a"}
+                  : "Al 100% al día"}
               </span>
               {stats.totalPendingCount > 0 && (
                 <span className="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-0.5 shrink-0">
@@ -356,22 +356,22 @@ export function GradeCenterAnalyticsDashboard({
         </Card>
       </div>
 
-      {/* SECCIÃ“N DOBLE: RENDIMIENTO POR EVALUACIÃ“N & DISTRIBUCIÃ“N */}
+      {/* SECCIÓN DOBLE: RENDIMIENTO POR EVALUACIÓN & DISTRIBUCIÓN */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* RENDIMIENTO POR EVALUACIÃ“N (Section 18) - 2 cols */}
+        {/* RENDIMIENTO POR EVALUACIÓN (Section 18) - 2 cols */}
         <div className="space-y-4 lg:col-span-2">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                 <Layers className="h-4 w-4 text-[var(--edc-primary)]" />
-                Rendimiento por EvaluaciÃ³n
+                Rendimiento por Evaluación
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Comparativa detallada de notas, aprobaciÃ³n y estado de calificaciÃ³n.
+                Comparativa detallada de notas, aprobación y estado de calificación.
               </p>
             </div>
             <span className="text-xs font-bold text-slate-400">
-              {assessments.length} evaluaciones Â· {weightTotal}% asignado
+              {assessments.length} evaluaciones · {weightTotal}% asignado
             </span>
           </div>
 
@@ -403,12 +403,12 @@ export function GradeCenterAnalyticsDashboard({
                         </Badge>
                         {isBest && (
                           <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] font-bold py-0 dark:bg-emerald-950 dark:text-emerald-300">
-                            ðŸ† Mejor evaluaciÃ³n
+                            🏆 Mejor evaluación
                           </Badge>
                         )}
                         {isAttention && (
                           <Badge className="bg-rose-100 text-rose-800 border-rose-200 text-[10px] font-bold py-0 dark:bg-rose-950 dark:text-rose-300">
-                            âš  Requiere atenciÃ³n
+                            ⚠️ Requiere atención
                           </Badge>
                         )}
                       </div>
@@ -420,22 +420,22 @@ export function GradeCenterAnalyticsDashboard({
                       </p>
                     </div>
 
-                    {/* MÃ©tricas y AcciÃ³n */}
+                    {/* Métricas y Acción */}
                     <div className="flex items-center gap-4 shrink-0 sm:border-l sm:border-slate-100 sm:dark:border-slate-800 sm:pl-4">
-                      {/* Promedio y AprobaciÃ³n */}
+                      {/* Promedio y Aprobación */}
                       <div className="text-right">
                         <div className="flex items-baseline justify-end gap-1">
                           <span className={`text-xl font-black ${tone.textColor}`}>
-                            {item.average !== null ? item.average.toFixed(1) : "â€”"}
+                            {item.average !== null ? item.average.toFixed(1) : "—"}
                           </span>
                           <span className="text-[10px] text-slate-400">/ {item.maxValue}</span>
                         </div>
                         <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                          {item.passingPercentage}% aprobados Â· {item.evaluatedCount}/{item.evaluatedCount + item.pendingCount}
+                          {item.passingPercentage}% aprobados · {item.evaluatedCount}/{item.evaluatedCount + item.pendingCount}
                         </p>
                       </div>
 
-                      {/* BotÃ³n Ver en Grade Center */}
+                      {/* Botón Ver en Grade Center */}
                       {onNavigateToAssessment && (
                         <Button
                           type="button"
@@ -451,9 +451,9 @@ export function GradeCenterAnalyticsDashboard({
                     </div>
                   </div>
 
-                  {/* Barra de progreso de aprobaciÃ³n */}
+                  {/* Barra de progreso de aprobación */}
                   <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3 text-[11px] text-slate-400">
-                    <span>AprobaciÃ³n:</span>
+                    <span>Aprobación:</span>
                     <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
@@ -476,20 +476,20 @@ export function GradeCenterAnalyticsDashboard({
           </div>
         </div>
 
-        {/* DISTRIBUCIÃ“N DEL RENDIMIENTO (Section 20) - 1 col */}
+        {/* DISTRIBUCIÓN DEL RENDIMIENTO (Section 20) - 1 col */}
         <div className="space-y-4">
           <div>
             <h2 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-[var(--edc-primary)]" />
-              DistribuciÃ³n de Calificaciones
+              Distribución de Calificaciones
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Desglose segÃºn la escala pedagÃ³gica institucional.
+              Desglose según la escala pedagógica institucional.
             </p>
           </div>
 
           <Card className="rounded-3xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900 shadow-xs p-5 space-y-4">
-            {/* Barra apilada visual de distribuciÃ³n */}
+            {/* Barra apilada visual de distribución */}
             <div>
               <div className="h-3 w-full rounded-full overflow-hidden flex bg-slate-100 dark:bg-slate-800">
                 {distributionBrackets.map(b => (
@@ -540,13 +540,13 @@ export function GradeCenterAnalyticsDashboard({
         </div>
       </div>
 
-      {/* EVOLUCIÃ“N DEL CURSO (Section 19) */}
+      {/* EVOLUCIÓN DEL CURSO (Section 19) */}
       <div className="rounded-3xl border border-slate-200/80 bg-white dark:border-slate-800 dark:bg-slate-900 p-5 sm:p-6 shadow-xs space-y-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-[var(--edc-primary)]" />
-              EvoluciÃ³n Temporal del DesempeÃ±o
+              Evolución Temporal del Desempeño
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Trayectoria secuencial del promedio del curso a lo largo de las evaluaciones.
@@ -566,7 +566,7 @@ export function GradeCenterAnalyticsDashboard({
                     : "border-slate-200 bg-slate-50 text-slate-700"
                 }`}
               >
-                {overallDelta > 0 ? `â†‘ +${overallDelta.toFixed(2)} pts` : overallDelta < 0 ? `â†“ ${overallDelta.toFixed(2)} pts` : "â†’ Estable"}
+                {overallDelta > 0 ? `↑ +${overallDelta.toFixed(2)} pts` : overallDelta < 0 ? `↓ ${overallDelta.toFixed(2)} pts` : "→ Estable"}
               </Badge>
             </div>
           )}
@@ -590,12 +590,12 @@ export function GradeCenterAnalyticsDashboard({
                   </h4>
                   <div className="flex items-baseline gap-1.5">
                     <span className={`text-2xl font-black ${tone.textColor}`}>
-                      {point.groupAverage !== null ? point.groupAverage.toFixed(2) : "â€”"}
+                      {point.groupAverage !== null ? point.groupAverage.toFixed(2) : "—"}
                     </span>
                     <span className="text-xs text-slate-400">promedio</span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {point.passingPercentage}% superaron la nota mÃ­nima
+                    {point.passingPercentage}% superaron la nota mínima
                   </p>
                 </div>
               );
@@ -608,17 +608,17 @@ export function GradeCenterAnalyticsDashboard({
         )}
       </div>
 
-      {/* SECCIÃ“N: PROBLEMAS Y ALERTAS & ESTUDIANTES QUE REQUIEREN ATENCIÃ“N */}
+      {/* SECCIÓN: PROBLEMAS Y ALERTAS & ESTUDIANTES QUE REQUIEREN ATENCIÓN */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* LO QUE NECESITA ATENCIÃ“N (Section 21) */}
+        {/* LO QUE NECESITA ATENCIÓN (Section 21) */}
         <div className="space-y-4">
           <div>
             <h2 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              Lo que Necesita AtenciÃ³n
+              Lo que Necesita Atención
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Hallazgos que requieren acciÃ³n pedagÃ³gica o de registro.
+              Hallazgos que requieren acción pedagógica o de registro.
             </p>
           </div>
 
@@ -673,13 +673,13 @@ export function GradeCenterAnalyticsDashboard({
               ))
             ) : (
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50/30 p-6 text-center text-xs text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
-                âœ“ No se detectaron problemas crÃ­ticos en el curso. Todas las mÃ©tricas estÃ¡n en rangos Ã³ptimos.
+                ✓ No se detectaron problemas críticos en el curso. Todas las métricas están en rangos óptimos.
               </div>
             )}
           </div>
         </div>
 
-        {/* ESTUDIANTES QUE REQUIEREN ATENCIÃ“N (Section 22) */}
+        {/* ESTUDIANTES QUE REQUIEREN ATENCIÓN (Section 22) */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -688,7 +688,7 @@ export function GradeCenterAnalyticsDashboard({
                 Estudiantes Prioritarios
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Alumnos con riesgo acadÃ©mico o pendientes crÃ­ticas.
+                Alumnos que requieren atención o con pendientes críticas.
               </p>
             </div>
             {onNavigateToRisk && stats.totalAtRisk > 0 && (
@@ -699,7 +699,7 @@ export function GradeCenterAnalyticsDashboard({
                 onClick={onNavigateToRisk}
                 className="text-xs text-[var(--edc-primary)] font-bold hover:underline cursor-pointer"
               >
-                Ver todos en riesgo â†’
+                Ver todos que requieren atención →
               </Button>
             )}
           </div>
@@ -730,7 +730,7 @@ export function GradeCenterAnalyticsDashboard({
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <span className="font-black text-sm text-slate-900 dark:text-white">
-                          {st.currentDefinitiva !== null ? st.currentDefinitiva.toFixed(1) : "â€”"}
+                          {st.currentDefinitiva !== null ? st.currentDefinitiva.toFixed(1) : "—"}
                         </span>
                         <p className="text-[10px] text-slate-400">Definitiva</p>
                       </div>
@@ -744,7 +744,7 @@ export function GradeCenterAnalyticsDashboard({
               })
             ) : (
               <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-6 text-center text-xs text-slate-400">
-                NingÃºn estudiante en estado de riesgo o rezago crÃ­tico.
+                Ningún estudiante en estado de rezago crítico o que requiera atención.
               </div>
             )}
           </div>
@@ -756,7 +756,7 @@ export function GradeCenterAnalyticsDashboard({
         <div>
           <h2 className="text-base font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-indigo-600" />
-            Insights PedagÃ³gicos de EduCore
+            Insights Pedagógicos de EduCore
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Conclusiones deterministas basadas exclusivamente en el cruce de datos y ponderaciones.
@@ -776,9 +776,9 @@ export function GradeCenterAnalyticsDashboard({
                 {insight.type === "SUCCESS" ? (
                   <Badge className="bg-emerald-100 text-emerald-800 text-[10px] py-0">Positivo</Badge>
                 ) : insight.type === "WARNING" ? (
-                  <Badge className="bg-amber-100 text-amber-800 text-[10px] py-0">AtenciÃ³n</Badge>
+                  <Badge className="bg-amber-100 text-amber-800 text-[10px] py-0">Atención</Badge>
                 ) : (
-                  <Badge className="bg-blue-100 text-blue-800 text-[10px] py-0">ObservaciÃ³n</Badge>
+                  <Badge className="bg-blue-100 text-blue-800 text-[10px] py-0">Observación</Badge>
                 )}
               </div>
               <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-relaxed">
@@ -795,7 +795,7 @@ export function GradeCenterAnalyticsDashboard({
       {/* FOOTER: RETORNO AL GRADE CENTER (Section 25) */}
       <div className="flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-5">
         <p className="text-xs text-slate-400">
-          EduCore Analytics Â· Modo de lectura segura Â· Sin efectos secundarios en base de datos.
+          EduCore Analytics · Modo de lectura segura · Sin efectos secundarios en base de datos.
         </p>
         <Button
           type="button"

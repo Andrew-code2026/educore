@@ -9,6 +9,9 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { ensureDatabaseRunning } from "./ensureDatabase";
 
+import path from "path";
+import { ensureUploadDirs, UPLOADS_ROOT } from "../documentStorage";
+
 // Ensure console.log flushes immediately on Windows when piped
 if ((process.stdout as any)._handle?.setBlocking) (process.stdout as any)._handle.setBlocking(true);
 if ((process.stderr as any)._handle?.setBlocking) (process.stderr as any)._handle.setBlocking(true);
@@ -30,12 +33,16 @@ function listenOnAvailablePort(server: ReturnType<typeof createServer>, port: nu
 async function startServer() {
   console.log("[EduCore] Starting server...");
   await ensureDatabaseRunning();
+  ensureUploadDirs();
   const app = express();
   const server = createServer(app);
 
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+  // Static serving for local uploaded justification documents and attachments
+  app.use("/uploads", express.static(UPLOADS_ROOT));
 
   registerStorageProxy(app);
   registerOAuthRoutes(app);

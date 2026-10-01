@@ -577,7 +577,7 @@ export function GradeCenterTable({
                   className={`group transition-colors duration-150 ${
                     isSelected
                       ? "bg-blue-50/40 dark:bg-blue-950/20"
-                      : viewMode === "RISK" && definitiva !== null && definitiva < 3.0
+                      : viewMode === "RISK" && definitiva !== null && definitiva < 3.5
                       ? "bg-rose-50/25 hover:bg-rose-50/40 dark:bg-rose-950/20"
                       : viewMode === "PENDING" && pendingCountForStudent > 0
                       ? "bg-amber-50/15 hover:bg-amber-50/30 dark:bg-amber-950/15"
@@ -670,9 +670,9 @@ export function GradeCenterTable({
                             </span>
                           )}
 
-                          {viewMode === "RISK" && definitiva !== null && definitiva < 3.0 && (
+                          {viewMode === "RISK" && definitiva !== null && definitiva < 3.5 && (
                             <span className="inline-flex items-center text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 py-0.2 rounded dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300">
-                              Riesgo
+                              Requiere atención
                             </span>
                           )}
 
@@ -725,7 +725,7 @@ export function GradeCenterTable({
                         } ${
                           hasPendingChange
                             ? "border-amber-400 bg-amber-50/80 text-amber-900 shadow-xs font-bold"
-                            : cellVal !== null && cellVal < 3.0
+                            : cellVal !== null && cellVal < 3.5
                             ? "border-rose-200/90 bg-rose-50/50 text-rose-600 hover:border-rose-300"
                             : cellVal !== null
                             ? "border-slate-200/80 bg-white hover:border-slate-300 text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 hover:shadow-xs"
@@ -822,16 +822,16 @@ export function GradeCenterTable({
                             className={`mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-semibold leading-none ${
                               definitiva >= 4.0
                                 ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
-                                : definitiva >= 3.0
+                                : definitiva >= 3.5
                                 ? "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
                                 : "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
                             }`}
                           >
                             {definitiva >= 4.0
                               ? "En buen nivel"
-                              : definitiva >= 3.0
+                              : definitiva >= 3.5
                               ? "Cerca del límite"
-                              : "Necesita atención"}
+                              : "Requiere atención"}
                           </span>
                           <span
                             className={`mt-1 text-[9px] font-medium leading-none ${

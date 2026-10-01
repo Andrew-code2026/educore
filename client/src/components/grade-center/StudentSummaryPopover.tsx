@@ -173,12 +173,12 @@ export function StudentSummaryPopover({
                 </h4>
                 {risk.riskLevel === "ALTO" && (
                   <Badge variant="destructive" className="h-3.5 px-1 text-[8px] font-bold">
-                    Riesgo Alto
+                    Requiere atención
                   </Badge>
                 )}
                 {risk.riskLevel === "MEDIO" && (
                   <Badge className="h-3.5 px-1 text-[8px] font-bold bg-amber-500 hover:bg-amber-600 text-white">
-                    Riesgo Medio
+                    Requiere atención
                   </Badge>
                 )}
               </div>

@@ -161,7 +161,7 @@
   50% { transform: translate3d(-10px, 8px, 0) scale(1.06); }
 }
 
-@keyframes spatial-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes spatial-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
 /* Keep existing Tailwind cards visually quiet and consistent without changing their behavior. */
 body [class*="shadow-[0_8px_30px"] { border: 1px solid rgba(226, 232, 240, 0.88); box-shadow: 0 5px 18px rgba(34, 64, 100, 0.045) !important; }
@@ -179,3 +179,63 @@ body [class*="rounded-[28px]"] { border-radius: 24px; }
 }
 @media (min-width: 1024px) { .mobile-bottom-nav { display: none; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
+
+/* ========================================================================= */
+/* FASE 3: Estilos de Impresión A4 para la Ficha Integral del Estudiante     */
+/* ========================================================================= */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm 12mm 12mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Si el expediente está abierto para impresión, ocultar la app principal, drawers y elementos flotantes */
+  body.student-dossier-modal-open #root,
+  body.student-dossier-modal-open aside,
+  body.student-dossier-modal-open [aria-label*="Ficha rápida"],
+  body.student-dossier-modal-open .sonner-toaster,
+  body.student-dossier-modal-open [data-sonner-toaster],
+  body.student-dossier-modal-open .print-hidden {
+    display: none !important;
+  }
+
+  /* Desactivar fijado de posición y fondos opacos en el portal durante la impresión */
+  .student-record-portal-dialog {
+    position: static !important;
+    inset: auto !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  /* Prevención de quiebres indeseados en la impresión */
+  .break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .student-dossier-print-root {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}

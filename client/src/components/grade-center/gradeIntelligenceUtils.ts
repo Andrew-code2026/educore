@@ -7,16 +7,19 @@ import type { GradeCenterTableRow } from "./GradeCenterTable";
 
 /**
  * Obtiene la nota mínima aprobatoria institucional.
- * Por defecto 3.0 para la escala estándar colombiana (0.0 - 5.0) o el 60% del rango si difiere.
+/**
+ * Obtiene la nota mínima aprobatoria institucional de acuerdo con la escala configurada.
+ * Por defecto 3.5 para la escala estándar colombiana institucional (0.0 - 5.0) o el 60% del rango si difiere.
  */
 export function getInstitutionalPassingGrade(scale?: GradeScaleConfig | null): number {
   if (scale && (scale as any).passingGrade !== undefined && (scale as any).passingGrade !== null) {
-    return Number((scale as any).passingGrade);
+    const num = Number((scale as any).passingGrade);
+    if (!isNaN(num)) return num;
   }
   const min = scale?.minValue ?? 0;
   const max = scale?.maxValue ?? 5;
   if (min === 0 && max === 5) {
-    return 3.0;
+    return 3.5;
   }
   // 60% estándar del rango
   const calculated = min + (max - min) * 0.6;

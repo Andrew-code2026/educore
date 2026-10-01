@@ -1,4 +1,5 @@
 import { z } from "zod";
+import path from "node:path";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { invokeLLM } from "./_core/llm";
@@ -7,6 +8,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { storagePut } from "./storage";
+import { saveUploadedDocument } from "./documentStorage";
 import {
   createDemoAssignment,
   DEMO_SCHOOL_ID,
@@ -44,6 +46,21 @@ import {
   enrollAcademicStudent,
   transferAcademicStudent,
   writeAcademicAudit,
+  addFollowUpNote,
+  createFollowUpCase,
+  getFollowUpHistory,
+  getStudentEquivalence,
+  listAttendanceRecords,
+  listFollowUpCases,
+  updateFollowUpStatus,
+  upsertAttendance,
+  listJustifications,
+  getJustificationDetail,
+  createJustification,
+  scheduleAbsence,
+  recordPhysicalSupportReceipt,
+  escalateJustificationToCoordination,
+  resolveJustification,
 } from "./db";
 import {
   createGradeCenterAssessment,
@@ -55,6 +72,33 @@ import {
 } from "./gradeCenterDb";
 import { hasPermission, IDENTITY_ROLES, type IdentityRole } from "./identityModel";
 import type { TrpcContext } from "./_core/context";
+
+const attendanceStatus = z.enum(["present", "absent", "late", "excused"]);
+const followUpStatus = z.enum(["open", "in_review", "resolved"]);
+const attendancePriority = z.enum(["low", "medium", "high"]);
+const justificationStatus = z.enum([
+  "absence_registered",
+  "scheduled_absence",
+  "submitted",
+  "pending_physical_support",
+  "in_review",
+  "approved",
+  "unjustified",
+  "rejected",
+]);
+const justificationReasonCategory = z.enum([
+  "medical",
+  "family_emergency",
+  "external_appointment",
+  "institutional",
+  "force_majeure",
+  "other",
+]);
+
+const attendanceActor = (ctx: TrpcContext) => ({
+  userId: ctx.user?.id ?? null,
+  name: ctx.user?.name ?? "Juan Diego Loaiza",
+});
 
 const roleSchema = z.enum(["admin", "teacher", "student", "guardian"]);
 const roleGuard = (role: EduRole, allowed: EduRole[]) => {
@@ -75,6 +119,23 @@ async function resolveActor(ctx: TrpcContext, demoRole: EduRole) {
     return { schoolId, userId: context.user.id, roleKey: context.membership.roleKey as IdentityRole, permissions: context.permissions };
   }
   return resolveDemoActor(demoRole);
+}
+
+async function getAllowedStudentIdsForActor(actor: { schoolId: number; userId: number; roleKey: IdentityRole }): Promise<Set<string> | null> {
+  if (actor.roleKey === "STUDENT") {
+    const equiv = await getStudentEquivalence(actor.userId, actor.schoolId);
+    return new Set(equiv.allIds);
+  }
+  if (actor.roleKey === "GUARDIAN") {
+    const linked = await listGuardianStudents(actor.schoolId, actor.userId);
+    const allowed = new Set<string>();
+    for (const s of linked) {
+      const equiv = await getStudentEquivalence(s.id, actor.schoolId);
+      equiv.allIds.forEach((id) => allowed.add(id));
+    }
+    return allowed;
+  }
+  return null;
 }
 
 async function requirePermission(ctx: TrpcContext, role: EduRole, permission: string, isMutation = false) {
@@ -379,25 +440,53 @@ export const appRouter = router({
       mutedTextColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
       themeMode: z.enum(["light", "dark"]),
       borderRadius: z.string().regex(/^\d+(px|rem)$/),
-      logoUrl: z.string().max(500).nullable().default(null),
+      logoUrl: z.string().max(2000).nullable().default(null),
     })).mutation(async ({ input, ctx }) => {
       const actor = await requirePermission(ctx, input.role, "institution.update", true);
-      const result = await updateSchoolSettings({ ...input, schoolId: actor.schoolId });
+      // Clean up base64 temporary URLs if accidentally passed to updateSchool
+      const cleanLogoUrl = input.logoUrl && input.logoUrl.startsWith("data:") ? undefined : input.logoUrl;
+      const result = await updateSchoolSettings({
+        ...input,
+        ...(cleanLogoUrl !== undefined ? { logoUrl: cleanLogoUrl } : {}),
+        schoolId: actor.schoolId,
+      });
       await writeAuditLog(input.role, "update_school_settings", input.name, actor.schoolId);
       return result;
     }),
     uploadSchoolLogo: publicProcedure.input(z.object({
       role: roleSchema,
-      fileName: z.string().regex(/\.(png|jpe?g|svg)$/i),
-      contentType: z.enum(["image/png", "image/jpeg", "image/svg+xml"]),
-      dataBase64: z.string().min(20).max(4_000_000),
+      fileName: z.string().min(1).max(255),
+      contentType: z.string().optional().default("image/png"),
+      dataBase64: z.string().min(20).max(10_000_000),
     })).mutation(async ({ input, ctx }) => {
       const actor = await requirePermission(ctx, input.role, "institution.update", true);
+      const rawName = path.basename(input.fileName);
+      const ext = path.extname(rawName).toLowerCase() || ".png";
+      const allowedExts = [".png", ".jpg", ".jpeg", ".svg", ".webp", ".gif", ".ico"];
+      if (!allowedExts.includes(ext)) {
+        throw new Error("Formato de imagen no permitido. Se admiten archivos PNG, JPG, JPEG, SVG y WEBP.");
+      }
+
+      // Sanitize base name to prevent directory traversal or unsafe URL characters
+      const cleanBase = path.basename(rawName, ext).replace(/[^a-zA-Z0-9_-]/g, "_");
+      const safeFileName = `${cleanBase || "escudo"}${ext}`;
+
+      // Derive standard MIME content type
+      let finalContentType = input.contentType || "image/png";
+      if (ext === ".png") finalContentType = "image/png";
+      else if (ext === ".jpg" || ext === ".jpeg") finalContentType = "image/jpeg";
+      else if (ext === ".svg") finalContentType = "image/svg+xml";
+      else if (ext === ".webp") finalContentType = "image/webp";
+      else if (ext === ".gif") finalContentType = "image/gif";
+      else if (ext === ".ico") finalContentType = "image/x-icon";
+
       const buffer = Buffer.from(input.dataBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
-      if (buffer.length > 2_500_000) throw new Error("El logo debe pesar menos de 2.5 MB.");
-      const uploaded = await storagePut(`schools/${actor.schoolId}/branding/${input.fileName}`, buffer, input.contentType);
+      if (buffer.length > 5_000_000) throw new Error("El escudo debe pesar menos de 5 MB.");
+      if (buffer.length === 0) throw new Error("El archivo subido está vacío.");
+
+      const uploaded = await storagePut(`schools/${actor.schoolId}/branding/${safeFileName}`, buffer, finalContentType);
       const result = await updateSchoolSettings({ logoUrl: uploaded.url, schoolId: actor.schoolId });
-      await writeAuditLog(input.role, "update_school_logo", input.fileName, actor.schoolId);
+      await writeAuditLog(input.role, "update_school_logo", safeFileName, actor.schoolId);
       return { ...result, logoUrl: uploaded.url };
     }),
     createAcademicPeriod: publicProcedure.input(z.object({
@@ -466,6 +555,347 @@ export const appRouter = router({
       await saveAiConversation(input.role, input.prompt, responseText);
       return { text: responseText, schoolId: DEMO_SCHOOL_ID, reviewed: false };
     }),
+  }),
+  attendance: router({
+    list: publicProcedure
+      .input(z.object({ courseId: z.string().optional(), studentId: z.string().optional(), role: roleSchema.optional() }).optional())
+      .query(async ({ input, ctx }) => {
+        if (ctx.user) {
+          const actor = await resolveActor(ctx, input?.role || "teacher");
+          const allowedIds = await getAllowedStudentIdsForActor(actor);
+          if (allowedIds) {
+            if (input?.studentId) {
+              const inputEquiv = await getStudentEquivalence(input.studentId, actor.schoolId);
+              const isAuthorized = inputEquiv.allIds.some((id) => allowedIds.has(id));
+              if (!isAuthorized) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "No tienes autorización para consultar la asistencia de este estudiante." });
+              }
+            }
+            return listAttendanceRecords(input?.courseId, input?.studentId || String(actor.userId), actor.schoolId);
+          }
+        }
+        return listAttendanceRecords(input?.courseId, input?.studentId);
+      }),
+    save: publicProcedure
+      .input(z.object({
+        records: z.array(z.object({
+          courseId: z.string().min(1),
+          studentId: z.string().min(1),
+          attendanceDate: z.coerce.date(),
+          status: attendanceStatus,
+          reason: z.string().nullable().optional(),
+        })).min(1),
+        role: roleSchema.optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user) {
+          const actor = await resolveActor(ctx, input.role || "teacher");
+          if (actor.roleKey === "STUDENT" || actor.roleKey === "GUARDIAN") {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Los estudiantes y acudientes no tienen permisos para asentar o modificar la planilla de asistencia." });
+          }
+        }
+        const currentActor = attendanceActor(ctx);
+        return upsertAttendance(input.records.map((record) => ({
+          ...record,
+          recordedByUserId: currentActor.userId,
+          recordedByName: currentActor.name,
+        })));
+      }),
+  }),
+  followUp: router({
+    list: publicProcedure
+      .input(z.object({ courseId: z.string().min(1) }))
+      .query(({ input }) => listFollowUpCases(input.courseId)),
+    open: publicProcedure
+      .input(z.object({
+        courseId: z.string().min(1),
+        studentId: z.string().min(1),
+        reason: z.string().min(1),
+        priority: attendancePriority.default("medium"),
+      }))
+      .mutation(({ input, ctx }) => {
+        const currentActor = attendanceActor(ctx);
+        return createFollowUpCase({ ...input, responsibleUserId: currentActor.userId, responsibleName: currentActor.name });
+      }),
+    history: publicProcedure
+      .input(z.object({ caseId: z.number().int().positive() }))
+      .query(({ input }) => getFollowUpHistory(input.caseId)),
+    addNote: publicProcedure
+      .input(z.object({ caseId: z.number().int().positive(), note: z.string().trim().min(1) }))
+      .mutation(({ input, ctx }) => {
+        const currentActor = attendanceActor(ctx);
+        return addFollowUpNote({ ...input, authorUserId: currentActor.userId, authorName: currentActor.name });
+      }),
+    updateStatus: publicProcedure
+      .input(z.object({ caseId: z.number().int().positive(), status: followUpStatus }))
+      .mutation(({ input }) => updateFollowUpStatus(input.caseId, input.status)),
+  }),
+  justification: router({
+    list: publicProcedure
+      .input(z.object({ courseId: z.string().optional(), studentId: z.string().optional(), role: roleSchema.optional() }).optional())
+      .query(async ({ input, ctx }) => {
+        if (ctx.user) {
+          const actor = await resolveActor(ctx, input?.role || "teacher");
+          const allowedIds = await getAllowedStudentIdsForActor(actor);
+          if (allowedIds) {
+            if (input?.studentId) {
+              const inputEquiv = await getStudentEquivalence(input.studentId, actor.schoolId);
+              const isAuthorized = inputEquiv.allIds.some((id) => allowedIds.has(id));
+              if (!isAuthorized) {
+                throw new TRPCError({ code: "FORBIDDEN", message: "No tienes autorización para consultar justificaciones de este estudiante." });
+              }
+            }
+            return listJustifications(input?.courseId, input?.studentId || String(actor.userId), actor.schoolId);
+          }
+        }
+        return listJustifications(input?.courseId, input?.studentId);
+      }),
+    detail: publicProcedure
+      .input(z.object({ justificationId: z.number().int().positive(), role: roleSchema.optional() }))
+      .query(async ({ input, ctx }) => {
+        const detail = await getJustificationDetail(input.justificationId);
+        if (!detail.justification) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Justificación no encontrada." });
+        }
+        if (ctx.user) {
+          const actor = await resolveActor(ctx, input.role || "teacher");
+          const allowedIds = await getAllowedStudentIdsForActor(actor);
+          if (allowedIds) {
+            const equiv = await getStudentEquivalence(detail.justification.studentId, actor.schoolId);
+            const matches = equiv.allIds.some((id) => allowedIds.has(id));
+            if (!matches) {
+              throw new TRPCError({ code: "FORBIDDEN", message: "No tienes autorización para consultar este expediente de justificación." });
+            }
+          }
+        }
+        return detail;
+      }),
+    uploadDocument: publicProcedure
+      .input(z.object({
+        fileName: z.string().min(1).max(255),
+        fileBase64: z.string().min(1),
+        fileType: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        try {
+          return await saveUploadedDocument(input.fileName, input.fileBase64, input.fileType);
+        } catch (err: any) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: err?.message || "Error al guardar el documento adjunto.",
+          });
+        }
+      }),
+    submit: publicProcedure
+      .input(z.object({
+        courseId: z.string().min(1),
+        studentId: z.string().min(1),
+        attendanceDate: z.coerce.date(),
+        reasonCategory: justificationReasonCategory.default("other"),
+        description: z.string().min(1).max(2000),
+        submittedByRole: z.enum(["student", "guardian", "teacher"]).default("guardian"),
+        submittedByName: z.string().min(1).max(160),
+        submittedByUserId: z.number().int().optional().nullable(),
+        digitalEvidenceUrl: z.string().max(2048).regex(/^(\/|https?:\/\/|data:)/, "URL o ruta de archivo no válida").optional().nullable(),
+        digitalEvidenceName: z
+          .string()
+          .max(255)
+          .regex(/^[^\\/:*?"<>|]+$/, "Nombre de archivo no válido")
+          .optional()
+          .nullable(),
+        requiresPhysicalSupport: z.boolean().default(false),
+        physicalSupportDeadline: z.coerce.date().optional().nullable(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Validar extensión permitida para archivos adjuntos
+        if (input.digitalEvidenceName) {
+          const allowedExts = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
+          const hasValidExt = allowedExts.some((ext) => input.digitalEvidenceName!.toLowerCase().endsWith(ext));
+          if (!hasValidExt) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Formato de archivo no permitido. Solo se aceptan documentos PDF o imágenes JPG/PNG.",
+            });
+          }
+        }
+
+        // Validar permisos y evitar manipulación de studentId
+        if (ctx.user) {
+          const actor = await resolveActor(ctx, input.submittedByRole);
+          const allowedIds = await getAllowedStudentIdsForActor(actor);
+          if (allowedIds) {
+            const inputEquiv = await getStudentEquivalence(input.studentId, actor.schoolId);
+            const isAuthorized = inputEquiv.allIds.some((id) => allowedIds.has(id));
+            if (!isAuthorized) {
+              throw new TRPCError({
+                code: "FORBIDDEN",
+                message: actor.roleKey === "STUDENT"
+                  ? "Un estudiante solo puede radicar justificaciones para sus propias inasistencias."
+                  : "No tienes vinculación activa para radicar justificaciones a nombre de este estudiante.",
+              });
+            }
+          }
+        }
+
+        const currentActor = attendanceActor(ctx);
+        try {
+          return await createJustification({
+            ...input,
+            submittedByUserId: input.submittedByUserId ?? currentActor.userId,
+          });
+        } catch (err: any) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: err?.message || "No se pudo radicar la justificación.",
+          });
+        }
+      }),
+    schedule: publicProcedure
+      .input(z.object({
+        courseId: z.string().min(1),
+        studentId: z.string().min(1),
+        attendanceDate: z.coerce.date(),
+        reasonCategory: justificationReasonCategory.default("other"),
+        description: z.string().min(1).max(2000),
+        submittedByRole: z.enum(["student", "guardian", "teacher"]).default("guardian"),
+        submittedByName: z.string().min(1).max(160),
+        submittedByUserId: z.number().int().optional().nullable(),
+        digitalEvidenceUrl: z.string().max(2048).regex(/^(\/|https?:\/\/|data:)/, "URL o ruta de archivo no válida").optional().nullable(),
+        digitalEvidenceName: z
+          .string()
+          .max(255)
+          .regex(/^[^\\/:*?"<>|]+$/, "Nombre de archivo no válido")
+          .optional()
+          .nullable(),
+        requiresPhysicalSupport: z.boolean().default(false),
+        physicalSupportDeadline: z.coerce.date().optional().nullable(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Validar extensión permitida para archivos adjuntos
+        if (input.digitalEvidenceName) {
+          const allowedExts = [".pdf", ".jpg", ".jpeg", ".png", ".webp"];
+          const hasValidExt = allowedExts.some((ext) => input.digitalEvidenceName!.toLowerCase().endsWith(ext));
+          if (!hasValidExt) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Formato de archivo no permitido. Solo se aceptan documentos PDF o imágenes JPG/PNG.",
+            });
+          }
+        }
+
+        // Validar permisos y evitar manipulación de studentId
+        if (ctx.user) {
+          const actor = await resolveActor(ctx, input.submittedByRole);
+          const allowedIds = await getAllowedStudentIdsForActor(actor);
+          if (allowedIds) {
+            const inputEquiv = await getStudentEquivalence(input.studentId, actor.schoolId);
+            const isAuthorized = inputEquiv.allIds.some((id) => allowedIds.has(id));
+            if (!isAuthorized) {
+              throw new TRPCError({
+                code: "FORBIDDEN",
+                message: actor.roleKey === "STUDENT"
+                  ? "Un estudiante solo puede programar inasistencias para sí mismo."
+                  : "No tienes vinculación activa para reportar inasistencias a nombre de este estudiante.",
+              });
+            }
+          }
+        }
+
+        const currentActor = attendanceActor(ctx);
+        try {
+          return await scheduleAbsence({
+            ...input,
+            submittedByUserId: input.submittedByUserId ?? currentActor.userId,
+          });
+        } catch (err: any) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: err?.message || "No se pudo programar la inasistencia.",
+          });
+        }
+      }),
+    recordPhysicalReceipt: publicProcedure
+      .input(z.object({
+        justificationId: z.number().int().positive(),
+        receivedByName: z.string().min(1),
+        notes: z.string().optional(),
+        role: roleSchema.optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user) {
+          const actor = await resolveActor(ctx, input.role || "teacher");
+          if (actor.roleKey === "STUDENT" || actor.roleKey === "GUARDIAN") {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Solo el personal docente o administrativo puede registrar la recepción de soporte físico." });
+          }
+        }
+        const currentActor = attendanceActor(ctx);
+        try {
+          return await recordPhysicalSupportReceipt({
+            ...input,
+            receivedByUserId: currentActor.userId,
+          });
+        } catch (err: any) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: err?.message || "Error al asentar recepción física.",
+          });
+        }
+      }),
+    escalate: publicProcedure
+      .input(z.object({
+        justificationId: z.number().int().positive(),
+        coordinationNotes: z.string().min(1),
+        role: roleSchema.optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user) {
+          const actor = await resolveActor(ctx, input.role || "teacher");
+          if (actor.roleKey === "STUDENT" || actor.roleKey === "GUARDIAN") {
+            throw new TRPCError({ code: "FORBIDDEN", message: "No tienes permisos para derivar justificaciones a coordinación." });
+          }
+        }
+        const currentActor = attendanceActor(ctx);
+        try {
+          return await escalateJustificationToCoordination({
+            ...input,
+            actorName: currentActor.name,
+            actorUserId: currentActor.userId,
+          });
+        } catch (err: any) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: err?.message || "Error al derivar a coordinación.",
+          });
+        }
+      }),
+    resolve: publicProcedure
+      .input(z.object({
+        justificationId: z.number().int().positive(),
+        status: z.enum(["approved", "unjustified", "rejected"]),
+        resolutionNotes: z.string().default(""),
+        role: roleSchema.optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user) {
+          const actor = await resolveActor(ctx, input.role || "teacher");
+          if (actor.roleKey === "STUDENT" || actor.roleKey === "GUARDIAN") {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Solo el personal docente o directivo puede resolver formalmente una justificación." });
+          }
+        }
+        const currentActor = attendanceActor(ctx);
+        try {
+          return await resolveJustification({
+            ...input,
+            resolvedByName: currentActor.name,
+            resolvedByUserId: currentActor.userId,
+          });
+        } catch (err: any) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: err?.message || "Error al resolver la justificación.",
+          });
+        }
+      }),
   }),
 });
 

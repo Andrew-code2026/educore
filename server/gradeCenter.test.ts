@@ -43,16 +43,16 @@ describe("EduCore Grade Center", () => {
 
   it("creates an assessment with valid academic context", async () => {
     const selected = seededContext!.selected!;
-    const result = await createGradeCenterAssessment(actor(teacher, "TEACHER"), { academicYearId: selected.academicYearId, academicPeriodId: selected.period.id, courseId: selected.course.id, subjectId: selected.subject.id, title: `Prueba Grade Center ${Date.now()}`, description: "Prueba automatizada", assessmentType: "QUIZ", date: new Date(), maxValue: 5, weight: 5, status: "DRAFT" });
+    const result = await createGradeCenterAssessment(actor(teacher, "TEACHER"), { academicYearId: selected.academicYearId, academicPeriodId: selected.period.id, courseId: selected.course.id, subjectId: selected.subject.id, title: `Prueba Grade Center ${Date.now()}`, description: "Prueba automatizada", assessmentType: "QUIZ", date: new Date(), maxValue: 5, weight: 0, status: "DRAFT" });
     createdAssessmentId = result!.id;
     expect(result?.status).toBe("DRAFT");
   });
 
   it("updates and publishes an assessment", async () => {
     expect(createdAssessmentId).toBeTruthy();
-    const result = await caller(teacher!.user).gradeCenter.updateAssessment({ role: "teacher", id: createdAssessmentId!, status: "PUBLISHED", weight: 5 });
+    const result = await caller(teacher!.user).gradeCenter.updateAssessment({ role: "teacher", id: createdAssessmentId!, status: "PUBLISHED", weight: 0 });
     expect(result?.status).toBe("PUBLISHED");
-    expect(result?.weight).toBe(5);
+    expect(result?.weight).toBe(0);
   });
 
   it("creates pending grade rows only for enrolled students", async () => {

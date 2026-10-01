@@ -142,7 +142,7 @@ export function GroupIntelligenceBar({
                     : "text-slate-400"
                 }`} />
                 <span>
-                  {totalAtRisk === 0 ? "Sin riesgo detectado" : `${totalAtRisk} en riesgo`}
+                  {totalAtRisk === 0 ? "Sin casos de atención" : `${totalAtRisk} requieren atención`}
                 </span>
                 {totalAtRisk > 0 && (
                   <span className="ml-1.5 flex items-center gap-1">
@@ -172,7 +172,7 @@ export function GroupIntelligenceBar({
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                     <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                    Estudiantes en Riesgo Académico
+                    Estudiantes que Requieren Atención
                   </h4>
                   <p className="text-[10px] text-slate-400">
                     Aprobación institucional mínima: {passingGrade.toFixed(1)}
@@ -341,7 +341,7 @@ function RiskStudentItem({ student, onOpenSimulator }: RiskStudentItemProps) {
                 !isHigh ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200" : ""
               }`}
             >
-              Riesgo {student.riskLevel === "ALTO" ? "Alto" : "Medio"}
+              Requiere atención
             </Badge>
           </div>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
