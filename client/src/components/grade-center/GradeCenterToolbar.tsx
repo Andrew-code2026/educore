@@ -93,8 +93,8 @@ export function GradeCenterToolbar({
   const filterOptions: Array<{ key: GradeFilterKey; label: string }> = [
     { key: "ALL", label: "Todos los estudiantes" },
     { key: "PENDING", label: "Sin calificar (pendientes)" },
-    { key: "LOW", label: "Bajo desempeño (< 3.0)" },
-    { key: "PASSING", label: "Aprobados (≥ 3.0)" },
+    { key: "LOW", label: "Bajo desempeño (< 3.5)" },
+    { key: "PASSING", label: "Aprobados (≥ 3.5)" },
     { key: "COMMENT", label: "Con comentarios registrados" },
   ];
 
@@ -113,7 +113,7 @@ export function GradeCenterToolbar({
     },
     {
       key: "RISK",
-      label: "Riesgo",
+      label: "Requiere atención",
       icon: AlertTriangle,
       desc: "Prioriza alertas de atención académica",
     },

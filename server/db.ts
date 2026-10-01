@@ -1,4 +1,4 @@
-import { and, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
@@ -9,6 +9,19 @@ import {
   announcements,
   assignments,
   attendance,
+  attendanceRecords,
+  attendanceFollowUpCases,
+  attendanceFollowUpNotes,
+  attendanceJustifications,
+  attendanceJustificationEvents,
+  AttendanceRecord,
+  AttendanceFollowUpCase,
+  AttendanceFollowUpNote,
+  AttendanceJustification,
+  InsertAttendanceJustification,
+  AttendanceJustificationEvent,
+  InsertAttendanceJustificationEvent,
+  InsertAttendanceRecord,
   auditLogs,
   courses,
   courseSubjects,
@@ -167,11 +180,16 @@ export async function ensureEduCoreSeeded() {
 
   if ((await db.select({ id: teachers.id }).from(teachers).where(eq(teachers.schoolId, schoolId)).limit(1)).length === 0) {
     await db.insert(teachers).values([
-      { schoolId, name: "Laura Gómez", email: "laura.gomez@educore.co", subjectFocus: "Matemáticas y Física" },
+      { schoolId, name: "Juan Diego Loaiza", email: "juan.loaiza@demo.educore.co", subjectFocus: "Biología" },
       { schoolId, name: "Andrés Molina", email: "andres.molina@educore.co", subjectFocus: "Lengua Castellana" },
       { schoolId, name: "Natalia Cárdenas", email: "natalia.cardenas@educore.co", subjectFocus: "Ciencias Naturales" },
       { schoolId, name: "Santiago Pérez", email: "santiago.perez@educore.co", subjectFocus: "Inglés" },
     ]);
+  } else {
+    const existingTeachers = await db.select().from(teachers).where(eq(teachers.schoolId, schoolId));
+    if (existingTeachers.length > 0 && !existingTeachers.some(t => t.name === "Juan Diego Loaiza")) {
+      await db.update(teachers).set({ name: "Juan Diego Loaiza", email: "juan.loaiza@demo.educore.co", subjectFocus: "Biología" }).where(eq(teachers.id, existingTeachers[0].id));
+    }
   }
 
   if ((await db.select({ id: courses.id }).from(courses).where(eq(courses.schoolId, schoolId)).limit(1)).length === 0) {
@@ -180,13 +198,14 @@ export async function ensureEduCoreSeeded() {
       { schoolId, name: "9-2", grade: "9", groupName: "2", year: "2026", teacherName: "Andrés Molina", studentsCount: 29, average: 4.0 },
       { schoolId, name: "10-1", grade: "10", groupName: "1", year: "2026", teacherName: "Santiago Pérez", studentsCount: 31, average: 3.8 },
       { schoolId, name: "10-2", grade: "10", groupName: "2", year: "2026", teacherName: "Natalia Cárdenas", studentsCount: 30, average: 4.2 },
-      { schoolId, name: "11-1", grade: "11", groupName: "1", year: "2026", teacherName: "Laura Gómez", studentsCount: 30, average: 4.0 },
-      { schoolId, name: "11-2", grade: "11", groupName: "2", year: "2026", teacherName: "Laura Gómez", studentsCount: 32, average: 3.9 },
+      { schoolId, name: "11-1", grade: "11", groupName: "1", year: "2026", teacherName: "Juan Diego Loaiza", studentsCount: 30, average: 4.0 },
+      { schoolId, name: "11-2", grade: "11", groupName: "2", year: "2026", teacherName: "Juan Diego Loaiza", studentsCount: 32, average: 3.9 },
     ]);
   }
 
   if ((await db.select({ id: subjects.id }).from(subjects).where(eq(subjects.schoolId, schoolId)).limit(1)).length === 0) {
     await db.insert(subjects).values([
+      { schoolId, name: "Biología", course: "11-2", teacherName: "Juan Diego Loaiza" },
       { schoolId, name: "Matemáticas", course: "11-2", teacherName: "Laura Gómez" },
       { schoolId, name: "Física", course: "11-2", teacherName: "Laura Gómez" },
       { schoolId, name: "Química", course: "11-2", teacherName: "Natalia Cárdenas" },
@@ -313,20 +332,21 @@ async function ensureAcademicSeeded(schoolId: number) {
     if (course) courseMap.set(name, course.id);
   }
   const subjectSeeds = [
+    ["Biología", "BIO", "Ciencias naturales, ecosistemas y procesos celulares."],
     ["Matemáticas", "MAT", "Pensamiento numérico, algebraico y variacional."], ["Física", "FIS", "Comprensión de fenómenos y movimiento."], ["Química", "QUI", "Materia, transformaciones y laboratorio."], ["Inglés", "ING", "Comunicación en lengua extranjera."], ["Lengua Castellana", "LEN", "Lectura, escritura y comunicación."], ["Ciencias Sociales", "SOC", "Sociedad, territorio y ciudadanía."], ["Filosofía", "FIL", "Pensamiento crítico y reflexión."], ["Tecnología", "TEC", "Diseño, tecnología y pensamiento computacional."], ["Educación Física", "EDF", "Movimiento, salud y bienestar."],
   ] as const;
   const subjectMap = new Map<string, number>();
   for (const [name, code, description] of subjectSeeds) {
     let subject = (await db.select().from(subjects).where(and(eq(subjects.schoolId, schoolId), eq(subjects.name, name))).limit(1))[0];
     if (!subject) {
-      await db.insert(subjects).values({ schoolId, name, shortName: name.slice(0, 3).toUpperCase(), code, description, status: "ACTIVE", course: "11-2", teacherName: "Equipo académico" });
+      await db.insert(subjects).values({ schoolId, name, shortName: name.slice(0, 3).toUpperCase(), code, description, status: "ACTIVE", course: "11-2", teacherName: "Juan Diego Loaiza" });
       subject = (await db.select().from(subjects).where(and(eq(subjects.schoolId, schoolId), eq(subjects.name, name))).limit(1))[0];
     } else {
       await db.update(subjects).set({ code: subject.code ?? code, description: subject.description ?? description, status: subject.status || "ACTIVE" }).where(eq(subjects.id, subject.id));
     }
     if (subject) subjectMap.set(name, subject.id);
   }
-  const standardSubjects = ["Matemáticas", "Física", "Química", "Inglés", "Lengua Castellana"];
+  const standardSubjects = ["Biología", "Matemáticas", "Física", "Química", "Inglés", "Lengua Castellana"];
   for (const courseSeed of courseSeeds) {
     const courseName = courseSeed[0];
     const courseId = courseMap.get(courseName);
@@ -339,9 +359,9 @@ async function ensureAcademicSeeded(schoolId: number) {
     }
   }
   const teachersForAcademic = await db.select({ userId: teacherProfiles.userId }).from(teacherProfiles).where(eq(teacherProfiles.schoolId, schoolId)).limit(3);
-  const subjectAssignments = [["11-2", "Matemáticas"], ["11-2", "Física"], ["10-1", "Matemáticas"], ["9-2", "Física"]] as const;
+  const subjectAssignments = [["11-2", "Biología"], ["11-1", "Biología"], ["10-1", "Biología"], ["11-2", "Matemáticas"], ["9-2", "Física"]] as const;
   for (const [courseName, subjectName] of subjectAssignments) {
-    const teacherUserId = teachersForAcademic[(courseName === "11-2" && subjectName === "Física") ? 1 : 0]?.userId;
+    const teacherUserId = teachersForAcademic[(courseName === "9-2" && subjectName === "Física") ? 1 : 0]?.userId;
     const courseId = courseMap.get(courseName);
     const subjectId = subjectMap.get(subjectName);
     if (!teacherUserId || !courseId || !subjectId) continue;
@@ -429,11 +449,55 @@ export async function getEduCoreSnapshot(
   const isStudentOrGuardian = effectiveRoleKey === "STUDENT" || effectiveRoleKey === "GUARDIAN";
   const isTeacher = effectiveRoleKey === "TEACHER";
 
+  let realAttendanceRows: typeof attendance.$inferSelect[] = [];
+  try {
+    const rawAttendanceRecords = await db.select().from(attendanceRecords).where(eq(attendanceRecords.schoolId, schoolId));
+    if (rawAttendanceRecords.length > 0) {
+      const studentMap = new Map<string, string>();
+      studentRows.forEach(s => {
+        studentMap.set(String(s.id), s.name);
+        studentMap.set(s.name, s.name);
+      });
+      const userRows = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.schoolId, schoolId));
+      userRows.forEach(u => {
+        if (u.name) studentMap.set(String(u.id), u.name);
+      });
+
+      realAttendanceRows = rawAttendanceRecords.map(rec => {
+        const studentName = studentMap.get(rec.studentId) || `Estudiante #${rec.studentId}`;
+        const targetDate = rec.attendanceDate instanceof Date
+          ? rec.attendanceDate
+          : new Date(rec.attendanceDate);
+        const statusLabel = rec.status === "present"
+          ? "Presente"
+          : rec.status === "absent"
+          ? "Ausente"
+          : rec.status === "late"
+          ? "Tarde"
+          : "Excusa";
+
+        return {
+          id: 100000 + rec.id,
+          schoolId,
+          studentName,
+          course: rec.courseId,
+          date: targetDate,
+          status: statusLabel,
+          note: rec.recordedByName ? `Registrado por ${rec.recordedByName}` : null,
+        };
+      });
+    }
+  } catch (err) {
+    console.warn("[getEduCoreSnapshot] attendance_records lookup warning:", err);
+  }
+
+  const combinedAttendance = [...realAttendanceRows, ...attendanceRows];
+
   const scopedCourseNames = isTeacher ? ["11-1", "11-2"] : isStudentOrGuardian ? ["11-2"] : courseRows.map(row => row.name);
   const scopedStudents = isStudentOrGuardian ? studentRows.filter(row => row.name === targetStudentName) : isTeacher ? studentRows.filter(row => scopedCourseNames.includes(row.course)) : studentRows;
-  const scopedAssignments = isStudentOrGuardian ? assignmentRows.filter(row => row.course === "11-2") : isTeacher ? assignmentRows.filter(row => row.teacherName === "Laura Gómez" || row.course === "11-2") : assignmentRows;
+  const scopedAssignments = isStudentOrGuardian ? assignmentRows.filter(row => row.course === "11-2") : isTeacher ? assignmentRows.filter(row => row.teacherName === "Juan Diego Loaiza" || row.teacherName === "Laura Gómez" || row.course === "11-2") : assignmentRows;
   const scopedGrades = isStudentOrGuardian ? gradeRows.filter(row => row.studentName === targetStudentName) : isTeacher ? gradeRows.filter(row => scopedCourseNames.includes(row.course)) : gradeRows;
-  const scopedAttendance = isStudentOrGuardian ? attendanceRows.filter(row => row.studentName === targetStudentName) : isTeacher ? attendanceRows.filter(row => scopedCourseNames.includes(row.course)) : attendanceRows;
+  const scopedAttendance = isStudentOrGuardian ? combinedAttendance.filter(row => row.studentName.toLowerCase() === targetStudentName.toLowerCase()) : isTeacher ? combinedAttendance.filter(row => scopedCourseNames.includes(row.course)) : combinedAttendance;
   const scopedSubmissions = isStudentOrGuardian ? submissionRows.filter(row => row.studentName === targetStudentName) : isTeacher ? submissionRows.filter(row => scopedCourseNames.includes(assignmentRows.find(a => a.id === row.assignmentId)?.course ?? "")) : submissionRows;
 
   return {
@@ -585,7 +649,7 @@ export async function ensureIdentitySeeded(schoolId = DEMO_SCHOOL_ID) {
     { openId: "educore-demo-admin", firstName: "Valentina", lastName: "Ríos", name: "Valentina Ríos", email: "valentina.admin@demo.educore.co", roleKey: "SCHOOL_ADMIN" as IdentityRole, status: "ACTIVE", profile: "none" },
     { openId: "educore-demo-rector", firstName: "Ana", lastName: "Torres", name: "Ana Torres", email: "ana.rector@demo.educore.co", roleKey: "RECTOR" as IdentityRole, status: "ACTIVE", profile: "none" },
     { openId: "educore-demo-coordinator", firstName: "Carlos", lastName: "Mendoza", name: "Carlos Mendoza", email: "carlos.coordinador@demo.educore.co", roleKey: "COORDINATOR" as IdentityRole, status: "ACTIVE", profile: "none" },
-    { openId: "educore-demo-teacher-1", firstName: "Laura", lastName: "Pérez", name: "Laura Pérez", email: "laura.perez@demo.educore.co", roleKey: "TEACHER" as IdentityRole, status: "ACTIVE", profile: "teacher" },
+    { openId: "educore-demo-teacher-1", firstName: "Juan Diego", lastName: "Loaiza", name: "Juan Diego Loaiza", email: "juan.loaiza@demo.educore.co", roleKey: "TEACHER" as IdentityRole, status: "ACTIVE", profile: "teacher" },
     { openId: "educore-demo-teacher-2", firstName: "Andrés", lastName: "Molina", name: "Andrés Molina", email: "andres.molina@demo.educore.co", roleKey: "TEACHER" as IdentityRole, status: "ACTIVE", profile: "teacher" },
     { openId: "educore-demo-student-1", firstName: "Sofía", lastName: "Martínez", name: "Sofía Martínez", email: "sofia.martinez@demo.educore.co", roleKey: "STUDENT" as IdentityRole, status: "ACTIVE", profile: "student" },
     { openId: "educore-demo-student-2", firstName: "Carlos", lastName: "Rojas", name: "Carlos Rojas", email: "carlos.rojas@demo.educore.co", roleKey: "STUDENT" as IdentityRole, status: "ACTIVE", profile: "student" },
@@ -598,13 +662,20 @@ export async function ensureIdentitySeeded(schoolId = DEMO_SCHOOL_ID) {
     if (!user) {
       await db.insert(users).values({ openId: demo.openId, schoolId, name: demo.name, firstName: demo.firstName, lastName: demo.lastName, email: demo.email, loginMethod: "demo", role: demo.roleKey === "SCHOOL_ADMIN" ? "admin" : "user", status: demo.status });
       user = (await db.select().from(users).where(eq(users.openId, demo.openId)).limit(1))[0];
+    } else if (user.name !== demo.name || user.email !== demo.email) {
+      await db.update(users).set({ name: demo.name, firstName: demo.firstName, lastName: demo.lastName, email: demo.email }).where(eq(users.id, user.id));
+      user = { ...user, name: demo.name, firstName: demo.firstName, lastName: demo.lastName, email: demo.email };
     }
     if (!user) continue;
     const membership = (await db.select().from(schoolMemberships).where(and(eq(schoolMemberships.schoolId, schoolId), eq(schoolMemberships.userId, user.id))).limit(1))[0];
     if (!membership) await db.insert(schoolMemberships).values({ schoolId, userId: user.id, roleKey: demo.roleKey, status: demo.status });
     if (demo.profile === "teacher") {
       const profile = (await db.select().from(teacherProfiles).where(and(eq(teacherProfiles.schoolId, schoolId), eq(teacherProfiles.userId, user.id))).limit(1))[0];
-      if (!profile) await db.insert(teacherProfiles).values({ schoolId, userId: user.id, employeeCode: `DOC-${user.id}`, specialties: "Acompañamiento académico", subjects: "Matemáticas, Ciencias" });
+      if (!profile) {
+        await db.insert(teacherProfiles).values({ schoolId, userId: user.id, employeeCode: `DOC-${user.id}`, specialties: "Ciencias Naturales y Biología", subjects: "Biología" });
+      } else if (demo.openId === "educore-demo-teacher-1" && profile.subjects !== "Biología") {
+        await db.update(teacherProfiles).set({ specialties: "Ciencias Naturales y Biología", subjects: "Biología" }).where(eq(teacherProfiles.id, profile.id));
+      }
     }
     if (demo.profile === "student") {
       const profile = (await db.select().from(studentProfiles).where(and(eq(studentProfiles.schoolId, schoolId), eq(studentProfiles.userId, user.id))).limit(1))[0];
@@ -625,6 +696,12 @@ export async function ensureIdentitySeeded(schoolId = DEMO_SCHOOL_ID) {
       const secondRelationship = (await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, schoolId), eq(guardianStudentRelationships.guardianUserId, guardian.id), eq(guardianStudentRelationships.studentUserId, secondStudent.id))).limit(1))[0];
       if (!secondRelationship) await db.insert(guardianStudentRelationships).values({ schoolId, guardianUserId: guardian.id, studentUserId: secondStudent.id, relationshipType: "PARENT", isPrimary: 0 });
     }
+  }
+  const guardian2 = (await db.select().from(users).where(eq(users.openId, "educore-demo-guardian-2")).limit(1))[0];
+  const student2 = (await db.select().from(users).where(eq(users.openId, "educore-demo-student-2")).limit(1))[0];
+  if (guardian2 && student2) {
+    const relationship2 = (await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, schoolId), eq(guardianStudentRelationships.guardianUserId, guardian2.id), eq(guardianStudentRelationships.studentUserId, student2.id))).limit(1))[0];
+    if (!relationship2) await db.insert(guardianStudentRelationships).values({ schoolId, guardianUserId: guardian2.id, studentUserId: student2.id, relationshipType: "PARENT", isPrimary: 1 });
   }
   return { schoolId };
 }
@@ -794,6 +871,20 @@ export async function listGuardianStudents(schoolId: number, guardianUserId: num
   if (!db) return [];
   const relationships = await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, schoolId), eq(guardianStudentRelationships.guardianUserId, guardianUserId)));
   const studentIds = new Set(relationships.map(row => row.studentUserId));
+
+  // Fallback: Check if guardian matches by name in students table
+  const guardianUser = (await db.select().from(users).where(eq(users.id, guardianUserId)).limit(1))[0];
+  if (guardianUser?.name) {
+    const normGuardianName = normalizePersonName(guardianUser.name);
+    const allRosterStudents = await db.select().from(students).where(eq(students.schoolId, schoolId));
+    for (const rStudent of allRosterStudents) {
+      if (rStudent.guardianName && normalizePersonName(rStudent.guardianName) === normGuardianName) {
+        const equiv = await getStudentEquivalence(rStudent.id, schoolId);
+        if (equiv.primaryUserId) studentIds.add(equiv.primaryUserId);
+      }
+    }
+  }
+
   return (await db.select().from(users)).filter(user => studentIds.has(user.id)).map(user => ({ ...user, relationship: relationships.find(row => row.studentUserId === user.id) }));
 }
 
@@ -980,3 +1071,922 @@ export async function writeAcademicAudit(actor: AcademicActor, action: string, t
   if (!db) return;
   await db.insert(auditLogs).values({ schoolId: actor.schoolId, actorUserId: actor.userId, targetType, actorRole: actor.roleKey, action, detail });
 }
+
+let _attendanceTablesEnsured = false;
+
+export async function ensureAttendanceTables() {
+  if (_attendanceTablesEnsured) return;
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS \`attendance_records\` (
+        \`id\` int NOT NULL AUTO_INCREMENT,
+        \`schoolId\` int NOT NULL DEFAULT 1,
+        \`courseId\` varchar(64) NOT NULL,
+        \`studentId\` varchar(64) NOT NULL,
+        \`attendanceDate\` timestamp NOT NULL,
+        \`status\` enum('present','absent','late','excused') NOT NULL,
+        \`reason\` text,
+        \`recordedByUserId\` int DEFAULT NULL,
+        \`recordedByName\` varchar(160) NOT NULL,
+        \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \`modifiedAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`id\`),
+        UNIQUE KEY \`attendance_course_student_date_uq\` (\`schoolId\`,\`courseId\`,\`studentId\`,\`attendanceDate\`),
+        KEY \`attendance_course_date_idx\` (\`schoolId\`,\`courseId\`,\`attendanceDate\`),
+        KEY \`attendance_student_date_idx\` (\`schoolId\`,\`studentId\`,\`attendanceDate\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS \`attendance_follow_up_cases\` (
+        \`id\` int NOT NULL AUTO_INCREMENT,
+        \`schoolId\` int NOT NULL DEFAULT 1,
+        \`courseId\` varchar(64) NOT NULL,
+        \`studentId\` varchar(64) NOT NULL,
+        \`reason\` text NOT NULL,
+        \`priority\` enum('low','medium','high') NOT NULL DEFAULT 'medium',
+        \`status\` enum('open','in_review','resolved') NOT NULL DEFAULT 'open',
+        \`responsibleUserId\` int DEFAULT NULL,
+        \`responsibleName\` varchar(160) NOT NULL,
+        \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \`updatedAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        \`resolvedAt\` timestamp NULL DEFAULT NULL,
+        PRIMARY KEY (\`id\`),
+        KEY \`follow_up_course_status_idx\` (\`schoolId\`,\`courseId\`,\`status\`),
+        KEY \`follow_up_student_idx\` (\`schoolId\`,\`studentId\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS \`attendance_follow_up_notes\` (
+        \`id\` int NOT NULL AUTO_INCREMENT,
+        \`schoolId\` int NOT NULL DEFAULT 1,
+        \`caseId\` int NOT NULL,
+        \`note\` text NOT NULL,
+        \`authorUserId\` int DEFAULT NULL,
+        \`authorName\` varchar(160) NOT NULL,
+        \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`id\`),
+        KEY \`follow_up_notes_case_created_idx\` (\`caseId\`,\`createdAt\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS \`attendance_justifications\` (
+        \`id\` int NOT NULL AUTO_INCREMENT,
+        \`schoolId\` int NOT NULL DEFAULT 1,
+        \`courseId\` varchar(64) NOT NULL,
+        \`studentId\` varchar(64) NOT NULL,
+        \`attendanceDate\` timestamp NOT NULL,
+        \`reasonCategory\` enum('medical','family_emergency','external_appointment','institutional','force_majeure','other') NOT NULL DEFAULT 'other',
+        \`description\` text NOT NULL,
+        \`submittedByRole\` enum('student','guardian','teacher') NOT NULL,
+        \`submittedByName\` varchar(160) NOT NULL,
+        \`submittedByUserId\` int DEFAULT NULL,
+        \`submittedAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \`digitalEvidenceUrl\` text DEFAULT NULL,
+        \`digitalEvidenceName\` varchar(255) DEFAULT NULL,
+        \`requiresPhysicalSupport\` boolean NOT NULL DEFAULT FALSE,
+        \`physicalSupportDeadline\` timestamp NULL DEFAULT NULL,
+        \`physicalSupportReceivedAt\` timestamp NULL DEFAULT NULL,
+        \`physicalSupportReceivedByName\` varchar(160) DEFAULT NULL,
+        \`physicalSupportReceivedByUserId\` int DEFAULT NULL,
+        \`physicalSupportNotes\` text DEFAULT NULL,
+        \`status\` enum('absence_registered','scheduled_absence','submitted','pending_physical_support','in_review','approved','unjustified','rejected') NOT NULL DEFAULT 'submitted',
+        \`escalatedToCoordination\` boolean NOT NULL DEFAULT FALSE,
+        \`coordinationNotes\` text DEFAULT NULL,
+        \`resolutionNotes\` text DEFAULT NULL,
+        \`resolvedAt\` timestamp NULL DEFAULT NULL,
+        \`resolvedByUserId\` int DEFAULT NULL,
+        \`resolvedByName\` varchar(160) DEFAULT NULL,
+        \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        \`updatedAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`id\`),
+        KEY \`justification_course_status_idx\` (\`schoolId\`,\`courseId\`,\`status\`),
+        KEY \`justification_student_date_idx\` (\`schoolId\`,\`studentId\`,\`attendanceDate\`),
+        UNIQUE KEY \`justification_student_course_date_uniq\` (\`schoolId\`,\`courseId\`,\`studentId\`,\`attendanceDate\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    try {
+      await db.execute(sql`
+        ALTER TABLE \`attendance_justifications\`
+        MODIFY COLUMN \`status\` enum('absence_registered','scheduled_absence','submitted','pending_physical_support','in_review','approved','unjustified','rejected') NOT NULL DEFAULT 'submitted';
+      `);
+    } catch {
+      // Ignorar si el enum ya está actualizado
+    }
+
+    try {
+      await db.execute(sql`
+        ALTER TABLE \`attendance_justifications\`
+        ADD UNIQUE KEY \`justification_student_course_date_uniq\` (\`schoolId\`,\`courseId\`,\`studentId\`,\`attendanceDate\`);
+      `);
+    } catch {
+      // Ignorar si el índice único ya existe
+    }
+
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS \`attendance_justification_events\` (
+        \`id\` int NOT NULL AUTO_INCREMENT,
+        \`schoolId\` int NOT NULL DEFAULT 1,
+        \`justificationId\` int NOT NULL,
+        \`eventType\` varchar(64) NOT NULL,
+        \`fromStatus\` varchar(64) DEFAULT NULL,
+        \`toStatus\` varchar(64) DEFAULT NULL,
+        \`actorRole\` varchar(64) NOT NULL,
+        \`actorName\` varchar(160) NOT NULL,
+        \`actorUserId\` int DEFAULT NULL,
+        \`notes\` text DEFAULT NULL,
+        \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (\`id\`),
+        KEY \`justification_events_justification_idx\` (\`justificationId\`,\`createdAt\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    _attendanceTablesEnsured = true;
+  } catch (error) {
+    console.warn("[Database] ensureAttendanceTables warning:", error);
+  }
+}
+
+export interface StudentEquivalence {
+  user?: typeof users.$inferSelect;
+  student?: typeof students.$inferSelect;
+  allIds: string[];
+  primaryRosterStudentId: string;
+  primaryUserId?: number;
+  name: string;
+  course?: string;
+}
+
+export function normalizePersonName(name?: string | null): string {
+  if (!name) return "";
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export async function getStudentEquivalence(
+  identifier: string | number,
+  schoolId: number = DEMO_SCHOOL_ID
+): Promise<StudentEquivalence> {
+  const idStr = String(identifier).trim();
+  const idNum = Number(identifier);
+  const isNumeric = !isNaN(idNum) && idStr !== "";
+
+  const db = await getDb();
+  if (!db) {
+    return {
+      allIds: [idStr],
+      primaryRosterStudentId: idStr,
+      primaryUserId: isNumeric ? idNum : undefined,
+      name: "Estudiante",
+    };
+  }
+
+  // 1. Initial lookup in students roster table
+  let matchedStudent: typeof students.$inferSelect | null = null;
+  if (isNumeric) {
+    matchedStudent = (await db.select().from(students).where(and(eq(students.schoolId, schoolId), eq(students.id, idNum))).limit(1))[0] ?? null;
+  } else {
+    matchedStudent = (await db.select().from(students).where(and(
+      eq(students.schoolId, schoolId),
+      or(eq(students.email, idStr), eq(students.name, idStr))!
+    )).limit(1))[0] ?? null;
+  }
+
+  // 2. Initial lookup in users identity table
+  let matchedUser: typeof users.$inferSelect | null = null;
+  if (isNumeric) {
+    matchedUser = (await db.select().from(users).where(and(eq(users.schoolId, schoolId), eq(users.id, idNum))).limit(1))[0] ?? null;
+  } else {
+    matchedUser = (await db.select().from(users).where(and(
+      eq(users.schoolId, schoolId),
+      or(eq(users.openId, idStr), eq(users.email, idStr), eq(users.name, idStr))!
+    )).limit(1))[0] ?? null;
+  }
+
+  // Helper: Find student in students table by normalized name or email
+  const findStudentByNameOrEmail = async (name?: string | null, email?: string | null) => {
+    const normName = normalizePersonName(name);
+    const normEmail = (email || "").toLowerCase().trim();
+    if (!normName && !normEmail) return null;
+    const all = await db.select().from(students).where(eq(students.schoolId, schoolId));
+    return all.find((s) => {
+      if (normName && normalizePersonName(s.name) === normName) return true;
+      if (normEmail && s.email && s.email.toLowerCase().trim() === normEmail) return true;
+      return false;
+    }) ?? null;
+  };
+
+  // Helper: Find user in users table by normalized name or email
+  const findUserByNameOrEmail = async (name?: string | null, email?: string | null) => {
+    const normName = normalizePersonName(name);
+    const normEmail = (email || "").toLowerCase().trim();
+    if (!normName && !normEmail) return null;
+    const all = await db.select().from(users).where(eq(users.schoolId, schoolId));
+    return all.find((u) => {
+      if (normName && normalizePersonName(u.name) === normName) return true;
+      if (normEmail && u.email && u.email.toLowerCase().trim() === normEmail) return true;
+      return false;
+    }) ?? null;
+  };
+
+  // 3. Collision resolution: if numeric ID matched both tables with DIFFERENT individuals
+  // Example: ID 6 matches user 'Sofía Martínez' and student 'Valentina Ruiz'
+  // Example: ID 1 matches student 'Sofía Martínez' and user 'Valentina Ríos' (Admin)
+  if (matchedStudent && matchedUser) {
+    const isSamePerson = normalizePersonName(matchedStudent.name) === normalizePersonName(matchedUser.name);
+    if (!isSamePerson) {
+      const userMembership = (await db.select().from(schoolMemberships).where(and(
+        eq(schoolMemberships.schoolId, schoolId),
+        eq(schoolMemberships.userId, matchedUser.id)
+      )).limit(1))[0];
+
+      if (userMembership && userMembership.roleKey !== "STUDENT") {
+        // Matched user is an Admin/Teacher/Coordinator (e.g. ID 1). The target was the student roster ID!
+        matchedUser = await findUserByNameOrEmail(matchedStudent.name, matchedStudent.email);
+      } else {
+        // Matched user is a student (e.g. ID 6 = Sofía Martínez). Find her real student roster record!
+        const correctStudent = await findStudentByNameOrEmail(matchedUser.name, matchedUser.email);
+        if (correctStudent) {
+          matchedStudent = correctStudent;
+        } else {
+          matchedUser = await findUserByNameOrEmail(matchedStudent.name, matchedStudent.email);
+        }
+      }
+    }
+  } else if (matchedUser && !matchedStudent) {
+    matchedStudent = await findStudentByNameOrEmail(matchedUser.name, matchedUser.email);
+  } else if (matchedStudent && !matchedUser) {
+    matchedUser = await findUserByNameOrEmail(matchedStudent.name, matchedStudent.email);
+  }
+
+  const allIdsSet = new Set<string>([idStr]);
+  if (matchedStudent) {
+    allIdsSet.add(String(matchedStudent.id));
+  }
+  if (matchedUser) {
+    allIdsSet.add(String(matchedUser.id));
+    if (matchedUser.openId) allIdsSet.add(matchedUser.openId);
+
+    const profile = (await db.select().from(studentProfiles).where(and(
+      eq(studentProfiles.schoolId, schoolId),
+      eq(studentProfiles.userId, matchedUser.id)
+    )).limit(1))[0];
+    if (profile?.studentCode) {
+      allIdsSet.add(profile.studentCode);
+    }
+  }
+
+  const name = matchedStudent?.name || matchedUser?.name || `Estudiante #${idStr}`;
+  const primaryRosterStudentId = matchedStudent ? String(matchedStudent.id) : (matchedUser ? String(matchedUser.id) : idStr);
+  const primaryUserId = matchedUser ? matchedUser.id : (isNumeric ? idNum : undefined);
+  const course = matchedStudent?.course || undefined;
+
+  return {
+    user: matchedUser ?? undefined,
+    student: matchedStudent ?? undefined,
+    allIds: Array.from(allIdsSet),
+    primaryRosterStudentId,
+    primaryUserId,
+    name,
+    course,
+  };
+}
+
+export async function listAttendanceRecords(courseId?: string, studentId?: string, schoolId: number = DEMO_SCHOOL_ID) {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [eq(attendanceRecords.schoolId, schoolId)];
+  if (courseId) conditions.push(eq(attendanceRecords.courseId, courseId));
+  if (studentId) {
+    const equiv = await getStudentEquivalence(studentId, schoolId);
+    conditions.push(inArray(attendanceRecords.studentId, equiv.allIds));
+  }
+
+  return db.select().from(attendanceRecords)
+    .where(and(...conditions))
+    .orderBy(desc(attendanceRecords.attendanceDate));
+}
+
+export async function upsertAttendance(records: InsertAttendanceRecord[], schoolId: number = DEMO_SCHOOL_ID) {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) throw new Error("Database is not configured");
+  for (const record of records) {
+    const targetSchoolId = record.schoolId ?? schoolId;
+    const equiv = await getStudentEquivalence(record.studentId, targetSchoolId);
+    const targetStudentId = equiv.primaryRosterStudentId;
+
+    const existing = await db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(and(
+      eq(attendanceRecords.schoolId, targetSchoolId),
+      eq(attendanceRecords.courseId, record.courseId),
+      inArray(attendanceRecords.studentId, equiv.allIds),
+      eq(attendanceRecords.attendanceDate, record.attendanceDate),
+    )).limit(1);
+
+    if (existing[0]) {
+      await db.update(attendanceRecords).set({
+        status: record.status,
+        reason: record.reason ?? null,
+        recordedByUserId: record.recordedByUserId ?? null,
+        recordedByName: record.recordedByName,
+        modifiedAt: new Date(),
+      }).where(eq(attendanceRecords.id, existing[0].id));
+    } else {
+      await db.insert(attendanceRecords).values({
+        ...record,
+        studentId: targetStudentId,
+        schoolId: targetSchoolId,
+      });
+    }
+  }
+}
+
+export async function listFollowUpCases(courseId: string, schoolId: number = DEMO_SCHOOL_ID) {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(attendanceFollowUpCases)
+    .where(and(eq(attendanceFollowUpCases.courseId, courseId), eq(attendanceFollowUpCases.schoolId, schoolId)))
+    .orderBy(desc(attendanceFollowUpCases.updatedAt));
+}
+
+export async function findActiveFollowUpCase(courseId: string, studentId: string, reason: string, schoolId: number = DEMO_SCHOOL_ID) {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(attendanceFollowUpCases).where(and(
+    eq(attendanceFollowUpCases.schoolId, schoolId),
+    eq(attendanceFollowUpCases.courseId, courseId),
+    eq(attendanceFollowUpCases.studentId, studentId),
+    eq(attendanceFollowUpCases.reason, reason),
+    inArray(attendanceFollowUpCases.status, ["open", "in_review"]),
+  )).limit(1);
+  return result[0];
+}
+
+export async function createFollowUpCase(input: {
+  courseId: string;
+  studentId: string;
+  reason: string;
+  priority?: "low" | "medium" | "high";
+  responsibleUserId?: number | null;
+  responsibleName: string;
+  schoolId?: number;
+}) {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) throw new Error("Database is not configured");
+  const schoolId = input.schoolId ?? DEMO_SCHOOL_ID;
+  const existing = await findActiveFollowUpCase(input.courseId, input.studentId, input.reason, schoolId);
+  if (existing) return existing;
+
+  const result = await db.insert(attendanceFollowUpCases).values({
+    schoolId,
+    courseId: input.courseId,
+    studentId: input.studentId,
+    reason: input.reason,
+    priority: input.priority ?? "medium",
+    responsibleUserId: input.responsibleUserId ?? null,
+    responsibleName: input.responsibleName,
+  });
+  const id = Number(result[0].insertId);
+  const created = await db.select().from(attendanceFollowUpCases).where(eq(attendanceFollowUpCases.id, id)).limit(1);
+  return created[0];
+}
+
+export async function getFollowUpHistory(caseId: number) {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) return { case: undefined, notes: [] };
+  const [caseRows, notes] = await Promise.all([
+    db.select().from(attendanceFollowUpCases).where(eq(attendanceFollowUpCases.id, caseId)).limit(1),
+    db.select().from(attendanceFollowUpNotes).where(eq(attendanceFollowUpNotes.caseId, caseId)).orderBy(desc(attendanceFollowUpNotes.createdAt)),
+  ]);
+  return { case: caseRows[0], notes };
+}
+
+export async function addFollowUpNote(input: {
+  caseId: number;
+  note: string;
+  authorUserId?: number | null;
+  authorName: string;
+  schoolId?: number;
+}) {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) throw new Error("Database is not configured");
+  const schoolId = input.schoolId ?? DEMO_SCHOOL_ID;
+  await db.insert(attendanceFollowUpNotes).values({
+    schoolId,
+    caseId: input.caseId,
+    note: input.note,
+    authorUserId: input.authorUserId ?? null,
+    authorName: input.authorName,
+  });
+  await db.update(attendanceFollowUpCases).set({ updatedAt: new Date() }).where(eq(attendanceFollowUpCases.id, input.caseId));
+  return getFollowUpHistory(input.caseId);
+}
+
+export async function updateFollowUpStatus(caseId: number, status: "open" | "in_review" | "resolved") {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) throw new Error("Database is not configured");
+  await db.update(attendanceFollowUpCases).set({
+    status,
+    updatedAt: new Date(),
+    resolvedAt: status === "resolved" ? new Date() : null,
+  }).where(eq(attendanceFollowUpCases.id, caseId));
+  return getFollowUpHistory(caseId);
+}
+
+export function sanitizeEvidenceUrl(url?: string | null, name?: string | null): string | null {
+  if (!url) return null;
+  if (url.includes("storage.educore.edu")) {
+    const fileName = name || url.split("/").pop() || "documento_soporte.pdf";
+    return `/uploads/documents/${decodeURIComponent(fileName)}`;
+  }
+  return url;
+}
+
+export async function listJustifications(courseId?: string, studentId?: string, schoolId: number = DEMO_SCHOOL_ID) {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [eq(attendanceJustifications.schoolId, schoolId)];
+  if (courseId) conditions.push(eq(attendanceJustifications.courseId, courseId));
+  let equivIds: string[] | null = null;
+  if (studentId) {
+    const equiv = await getStudentEquivalence(studentId, schoolId);
+    equivIds = equiv.allIds;
+    conditions.push(inArray(attendanceJustifications.studentId, equiv.allIds));
+  }
+
+  const rows = await db.select().from(attendanceJustifications)
+    .where(and(...conditions))
+    .orderBy(desc(attendanceJustifications.submittedAt));
+
+  const justificationIds = rows.map((r) => r.id);
+  if (justificationIds.length === 0) return [];
+
+  const allEvents = await db.select().from(attendanceJustificationEvents)
+    .where(inArray(attendanceJustificationEvents.justificationId, justificationIds))
+    .orderBy(desc(attendanceJustificationEvents.createdAt));
+
+  const eventsByJustificationId = new Map<number, typeof allEvents>();
+  for (const ev of allEvents) {
+    const list = eventsByJustificationId.get(ev.justificationId) ?? [];
+    list.push(ev);
+    eventsByJustificationId.set(ev.justificationId, list);
+  }
+
+  // Cross-reference current status in attendanceRecords to handle post-modified edge case
+  const records = await db.select().from(attendanceRecords)
+    .where(eq(attendanceRecords.schoolId, schoolId));
+  const recordMap = new Map<string, string>();
+  for (const rec of records) {
+    const dStr = rec.attendanceDate instanceof Date ? rec.attendanceDate.toISOString().split("T")[0] : String(rec.attendanceDate).split("T")[0];
+    recordMap.set(`${rec.courseId}:${rec.studentId}:${dStr}`, rec.status);
+  }
+
+  // Pre-fetch student equivalences to enrich justifications with real student names & metadata
+  const studentEquivMap = new Map<string, StudentEquivalence>();
+  for (const r of rows) {
+    if (!studentEquivMap.has(r.studentId)) {
+      const eq = await getStudentEquivalence(r.studentId, schoolId);
+      studentEquivMap.set(r.studentId, eq);
+    }
+  }
+
+  return rows.map((r) => {
+    const dStr = r.attendanceDate instanceof Date ? r.attendanceDate.toISOString().split("T")[0] : String(r.attendanceDate).split("T")[0];
+    const equiv = studentEquivMap.get(r.studentId);
+    let currentAttendanceStatus = recordMap.get(`${r.courseId}:${r.studentId}:${dStr}`) ?? null;
+    if (!currentAttendanceStatus && equiv) {
+      for (const eqId of equiv.allIds) {
+        const found = recordMap.get(`${r.courseId}:${eqId}:${dStr}`);
+        if (found) {
+          currentAttendanceStatus = found;
+          break;
+        }
+      }
+    }
+    const attendancePostModified = Boolean(
+      currentAttendanceStatus &&
+      currentAttendanceStatus !== "absent" &&
+      currentAttendanceStatus !== "excused"
+    );
+
+    const studentName = equiv?.name && !equiv.name.startsWith("Estudiante #") ? equiv.name : (r.submittedByName || "Estudiante");
+    const studentCode = (equiv?.student as any)?.code || (equiv?.course ? `EST-${equiv.course}-${String(equiv.primaryRosterStudentId).padStart(2, "0")}` : undefined);
+    const studentAvatarColor = (equiv?.student as any)?.avatarColor || "#dbeafe";
+    const guardianName = (equiv?.student as any)?.guardianName || null;
+
+    return {
+      ...r,
+      studentName,
+      studentCode,
+      studentAvatarColor,
+      guardianName,
+      canonicalStudentId: equiv?.primaryRosterStudentId || r.studentId,
+      digitalEvidenceUrl: sanitizeEvidenceUrl(r.digitalEvidenceUrl, r.digitalEvidenceName),
+      currentAttendanceStatus,
+      attendancePostModified,
+      events: eventsByJustificationId.get(r.id) ?? [],
+    };
+  });
+}
+
+export async function getJustificationDetail(justificationId: number) {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) return { justification: undefined, events: [] };
+  const [justificationRows, events] = await Promise.all([
+    db.select().from(attendanceJustifications).where(eq(attendanceJustifications.id, justificationId)).limit(1),
+    db.select().from(attendanceJustificationEvents).where(eq(attendanceJustificationEvents.justificationId, justificationId)).orderBy(desc(attendanceJustificationEvents.createdAt)),
+  ]);
+  const just = justificationRows[0];
+  if (!just) return { justification: undefined, events: [] };
+
+  const equiv = await getStudentEquivalence(just.studentId, just.schoolId);
+  const attRec = (await db.select().from(attendanceRecords).where(and(
+    eq(attendanceRecords.schoolId, just.schoolId),
+    eq(attendanceRecords.courseId, just.courseId),
+    inArray(attendanceRecords.studentId, equiv.allIds),
+    eq(attendanceRecords.attendanceDate, just.attendanceDate),
+  )).limit(1))[0];
+
+  const currentAttendanceStatus = attRec?.status ?? null;
+  const attendancePostModified = Boolean(
+    currentAttendanceStatus &&
+    currentAttendanceStatus !== "absent" &&
+    currentAttendanceStatus !== "excused"
+  );
+
+  const studentName = equiv.name && !equiv.name.startsWith("Estudiante #") ? equiv.name : (just.submittedByName || "Estudiante");
+  const studentCode = (equiv.student as any)?.code || (equiv.course ? `EST-${equiv.course}-${String(equiv.primaryRosterStudentId).padStart(2, "0")}` : undefined);
+  const studentAvatarColor = (equiv.student as any)?.avatarColor || "#dbeafe";
+  const guardianName = (equiv.student as any)?.guardianName || null;
+
+  return {
+    justification: {
+      ...just,
+      studentName,
+      studentCode,
+      studentAvatarColor,
+      guardianName,
+      canonicalStudentId: equiv.primaryRosterStudentId,
+      digitalEvidenceUrl: sanitizeEvidenceUrl(just.digitalEvidenceUrl, just.digitalEvidenceName),
+      currentAttendanceStatus,
+      attendancePostModified,
+    },
+    events,
+  };
+}
+
+export async function createJustification(input: {
+  courseId: string;
+  studentId: string;
+  attendanceDate: Date | string;
+  reasonCategory?: "medical" | "family_emergency" | "external_appointment" | "institutional" | "force_majeure" | "other";
+  description: string;
+  submittedByRole: "student" | "guardian" | "teacher";
+  submittedByName: string;
+  submittedByUserId?: number | null;
+  digitalEvidenceUrl?: string | null;
+  digitalEvidenceName?: string | null;
+  requiresPhysicalSupport?: boolean;
+  physicalSupportDeadline?: Date | string | null;
+  schoolId?: number;
+  status?: "absence_registered" | "scheduled_absence" | "submitted" | "pending_physical_support" | "in_review" | "approved" | "unjustified" | "rejected";
+  isScheduled?: boolean;
+}) {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) throw new Error("Database is not configured");
+  const schoolId = input.schoolId ?? DEMO_SCHOOL_ID;
+  const targetDate = new Date(input.attendanceDate);
+  const isScheduled = input.status === "scheduled_absence" || input.isScheduled;
+  const equiv = await getStudentEquivalence(input.studentId, schoolId);
+  const canonicalStudentId = equiv.primaryRosterStudentId;
+
+  // 1. Evitar solicitudes duplicadas para la misma inasistencia del estudiante
+  const existing = await db.select({ id: attendanceJustifications.id }).from(attendanceJustifications).where(and(
+    eq(attendanceJustifications.schoolId, schoolId),
+    eq(attendanceJustifications.courseId, input.courseId),
+    inArray(attendanceJustifications.studentId, equiv.allIds),
+    eq(attendanceJustifications.attendanceDate, targetDate),
+  )).limit(1);
+
+  if (existing[0]) {
+    throw new Error("Ya existe una solicitud de justificación registrada para esta inasistencia.");
+  }
+
+  // 2. Solo se puede justificar una inasistencia real (ausencia), excepto si es inasistencia programada con aviso anticipado
+  if (!isScheduled) {
+    const attRecord = await db.select().from(attendanceRecords).where(and(
+      eq(attendanceRecords.schoolId, schoolId),
+      eq(attendanceRecords.courseId, input.courseId),
+      inArray(attendanceRecords.studentId, equiv.allIds),
+      eq(attendanceRecords.attendanceDate, targetDate),
+    )).limit(1);
+
+    if (attRecord[0] && attRecord[0].status !== "absent") {
+      throw new Error("Solo se pueden justificar inasistencias registradas como Ausente.");
+    }
+  }
+
+  const initialStatus = isScheduled
+    ? "scheduled_absence"
+    : input.requiresPhysicalSupport
+    ? "pending_physical_support"
+    : "submitted";
+
+  let justificationId: number;
+  try {
+    const result = await db.insert(attendanceJustifications).values({
+      schoolId,
+      courseId: input.courseId,
+      studentId: canonicalStudentId,
+      attendanceDate: targetDate,
+      reasonCategory: input.reasonCategory ?? "other",
+      description: input.description,
+      submittedByRole: input.submittedByRole,
+      submittedByName: input.submittedByName,
+      submittedByUserId: input.submittedByUserId ?? null,
+      digitalEvidenceUrl: sanitizeEvidenceUrl(input.digitalEvidenceUrl, input.digitalEvidenceName),
+      digitalEvidenceName: input.digitalEvidenceName ?? null,
+      requiresPhysicalSupport: input.requiresPhysicalSupport ?? false,
+      physicalSupportDeadline: input.physicalSupportDeadline ? new Date(input.physicalSupportDeadline) : null,
+      status: initialStatus,
+    });
+    justificationId = Number(result[0].insertId);
+  } catch (err: any) {
+    if (
+      err?.code === "ER_DUP_ENTRY" ||
+      err?.message?.includes("Duplicate entry") ||
+      err?.message?.includes("justification_student_course_date_uniq")
+    ) {
+      throw new Error("Ya existe una solicitud de justificación registrada para esta inasistencia.");
+    }
+    throw err;
+  }
+
+  await db.insert(attendanceJustificationEvents).values({
+    schoolId,
+    justificationId,
+    eventType: isScheduled ? "scheduled_absence" : "submitted",
+    toStatus: initialStatus,
+    actorRole: input.submittedByRole,
+    actorName: input.submittedByName,
+    actorUserId: input.submittedByUserId ?? null,
+    notes: isScheduled
+      ? "Inasistencia programada con aviso anticipado por el usuario."
+      : input.requiresPhysicalSupport
+      ? "Excusa radicada con compromiso de entrega de soporte físico."
+      : "Excusa radicada con soporte digital.",
+  });
+
+  await writeAuditLog(
+    input.submittedByRole,
+    isScheduled ? "justification.scheduled_absence" : "justification.submitted",
+    isScheduled
+      ? `Inasistencia programada #${justificationId} para estudiante ${input.studentId} en curso ${input.courseId} (${targetDate.toISOString().slice(0, 10)})`
+      : `Justificación #${justificationId} radicada para estudiante ${input.studentId} en curso ${input.courseId} (${targetDate.toISOString().slice(0, 10)})`,
+    schoolId
+  );
+
+  return getJustificationDetail(justificationId);
+}
+
+export async function scheduleAbsence(input: {
+  courseId: string;
+  studentId: string;
+  attendanceDate: Date | string;
+  reasonCategory?: "medical" | "family_emergency" | "external_appointment" | "institutional" | "force_majeure" | "other";
+  description: string;
+  submittedByRole: "student" | "guardian" | "teacher";
+  submittedByName: string;
+  submittedByUserId?: number | null;
+  digitalEvidenceUrl?: string | null;
+  digitalEvidenceName?: string | null;
+  requiresPhysicalSupport?: boolean;
+  physicalSupportDeadline?: Date | string | null;
+  schoolId?: number;
+}) {
+  return createJustification({
+    ...input,
+    status: "scheduled_absence",
+    isScheduled: true,
+  });
+}
+
+export async function recordPhysicalSupportReceipt(input: {
+  justificationId: number;
+  receivedByName: string;
+  receivedByUserId?: number | null;
+  notes?: string;
+  schoolId?: number;
+}) {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) throw new Error("Database is not configured");
+
+  const existing = await db.select().from(attendanceJustifications).where(eq(attendanceJustifications.id, input.justificationId)).limit(1);
+  if (!existing[0]) throw new Error("Justificación no encontrada");
+
+  const fromStatus = existing[0].status;
+  if (["approved", "unjustified", "rejected"].includes(fromStatus)) {
+    throw new Error(`No se puede registrar soporte físico en una solicitud que ya ha sido resuelta (${fromStatus}).`);
+  }
+
+  const toStatus = fromStatus === "pending_physical_support" ? "in_review" : fromStatus;
+
+  await db.update(attendanceJustifications).set({
+    physicalSupportReceivedAt: new Date(),
+    physicalSupportReceivedByName: input.receivedByName,
+    physicalSupportReceivedByUserId: input.receivedByUserId ?? null,
+    physicalSupportNotes: input.notes ?? null,
+    status: toStatus,
+    updatedAt: new Date(),
+  }).where(eq(attendanceJustifications.id, input.justificationId));
+
+  await db.insert(attendanceJustificationEvents).values({
+    schoolId: existing[0].schoolId,
+    justificationId: input.justificationId,
+    eventType: "physical_received",
+    fromStatus,
+    toStatus,
+    actorRole: "teacher",
+    actorName: input.receivedByName,
+    actorUserId: input.receivedByUserId ?? null,
+    notes: input.notes || "Soporte físico recibido y radicado en el colegio.",
+  });
+
+  await writeAuditLog(
+    "teacher",
+    "justification.physical_received",
+    `Soporte físico recibido para justificación #${input.justificationId} por ${input.receivedByName}`,
+    existing[0].schoolId
+  );
+
+  return getJustificationDetail(input.justificationId);
+}
+
+export async function escalateJustificationToCoordination(input: {
+  justificationId: number;
+  coordinationNotes: string;
+  actorName: string;
+  actorUserId?: number | null;
+  actorRole?: string;
+}) {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) throw new Error("Database is not configured");
+
+  const existing = await db.select().from(attendanceJustifications).where(eq(attendanceJustifications.id, input.justificationId)).limit(1);
+  if (!existing[0]) throw new Error("Justificación no encontrada");
+
+  const fromStatus = existing[0].status;
+  if (["approved", "unjustified", "rejected"].includes(fromStatus)) {
+    throw new Error(`No se puede derivar a coordinación una solicitud que ya ha sido resuelta (${fromStatus}).`);
+  }
+
+  const toStatus = fromStatus === "submitted" || fromStatus === "pending_physical_support" ? "in_review" : fromStatus;
+
+  await db.update(attendanceJustifications).set({
+    escalatedToCoordination: true,
+    coordinationNotes: input.coordinationNotes,
+    status: toStatus,
+    updatedAt: new Date(),
+  }).where(eq(attendanceJustifications.id, input.justificationId));
+
+  await db.insert(attendanceJustificationEvents).values({
+    schoolId: existing[0].schoolId,
+    justificationId: input.justificationId,
+    eventType: "escalated",
+    fromStatus,
+    toStatus,
+    actorRole: input.actorRole || "teacher",
+    actorName: input.actorName,
+    actorUserId: input.actorUserId ?? null,
+    notes: input.coordinationNotes,
+  });
+
+  await writeAuditLog(
+    (input.actorRole as EduRole) || "teacher",
+    "justification.escalated",
+    `Justificación #${input.justificationId} derivada a coordinación: ${input.coordinationNotes}`,
+    existing[0].schoolId
+  );
+
+  return getJustificationDetail(input.justificationId);
+}
+
+export async function resolveJustification(input: {
+  justificationId: number;
+  status: "approved" | "unjustified" | "rejected";
+  resolutionNotes: string;
+  resolvedByName: string;
+  resolvedByUserId?: number | null;
+  actorRole?: string;
+}) {
+  await ensureAttendanceTables();
+  const db = await getDb();
+  if (!db) throw new Error("Database is not configured");
+
+  const existing = await db.select().from(attendanceJustifications).where(eq(attendanceJustifications.id, input.justificationId)).limit(1);
+  if (!existing[0]) throw new Error("Justificación no encontrada");
+
+  const just = existing[0];
+  const fromStatus = just.status;
+  if (["approved", "unjustified", "rejected"].includes(fromStatus)) {
+    throw new Error(`No se puede modificar la resolución de una justificación que ya se encuentra cerrada (${fromStatus}).`);
+  }
+
+  await db.update(attendanceJustifications).set({
+    status: input.status,
+    resolutionNotes: input.resolutionNotes,
+    resolvedAt: new Date(),
+    resolvedByName: input.resolvedByName,
+    resolvedByUserId: input.resolvedByUserId ?? null,
+    updatedAt: new Date(),
+  }).where(eq(attendanceJustifications.id, input.justificationId));
+
+  await db.insert(attendanceJustificationEvents).values({
+    schoolId: just.schoolId,
+    justificationId: input.justificationId,
+    eventType: input.status,
+    fromStatus,
+    toStatus: input.status,
+    actorRole: input.actorRole || "teacher",
+    actorName: input.resolvedByName,
+    actorUserId: input.resolvedByUserId ?? null,
+    notes: input.resolutionNotes,
+  });
+
+  // If approved: update or insert attendanceRecord as excused
+  if (input.status === "approved") {
+    const equiv = await getStudentEquivalence(just.studentId, just.schoolId);
+    const existingRec = await db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(and(
+      eq(attendanceRecords.schoolId, just.schoolId),
+      eq(attendanceRecords.courseId, just.courseId),
+      inArray(attendanceRecords.studentId, equiv.allIds),
+      eq(attendanceRecords.attendanceDate, just.attendanceDate),
+    )).limit(1);
+
+    if (existingRec[0]) {
+      await db.update(attendanceRecords).set({
+        status: "excused",
+        reason: input.resolutionNotes || "Justificación formal aprobada",
+        modifiedAt: new Date(),
+      }).where(eq(attendanceRecords.id, existingRec[0].id));
+    } else {
+      await db.insert(attendanceRecords).values({
+        schoolId: just.schoolId,
+        courseId: just.courseId,
+        studentId: equiv.primaryRosterStudentId,
+        attendanceDate: just.attendanceDate,
+        status: "excused",
+        reason: input.resolutionNotes || "Inasistencia programada aprobada con anticipación",
+        recordedByName: input.resolvedByName,
+        recordedByUserId: input.resolvedByUserId ?? null,
+      });
+    }
+  } else if (input.status === "unjustified" || input.status === "rejected") {
+    // If it was previously marked excused by mistake, revert to absent
+    await db.update(attendanceRecords).set({
+      status: "absent",
+      reason: input.resolutionNotes || "Justificación no aceptada",
+      modifiedAt: new Date(),
+    }).where(and(
+      eq(attendanceRecords.schoolId, just.schoolId),
+      eq(attendanceRecords.courseId, just.courseId),
+      eq(attendanceRecords.studentId, just.studentId),
+      eq(attendanceRecords.attendanceDate, just.attendanceDate),
+      eq(attendanceRecords.status, "excused"),
+    ));
+  }
+
+  await writeAuditLog(
+    (input.actorRole as EduRole) || "teacher",
+    `justification.resolved.${input.status}`,
+    `Justificación #${input.justificationId} resuelta como ${input.status} por ${input.resolvedByName}`,
+    just.schoolId
+  );
+
+  return getJustificationDetail(input.justificationId);
+}
+
+

@@ -20,6 +20,7 @@ interface EduCoreHeaderProps {
   setSection: (section: Section) => void;
   onRoleChange: (role: EduRole) => void;
   notificationCount?: number;
+  user?: any;
 }
 
 const ROLE_PROFILES: Record<
@@ -27,7 +28,7 @@ const ROLE_PROFILES: Record<
   { name: string; roleLabel: string; badge: string; avatar: string; icon: typeof BookOpen }
 > = {
   teacher: {
-    name: "Prof. Alejandro Valenzuela",
+    name: "Prof. Juan Diego Loaiza",
     roleLabel: "Docente",
     badge: "Docente Titular",
     avatar:
@@ -66,6 +67,7 @@ export function EduCoreHeader({
   setSection,
   onRoleChange,
   notificationCount = 0,
+  user,
 }: EduCoreHeaderProps) {
   const { moduleContext, setMobileOpen } = useShellContext();
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
@@ -301,7 +303,7 @@ export function EduCoreHeader({
                           : "Acudiente"}
                       </span>
                       <span className="block truncate text-[10px] text-slate-400">
-                        {meta.name}
+                        {opt === "teacher" && user?.name ? (user.name.startsWith("Prof.") ? user.name : `Prof. ${user.name}`) : meta.name}
                       </span>
                     </div>
                     {isSelected && (

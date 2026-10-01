@@ -93,9 +93,9 @@ export function BulkGradeDialog({
     setValidationError(err);
   };
 
-  // Determinar cuántos estudiantes y cuáles celdas se verán afectadas (solo cuando el diálogo está abierto)
+  // Determinar cuántos estudiantes y cuáles celdas se verán afectadas
   const affectedStudentIds = React.useMemo(() => {
-    if (!open || !activeAssessment) return [];
+    if (!activeAssessment) return [];
     const aId = activeAssessment.id;
 
     // Obtener el conjunto base de filas según el target seleccionado
@@ -151,35 +151,43 @@ export function BulkGradeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md w-full rounded-2xl border border-white/80 bg-white/95 p-6 shadow-[0_24px_54px_rgba(29,78,137,0.16)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/95 max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3.5rem)] flex flex-col overflow-hidden">
-        <DialogHeader className="shrink-0 pb-1">
-          <div className="flex items-center gap-2 text-[var(--edc-primary)]">
-            <Sparkles className="h-5 w-5" />
-            <DialogTitle className="text-base font-bold text-slate-900 dark:text-white">
-              Calificación Masiva
-            </DialogTitle>
+      <DialogContent className="max-w-lg sm:max-w-xl rounded-3xl p-0 overflow-hidden border border-slate-200/90 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+        <DialogHeader className="p-5 sm:p-6 pb-4 border-b border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--edc-primary)]/10 text-[var(--edc-primary)]">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <DialogTitle className="text-base font-bold text-slate-900 dark:text-white">
+                  Calificación Masiva
+                </DialogTitle>
+                <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                  Planilla rápida
+                </span>
+              </div>
+              <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Aplica una misma calificación a múltiples estudiantes de forma controlada y segura.
+              </DialogDescription>
+            </div>
           </div>
-          <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-            Aplica una calificación a múltiples estudiantes de forma controlada y segura.
-          </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 py-1">
-          {!confirmStep ? (
-            <div className="space-y-4 py-1">
+        {!confirmStep ? (
+          <div className="p-5 sm:p-6 space-y-4 max-h-[70vh] overflow-y-auto">
             {/* 1. Selección de Evaluación */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Evaluación destino
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                1. Evaluación destino
               </label>
               <select
                 value={assessmentId}
                 onChange={e => setAssessmentId(Number(e.target.value))}
-                className="h-10 w-full rounded-xl border border-slate-200/90 bg-white px-3 text-xs font-semibold text-slate-800 shadow-xs focus:border-[var(--edc-accent)] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-3.5 text-xs font-semibold text-slate-800 shadow-xs focus:border-[var(--edc-primary)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
               >
                 {assessments.map(a => (
                   <option key={a.id} value={a.id}>
-                    {a.title} ({a.weight}% · Máx {a.maxValue})
+                    {a.title} · {a.weight}% peso · Máx {a.maxValue}
                   </option>
                 ))}
               </select>
@@ -188,10 +196,10 @@ export function BulkGradeDialog({
             {/* 2. Nota a aplicar */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Nota a registrar
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  2. Nota a registrar
                 </label>
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] font-medium text-slate-400">
                   Escala: {minVal.toFixed(1)} a {maxVal.toFixed(1)}
                 </span>
               </div>
@@ -201,14 +209,15 @@ export function BulkGradeDialog({
                   value={gradeText}
                   onChange={handleGradeChange}
                   placeholder="ej. 4.5"
-                  className="h-11 rounded-xl bg-white text-center text-xl font-bold tracking-tight text-slate-900 shadow-inner dark:bg-slate-800 dark:text-white"
+                  className="h-12 rounded-2xl border-slate-200 bg-slate-50/40 text-center text-2xl font-black tracking-tight text-slate-900 shadow-inner focus:border-[var(--edc-primary)] focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
-                <span className="pointer-events-none absolute right-3 text-xs font-medium text-slate-400">
+                <span className="pointer-events-none absolute right-4 text-xs font-bold text-slate-400">
                   / {maxVal.toFixed(1)}
                 </span>
               </div>
               {validationError && (
-                <p className="text-[11px] font-medium text-rose-500 animate-in fade-in">
+                <p className="text-[11px] font-medium text-rose-500 animate-in fade-in flex items-center gap-1 mt-1">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   {validationError}
                 </p>
               )}
@@ -216,27 +225,36 @@ export function BulkGradeDialog({
 
             {/* 3. Modo de aplicación (Radio buttons visuales) */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                ¿A quiénes aplicar?
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                3. ¿A quiénes aplicar?
               </label>
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-1 gap-2.5">
                 {/* Opción A: Todos los visibles */}
                 <button
                   type="button"
                   onClick={() => setTarget("ALL")}
-                  className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
+                  className={`flex items-start gap-3 rounded-2xl border p-3.5 text-left transition-all cursor-pointer ${
                     target === "ALL"
-                      ? "border-[var(--edc-primary)] bg-[var(--edc-secondary)]/20 ring-1 ring-[var(--edc-primary)]"
-                      : "border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50"
+                      ? "border-[var(--edc-primary)] bg-[var(--edc-secondary)]/20 ring-2 ring-[var(--edc-primary)]/20 shadow-xs"
+                      : "border-slate-200 bg-white hover:bg-slate-50/80 dark:border-slate-800 dark:bg-slate-850/40"
                   }`}
                 >
-                  <Users className="mt-0.5 h-4 w-4 shrink-0 text-[var(--edc-primary)]" />
+                  <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl ${
+                    target === "ALL" ? "bg-[var(--edc-primary)] text-white" : "bg-slate-100 text-slate-500 dark:bg-slate-800"
+                  }`}>
+                    <Users className="h-3.5 w-3.5" />
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      Todos los estudiantes visibles ({rows.length})
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      Aplica la nota a todos los alumnos mostrados según los filtros actuales.
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                        Todos los estudiantes visibles
+                      </p>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        {rows.length} alumnos
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Aplica la nota a la totalidad de alumnos mostrados según los filtros actuales.
                     </p>
                   </div>
                 </button>
@@ -246,23 +264,32 @@ export function BulkGradeDialog({
                   type="button"
                   disabled={selectedStudentIds.length === 0}
                   onClick={() => setTarget("SELECTED")}
-                  className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
+                  className={`flex items-start gap-3 rounded-2xl border p-3.5 text-left transition-all ${
                     selectedStudentIds.length === 0
-                      ? "opacity-50 cursor-not-allowed border-slate-100 bg-slate-50"
+                      ? "opacity-50 cursor-not-allowed border-slate-100 bg-slate-50/50 dark:border-slate-800"
                       : target === "SELECTED"
-                      ? "border-[var(--edc-primary)] bg-[var(--edc-secondary)]/20 ring-1 ring-[var(--edc-primary)]"
-                      : "border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50"
+                      ? "border-[var(--edc-primary)] bg-[var(--edc-secondary)]/20 ring-2 ring-[var(--edc-primary)]/20 shadow-xs cursor-pointer"
+                      : "border-slate-200 bg-white hover:bg-slate-50/80 dark:border-slate-800 dark:bg-slate-850/40 cursor-pointer"
                   }`}
                 >
-                  <UserCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--edc-primary)]" />
+                  <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl ${
+                    target === "SELECTED" ? "bg-[var(--edc-primary)] text-white" : "bg-slate-100 text-slate-500 dark:bg-slate-800"
+                  }`}>
+                    <UserCheck className="h-3.5 w-3.5" />
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                      Solo seleccionados ({selectedStudentIds.length})
-                    </p>
-                    <p className="text-[11px] text-slate-500">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                        Solo seleccionados
+                      </p>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        {selectedStudentIds.length} marcados
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                       {selectedStudentIds.length > 0
-                        ? "Aplica la nota exclusivamente a los estudiantes marcados con checkbox."
-                        : "Marca estudiantes con checkbox en la tabla para habilitar esta opción."}
+                        ? "Aplica la nota exclusivamente a los estudiantes marcados con casilla de verificación."
+                        : "Marca estudiantes con checkbox en la planilla para habilitar esta opción."}
                     </p>
                   </div>
                 </button>
@@ -271,24 +298,30 @@ export function BulkGradeDialog({
                 <button
                   type="button"
                   onClick={() => setTarget("EMPTY_ONLY")}
-                  className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
+                  className={`flex items-start gap-3 rounded-2xl border p-3.5 text-left transition-all cursor-pointer ${
                     target === "EMPTY_ONLY"
-                      ? "border-[var(--edc-primary)] bg-[var(--edc-secondary)]/20 ring-1 ring-[var(--edc-primary)]"
-                      : "border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-800/50"
+                      ? "border-amber-400 bg-amber-50/40 ring-2 ring-amber-400/20 shadow-xs"
+                      : "border-slate-200 bg-white hover:bg-slate-50/80 dark:border-slate-800 dark:bg-slate-850/40"
                   }`}
                 >
-                  <Inbox className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                  <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl ${
+                    target === "EMPTY_ONLY" ? "bg-amber-600 text-white" : "bg-slate-100 text-slate-500 dark:bg-slate-800"
+                  }`}>
+                    <Inbox className="h-3.5 w-3.5" />
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                        Solo celdas vacías
-                      </p>
-                      <span className="rounded-full bg-amber-100 px-1.5 py-0.2 text-[9px] font-bold text-amber-800">
-                        Protege notas existentes
-                      </span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                          Solo celdas vacías
+                        </p>
+                        <span className="rounded-full bg-amber-100 px-2 py-0.2 text-[9px] font-extrabold text-amber-800">
+                          Protege notas existentes
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-slate-500">
-                      Califica únicamente a quienes no tengan nota registrada en esta evaluación.
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      Califica únicamente a quienes aún no tengan calificación registrada en esta evaluación.
                     </p>
                   </div>
                 </button>
@@ -296,25 +329,26 @@ export function BulkGradeDialog({
             </div>
 
             {/* Resumen previo */}
-            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300">
-              <span className="font-semibold">Estudiantes a calificar: </span>
-              <strong className="text-[var(--edc-primary)] font-bold text-sm">
-                {affectedCount}
-              </strong>{" "}
-              de {rows.length} visibles
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-3.5 text-xs text-blue-950 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200 flex items-center justify-between">
+              <span className="font-semibold">Resumen de estudiantes afectados:</span>
+              <span className="rounded-xl bg-blue-100/80 px-2.5 py-1 text-xs font-black text-blue-800 dark:bg-blue-900/60 dark:text-blue-200">
+                {affectedCount} de {rows.length} estudiantes
+              </span>
             </div>
           </div>
         ) : (
           /* PASO DE CONFIRMACIÓN OBLIGATORIO */
-          <div className="space-y-4 py-2">
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-800/50 dark:bg-amber-950/20">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-                <div className="space-y-1">
-                  <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200">
+          <div className="p-5 sm:p-6 space-y-4">
+            <div className="rounded-3xl border border-amber-200 bg-amber-50/60 p-5 dark:border-amber-800/50 dark:bg-amber-950/20">
+              <div className="flex items-start gap-3.5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <div className="space-y-1.5">
+                  <h4 className="text-sm font-bold text-amber-950 dark:text-amber-200">
                     Confirmar Calificación Masiva
                   </h4>
-                  <p className="text-xs text-amber-800 dark:text-amber-300">
+                  <p className="text-xs text-amber-900 dark:text-amber-300 leading-relaxed">
                     Vas a aplicar la nota{" "}
                     <strong className="font-extrabold underline">{gradeText}</strong> a{" "}
                     <strong className="font-extrabold underline">{affectedCount}</strong> estudiante
@@ -322,21 +356,21 @@ export function BulkGradeDialog({
                     <strong className="font-semibold">"{activeAssessment?.title}"</strong>.
                   </p>
                   {target === "EMPTY_ONLY" && (
-                    <p className="mt-2 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
-                      ✓ Se omitirán los estudiantes que ya cuenten con calificación en esta evaluación.
+                    <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                      <Check className="h-3.5 w-3.5" />
+                      Se omitirán los estudiantes que ya cuenten con calificación en esta evaluación.
                     </p>
                   )}
-                  <p className="mt-2 text-[11px] text-amber-700/80">
-                    Los cambios quedarán como <em>pendientes</em> para que puedas revisarlos antes de guardar.
+                  <p className="text-[11px] text-amber-800/80 pt-1">
+                    Los cambios quedarán como <em>pendientes</em> para que puedas revisarlos y confirmarlos antes de guardar en la planilla.
                   </p>
                 </div>
               </div>
             </div>
           </div>
         )}
-        </div>
 
-        <DialogFooter className="shrink-0 flex items-center justify-between sm:justify-end gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+        <DialogFooter className="p-4 sm:px-6 border-t border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50 flex items-center justify-between sm:justify-end gap-2.5">
           {!confirmStep ? (
             <>
               <Button
@@ -344,7 +378,7 @@ export function BulkGradeDialog({
                 variant="ghost"
                 size="sm"
                 onClick={() => onOpenChange(false)}
-                className="h-9 rounded-xl text-xs text-slate-500"
+                className="h-10 rounded-2xl px-4 text-xs font-semibold text-slate-500 hover:bg-slate-100 cursor-pointer"
               >
                 Cancelar
               </Button>
@@ -353,7 +387,7 @@ export function BulkGradeDialog({
                 size="sm"
                 disabled={Boolean(validationError) || affectedCount === 0}
                 onClick={handleProceedToConfirm}
-                className="h-9 rounded-xl bg-[var(--edc-primary)] px-4 text-xs font-semibold text-white shadow-sm"
+                className="h-10 rounded-2xl bg-[var(--edc-primary)] px-5 text-xs font-bold text-white shadow-sm hover:opacity-95 cursor-pointer disabled:opacity-50"
               >
                 Continuar
               </Button>
@@ -365,7 +399,7 @@ export function BulkGradeDialog({
                 variant="outline"
                 size="sm"
                 onClick={() => setConfirmStep(false)}
-                className="h-9 rounded-xl text-xs"
+                className="h-10 rounded-2xl px-4 text-xs font-semibold border-slate-200 cursor-pointer"
               >
                 Volver
               </Button>
@@ -373,9 +407,9 @@ export function BulkGradeDialog({
                 type="button"
                 size="sm"
                 onClick={handleConfirmAndApply}
-                className="h-9 rounded-xl bg-amber-600 px-4 text-xs font-semibold text-white shadow-[0_4px_12px_rgba(217,119,6,0.3)] hover:bg-amber-700"
+                className="h-10 rounded-2xl bg-amber-600 px-5 text-xs font-bold text-white shadow-[0_4px_12px_rgba(217,119,6,0.3)] hover:bg-amber-700 cursor-pointer"
               >
-                <Check className="mr-1.5 h-3.5 w-3.5" />
+                <Check className="mr-1.5 h-4 w-4" />
                 Aplicar {gradeText} a {affectedCount} estudiantes
               </Button>
             </>

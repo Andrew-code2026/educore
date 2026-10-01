@@ -18,17 +18,28 @@ interface EduCoreSidebarProps {
   schoolName: string;
   onLogout: () => void;
   notificationCount?: number;
+  user?: any;
 }
 
-const storageUrl = (value: string | null | undefined): string | undefined =>
-  value ? value.split("/").map(segment => encodeURIComponent(decodeURIComponent(segment))).join("/") : undefined;
+const storageUrl = (value: string | null | undefined): string | undefined => {
+  if (!value) return undefined;
+  if (value.startsWith("data:") || value.startsWith("blob:") || value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+  return value.split("/").map(segment => encodeURIComponent(decodeURIComponent(segment))).join("/");
+};
 
-const getRoleAvatarInitials = (role: EduRole) => {
+const getRoleAvatarInitials = (role: EduRole, user?: any) => {
+  if (role === "teacher" && user?.name) {
+    const parts = user.name.trim().split(/\s+/);
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return parts[0].slice(0, 2).toUpperCase();
+  }
   switch (role) {
     case "admin":
       return "RC";
     case "teacher":
-      return "LG";
+      return "JD";
     case "guardian":
       return "MM";
     case "student":
@@ -44,6 +55,7 @@ export function EduCoreSidebar({
   schoolName,
   onLogout,
   notificationCount = 0,
+  user,
 }: EduCoreSidebarProps) {
   const { sidebarCollapsed, toggleSidebar } = useShellContext();
   const groups = getNavGroupsForRole(role, notificationCount);
@@ -248,24 +260,24 @@ export function EduCoreSidebar({
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex h-9 w-9 cursor-default items-center justify-center rounded-full bg-[var(--edc-secondary)] text-xs font-bold text-[var(--edc-primary)] ring-1 ring-slate-200">
-                {getRoleAvatarInitials(role)}
+                {getRoleAvatarInitials(role, user)}
               </div>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={12}>
-              <p className="font-semibold">{ROLE_LABELS[role]}</p>
+              <p className="font-semibold">{role === "teacher" ? (user?.name || "Juan Diego Loaiza") : ROLE_LABELS[role]}</p>
               <p className="text-[10px] text-slate-300">{schoolName}</p>
             </TooltipContent>
           </Tooltip>
         ) : (
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--edc-secondary)] text-xs font-bold text-[var(--edc-primary)] ring-1 ring-slate-200">
-            {getRoleAvatarInitials(role)}
+            {getRoleAvatarInitials(role, user)}
           </div>
         )}
 
         {!sidebarCollapsed && (
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-bold text-slate-800">
-              {role === "admin" ? "Rectoría / Admin" : ROLE_LABELS[role]}
+              {role === "teacher" ? (user?.name || "Juan Diego Loaiza") : role === "admin" ? "Rectoría / Admin" : ROLE_LABELS[role]}
             </p>
             <p className="truncate text-[10px] font-medium text-slate-400">
               {schoolName}

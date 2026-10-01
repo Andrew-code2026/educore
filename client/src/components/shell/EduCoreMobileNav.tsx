@@ -26,8 +26,13 @@ interface EduCoreMobileNavProps {
   notificationCount?: number;
 }
 
-const storageUrl = (value: string | null | undefined): string | undefined =>
-  value ? value.split("/").map(segment => encodeURIComponent(decodeURIComponent(segment))).join("/") : undefined;
+const storageUrl = (value: string | null | undefined): string | undefined => {
+  if (!value) return undefined;
+  if (value.startsWith("data:") || value.startsWith("blob:") || value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+  return value.split("/").map(segment => encodeURIComponent(decodeURIComponent(segment))).join("/");
+};
 
 export function EduCoreMobileNav({
   role,

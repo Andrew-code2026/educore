@@ -44,7 +44,7 @@ export function TeacherDashboard({
   const teacherName =
     user?.name ||
     (data?.teachers && data.teachers[0]?.name) ||
-    "Alejandro Valenzuela";
+    "Juan Diego Loaiza";
 
   const schoolName = data?.school?.name || "Gimnasio Moderno del Valle";
 
@@ -107,7 +107,7 @@ export function TeacherDashboard({
     }));
 
     const filtered = calculated.filter((s) => s.avg > 0 && s.avg < 3.0);
-    return filtered.length > 0 ? filtered : [{ name: "Carlos Rojas", course: "11-2", subject: "Matemáticas", avg: 2.7 }];
+    return filtered.length > 0 ? filtered : [{ name: "Carlos Rojas", course: "11-2", subject: "Biología", avg: 2.7 }];
   }, [grades]);
 
   // Overall average across all grades
@@ -188,8 +188,8 @@ export function TeacherDashboard({
         id: "class-1",
         type: "activity",
         timeOrDate: "07:00 - 08:30",
-        title: "Cálculo Diferencial e Integral",
-        subtitle: "11-2 · Matemáticas · Aula STEM 302",
+        title: "Biología Celular y Genética",
+        subtitle: "11-2 · Biología · Laboratorio de Ciencias",
         isToday: true,
         tag: "Clase",
         tagTone: "info",
@@ -199,8 +199,8 @@ export function TeacherDashboard({
         id: "class-2",
         type: "activity",
         timeOrDate: "10:00 - 11:30",
-        title: "Sustentación de Proyectos Sostenibles",
-        subtitle: "11-2 · Matemáticas · Laboratorio de Modelado",
+        title: "Práctica de Microscopía y Tejidos",
+        subtitle: "11-1 · Biología · Laboratorio de Biología",
         isToday: true,
         tag: "Clase",
         tagTone: "info",
@@ -309,7 +309,7 @@ export function TeacherDashboard({
     return [
       {
         id: 1,
-        name: "Matemáticas 11-2",
+        name: "Biología 11-2",
         studentCount: 24,
         averageGrade: 4.3,
         pendingCount: 2,
@@ -319,7 +319,7 @@ export function TeacherDashboard({
       },
       {
         id: 2,
-        name: "Física 11-1",
+        name: "Biología 11-1",
         studentCount: 21,
         averageGrade: 4.1,
         pendingCount: 1,
@@ -333,10 +333,10 @@ export function TeacherDashboard({
   // 11. Quick Analytics Data matching screenshot
   const quickAnalyticsItems: QuickAnalyticsItem[] = useMemo(() => {
     return [
-      { label: "Parcial de cálculo", value: 76, color: "bg-blue-500" },
-      { label: "Proyecto aplicado", value: 84, color: "bg-indigo-500" },
-      { label: "Quiz de derivadas", value: 62, color: "bg-amber-500" },
-      { label: "Taller de funciones", value: 91, color: "bg-emerald-500" },
+      { label: "Taller celular y mitosis", value: 76, color: "bg-blue-500" },
+      { label: "Informe de laboratorio", value: 84, color: "bg-indigo-500" },
+      { label: "Quiz de genética", value: 62, color: "bg-amber-500" },
+      { label: "Evaluación de ecosistemas", value: 91, color: "bg-emerald-500" },
     ];
   }, []);
 

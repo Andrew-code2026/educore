@@ -1,4 +1,4 @@
-import { double, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { boolean, double, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -458,5 +458,153 @@ export const auditLogs = mysqlTable("audit_logs", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const attendanceRecords = mysqlTable(
+  "attendance_records",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    schoolId: int("schoolId").notNull().default(1),
+    courseId: varchar("courseId", { length: 64 }).notNull(),
+    studentId: varchar("studentId", { length: 64 }).notNull(),
+    attendanceDate: timestamp("attendanceDate").notNull(),
+    status: mysqlEnum("status", ["present", "absent", "late", "excused"]).notNull(),
+    reason: text("reason"),
+    recordedByUserId: int("recordedByUserId"),
+    recordedByName: varchar("recordedByName", { length: 160 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    modifiedAt: timestamp("modifiedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("attendance_course_student_date_uq").on(table.schoolId, table.courseId, table.studentId, table.attendanceDate),
+    index("attendance_course_date_idx").on(table.schoolId, table.courseId, table.attendanceDate),
+    index("attendance_student_date_idx").on(table.schoolId, table.studentId, table.attendanceDate),
+  ]
+);
+
+export const attendanceFollowUpCases = mysqlTable(
+  "attendance_follow_up_cases",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    schoolId: int("schoolId").notNull().default(1),
+    courseId: varchar("courseId", { length: 64 }).notNull(),
+    studentId: varchar("studentId", { length: 64 }).notNull(),
+    reason: text("reason").notNull(),
+    priority: mysqlEnum("priority", ["low", "medium", "high"]).default("medium").notNull(),
+    status: mysqlEnum("status", ["open", "in_review", "resolved"]).default("open").notNull(),
+    responsibleUserId: int("responsibleUserId"),
+    responsibleName: varchar("responsibleName", { length: 160 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    resolvedAt: timestamp("resolvedAt"),
+  },
+  (table) => [
+    index("follow_up_course_status_idx").on(table.schoolId, table.courseId, table.status),
+    index("follow_up_student_idx").on(table.schoolId, table.studentId),
+  ]
+);
+
+export const attendanceFollowUpNotes = mysqlTable(
+  "attendance_follow_up_notes",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    schoolId: int("schoolId").notNull().default(1),
+    caseId: int("caseId").notNull(),
+    note: text("note").notNull(),
+    authorUserId: int("authorUserId"),
+    authorName: varchar("authorName", { length: 160 }).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [
+    index("follow_up_notes_case_created_idx").on(table.caseId, table.createdAt),
+  ]
+);
+
+export const attendanceJustifications = mysqlTable(
+  "attendance_justifications",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    schoolId: int("schoolId").notNull().default(1),
+    courseId: varchar("courseId", { length: 64 }).notNull(),
+    studentId: varchar("studentId", { length: 64 }).notNull(),
+    attendanceDate: timestamp("attendanceDate").notNull(),
+    reasonCategory: mysqlEnum("reasonCategory", [
+      "medical",
+      "family_emergency",
+      "external_appointment",
+      "institutional",
+      "force_majeure",
+      "other",
+    ]).notNull().default("other"),
+    description: text("description").notNull(),
+    submittedByRole: mysqlEnum("submittedByRole", ["student", "guardian", "teacher"]).notNull(),
+    submittedByName: varchar("submittedByName", { length: 160 }).notNull(),
+    submittedByUserId: int("submittedByUserId"),
+    submittedAt: timestamp("submittedAt").defaultNow().notNull(),
+    digitalEvidenceUrl: text("digitalEvidenceUrl"),
+    digitalEvidenceName: varchar("digitalEvidenceName", { length: 255 }),
+    requiresPhysicalSupport: boolean("requiresPhysicalSupport").notNull().default(false),
+    physicalSupportDeadline: timestamp("physicalSupportDeadline"),
+    physicalSupportReceivedAt: timestamp("physicalSupportReceivedAt"),
+    physicalSupportReceivedByName: varchar("physicalSupportReceivedByName", { length: 160 }),
+    physicalSupportReceivedByUserId: int("physicalSupportReceivedByUserId"),
+    physicalSupportNotes: text("physicalSupportNotes"),
+    status: mysqlEnum("status", [
+      "absence_registered",
+      "scheduled_absence",
+      "submitted",
+      "pending_physical_support",
+      "in_review",
+      "approved",
+      "unjustified",
+      "rejected",
+    ]).notNull().default("submitted"),
+    escalatedToCoordination: boolean("escalatedToCoordination").notNull().default(false),
+    coordinationNotes: text("coordinationNotes"),
+    resolutionNotes: text("resolutionNotes"),
+    resolvedAt: timestamp("resolvedAt"),
+    resolvedByUserId: int("resolvedByUserId"),
+    resolvedByName: varchar("resolvedByName", { length: 160 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => [
+    index("justification_course_status_idx").on(table.schoolId, table.courseId, table.status),
+    index("justification_student_date_idx").on(table.schoolId, table.studentId, table.attendanceDate),
+    uniqueIndex("justification_student_course_date_uniq").on(table.schoolId, table.courseId, table.studentId, table.attendanceDate),
+  ]
+);
+
+export const attendanceJustificationEvents = mysqlTable(
+  "attendance_justification_events",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    schoolId: int("schoolId").notNull().default(1),
+    justificationId: int("justificationId").notNull(),
+    eventType: varchar("eventType", { length: 64 }).notNull(),
+    fromStatus: varchar("fromStatus", { length: 64 }),
+    toStatus: varchar("toStatus", { length: 64 }),
+    actorRole: varchar("actorRole", { length: 64 }).notNull(),
+    actorName: varchar("actorName", { length: 160 }).notNull(),
+    actorUserId: int("actorUserId"),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [
+    index("justification_events_justification_idx").on(table.justificationId, table.createdAt),
+  ]
+);
+
+export type AttendanceRecord = typeof attendanceRecords.$inferSelect;
+export type InsertAttendanceRecord = typeof attendanceRecords.$inferInsert;
+export type AttendanceFollowUpCase = typeof attendanceFollowUpCases.$inferSelect;
+export type InsertAttendanceFollowUpCase = typeof attendanceFollowUpCases.$inferInsert;
+export type AttendanceFollowUpNote = typeof attendanceFollowUpNotes.$inferSelect;
+export type InsertAttendanceFollowUpNote = typeof attendanceFollowUpNotes.$inferInsert;
+export type AttendanceJustification = typeof attendanceJustifications.$inferSelect;
+export type InsertAttendanceJustification = typeof attendanceJustifications.$inferInsert;
+export type AttendanceJustificationEvent = typeof attendanceJustificationEvents.$inferSelect;
+export type InsertAttendanceJustificationEvent = typeof attendanceJustificationEvents.$inferInsert;
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
+
+

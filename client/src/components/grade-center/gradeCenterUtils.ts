@@ -87,7 +87,11 @@ export function calculateDefinitiva(
 }
 
 /**
- * Estilos visuales sutiles según rango de desempeño
+ * Estilos visuales sutiles según rango de desempeño institucional sobre 5.0:
+ * - 0.0 – 3.4: Bajo / pierde
+ * - 3.5 – 3.9: Básico (3.5 es la nota mínima aprobatoria)
+ * - 4.0 – 4.6: Alto
+ * - 4.7 – 5.0: Superior
  */
 export function getPerformanceTone(value: number | null | undefined): {
   textColor: string;
@@ -106,7 +110,7 @@ export function getPerformanceTone(value: number | null | undefined): {
     };
   }
   const num = Number(value);
-  if (num < 3.0) {
+  if (num < 3.5) {
     return {
       textColor: "text-rose-600",
       bgColor: "bg-rose-50/50",
@@ -117,14 +121,14 @@ export function getPerformanceTone(value: number | null | undefined): {
   }
   if (num < 4.0) {
     return {
-      textColor: "text-slate-700",
-      bgColor: "bg-slate-50/40",
-      borderColor: "border-slate-200",
+      textColor: "text-amber-700",
+      bgColor: "bg-amber-50/40",
+      borderColor: "border-amber-200",
       badgeColor: "bg-amber-50 text-amber-700 border border-amber-200/60",
       label: "Básico",
     };
   }
-  if (num < 4.6) {
+  if (num < 4.7) {
     return {
       textColor: "text-blue-700",
       bgColor: "bg-blue-50/30",
