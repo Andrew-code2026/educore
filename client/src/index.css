@@ -139,15 +139,23 @@
     transition-timing-function: var(--teacher-ease);
   }
 
-  .teacher-dashboard .rounded-2xl.border.bg-white,
-  .teacher-dashboard .rounded-2xl.border.border-slate-200\/80 {
+  .teacher-dashboard .rounded-2xl.border.bg-white:not(.grade-center-toolbar):not(.grade-center-container),
+  .teacher-dashboard .rounded-2xl.border.border-slate-200\/80:not(.grade-center-toolbar):not(.grade-center-container) {
     transition: transform 220ms var(--teacher-ease), box-shadow 220ms var(--teacher-ease), border-color 220ms ease;
   }
 
-  .teacher-dashboard .rounded-2xl.border.bg-white:hover,
-  .teacher-dashboard .rounded-2xl.border.border-slate-200\/80:hover {
+  .teacher-dashboard .rounded-2xl.border.bg-white:not(.grade-center-toolbar):not(.grade-center-container):hover,
+  .teacher-dashboard .rounded-2xl.border.border-slate-200\/80:not(.grade-center-toolbar):not(.grade-center-container):hover {
     border-color: rgba(147, 197, 253, 0.62);
     box-shadow: 0 14px 32px rgba(15, 23, 42, 0.07);
+  }
+
+  /* Stabilize Grade Center toolbar and table interactive controls */
+  .grade-center-toolbar button,
+  .grade-center-toolbar button:hover,
+  table button,
+  table button:hover {
+    transform: none !important;
   }
 }
 

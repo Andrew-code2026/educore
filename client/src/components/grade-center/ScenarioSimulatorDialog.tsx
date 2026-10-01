@@ -168,7 +168,7 @@ export function ScenarioSimulatorDialog({
   return (
     <Dialog open={open} onOpenChange={isOpen => (!isOpen ? handleClose() : onOpenChange(true))}>
       <DialogContent
-        className="max-w-xl rounded-2xl p-0 overflow-hidden border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900"
+        className="max-w-xl w-full rounded-2xl p-0 overflow-hidden border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3.5rem)] flex flex-col"
         onKeyDownCapture={e => {
           if (e.key === "Escape") {
             e.preventDefault();
@@ -178,7 +178,7 @@ export function ScenarioSimulatorDialog({
         }}
       >
         {/* Encabezado */}
-        <DialogHeader className="p-5 pb-4 border-b border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50">
+        <DialogHeader className="p-5 pb-4 border-b border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--edc-primary)]/10 text-[var(--edc-primary)]">
@@ -214,7 +214,7 @@ export function ScenarioSimulatorDialog({
           </div>
         </DialogHeader>
 
-        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="p-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
           {/* Tarjeta de Comparación: Real vs Simulada */}
           <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-slate-100/50 dark:border-slate-800 dark:from-slate-900 dark:to-slate-850">
             {/* Definitiva Real */}
@@ -480,7 +480,7 @@ export function ScenarioSimulatorDialog({
         </div>
 
         {/* Footer con botones Cancelar y Cerrar */}
-        <DialogFooter className="p-3 border-t border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50 flex flex-row items-center justify-end gap-2">
+        <DialogFooter className="p-3 border-t border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50 flex flex-row items-center justify-end gap-2 shrink-0">
           <Button
             type="button"
             variant="outline"

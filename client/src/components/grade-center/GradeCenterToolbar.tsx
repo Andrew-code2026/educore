@@ -133,7 +133,7 @@ export function GradeCenterToolbar({
   return (
     <div className="space-y-3">
       {/* BARRA DE CONTEXTO ACADÉMICO Y ACCIONES */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-xs backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/90 sm:flex-row sm:items-center sm:justify-between">
+      <div className="grade-center-toolbar flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-xs dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
         {/* Selectores de Curso, Materia y Periodo */}
         <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-3 sm:max-w-xl">
           {/* Selector de Curso */}
@@ -197,7 +197,7 @@ export function GradeCenterToolbar({
               variant="outline"
               size="sm"
               onClick={onToggleStats}
-              className={`h-8.5 rounded-xl px-3 text-xs font-semibold transition-all ${
+              className={`h-8.5 rounded-xl px-3 text-xs font-semibold transition-colors duration-150 ${
                 showStats
                   ? "border-[var(--edc-primary)] bg-[var(--edc-secondary)]/40 text-[var(--edc-primary)] shadow-xs dark:bg-blue-950/60 dark:text-blue-300"
                   : "border-slate-200/80 bg-white text-slate-700 shadow-xs hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
@@ -215,7 +215,7 @@ export function GradeCenterToolbar({
               variant="outline"
               size="sm"
               onClick={onOpenBulkGrade}
-              className="h-8.5 rounded-xl border-[var(--edc-primary)]/40 bg-[var(--edc-secondary)]/30 px-3 text-xs font-semibold text-[var(--edc-primary)] shadow-xs hover:bg-[var(--edc-secondary)]/50 transition-all dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
+              className="h-8.5 rounded-xl border-[var(--edc-primary)]/40 bg-[var(--edc-secondary)]/30 px-3 text-xs font-semibold text-[var(--edc-primary)] shadow-xs hover:bg-[var(--edc-secondary)]/50 transition-colors duration-150 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300"
             >
               <Sparkles className="mr-1.5 h-3.5 w-3.5 text-[var(--edc-primary)]" />
               Calificación masiva
@@ -228,7 +228,7 @@ export function GradeCenterToolbar({
               type="button"
               size="sm"
               onClick={onNewAssessment}
-              className="h-8.5 rounded-xl bg-slate-900 px-3 text-xs font-semibold text-white shadow-xs hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+              className="h-8.5 rounded-xl bg-slate-900 px-3 text-xs font-semibold text-white shadow-xs hover:bg-slate-800 transition-colors duration-150 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
             >
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Nueva evaluación
@@ -242,9 +242,9 @@ export function GradeCenterToolbar({
               size="sm"
               disabled={isSavingAll || pendingCount === 0}
               onClick={onSaveAll}
-              className={`h-8.5 rounded-xl px-3.5 text-xs font-semibold transition-all ${
+              className={`h-8.5 rounded-xl px-3.5 text-xs font-semibold transition-colors duration-150 ${
                 pendingCount > 0
-                  ? "bg-[var(--edc-primary)] text-white shadow-[0_4px_14px_rgba(36,117,207,0.35)] animate-pulse"
+                  ? "bg-[var(--edc-primary)] text-white shadow-[0_4px_14px_rgba(36,117,207,0.35)]"
                   : "bg-slate-100 text-slate-400 border border-slate-200/60 shadow-none dark:bg-slate-800 dark:border-slate-700"
               }`}
             >
@@ -281,7 +281,7 @@ export function GradeCenterToolbar({
                 type="button"
                 variant="outline"
                 size="sm"
-                className={`h-8.5 rounded-xl px-3 text-xs font-semibold transition-all ${
+                className={`h-8.5 rounded-xl px-3 text-xs font-semibold transition-colors duration-150 ${
                   currentFilter !== "ALL"
                     ? "border-[var(--edc-primary)] bg-[var(--edc-primary)]/10 text-[var(--edc-primary)]"
                     : "border-slate-200/80 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
@@ -341,7 +341,7 @@ export function GradeCenterToolbar({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className={`h-8.5 rounded-xl px-3 text-xs font-semibold transition-all ${
+                  className={`h-8.5 rounded-xl px-3 text-xs font-semibold transition-colors duration-150 ${
                     viewMode !== "NOTES"
                       ? "border-indigo-400 bg-indigo-50/60 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300"
                       : "border-slate-200/80 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
@@ -390,8 +390,8 @@ export function GradeCenterToolbar({
                             <span
                               className={`text-xs ${
                                 isSelected
-                                  ? "font-bold text-indigo-950 dark:text-indigo-200"
-                                  : "font-semibold text-slate-700 dark:text-slate-300"
+                              ? "font-bold text-indigo-950 dark:text-indigo-200"
+                              : "font-semibold text-slate-700 dark:text-slate-300"
                               }`}
                             >
                               {v.label}
@@ -412,7 +412,7 @@ export function GradeCenterToolbar({
 
           {/* Indicador de Selección Activa */}
           {selectedCount > 0 && (
-            <div className="flex items-center gap-1.5 rounded-xl border border-blue-200/80 bg-blue-50/80 px-2.5 py-1 text-xs font-medium text-blue-800 backdrop-blur-xs animate-in fade-in dark:border-blue-900/60 dark:bg-blue-950/60 dark:text-blue-200">
+            <div className="flex items-center gap-1.5 rounded-xl border border-blue-200/80 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-800 animate-in fade-in dark:border-blue-900/60 dark:bg-blue-950 dark:text-blue-200">
               <span>
                 <strong>{selectedCount}</strong> seleccionado{selectedCount === 1 ? "" : "s"}
               </span>
