@@ -42,7 +42,9 @@ export function loadConfirmedDataset(fallback: Dataset): Dataset {
     const raw = window.localStorage.getItem(CONFIRMED_DATASET_KEY);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as unknown;
-    if (!isValidDataset(parsed)) return fallback;
+    if (!isValidDataset(parsed) || (fallback.key !== "gradecenter-empty" && parsed.key !== fallback.key)) {
+      return fallback;
+    }
     return { ...fallback, ...parsed, comments: parsed.comments ?? {} };
   } catch {
     return fallback;
@@ -60,7 +62,14 @@ export function loadDraftSnapshot(fallback: Dataset): { dataset: Dataset; change
     const raw = window.localStorage.getItem(LOCAL_DRAFT_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { dataset?: unknown; changes?: unknown };
-    if (!isValidDataset(parsed.dataset) || !isRecord(parsed.changes)) return null;
+    if (!isValidDataset(parsed.dataset) || !isRecord(parsed.changes)) {
+      window.localStorage.removeItem(LOCAL_DRAFT_KEY);
+      return null;
+    }
+    // Si el borrador pertenece a otro curso o conjunto de datos, no debe restaurarse
+    if (parsed.dataset.key !== fallback.key) {
+      return null;
+    }
     return { dataset: { ...fallback, ...parsed.dataset, comments: parsed.dataset.comments ?? {} }, changes: parsed.changes };
   } catch {
     return null;

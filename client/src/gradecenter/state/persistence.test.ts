@@ -243,4 +243,70 @@ describe("Grade Center — Reducer de persistencia y concurrencia", () => {
     // Evaluación 2 sigue intacta
     expect(afterDelete.dataset.evaluations.some((e) => e.id === "eval-2")).toBe(true);
   });
+
+  it("dataset/load reinicia el estado limpio sin generar borradores falsos al cambiar de curso o cargar datos del servidor", () => {
+    const state = createInitialState(mockDataset, false);
+    const newCourseDataset: Dataset = {
+      ...mockDataset,
+      key: "course-2-math",
+      evaluations: [
+        {
+          id: "eval-99",
+          code: "E1",
+          order: 0,
+          name: "Quiz de derivadas",
+          shortName: "Quiz",
+          abbrev: "Q",
+          type: "quiz",
+          weight: 20,
+          date: "2026-04-01",
+          period: "1",
+          dbaIds: [],
+        },
+      ],
+      grades: { "std-1::eval-99": 4.5 },
+      comments: {},
+    };
+
+    const loadedState = gradeCenterReducer(state, {
+      type: "dataset/load",
+      dataset: newCourseDataset,
+    });
+
+    expect(loadedState.confirmedDataset.key).toBe("course-2-math");
+    expect(loadedState.dataset.key).toBe("course-2-math");
+    expect(Object.keys(loadedState.drafts).length).toBe(0);
+    expect(loadedState.sync.status).toBe("idle");
+    expect(loadedState.sync.pending).toBe(0);
+  });
+
+  it("sync/confirmed-batch normaliza comentarios vacíos y undefined evitando ciclos infinitos", () => {
+    const state = createInitialState(mockDataset, false);
+    const stateWithDraft = gradeCenterReducer(state, {
+      type: "grade",
+      studentId: "std-1",
+      evaluationId: "eval-1",
+      value: 4.5,
+      // comment omitido => undefined o ""
+    });
+
+    const savedDrafts: Record<string, DraftChange> = {
+      "std-1::eval-1": {
+        kind: "grade",
+        studentId: "std-1",
+        evaluationId: "eval-1",
+        value: 4.5,
+        comment: undefined, // Simula respuesta sin comentario
+      },
+    };
+
+    const confirmed = gradeCenterReducer(stateWithDraft, {
+      type: "sync/confirmed-batch",
+      savedDrafts,
+    });
+
+    expect(Object.keys(confirmed.drafts).length).toBe(0);
+    expect(confirmed.sync.pending).toBe(0);
+    expect(confirmed.sync.status).toBe("synced");
+  });
 });
