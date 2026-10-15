@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import {
+  ArrowLeft,
   ArrowRight,
   BarChart3,
   CheckCircle2,
@@ -27,13 +28,14 @@ import type { Dataset, Filters, ViewId } from "../types";
 interface LandingViewProps {
   onOpenMatrix: (view?: ViewId) => void;
   onOpenAnalysis: () => void;
+  onBack?: () => void;
 }
 
 /**
  * Centro global de acceso. La fuente actual expone una sola asignación autorizada;
  * no se crean tarjetas ficticias hasta que exista un catálogo de planillas real.
  */
-export function LandingView({ onOpenMatrix, onOpenAnalysis }: LandingViewProps) {
+export function LandingView({ onOpenMatrix, onOpenAnalysis, onBack }: LandingViewProps) {
   const { dataset, analytics, preferences, setFilters, availableAssignments: ctxAssignments, onSelectAssignment } = useGradeCenter();
   const { theme, toggleTheme } = useTheme();
   const [query, setQuery] = useState("");
@@ -70,6 +72,20 @@ export function LandingView({ onOpenMatrix, onOpenAnalysis }: LandingViewProps) 
   return (
     <div className="gc-scroll min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-9 lg:py-7">
+        {onBack && (
+          <div className="mb-4">
+            <button
+              type="button"
+              onClick={onBack}
+              className="group inline-flex items-center gap-2 rounded-xl border border-white/8 bg-white/4 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-white/15 hover:bg-white/8 hover:text-foreground active:scale-95"
+              title="Volver"
+              aria-label="Volver"
+            >
+              <ArrowLeft className="size-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
+              <span>Volver</span>
+            </button>
+          </div>
+        )}
         <motion.header initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .32, ease: [0.22, 1, 0.36, 1] }} className="gc-landing-hero relative overflow-hidden rounded-[28px] p-5 sm:p-7">
           <div className="pointer-events-none absolute -top-28 right-[-5%] size-72 rounded-full bg-[var(--gc-cobalt)]/12 blur-3xl" />
           <button type="button" onClick={() => toggleTheme?.()} aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"} className="absolute top-4 right-4 z-10 flex size-8 items-center justify-center rounded-xl border border-white/10 bg-white/6 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground sm:top-5 sm:right-5">{theme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}</button>

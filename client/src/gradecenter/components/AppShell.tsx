@@ -60,7 +60,7 @@ function ViewRouter() {
   );
 }
 
-export function AppShell({ embedded = true }: { embedded?: boolean } = {}) {
+export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBack?: () => void } = {}) {
   const shellContext = useOptionalShellContext();
   const { preferences, setFocusMode, setFilters, setView, setActiveCell, setAnalysisOpen, students, analytics, copySelection, readPaste, undo, redo, clearSelectedGrades, pastePreview, applyPastePreview, cancelPastePreview } = useGradeCenter();
   const [helpOpen, setHelpOpen] = useState(false);
@@ -173,12 +173,30 @@ export function AppShell({ embedded = true }: { embedded?: boolean } = {}) {
           onOpenHelp={() => setHelpOpen(true)}
           onToggleSidebar={handleToggleSidebar}
           onOpenLanding={() => setScreen("landing")}
+          onBack={() => {
+            if (screen === "workspace") {
+              setScreen("landing");
+            } else if (onBack) {
+              onBack();
+            }
+          }}
         />
       )}
       {!focus && !isLanding && <ControlStrip />}
 
       <main className="relative flex min-h-0 flex-1 flex-col">
-        {screen === "landing" ? <LandingView onOpenMatrix={openMatrix} onOpenAnalysis={() => { openMatrix("standard"); setAnalysisOpen(true); }} /> : <ViewRouter />}
+        {screen === "landing" ? (
+          <LandingView
+            onOpenMatrix={openMatrix}
+            onOpenAnalysis={() => {
+              openMatrix("standard");
+              setAnalysisOpen(true);
+            }}
+            onBack={onBack}
+          />
+        ) : (
+          <ViewRouter />
+        )}
         {!isLanding && <ContextPanel />}
       </main>
 

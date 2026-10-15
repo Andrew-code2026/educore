@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { Activity, ChevronDown, GraduationCap, HelpCircle, Maximize2, Menu, Minimize2, Moon, Search, Sparkles, Sun } from "lucide-react";
+import { Activity, ArrowLeft, ChevronDown, GraduationCap, HelpCircle, Maximize2, Menu, Minimize2, Moon, Search, Sparkles, Sun } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/contexts/ThemeContext";
-import { BrandWordmark } from "./Brand";
 import { SyncStatus } from "./SyncStatus";
 import { useGradeCenter } from "../state/GradeCenterContext";
 
@@ -12,10 +11,12 @@ export function TopRail({
   onOpenHelp,
   onToggleSidebar,
   onOpenLanding,
+  onBack,
 }: {
   onOpenHelp: () => void;
   onToggleSidebar: () => void;
   onOpenLanding?: () => void;
+  onBack?: () => void;
 }) {
   const {
     dataset,
@@ -32,6 +33,16 @@ export function TopRail({
   const [searchOpen, setSearchOpen] = useState(false);
   const focus = preferences.focusMode;
   const { theme, toggleTheme } = useTheme();
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else if (onOpenLanding) {
+      onOpenLanding();
+    } else if (typeof window !== "undefined" && window.history.length > 1) {
+      window.history.back();
+    }
+  };
 
   return (
     <header
@@ -51,18 +62,16 @@ export function TopRail({
         </button>
       )}
 
-      {onOpenLanding ? (
-        <button
-          type="button"
-          onClick={onOpenLanding}
-          className="cursor-pointer text-left transition-opacity hover:opacity-85 focus:outline-none"
-          title="Ir a Mis planillas"
-        >
-          <BrandWordmark compact={focus} className="gc-brand shrink-0" />
-        </button>
-      ) : (
-        <BrandWordmark compact={focus} className="gc-brand shrink-0" />
-      )}
+      <button
+        type="button"
+        onClick={handleBack}
+        className="group flex items-center gap-2 rounded-xl border border-white/8 bg-white/4 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-white/15 hover:bg-white/8 hover:text-foreground active:scale-95 shrink-0"
+        title="Volver"
+        aria-label="Volver"
+      >
+        <ArrowLeft className="size-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
+        <span>Volver</span>
+      </button>
 
       {!focus && <div className="hidden h-8 w-px shrink-0 bg-white/10 md:block" />}
 
@@ -175,8 +184,8 @@ export function TopRail({
       )}
 
       {/* Búsqueda */}
-      <div className={cn("relative min-w-[112px] flex-1", focus ? "max-w-[220px]" : "max-w-[340px]")}>
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <div className={cn("relative min-w-[200px] flex-1", focus ? "max-w-[280px]" : "max-w-[540px] lg:max-w-[640px] xl:max-w-[760px]")}>
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <input
           value={preferences.filters.query}
           onFocus={() => setSearchOpen(true)}
@@ -191,8 +200,8 @@ export function TopRail({
         />
       </div>
 
-      {/* Acciones */}
-      <div className="flex shrink-0 items-center gap-1.5">
+      {/* Acciones pegadas a la derecha */}
+      <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <SyncStatus />
 
         <Tooltip>
