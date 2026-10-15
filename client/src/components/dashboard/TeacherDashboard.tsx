@@ -19,7 +19,6 @@ import { TeacherPrioritySection } from "./TeacherPrioritySection";
 import { TeacherGroupPerformance } from "./TeacherGroupPerformance";
 import { TeacherQuickAnalytics } from "./TeacherQuickAnalytics";
 import { TeacherOperationalDetails } from "./TeacherOperationalDetails";
-import { GradeCenterPage } from "@/pages/GradeCenter";
 import type {
   TeacherDashboardProps,
   TeacherMetricItem,
@@ -37,8 +36,10 @@ export function TeacherDashboard({
   user,
   setSection,
 }: TeacherDashboardProps) {
-  // Tab state for modular navigation (Overview vs Grade Center vs Analytics)
-  const [activeTab, setActiveTab] = useState<"overview" | "gradecenter" | "analytics">("overview");
+  // Tab state for modular navigation (Overview vs Analytics).
+  // Grade Center is NOT a local tab: it navigates to the global "grades" section
+  // so the sidebar stays in sync and there is a single Grade Center instance.
+  const [activeTab, setActiveTab] = useState<"overview" | "analytics">("overview");
 
   // 1. Basic contextual labels
   const teacherName =
@@ -135,7 +136,7 @@ export function TeacherDashboard({
         detail: "entregas pendientes",
         tone: "warning",
         icon: FileCheck,
-        onClick: () => setActiveTab("gradecenter"),
+        onClick: () => setSection("grades"),
       },
       {
         id: "assigned-courses",
@@ -153,7 +154,7 @@ export function TeacherDashboard({
         detail: "con promedio < 3.0",
         tone: "danger",
         icon: AlertTriangle,
-        onClick: () => setActiveTab("gradecenter"),
+        onClick: () => setSection("grades"),
       },
       {
         id: "attendance-today",
@@ -247,7 +248,7 @@ export function TeacherDashboard({
         context: "Revisa los envíos recibidos para mantener las notas al día.",
         count: pendingGradesCount,
         actionLabel: "Calificar",
-        onAction: () => setActiveTab("gradecenter"),
+        onAction: () => setSection("grades"),
       },
       {
         id: "priority-students-risk",
@@ -256,7 +257,7 @@ export function TeacherDashboard({
         context: "Promedio inferior a 3.0 en una evaluación.",
         count: Math.max(studentsAtRiskList.length, 5),
         actionLabel: "Ver notas",
-        onAction: () => setActiveTab("gradecenter"),
+        onAction: () => setSection("grades"),
       },
     ];
   }, [pendingGradesCount, studentsAtRiskList.length, setSection]);
@@ -280,7 +281,7 @@ export function TeacherDashboard({
           pendingCount: pendingForA,
           totalSubmissions: subsForA.length,
           dueAt: a.dueAt,
-          onGrade: () => setActiveTab("gradecenter"),
+          onGrade: () => setSection("grades"),
         };
       })
       .filter((item: TeacherGradingItem) => item.pendingCount > 0)
@@ -299,7 +300,7 @@ export function TeacherDashboard({
         currentGrade: s.avg,
         reason: "Promedio < 3.0",
         avatarColor: studentObj?.avatarColor ?? "#fee2e2",
-        onOpenGradeCenter: () => setActiveTab("gradecenter"),
+        onOpenGradeCenter: () => setSection("grades"),
       };
     });
   }, [studentsAtRiskList, students]);
@@ -315,7 +316,7 @@ export function TeacherDashboard({
         pendingCount: 2,
         progress: 78,
         tone: "bg-blue-600",
-        onClick: () => setActiveTab("gradecenter"),
+        onClick: () => setSection("grades"),
       },
       {
         id: 2,
@@ -325,7 +326,7 @@ export function TeacherDashboard({
         pendingCount: 1,
         progress: 65,
         tone: "bg-violet-500",
-        onClick: () => setActiveTab("gradecenter"),
+        onClick: () => setSection("grades"),
       },
     ];
   }, []);
@@ -353,7 +354,7 @@ export function TeacherDashboard({
         id: "grade-center",
         label: "Grade Center",
         icon: FileCheck,
-        onClick: () => setActiveTab("gradecenter"),
+        onClick: () => setSection("grades"),
       },
       {
         id: "take-attendance",
@@ -371,7 +372,7 @@ export function TeacherDashboard({
       id: "action-grade-now",
       label: `Calificar ahora (${pendingGradesCount} pendientes)`,
       icon: ClipboardCheck,
-      onClick: () => setActiveTab("gradecenter"),
+      onClick: () => setSection("grades"),
     };
   }, [pendingGradesCount]);
 
@@ -393,12 +394,8 @@ export function TeacherDashboard({
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab("gradecenter")}
-            className={`pb-3 text-sm font-semibold transition-all relative flex items-center gap-1.5 ${
-              activeTab === "gradecenter"
-                ? "text-blue-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-blue-600 font-bold"
-                : "text-slate-500 hover:text-slate-900"
-            }`}
+            onClick={() => setSection("grades")}
+            className="pb-3 text-sm font-semibold transition-all relative flex items-center gap-1.5 text-slate-500 hover:text-slate-900"
           >
             <span>Grade Center 2.0</span>
             <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-700 font-bold">
@@ -423,9 +420,7 @@ export function TeacherDashboard({
         </div>
       </div>
 
-      {activeTab === "gradecenter" ? (
-        <GradeCenterPage role="teacher" school={data?.school} />
-      ) : activeTab === "analytics" ? (
+      {activeTab === "analytics" ? (
         <div className="space-y-4">
           <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
             <TeacherGroupPerformance
@@ -442,7 +437,7 @@ export function TeacherDashboard({
             gradingItems={gradingQueueItems}
             studentsAtRisk={studentAlertItems}
             onViewAllClassroom={() => setSection("classroom")}
-            onViewAllGrades={() => setActiveTab("gradecenter")}
+            onViewAllGrades={() => setSection("grades")}
           />
         </div>
       ) : (
@@ -455,9 +450,9 @@ export function TeacherDashboard({
             activePeriodName={activePeriodName}
             summaryText={heroSummaryText}
             pendingGradesCount={pendingGradesCount}
-            onOpenGradeCenter={() => setActiveTab("gradecenter")}
+            onOpenGradeCenter={() => setSection("grades")}
             onOpenCalendar={() => setSection("calendar")}
-            onOpenClassroom={() => setActiveTab("gradecenter")}
+            onOpenClassroom={() => setSection("classroom")}
           />
 
           {/* Row 2: 4 KPIs en Fila Horizontal */}
@@ -488,7 +483,7 @@ export function TeacherDashboard({
 
               <TeacherPrioritySection
                 items={priorityItems}
-                onViewAll={() => setActiveTab("gradecenter")}
+                onViewAll={() => setSection("grades")}
               />
             </div>
           </div>
