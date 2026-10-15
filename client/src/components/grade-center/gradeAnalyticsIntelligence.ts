@@ -102,13 +102,13 @@ export interface EduCoreInsightItem {
  * 1. NO_DATA: Sin estudiantes o sin calificaciones registradas.
  * 2. CRITICAL (🔴 Atención prioritaria):
  *    - Tasa de aprobación < 70%
- *    - O Promedio grupal < nota mínima aprobatoria (ej. < 3.0)
- *    - O Estudiantes en riesgo alto >= 25% del total
+ *    - O Promedio grupal < nota mínima aprobatoria (ej. < 3.5)
+ *    - O Estudiantes que requieren atención alta >= 25% del total
  *    - O Alguna evaluación con aprobación < 50% y peso >= 20%
  * 3. ATTENTION (🟡 Requiere atención):
  *    - Tasa de aprobación entre 70% y 84%
- *    - O Total en riesgo > 0 (al menos 1 estudiante en riesgo)
- *    - O Promedio grupal < passingGrade + 0.4 (ej. < 3.4)
+ *    - O Casos que requieren atención > 0 (al menos 1 estudiante que requiere atención)
+ *    - O Promedio grupal < passingGrade + 0.4 (ej. < 3.9)
  *    - O Ratio de celdas pendientes sobre total de celdas > 35%
  *    - O Alguna evaluación con promedio significativamente inferior al grupo (-0.4 pts)
  * 4. GOOD (🟢 Buen rendimiento):

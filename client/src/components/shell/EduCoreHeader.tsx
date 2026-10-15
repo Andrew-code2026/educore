@@ -171,12 +171,15 @@ export function EduCoreHeader({
                         : pill.tone === "emerald"
                         ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
                         : pill.tone === "amber"
-                        ? "bg-amber-50 text-amber-700 border border-amber-100"
+                        ? "bg-amber-50 text-amber-800 border border-amber-200/90 font-semibold"
                         : pill.tone === "violet"
                         ? "bg-violet-50 text-violet-700 border border-violet-100"
                         : "bg-slate-100 text-slate-600"
                     }`}
                   >
+                    {pill.tone === "amber" && (
+                      <span className="mr-1.5 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-amber-400/40 animate-pulse shrink-0" />
+                    )}
                     {pill.label}
                     {pill.detail && (
                       <span className="ml-1 text-[10px] opacity-75">· {pill.detail}</span>

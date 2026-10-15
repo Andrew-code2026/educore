@@ -187,3 +187,127 @@ export function validateGradeAgainstScale(
 export const POPOVER_GLASS_PANEL_CLASS =
   "z-50 rounded-2xl border border-white/80 dark:border-white/10 bg-white/95 dark:bg-slate-900/95 p-3.5 shadow-[0_16px_36px_rgba(29,78,137,0.14),0_0_0_1px_rgba(255,255,255,0.7)_inset] backdrop-blur-xl transition-all outline-none";
 
+/**
+ * Sistema de Vistas y Densidad Espacial (Subfase 2, Iteración 1: Grid 2.0)
+ * - standard: equilibrio entre información y legibilidad
+ * - compact: máxima cantidad de evaluaciones y estudiantes visibles simultáneamente
+ */
+export type GradeGridDensity = "standard" | "compact";
+
+export interface GridDensityConfig {
+  key: GradeGridDensity;
+  label: string;
+  description: string;
+  checkboxWidth: number; // px
+  studentWidth: number; // px
+  assessmentWidth: number; // px
+  definitivaWidth: number; // px
+  rowHeightClass: string;
+  cellPaddingClass: string;
+  cellButtonClass: string;
+  headerHeightClass: string;
+  textSizes: {
+    studentName: string;
+    studentMeta: string;
+    assessmentTitle: string;
+    assessmentWeight: string;
+    gradeValue: string;
+    definitivaValue: string;
+  };
+}
+
+export function getGridDensityConfig(density: GradeGridDensity): GridDensityConfig {
+  if (density === "compact") {
+    return {
+      key: "compact",
+      label: "Compacta",
+      description: "Máxima cantidad de evaluaciones y estudiantes visibles",
+      checkboxWidth: 32,
+      studentWidth: 138,
+      assessmentWidth: 56,
+      definitivaWidth: 60,
+      rowHeightClass: "h-8.5",
+      cellPaddingClass: "px-1 py-0.5",
+      cellButtonClass: "h-7 w-11 text-xs font-semibold rounded-md",
+      headerHeightClass: "h-14 py-1",
+      textSizes: {
+        studentName: "text-[11px] font-bold",
+        studentMeta: "text-[9px]",
+        assessmentTitle: "text-[9.5px]",
+        assessmentWeight: "text-[9px]",
+        gradeValue: "text-xs",
+        definitivaValue: "text-xs font-extrabold",
+      },
+    };
+  }
+
+  return {
+    key: "standard",
+    label: "Estándar",
+    description: "Equilibrio entre espacio e información detallada",
+    checkboxWidth: 36,
+    studentWidth: 180,
+    assessmentWidth: 76,
+    definitivaWidth: 84,
+    rowHeightClass: "h-10",
+    cellPaddingClass: "px-1.5 py-1",
+    cellButtonClass: "h-8 w-15 text-sm font-semibold rounded-lg",
+    headerHeightClass: "h-16 py-1.5",
+    textSizes: {
+      studentName: "text-xs font-bold",
+      studentMeta: "text-[10px]",
+      assessmentTitle: "text-[11px] font-semibold",
+      assessmentWeight: "text-[10px]",
+      gradeValue: "text-sm",
+      definitivaValue: "text-sm font-extrabold",
+    },
+  };
+}
+
+/**
+ * Divide armónicamente el título de una evaluación en hasta dos líneas legibles,
+ * evitando cortes bruscos en medio de palabras para encabezados compactos.
+ */
+export function splitAssessmentTitle(title: string): { line1: string; line2?: string } {
+  const trimmed = title.trim();
+  if (!trimmed) return { line1: "" };
+  const words = trimmed.split(/\s+/);
+  if (words.length <= 1) {
+    return { line1: trimmed };
+  }
+  if (words.length === 2) {
+    return { line1: words[0], line2: words[1] };
+  }
+  const mid = Math.ceil(words.length / 2);
+  return {
+    line1: words.slice(0, mid).join(" "),
+    line2: words.slice(mid).join(" "),
+  };
+}
+
+/**
+ * Código corto representativo de evaluación para encabezados de alta densidad (ej. E1, T2, Q3)
+ */
+export function formatAssessmentCode(index: number, assessmentType: string): string {
+  const prefixMap: Record<string, string> = {
+    QUIZ: "Q",
+    TALLER: "T",
+    WORKSHOP: "T",
+    HOMEWORK: "T",
+    EXAMEN: "E",
+    EXAM: "E",
+    PROYECTO: "P",
+    PROJECT: "P",
+    ACTIVIDAD: "A",
+    ACTIVITY: "A",
+    PARTICIPACION: "Pa",
+    PARTICIPATION: "Pa",
+    RECUPERACION: "R",
+    RECOVERY: "R",
+    OTRO: "O",
+    OTHER: "O",
+  };
+  const prefix = prefixMap[assessmentType] ?? "E";
+  return `${prefix}${index + 1}`;
+}
+

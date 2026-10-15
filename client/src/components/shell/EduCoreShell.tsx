@@ -1,5 +1,5 @@
 import React from "react";
-import type { EduCoreShellProps } from "./shell.types";
+import type { EduCoreShellProps, Section } from "./shell.types";
 import { ShellContextProvider, useShellContext } from "./ShellContext";
 import { EduCoreSidebar } from "./EduCoreSidebar";
 import { EduCoreHeader } from "./EduCoreHeader";
@@ -17,11 +17,43 @@ function ShellInner({
   onLogout,
   notificationCount = 0,
 }: EduCoreShellProps) {
-  const { sidebarCollapsed } = useShellContext();
+  const { sidebarCollapsed, navGuard } = useShellContext();
+
+  const handleSetSection = React.useCallback(
+    (nextSection: Section) => {
+      if (nextSection === section) return;
+      if (navGuard) {
+        navGuard(() => setSection(nextSection), nextSection);
+      } else {
+        setSection(nextSection);
+      }
+    },
+    [navGuard, section, setSection]
+  );
+
+  const handleLogout = React.useCallback(() => {
+    if (navGuard) {
+      navGuard(() => onLogout?.());
+    } else {
+      onLogout?.();
+    }
+  }, [navGuard, onLogout]);
+
+  React.useEffect(() => {
+    if (section === "grades") {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+    }
+  }, [section]);
 
   return (
     <div
-      className="min-h-screen page-shell text-slate-900 selection:bg-blue-100"
+      className={
+        section === "grades"
+          ? "h-screen max-h-screen overflow-hidden bg-transparent text-foreground"
+          : "min-h-screen page-shell text-slate-900 selection:bg-blue-100"
+      }
       style={
         {
           "--edc-primary": school?.primaryColor ?? "#2475cf",
@@ -39,44 +71,54 @@ function ShellInner({
       <EduCoreSidebar
         role={role}
         section={section}
-        setSection={setSection}
+        setSection={handleSetSection}
         school={school}
         schoolName={schoolName}
-        onLogout={onLogout}
+        onLogout={handleLogout}
         notificationCount={notificationCount}
         user={user}
       />
 
       {/* 2. Contenedor principal desplazable que se adapta al ancho de la barra lateral */}
       <div
-        className={`flex min-h-screen flex-col transition-all duration-200 ease-out ${
+        className={`flex ${
+          section === "grades" ? "h-screen max-h-screen overflow-hidden" : "min-h-screen"
+        } flex-col transition-all duration-200 ease-out ${
           sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-[250px]"
         }`}
       >
-        {/* Header contextual */}
-        <EduCoreHeader
-          role={role}
-          section={section}
-          setSection={setSection}
-          onRoleChange={onRoleChange}
-          notificationCount={notificationCount}
-          user={user}
-        />
+        {/* Header contextual y contenido principal */}
+        {section === "grades" ? (
+          <main className="flex-1 flex flex-col min-h-0 h-full overflow-hidden w-full">
+            {children}
+          </main>
+        ) : (
+          <>
+            <EduCoreHeader
+              role={role}
+              section={section}
+              setSection={handleSetSection}
+              onRoleChange={onRoleChange}
+              notificationCount={notificationCount}
+              user={user}
+            />
 
-        {/* Contenido principal de la página */}
-        <main className="page-transition flex-1 mx-auto w-full max-w-[1440px] px-4 pb-24 pt-5 sm:px-6 lg:px-8 lg:pb-10 lg:pt-6">
-          {children}
-        </main>
+            {/* Contenido principal de la página */}
+            <main className="page-transition flex-1 mx-auto w-full max-w-[1440px] px-4 pb-24 pt-5 sm:px-6 lg:px-8 lg:pb-10 lg:pt-6">
+              {children}
+            </main>
+          </>
+        )}
 
         {/* Navegación móvil inferior inteligente + Drawer */}
         <EduCoreMobileNav
           role={role}
           section={section}
-          setSection={setSection}
+          setSection={handleSetSection}
           school={school}
           schoolName={schoolName}
           onRoleChange={onRoleChange}
-          onLogout={onLogout}
+          onLogout={handleLogout}
           notificationCount={notificationCount}
         />
       </div>

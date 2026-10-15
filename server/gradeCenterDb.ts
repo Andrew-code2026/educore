@@ -118,7 +118,7 @@ export async function getGradeCenterContext(actor: GradeCenterActor, input: Grad
   const period = periods.find(row => row.id === input.academicPeriodId) ?? periods.find(row => row.status === "Activo" || row.status === "ACTIVE") ?? periods[0];
   if (!period) return { courses: courseRows, subjects: subjectRows, periods: [], assessments: [], students: [], rows: [], stats: { average: null, max: null, min: null, assessments: 0, students: 0, graded: 0, total: 0, completion: 0, weightTotal: 0, remainingWeight: 100, weightStatus: "INCOMPLETE" as const }, distribution: [], insights: [], observations: [], scale: null, selected: { course, subject }, reportCards: [] };
   const valid = await assertContext(actor, { courseId: course.id, subjectId: subject.id, academicPeriodId: period.id });
-  const assessmentsRows = await db.select().from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), eq(assessments.academicYearId, valid.academicYearId), eq(assessments.academicPeriodId, period.id), eq(assessments.courseId, course.id), eq(assessments.subjectId, subject.id))).orderBy(desc(assessments.date), desc(assessments.id));
+  const assessmentsRows = await db.select().from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), eq(assessments.academicYearId, valid.academicYearId), eq(assessments.academicPeriodId, period.id), eq(assessments.courseId, course.id), eq(assessments.subjectId, subject.id), ne(assessments.status, "DELETED"))).orderBy(desc(assessments.date), desc(assessments.id));
   const enrollmentRows = await db.select().from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, actor.schoolId), eq(studentEnrollments.academicYearId, valid.academicYearId), eq(studentEnrollments.courseId, course.id), eq(studentEnrollments.enrollmentStatus, "ACTIVE")));
   let visibleEnrollments = enrollmentRows;
   if (actor.roleKey === "STUDENT") visibleEnrollments = enrollmentRows.filter(row => row.studentUserId === actor.userId);
@@ -139,11 +139,10 @@ export async function getGradeCenterContext(actor: GradeCenterActor, input: Grad
   const recorded = rows.flatMap(row => row.values.filter(item => item.grade && item.grade.value !== null && item.grade.value !== undefined).map(item => ({ value: (item.grade!.value! / item.assessment.maxValue) * 5, comment: item.grade?.comment })));
   const average = recorded.length ? Number((recorded.reduce((sum, item) => sum + item.value, 0) / recorded.length).toFixed(2)) : null;
   const distribution = [
-    { label: "5.0–4.5", count: recorded.filter(item => item.value >= 4.5).length },
-    { label: "4.4–4.0", count: recorded.filter(item => item.value >= 4 && item.value < 4.5).length },
-    { label: "3.9–3.0", count: recorded.filter(item => item.value >= 3 && item.value < 4).length },
-    { label: "2.9–2.0", count: recorded.filter(item => item.value >= 2 && item.value < 3).length },
-    { label: "1.9–0.0", count: recorded.filter(item => item.value < 2).length },
+    { label: "4.7–5.0", count: recorded.filter(item => item.value >= 4.7).length },
+    { label: "4.0–4.6", count: recorded.filter(item => item.value >= 4.0 && item.value < 4.7).length },
+    { label: "3.5–3.9", count: recorded.filter(item => item.value >= 3.5 && item.value < 4.0).length },
+    { label: "0.0–3.4", count: recorded.filter(item => item.value < 3.5).length },
   ];
   const insights: string[] = [];
   if (recorded.length) insights.push(`El promedio visible del curso es ${average?.toFixed(2)} sobre 5.0.`);
@@ -183,7 +182,8 @@ export async function createGradeCenterAssessment(actor: GradeCenterActor, input
     eq(assessments.schoolId, actor.schoolId),
     eq(assessments.courseId, input.courseId),
     eq(assessments.subjectId, input.subjectId),
-    eq(assessments.academicPeriodId, input.academicPeriodId)
+    eq(assessments.academicPeriodId, input.academicPeriodId),
+    ne(assessments.status, "DELETED")
   ));
   const currentTotal = currentAssessments.reduce((sum, a) => sum + Number(a.weight), 0);
   if (currentTotal + input.weight > 100) {
@@ -191,7 +191,7 @@ export async function createGradeCenterAssessment(actor: GradeCenterActor, input
   }
 
   await db.insert(assessments).values({ schoolId: actor.schoolId, ...input, description: input.description ?? null, status: input.status ?? "DRAFT", teacherId: actor.userId });
-  const assessment = (await db.select().from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), eq(assessments.courseId, input.courseId), eq(assessments.subjectId, input.subjectId), eq(assessments.academicPeriodId, input.academicPeriodId), eq(assessments.title, input.title))).orderBy(desc(assessments.id)).limit(1))[0];
+  const assessment = (await db.select().from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), eq(assessments.courseId, input.courseId), eq(assessments.subjectId, input.subjectId), eq(assessments.academicPeriodId, input.academicPeriodId), eq(assessments.title, input.title), ne(assessments.status, "DELETED"))).orderBy(desc(assessments.id)).limit(1))[0];
   if (!assessment) return null;
   const enrollments = await db.select().from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, actor.schoolId), eq(studentEnrollments.academicYearId, valid.academicYearId), eq(studentEnrollments.courseId, input.courseId), eq(studentEnrollments.enrollmentStatus, "ACTIVE")));
   if (enrollments.length) await db.insert(assessmentGrades).values(enrollments.map(enrollment => ({ schoolId: actor.schoolId, assessmentId: assessment.id, studentId: enrollment.studentUserId, studentEnrollmentId: enrollment.id, courseId: input.courseId, subjectId: input.subjectId, academicYearId: valid.academicYearId, academicPeriodId: input.academicPeriodId, value: null, comment: null, status: "PENDING" })));
@@ -204,6 +204,7 @@ export async function updateGradeCenterAssessment(actor: GradeCenterActor, input
   if (!db) return null;
   const assessment = (await db.select().from(assessments).where(and(eq(assessments.id, input.id), eq(assessments.schoolId, actor.schoolId))).limit(1))[0];
   if (!assessment) throw new Error("Evaluación no encontrada.");
+  if (assessment.status === "DELETED") throw new Error("La evaluación está eliminada.");
   if (assessment.status === "CLOSED" && !MANAGEMENT_ROLES.includes(actor.roleKey)) throw new Error("La evaluación está cerrada.");
   if (actor.roleKey === "TEACHER") await assertContext(actor, { courseId: assessment.courseId, subjectId: assessment.subjectId, academicPeriodId: assessment.academicPeriodId });
   if (input.weight !== undefined && (input.weight < 0 || input.weight > 100 || isNaN(input.weight))) {
@@ -218,7 +219,8 @@ export async function updateGradeCenterAssessment(actor: GradeCenterActor, input
       eq(assessments.courseId, assessment.courseId),
       eq(assessments.subjectId, assessment.subjectId),
       eq(assessments.academicPeriodId, assessment.academicPeriodId),
-      ne(assessments.id, assessment.id)
+      ne(assessments.id, assessment.id),
+      ne(assessments.status, "DELETED")
     ));
     const otherTotal = otherAssessments.reduce((sum, a) => sum + Number(a.weight), 0);
     if (otherTotal + input.weight > 100) {
@@ -230,11 +232,40 @@ export async function updateGradeCenterAssessment(actor: GradeCenterActor, input
   return (await db.select().from(assessments).where(eq(assessments.id, input.id)).limit(1))[0];
 }
 
+export async function deleteGradeCenterAssessment(actor: GradeCenterActor, assessmentId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  if (!WRITE_ROLES.includes(actor.roleKey)) throw new Error("No tienes permisos para eliminar evaluaciones.");
+
+  const assessment = (await db.select().from(assessments).where(and(eq(assessments.id, assessmentId), eq(assessments.schoolId, actor.schoolId))).limit(1))[0];
+  if (!assessment) throw new Error("Evaluación no encontrada.");
+  if (assessment.status === "DELETED") throw new Error("La evaluación ya fue eliminada.");
+
+  if (assessment.status === "CLOSED" && !MANAGEMENT_ROLES.includes(actor.roleKey)) {
+    throw new Error("La evaluación está cerrada y requiere autorización especial para eliminarse.");
+  }
+
+  if (actor.roleKey === "TEACHER") {
+    await assertContext(actor, { courseId: assessment.courseId, subjectId: assessment.subjectId, academicPeriodId: assessment.academicPeriodId });
+  }
+
+  const period = (await db.select().from(academicPeriods).where(and(eq(academicPeriods.id, assessment.academicPeriodId), eq(academicPeriods.schoolId, actor.schoolId))).limit(1))[0];
+  if (period?.status === "Cerrado" || period?.status === "CLOSED") {
+    throw new Error("El periodo académico está cerrado y no admite cambios.");
+  }
+
+  await db.update(assessments).set({ status: "DELETED" }).where(eq(assessments.id, assessmentId));
+  await writeAcademicAudit(actor, "assessment_deleted", "assessment", String(assessmentId));
+
+  return { success: true, id: assessmentId, releasedWeight: Number(assessment.weight) };
+}
+
 export async function saveGradeCenterGrades(actor: GradeCenterActor, input: { assessmentId: number; grades: Array<{ studentId: number; value: number | null; comment?: string }> }) {
   const db = await getDb();
   if (!db) return null;
   const assessment = (await db.select().from(assessments).where(and(eq(assessments.id, input.assessmentId), eq(assessments.schoolId, actor.schoolId))).limit(1))[0];
   if (!assessment) throw new Error("Evaluación no encontrada.");
+  if (assessment.status === "DELETED") throw new Error("La evaluación está eliminada.");
   if (!WRITE_ROLES.includes(actor.roleKey)) throw new Error("No tienes permisos para modificar calificaciones.");
   if (assessment.status === "CLOSED" && !MANAGEMENT_ROLES.includes(actor.roleKey)) throw new Error("La evaluación está cerrada y requiere autorización especial.");
   await assertContext(actor, { courseId: assessment.courseId, subjectId: assessment.subjectId, academicPeriodId: assessment.academicPeriodId });
@@ -277,7 +308,7 @@ export async function generateGradeCenterReportCards(actor: GradeCenterActor, in
   for (const enrollment of enrollments) {
     const subjectsData = [];
     for (const link of subjectLinks) {
-      const subjectAssessments = await db.select().from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), eq(assessments.academicYearId, input.academicYearId), eq(assessments.academicPeriodId, input.academicPeriodId), eq(assessments.courseId, input.courseId), eq(assessments.subjectId, link.subjectId)));
+      const subjectAssessments = await db.select().from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), eq(assessments.academicYearId, input.academicYearId), eq(assessments.academicPeriodId, input.academicPeriodId), eq(assessments.courseId, input.courseId), eq(assessments.subjectId, link.subjectId), ne(assessments.status, "DELETED")));
       const subjectGrades = subjectAssessments.length ? await db.select().from(assessmentGrades).where(and(eq(assessmentGrades.schoolId, actor.schoolId), eq(assessmentGrades.studentId, enrollment.studentUserId), inArray(assessmentGrades.assessmentId, subjectAssessments.map(item => item.id)))) : [];
       subjectsData.push({ subjectId: link.subjectId, average: weightedAverage(subjectAssessments.map(assessment => ({ value: subjectGrades.find(grade => grade.assessmentId === assessment.id)?.value ?? null, maxValue: assessment.maxValue, weight: assessment.weight }))) });
     }

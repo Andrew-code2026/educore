@@ -15,6 +15,8 @@ interface ShellContextType {
   activeSection: Section;
   activeRole: EduRole;
   schoolName: string;
+  navGuard: ((action: () => void, targetSection?: Section) => void) | null;
+  setNavGuard: (guard: ((action: () => void, targetSection?: Section) => void) | null) => void;
 }
 
 const ShellContext = createContext<ShellContextType | undefined>(undefined);
@@ -44,6 +46,15 @@ export function ShellContextProvider({
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [navGuard, setNavGuardInternal] = useState<((action: () => void, targetSection?: Section) => void) | null>(null);
+
+  const setNavGuard = React.useCallback(
+    (guard: ((action: () => void, targetSection?: Section) => void) | null) => {
+      // Usar () => guard para que React no ejecute la función guard como función de actualización funcional de estado
+      setNavGuardInternal(() => guard);
+    },
+    []
+  );
 
   // Persistir colapso del sidebar en localStorage
   useEffect(() => {
@@ -54,10 +65,11 @@ export function ShellContextProvider({
     }
   }, [sidebarCollapsed]);
 
-  // Limpiar contexto explícito al cambiar de sección
+  // Limpiar contexto explícito y guardián al cambiar de sección
   useEffect(() => {
     setExplicitContext(null);
-  }, [section, role]);
+    setNavGuard(null);
+  }, [section, role, setNavGuard]);
 
   const toggleSidebar = React.useCallback(() => {
     setSidebarCollapsed(prev => !prev);
@@ -194,6 +206,8 @@ export function ShellContextProvider({
       activeSection: section,
       activeRole: role,
       schoolName,
+      navGuard,
+      setNavGuard,
     }),
     [
       resolvedContext,
@@ -205,6 +219,8 @@ export function ShellContextProvider({
       section,
       role,
       schoolName,
+      navGuard,
+      setNavGuard,
     ]
   );
 
@@ -217,4 +233,8 @@ export function useShellContext() {
     throw new Error("useShellContext debe ser usado dentro de ShellContextProvider");
   }
   return context;
+}
+
+export function useOptionalShellContext() {
+  return useContext(ShellContext);
 }

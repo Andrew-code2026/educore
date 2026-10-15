@@ -64,6 +64,7 @@ import {
 } from "./db";
 import {
   createGradeCenterAssessment,
+  deleteGradeCenterAssessment,
   generateGradeCenterReportCards,
   getGradeCenterContext,
   saveAcademicObservation,
@@ -327,6 +328,10 @@ export const appRouter = router({
     updateAssessment: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int(), title: z.string().min(3).max(180).optional(), description: z.string().max(1000).optional(), date: z.coerce.date().optional(), weight: z.number().min(0).max(100).optional(), status: z.enum(["DRAFT", "PUBLISHED", "CLOSED"]).optional() })).mutation(async ({ input, ctx }) => {
       const actor = await requireAcademicActor(ctx, input.role, "grades.update", true);
       return updateGradeCenterAssessment(actor, input);
+    }),
+    deleteAssessment: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requireAcademicActor(ctx, input.role, "grades.update", true);
+      return deleteGradeCenterAssessment(actor, input.id);
     }),
     saveGrades: publicProcedure.input(z.object({ role: roleSchema, assessmentId: z.number().int(), grades: z.array(z.object({ studentId: z.number().int(), value: z.number().min(0).nullable(), comment: z.string().max(500).optional() })).min(1) })).mutation(async ({ input, ctx }) => {
       const actor = await requireAcademicActor(ctx, input.role, "grades.update", true);

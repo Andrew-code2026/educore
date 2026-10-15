@@ -15,6 +15,10 @@ import {
   parseGradeInput,
   validateGradeAgainstScale,
   type GradeScaleConfig,
+  type GradeGridDensity,
+  getGridDensityConfig,
+  formatAssessmentCode,
+  splitAssessmentTitle,
 } from "./gradeCenterUtils";
 import { calculateStudentProjection } from "./gradeIntelligenceUtils";
 
@@ -103,7 +107,9 @@ interface GradeCenterTableProps {
     assessmentId: number,
     data: { title?: string; weight?: number; date?: Date; description?: string }
   ) => Promise<void> | void;
+  onDeleteAssessment?: (assessmentId: number) => Promise<void> | void;
   onFilterPendingForAssessment?: (assessmentId: number) => void;
+  density?: GradeGridDensity;
 }
 
 export function GradeCenterTable({
@@ -128,9 +134,14 @@ export function GradeCenterTable({
   onToggleStudent,
   onToggleAllVisible,
   viewMode = "NOTES",
+  density = "standard",
   onEditAssessment,
+  onDeleteAssessment,
   onFilterPendingForAssessment,
 }: GradeCenterTableProps) {
+  const densityConfig = React.useMemo(() => getGridDensityConfig(density), [density]);
+  const isCompact = density === "compact";
+
   // Celda activa con el popover de calificación abierto (identidad lógica inmutable)
   const [activeCell, setActiveCell] = React.useState<ActiveGradeCell | null>(null);
 
@@ -442,51 +453,71 @@ export function GradeCenterTable({
 
   return (
     <div className="relative w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_24px_rgba(29,78,137,0.04)] dark:border-slate-800 dark:bg-slate-900">
-        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700">
-          <table
-            className="w-full min-w-[800px] border-collapse text-left text-sm"
-            role="grid"
-            aria-label="Tabla del Grade Center"
-          >
-            {/* ENCABEZADOS DE LA TABLA */}
-            <thead>
-            <tr className="border-b border-slate-200/90 bg-slate-50/90 text-xs text-slate-500 uppercase tracking-wider backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/90 dark:text-slate-400">
-              {/* Columna Sticky de Checkbox de Selección */}
+      <div className="overflow-auto max-h-[calc(100vh-215px)] scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-700 overscroll-contain">
+        <table
+          className="w-full border-separate border-spacing-0 text-left text-sm"
+          role="grid"
+          aria-label="Tabla del Grade Center"
+        >
+          {/* ENCABEZADOS DE LA TABLA (Sticky Top) */}
+          <thead className="sticky top-0 z-30">
+            <tr className="border-b border-slate-200/90 bg-slate-50 text-xs text-slate-500 uppercase tracking-wider dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+              {/* Columna Sticky de Checkbox de Selección (Esquina Superior Izquierda) */}
               <th
                 scope="col"
-                className="sticky left-0 z-30 w-11 min-w-[44px] max-w-[44px] bg-slate-50/95 px-2 py-3.5 text-center shadow-[1px_0_4px_rgba(0,0,0,0.02)] backdrop-blur-md dark:bg-slate-900/95"
+                className={`sticky top-0 left-0 z-40 bg-slate-50 px-1 text-center shadow-[1px_0_4px_rgba(0,0,0,0.02)] dark:bg-slate-900 border-b border-slate-200/90 dark:border-slate-800 ${densityConfig.headerHeightClass}`}
+                style={{
+                  width: `${densityConfig.checkboxWidth}px`,
+                  minWidth: `${densityConfig.checkboxWidth}px`,
+                  maxWidth: `${densityConfig.checkboxWidth}px`,
+                }}
               >
                 <div className="flex items-center justify-center">
                   <Checkbox
                     checked={isAllSelected ? true : isPartiallySelected ? "indeterminate" : false}
                     onCheckedChange={() => onToggleAllVisible?.()}
                     aria-label="Seleccionar todos los estudiantes visibles"
+                    className="scale-90"
                   />
                 </div>
               </th>
 
-              {/* Columna Sticky de Estudiantes */}
+              {/* Columna Sticky de Estudiantes (Lateral Izquierda) */}
               <th
                 scope="col"
-                className="sticky left-[44px] z-20 min-w-[190px] max-w-[240px] bg-slate-50/95 px-3 py-3.5 font-semibold text-slate-700 shadow-[2px_0_6px_rgba(0,0,0,0.03)] backdrop-blur-md dark:bg-slate-900/95 dark:text-slate-200"
+                className={`sticky top-0 z-40 bg-slate-50 px-2 font-semibold text-slate-700 shadow-[2px_0_6px_rgba(0,0,0,0.03)] border-r border-b border-slate-200/90 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 ${densityConfig.headerHeightClass}`}
+                style={{
+                  left: `${densityConfig.checkboxWidth}px`,
+                  width: `${densityConfig.studentWidth}px`,
+                  minWidth: `${densityConfig.studentWidth}px`,
+                  maxWidth: `${densityConfig.studentWidth}px`,
+                }}
               >
-                <div className="flex items-center gap-2">
-                  <span>Estudiante</span>
-                  <span className="rounded-full bg-slate-200/70 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="truncate text-xs font-bold">Estudiante</span>
+                  <span className="rounded-full bg-slate-200/80 px-1.5 py-0.2 text-[9px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     {rows.length}
                   </span>
                 </div>
               </th>
 
-              {/* Columnas de Evaluaciones */}
-              {assessments.map(assessment => {
+              {/* Columnas de Evaluaciones (Centro con Scroll) */}
+              {assessments.map((assessment, index) => {
                 const typeLabel =
                   assessmentLabels[assessment.assessmentType] ?? assessment.assessmentType;
+                const assessmentCode = formatAssessmentCode(index, assessment.assessmentType);
+                const titleParts = splitAssessmentTitle(assessment.title);
+
                 return (
                   <th
                     key={assessment.id}
                     scope="col"
-                    className="min-w-[115px] max-w-[155px] p-1 text-center font-medium"
+                    className={`p-0.5 text-center font-medium bg-slate-50 border-b border-slate-200/90 dark:border-slate-800 dark:bg-slate-900 ${densityConfig.headerHeightClass}`}
+                    style={{
+                      width: `${densityConfig.assessmentWidth}px`,
+                      minWidth: `${densityConfig.assessmentWidth}px`,
+                      maxWidth: `${densityConfig.assessmentWidth}px`,
+                    }}
                   >
                     <AssessmentStatisticsPopover
                       assessment={assessment}
@@ -495,6 +526,7 @@ export function GradeCenterTable({
                       scale={scale}
                       groupAverage={groupAverage}
                       onEditAssessment={onEditAssessment}
+                      onDeleteAssessment={onDeleteAssessment}
                       onFilterPending={onFilterPendingForAssessment}
                       canEdit={canWrite}
                       otherTotalWeight={assessments
@@ -503,39 +535,80 @@ export function GradeCenterTable({
                     >
                       <button
                         type="button"
-                        className="group flex flex-col items-center justify-center w-full rounded-xl px-2 py-1.5 transition hover:bg-slate-200/60 dark:hover:bg-slate-800/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
-                        title={`Click para detalles y edición de ${assessment.title}`}
+                        className="group flex flex-col items-center justify-center w-full rounded-lg px-0.5 py-1 transition hover:bg-slate-200/70 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-500 cursor-pointer"
+                        title={`${assessment.title} (${typeLabel} · ${assessment.weight}%). Clic para estadísticas y edición`}
                       >
-                        <span
-                          className="truncate text-xs font-bold text-slate-800 dark:text-slate-100 max-w-[130px] group-hover:text-[var(--edc-primary)] transition-colors"
-                          title={assessment.title}
-                        >
-                          {assessment.title}
-                        </span>
-                        <div className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                          <span className="font-semibold text-[var(--edc-primary)]">{assessment.weight}%</span>
-                          <span>·</span>
-                          <span>{typeLabel}</span>
-                          <span className="text-[10px] opacity-0 group-hover:opacity-100 text-slate-400 transition-opacity">
-                            ⋯
-                          </span>
-                        </div>
+                        {isCompact ? (
+                          <div className="flex flex-col items-center w-full leading-tight">
+                            <div className="flex items-center gap-0.5 justify-center leading-none">
+                              <span className="font-extrabold text-[11px] text-slate-800 dark:text-slate-100 group-hover:text-[var(--edc-primary)] transition-colors">
+                                {assessmentCode}
+                              </span>
+                              <span className="text-[10px] font-bold text-[var(--edc-primary)]">
+                                {assessment.weight}%
+                              </span>
+                            </div>
+                            <div className="mt-0.5 w-full text-center leading-[1.1] text-[9px] font-semibold text-slate-600 dark:text-slate-300">
+                              <span className="block truncate" title={assessment.title}>
+                                {titleParts.line1}
+                              </span>
+                              {titleParts.line2 && (
+                                <span className="block truncate opacity-85" title={assessment.title}>
+                                  {titleParts.line2}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center w-full px-1">
+                            <div className="flex items-center gap-1 justify-center leading-none">
+                              <span className="font-extrabold text-xs text-slate-800 dark:text-slate-100 group-hover:text-[var(--edc-primary)] transition-colors">
+                                {assessmentCode}
+                              </span>
+                              <span className="text-[11px] font-bold text-[var(--edc-primary)]">
+                                {assessment.weight}%
+                              </span>
+                            </div>
+                            <div className="mt-0.5 w-full text-center leading-tight text-[11px] font-semibold text-slate-700 dark:text-slate-200">
+                              <span className="block truncate" title={assessment.title}>
+                                {titleParts.line1}
+                              </span>
+                              {titleParts.line2 && (
+                                <span className="block truncate opacity-85" title={assessment.title}>
+                                  {titleParts.line2}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[9px] text-slate-400 font-normal truncate mt-0.5">
+                              {typeLabel}
+                            </span>
+                          </div>
+                        )}
                       </button>
                     </AssessmentStatisticsPopover>
                   </th>
                 );
               })}
 
-              {/* Columna Definitiva */}
+              {/* Columna Definitiva (Sticky Derecha) */}
               <th
                 scope="col"
-                className="sticky right-0 z-20 min-w-[115px] border-l border-slate-200/80 bg-slate-100/90 px-3 py-3 text-center font-bold text-slate-800 shadow-[-2px_0_6px_rgba(0,0,0,0.03)] backdrop-blur-md dark:border-slate-800 dark:bg-slate-850/90 dark:text-white"
+                className={`sticky top-0 right-0 z-40 border-l border-b border-slate-200/80 bg-slate-100 px-1 text-center font-bold text-slate-800 shadow-[-2px_0_6px_rgba(0,0,0,0.03)] dark:border-slate-800 dark:bg-slate-850 dark:text-white ${densityConfig.headerHeightClass}`}
+                style={{
+                  width: `${densityConfig.definitivaWidth}px`,
+                  minWidth: `${densityConfig.definitivaWidth}px`,
+                  maxWidth: `${densityConfig.definitivaWidth}px`,
+                }}
               >
                 <div className="flex flex-col items-center justify-center">
-                  <span className="text-xs font-bold tracking-tight">Definitiva</span>
-                  <span className="mt-0.5 text-[10px] font-normal normal-case text-slate-500 dark:text-slate-400">
-                    Ponderada
+                  <span className="text-xs font-bold tracking-tight">
+                    {isCompact ? "Def." : "Definitiva"}
                   </span>
+                  {!isCompact && (
+                    <span className="mt-0.5 text-[9px] font-normal normal-case text-slate-500 dark:text-slate-400">
+                      Ponderada
+                    </span>
+                  )}
                 </div>
               </th>
             </tr>
@@ -586,31 +659,47 @@ export function GradeCenterTable({
                 >
                   {/* Columna Sticky de Checkbox */}
                   <td
-                    className={`sticky left-0 z-20 w-11 min-w-[44px] max-w-[44px] px-2 py-2.5 text-center shadow-[1px_0_4px_rgba(0,0,0,0.02)] backdrop-blur-sm ${
+                    className={`sticky left-0 z-20 px-1 py-1.5 text-center shadow-[1px_0_4px_rgba(0,0,0,0.02)] border-b border-slate-100 dark:border-slate-800/60 ${
                       isSelected
-                        ? "bg-blue-50/95 dark:bg-slate-900/95"
-                        : "bg-white/95 group-hover:bg-slate-50/95 dark:bg-slate-900/95 dark:group-hover:bg-slate-850"
+                        ? "bg-blue-50 dark:bg-slate-900"
+                        : "bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-850"
                     }`}
+                    style={{
+                      width: `${densityConfig.checkboxWidth}px`,
+                      minWidth: `${densityConfig.checkboxWidth}px`,
+                      maxWidth: `${densityConfig.checkboxWidth}px`,
+                    }}
                   >
                     <div className="flex items-center justify-center">
                       <Checkbox
                         checked={isSelected}
                         onCheckedChange={() => onToggleStudent?.(studentId)}
                         aria-label={`Seleccionar a ${sName}`}
+                        className="scale-90"
                       />
                     </div>
                   </td>
 
                   {/* Columna Sticky de Estudiante con StudentSummaryPopover */}
                   <td
-                    className={`sticky left-[44px] z-10 min-w-[190px] max-w-[240px] px-3 py-2.5 shadow-[2px_0_6px_rgba(0,0,0,0.02)] backdrop-blur-sm ${
+                    className={`sticky z-10 px-2 py-1.5 shadow-[2px_0_6px_rgba(0,0,0,0.02)] border-r border-b border-slate-200/80 dark:border-slate-800 dark:border-b-slate-800/60 ${
                       isSelected
-                        ? "bg-blue-50/95 dark:bg-slate-900/95"
-                        : "bg-white/95 group-hover:bg-slate-50/95 dark:bg-slate-900/95 dark:group-hover:bg-slate-850"
+                        ? "bg-blue-50 dark:bg-slate-900"
+                        : "bg-white group-hover:bg-slate-50 dark:bg-slate-900 dark:group-hover:bg-slate-850"
                     }`}
+                    style={{
+                      left: `${densityConfig.checkboxWidth}px`,
+                      width: `${densityConfig.studentWidth}px`,
+                      minWidth: `${densityConfig.studentWidth}px`,
+                      maxWidth: `${densityConfig.studentWidth}px`,
+                    }}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold dark:bg-slate-800 dark:text-slate-300">
+                    <div className="flex items-center gap-1.5">
+                      <div
+                        className={`flex shrink-0 items-center justify-center rounded bg-slate-100 text-slate-700 font-bold dark:bg-slate-800 dark:text-slate-300 ${
+                          isCompact ? "h-5 w-5 text-[9px]" : "h-7 w-7 text-[11px] rounded-lg"
+                        }`}
+                      >
                         {sName
                           .split(" ")
                           .slice(0, 2)
@@ -619,7 +708,7 @@ export function GradeCenterTable({
                           .toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
+                        <div className="flex items-center gap-1 flex-wrap">
                           <StudentSummaryPopover
                             studentRow={row}
                             courseName={courseName}
@@ -641,8 +730,12 @@ export function GradeCenterTable({
                           >
                             <button
                               type="button"
-                              className="block truncate text-left text-xs font-bold text-slate-800 hover:text-[var(--edc-primary)] focus:outline-none transition dark:text-slate-100 cursor-pointer"
-                              title={`${sName} (Clic para resumen rápido)`}
+                              className="block truncate text-left font-bold text-slate-800 hover:text-[var(--edc-primary)] focus:outline-none transition dark:text-slate-100 cursor-pointer"
+                              title={`${sName} (ID ${studentId} · ${courseName ?? "11-2"}). Clic para resumen rápido`}
+                              style={{
+                                maxWidth: isCompact ? "96px" : "135px",
+                                fontSize: isCompact ? "11px" : "12px",
+                              }}
                             >
                               {sName}
                             </button>
@@ -651,7 +744,7 @@ export function GradeCenterTable({
                           {/* Microindicadores contextuales según ViewMode */}
                           {viewMode === "PERFORMANCE" && trend && (
                             <span
-                              className={`inline-flex items-center text-[10px] font-bold px-1 rounded ${
+                              className={`inline-flex items-center text-[9px] font-bold px-0.5 rounded ${
                                 trend === "up"
                                   ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/50"
                                   : trend === "down"
@@ -671,20 +764,22 @@ export function GradeCenterTable({
                           )}
 
                           {viewMode === "RISK" && definitiva !== null && definitiva < 3.5 && (
-                            <span className="inline-flex items-center text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 py-0.2 rounded dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300">
-                              Requiere atención
+                            <span className="inline-flex items-center text-[8px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 rounded dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300">
+                              {isCompact ? "Riesgo" : "Requiere atención"}
                             </span>
                           )}
 
                           {viewMode === "PENDING" && pendingCountForStudent > 0 && (
-                            <span className="inline-flex items-center text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
-                              {pendingCountForStudent} pend.
+                            <span className="inline-flex items-center text-[8px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 rounded dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
+                              {pendingCountForStudent}p
                             </span>
                           )}
                         </div>
-                        <p className="truncate text-[11px] text-slate-400 font-normal mt-0.5">
-                          ID {studentId} · {courseName ?? "11-2"}
-                        </p>
+                        {!isCompact && (
+                          <p className="truncate text-[10px] text-slate-400 font-normal mt-0.5">
+                            ID {studentId} · {courseName ?? "11-2"}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -716,7 +811,7 @@ export function GradeCenterTable({
                         }}
                         onFocus={() => setFocusedCell({ studentUserId: studentId, assessmentId: assessment.id })}
                         onKeyDown={e => handleCellKeyDown(e, rowIndex, colIndex, cellVal)}
-                        className={`relative flex h-9 w-16 items-center justify-center rounded-xl border text-sm font-semibold transition-all select-none cursor-pointer ${
+                        className={`relative flex items-center justify-center rounded border font-semibold transition-all select-none cursor-pointer ${densityConfig.cellButtonClass} ${
                           isCellOpen
                             ? "border-[var(--edc-primary)] ring-2 ring-[var(--edc-secondary)] shadow-sm scale-105 z-10 font-bold bg-white dark:bg-slate-800 text-[var(--edc-primary)]"
                             : isFocused
@@ -747,9 +842,9 @@ export function GradeCenterTable({
                         {cellComment ? (
                           <span
                             title={`Comentario: ${cellComment}`}
-                            className="absolute bottom-1 right-1 flex items-center"
+                            className="absolute bottom-0.5 right-0.5 flex items-center"
                           >
-                            <MessageSquare className="h-2.5 w-2.5 text-blue-500 opacity-75" />
+                            <MessageSquare className="h-2 w-2 text-blue-500 opacity-75" />
                           </span>
                         ) : null}
                       </button>
@@ -758,8 +853,13 @@ export function GradeCenterTable({
                     return (
                       <td
                         key={assessment.id}
-                        className="px-2 py-1.5 text-center align-middle"
+                        className={`${densityConfig.cellPaddingClass} text-center align-middle border-b border-slate-100 dark:border-slate-800/60`}
                         role="gridcell"
+                        style={{
+                          width: `${densityConfig.assessmentWidth}px`,
+                          minWidth: `${densityConfig.assessmentWidth}px`,
+                          maxWidth: `${densityConfig.assessmentWidth}px`,
+                        }}
                       >
                         <div className="flex items-center justify-center">
                           {isCellOpen ? (
@@ -806,64 +906,121 @@ export function GradeCenterTable({
                     );
                   })}
 
-                  {/* Columna Definitiva */}
+                  {/* Columna Definitiva (Sticky Derecha) */}
                   <td
-                    className="sticky right-0 z-10 min-w-[115px] border-l border-slate-200/80 bg-slate-50/90 px-3 py-2 text-center shadow-[-2px_0_6px_rgba(0,0,0,0.02)] backdrop-blur-sm group-hover:bg-slate-100/90 dark:border-slate-800 dark:bg-slate-850/90 dark:group-hover:bg-slate-800"
+                    className="sticky right-0 z-10 border-l border-b border-slate-200/80 border-b-slate-100 bg-slate-50 px-1 py-1.5 text-center shadow-[-2px_0_6px_rgba(0,0,0,0.02)] group-hover:bg-slate-100 dark:border-slate-800 dark:border-b-slate-800/60 dark:bg-slate-850 dark:group-hover:bg-slate-800"
+                    style={{
+                      width: `${densityConfig.definitivaWidth}px`,
+                      minWidth: `${densityConfig.definitivaWidth}px`,
+                      maxWidth: `${densityConfig.definitivaWidth}px`,
+                    }}
                   >
                     <div className="flex flex-col items-center justify-center">
                       <span
-                        className={`text-base font-extrabold tracking-tight leading-tight ${definitivaTone.textColor}`}
+                        className={`font-black tracking-tight leading-none ${
+                          isCompact ? "text-xs" : "text-sm"
+                        } ${definitivaTone.textColor}`}
+                        title={
+                          definitiva !== null
+                            ? `Definitiva: ${numberValue(definitiva)} (${definitivaTone.label}) · ${
+                                isAllGraded
+                                  ? "100% evaluado"
+                                  : `Acumulado (${recordedCount}/${totalAssessments})`
+                              }`
+                            : "Sin calificaciones"
+                        }
                       >
                         {numberValue(definitiva)}
                       </span>
-                      {definitiva !== null && (
-                        <>
+                      {isCompact ? (
+                        definitiva !== null ? (
                           <span
-                            className={`mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-semibold leading-none ${
-                              definitiva >= 4.0
+                            className={`mt-1 inline-block px-1 py-0.2 rounded text-[8px] font-bold uppercase leading-none tracking-wider ${
+                              definitiva >= 4.7
                                 ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                                : definitiva >= 4.0
+                                ? "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
                                 : definitiva >= 3.5
                                 ? "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
                                 : "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
                             }`}
-                          >
-                            {definitiva >= 4.0
-                              ? "En buen nivel"
-                              : definitiva >= 3.5
-                              ? "Cerca del límite"
-                              : "Requiere atención"}
-                          </span>
-                          <span
-                            className={`mt-1 text-[9px] font-medium leading-none ${
-                              isAllGraded
-                                ? "text-emerald-600 dark:text-emerald-400"
-                                : "text-slate-400 dark:text-slate-500"
-                            }`}
                             title={
-                              isAllGraded
-                                ? "Todas las evaluaciones del periodo han sido calificadas"
-                                : "Promedio ponderado acumulado sobre evaluaciones calificadas"
+                              definitiva >= 4.7
+                                ? "Superior (4.7–5.0)"
+                                : definitiva >= 4.0
+                                ? "Alto (4.0–4.6)"
+                                : definitiva >= 3.5
+                                ? "Básico (3.5–3.9)"
+                                : "Bajo (< 3.5) · Requiere atención"
                             }
                           >
-                            {isAllGraded
-                              ? "100% evaluado"
-                              : `Acumulado (${recordedCount}/${totalAssessments})`}
+                            {definitiva >= 4.7
+                              ? "Super."
+                              : definitiva >= 4.0
+                              ? "Alto"
+                              : definitiva >= 3.5
+                              ? "Básico"
+                              : "Bajo"}
                           </span>
+                        ) : (
+                          <span className="mt-0.5 inline-block text-[9px] text-slate-400">—</span>
+                        )
+                      ) : (
+                        <>
+                          {definitiva !== null && (
+                            <>
+                              <span
+                                className={`mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-semibold leading-none ${
+                                  definitiva >= 4.7
+                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                                    : definitiva >= 4.0
+                                    ? "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
+                                    : definitiva >= 3.5
+                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300"
+                                    : "bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
+                                }`}
+                              >
+                                {definitiva >= 4.7
+                                  ? "Superior"
+                                  : definitiva >= 4.0
+                                  ? "Alto"
+                                  : definitiva >= 3.5
+                                  ? "Básico"
+                                  : "Requiere atención"}
+                              </span>
+                              <span
+                                className={`mt-1 text-[9px] font-medium leading-none ${
+                                  isAllGraded
+                                    ? "text-emerald-600 dark:text-emerald-400"
+                                    : "text-slate-400 dark:text-slate-500"
+                                }`}
+                                title={
+                                  isAllGraded
+                                    ? "Todas las evaluaciones del periodo han sido calificadas"
+                                    : "Promedio ponderado acumulado sobre evaluaciones calificadas"
+                                }
+                              >
+                                {isAllGraded
+                                  ? "100% evaluado"
+                                  : `Acumulado (${recordedCount}/${totalAssessments})`}
+                              </span>
+                            </>
+                          )}
+                          {definitiva === null && (
+                            <span className="mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800">
+                              Sin datos
+                            </span>
+                          )}
+                          {projection.hasPending && projection.projectedDefinitiva !== null && (
+                            <span
+                              className="mt-1 inline-flex items-center gap-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400"
+                              title={`Proyección estimada (${projection.pendingCount} pendiente/s con rendimiento constante): ${numberValue(projection.projectedDefinitiva)}`}
+                            >
+                              <Sparkles className="h-2.5 w-2.5" />
+                              Proy. {numberValue(projection.projectedDefinitiva)}
+                            </span>
+                          )}
                         </>
-                      )}
-                      {definitiva === null && (
-                        <span className="mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800">
-                          Sin datos
-                        </span>
-                      )}
-                      {projection.hasPending && projection.projectedDefinitiva !== null && (
-                        <span
-                          className="mt-1 inline-flex items-center gap-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400"
-                          title={`Proyección estimada (${projection.pendingCount} pendiente/s con rendimiento constante): ${numberValue(projection.projectedDefinitiva)}`}
-                        >
-                          <Sparkles className="h-2.5 w-2.5" />
-                          Proy. {numberValue(projection.projectedDefinitiva)}
-                        </span>
                       )}
                     </div>
                   </td>

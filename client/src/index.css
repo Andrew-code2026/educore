@@ -1,15 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./gradecenter/gradecenter.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 14px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -29,6 +33,16 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* Escala académica institucional Grade Center */
+  --color-gc-bajo: var(--gc-bajo);
+  --color-gc-basico: var(--gc-basico);
+  --color-gc-alto: var(--gc-alto);
+  --color-gc-superior: var(--gc-superior);
+  --color-gc-cobalt: var(--gc-cobalt);
+  --color-gc-abyss: var(--gc-abyss);
+  --color-gc-ink: var(--gc-ink);
+  --color-gc-hair: var(--gc-hair);
 }
 
 :root {

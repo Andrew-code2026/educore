@@ -290,12 +290,12 @@ describe("EduCore Grade Center", () => {
 
       it("rejects assessment update if total weight of all assessments exceeds 100%", async () => {
         const assessment = seededContext!.assessments[0];
-        // Asignar un peso desmedido que haga superar el 100%
+        // Asignar un peso que haga superar el 100% considerando las demás evaluaciones activas
         const { updateGradeCenterAssessment } = await import("./gradeCenterDb");
         await expect(
           updateGradeCenterAssessment(actor(teacher, "TEACHER"), {
             id: assessment.id,
-            weight: 50,
+            weight: 95,
           })
         ).rejects.toThrow(/no puede superar el 100%/);
       });

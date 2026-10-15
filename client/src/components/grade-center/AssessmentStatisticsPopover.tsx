@@ -13,6 +13,8 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -44,6 +46,7 @@ interface AssessmentStatisticsPopoverProps {
   onFilterPending?: (assessmentId: number) => void;
   canEdit?: boolean;
   otherTotalWeight?: number;
+  onDeleteAssessment?: (assessmentId: number) => Promise<void> | void;
 }
 
 export function AssessmentStatisticsPopover({
@@ -59,6 +62,7 @@ export function AssessmentStatisticsPopover({
   onFilterPending,
   canEdit = true,
   otherTotalWeight,
+  onDeleteAssessment,
 }: AssessmentStatisticsPopoverProps) {
   const [internalOpen, setInternalOpen] = React.useState(false);
   const isControlled = open !== undefined;
@@ -84,6 +88,7 @@ export function AssessmentStatisticsPopover({
           onFilterPending={onFilterPending}
           canEdit={canEdit}
           otherTotalWeight={otherTotalWeight}
+          onDeleteAssessment={onDeleteAssessment}
           onClose={() => setOpen(false)}
         />
       )}
@@ -104,6 +109,7 @@ interface AssessmentStatisticsPopoverContentProps {
   onFilterPending?: (assessmentId: number) => void;
   canEdit?: boolean;
   otherTotalWeight?: number;
+  onDeleteAssessment?: (assessmentId: number) => Promise<void> | void;
   onClose: () => void;
 }
 
@@ -117,11 +123,28 @@ function AssessmentStatisticsPopoverContent({
   onFilterPending,
   canEdit = true,
   otherTotalWeight,
+  onDeleteAssessment,
   onClose,
 }: AssessmentStatisticsPopoverContentProps) {
   const [isEditing, setIsEditing] = React.useState(false);
   const [showFullStats, setShowFullStats] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+
+  const handleDelete = async () => {
+    if (!onDeleteAssessment) return;
+    try {
+      setIsDeleting(true);
+      await onDeleteAssessment(assessment.id);
+      onClose();
+    } catch {
+      // Error manejado por el handler superior
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
 
   const initialDateStr = React.useMemo(() => {
     if (!assessment.date) return "";
@@ -324,28 +347,86 @@ function AssessmentStatisticsPopoverContent({
             />
           </div>
 
-          <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditing(false)}
-              disabled={isSaving}
-              className="h-7.5 rounded-xl px-2.5 text-xs font-semibold"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleSaveEdit}
-              disabled={isSaving}
-              className="h-7.5 rounded-xl bg-[var(--edc-primary)] px-3 text-xs font-semibold text-white shadow-xs"
-            >
-              <Check className="mr-1 h-3 w-3" />
-              {isSaving ? "Guardando..." : "Guardar"}
-            </Button>
-          </div>
+          {showDeleteConfirm ? (
+            <div className="rounded-xl border border-rose-200 bg-rose-50/90 p-2.5 text-xs dark:border-rose-900/60 dark:bg-rose-950/40 mt-2">
+              <p className="font-bold text-rose-800 dark:text-rose-200">
+                ¿Eliminar evaluación?
+              </p>
+              <p className="text-[11px] text-rose-600 dark:text-rose-300 mt-0.5">
+                Se liberará el {assessment.weight}% de ponderación. Las notas registradas quedarán ocultas del cómputo.
+              </p>
+              <div className="flex items-center justify-end gap-1.5 mt-2.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="h-7 text-[11px] px-2 rounded-lg"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="h-7 text-[11px] px-2.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      Eliminando...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="mr-1 h-3 w-3" />
+                      Confirmar eliminación
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+              {canEdit && onDeleteAssessment ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={isSaving}
+                  className="h-7.5 rounded-xl px-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40 cursor-pointer"
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" />
+                  Eliminar
+                </Button>
+              ) : <div />}
+
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditing(false)}
+                  disabled={isSaving}
+                  className="h-7.5 rounded-xl px-2.5 text-xs font-semibold"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSaveEdit}
+                  disabled={isSaving}
+                  className="h-7.5 rounded-xl bg-[var(--edc-primary)] px-3 text-xs font-semibold text-white shadow-xs"
+                >
+                  <Check className="mr-1 h-3 w-3" />
+                  {isSaving ? "Guardando..." : "Guardar"}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* MODO VISUALIZACIÓN DE ESTADÍSTICAS */
