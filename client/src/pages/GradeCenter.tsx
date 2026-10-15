@@ -8,9 +8,9 @@ import { GradeCenterPage as GradeCenterLegacyPage } from "./GradeCenterLegacy";
 import { AlertTriangle, ClipboardList, History, Loader2, RotateCcw } from "lucide-react";
 
 type EduRole = "admin" | "teacher" | "student" | "guardian";
-type GradeCenterProps = { role: EduRole; school: any };
+type GradeCenterProps = { role: EduRole; school: any; onBack?: () => void };
 
-export function GradeCenterPage({ role, school }: GradeCenterProps) {
+export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
   const { user } = useAuth();
   const [courseId, setCourseId] = React.useState<number | undefined>();
   const [subjectId, setSubjectId] = React.useState<number | undefined>();
@@ -284,7 +284,7 @@ export function GradeCenterPage({ role, school }: GradeCenterProps) {
         persistence={persistence}
         onDataSaved={() => utils.gradeCenter.context.invalidate()}
       >
-        <AppShell embedded={true} />
+        <AppShell embedded={true} onBack={onBack} />
       </GradeCenterProvider>
 
       {/* Botón discreto de contingencia en la esquina inferior para cambiar al módulo anterior */}
