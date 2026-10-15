@@ -83,23 +83,23 @@ export function EduCoreSidebar({
       ) : (
         <GraduationCap className="h-[18px] w-[18px]" />
       )}
-      <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-cyan-300 ring-2 ring-white" />
+      <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-cyan-300 ring-2 ring-sidebar" />
     </div>
   );
 
   return (
     <aside
       aria-label="Navegación principal"
-      className={`fixed inset-y-0 left-0 z-40 hidden flex-col border-r bg-white/95 backdrop-blur-md transition-all duration-200 ease-out lg:flex ${
+      className={`edc-nav fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground backdrop-blur-md transition-all duration-200 ease-out lg:flex ${
         sidebarCollapsed ? "w-[72px]" : "w-[250px]"
-      } border-slate-200/90`}
+      }`}
       style={{
         boxShadow: "1px 0 12px rgba(15, 23, 42, 0.03)",
       }}
     >
       {/* Encabezado de Marca y Toggle */}
       <div
-        className={`flex h-[62px] items-center border-b border-slate-100 px-3 ${
+        className={`flex h-[62px] items-center border-b border-sidebar-border px-3 ${
           sidebarCollapsed ? "justify-center" : "justify-between"
         }`}
       >
@@ -117,7 +117,7 @@ export function EduCoreSidebar({
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={12}>
               <p className="font-semibold">Expandir menú (Ctrl+B)</p>
-              <p className="text-[10px] text-slate-300">{schoolName}</p>
+              <p className="text-[10px] opacity-70">{schoolName}</p>
             </TooltipContent>
           </Tooltip>
         ) : (
@@ -126,14 +126,14 @@ export function EduCoreSidebar({
               {logoBadge}
               <div className="min-w-0 transition-opacity duration-200">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[15px] font-extrabold tracking-[0.16em] text-slate-950">
+                  <span className="text-[15px] font-extrabold tracking-[0.16em] text-sidebar-foreground">
                     EDUCORE
                   </span>
-                  <span className="rounded-md border border-blue-200 bg-blue-50 px-1.5 py-0 text-[8px] font-bold tracking-wider text-blue-700">
+                  <span className="rounded-md border border-blue-200 bg-blue-50 px-1.5 py-0 text-[8px] font-bold tracking-wider text-blue-700 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-300">
                     2.0
                   </span>
                 </div>
-                <p className="truncate text-[10px] font-medium tracking-[0.01em] text-slate-500">
+                <p className="truncate text-[10px] font-medium tracking-[0.01em] text-sidebar-muted-foreground">
                   {schoolName}
                 </p>
               </div>
@@ -145,7 +145,7 @@ export function EduCoreSidebar({
               onClick={toggleSidebar}
               aria-label="Colapsar menú lateral"
               title="Colapsar menú (Ctrl+B)"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sidebar-muted-foreground transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
@@ -159,11 +159,11 @@ export function EduCoreSidebar({
           {groups.map((group, groupIndex) => (
             <div key={group.key} className="space-y-1">
               {!sidebarCollapsed ? (
-                <p className="px-3 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                <p className="px-3 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
                   {group.label}
                 </p>
               ) : groupIndex > 0 ? (
-                <div className="my-2 border-t border-slate-100 px-2" />
+                <div className="my-2 border-t border-sidebar-border px-2" />
               ) : null}
 
               <div className="space-y-0.5 pt-0.5">
@@ -181,15 +181,15 @@ export function EduCoreSidebar({
                           : "justify-start px-3 gap-3"
                       } ${
                         isActive
-                          ? "bg-[var(--edc-secondary)] font-semibold text-[var(--edc-primary)] shadow-xs"
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                          ? "bg-sidebar-active font-semibold text-sidebar-active-foreground shadow-xs"
+                          : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       }`}
                       aria-current={isActive ? "page" : undefined}
                     >
                       {/* Indicador visual activo en borde izquierdo cuando está expandido */}
                       {isActive && !sidebarCollapsed && (
                         <span
-                          className="absolute left-1 h-5 w-1 rounded-full bg-[var(--edc-primary)]"
+                          className="absolute left-1 h-5 w-1 rounded-full bg-sidebar-active-foreground"
                           aria-hidden="true"
                         />
                       )}
@@ -197,8 +197,8 @@ export function EduCoreSidebar({
                       <Icon
                         className={`h-[18px] w-[18px] shrink-0 transition-colors ${
                           isActive
-                            ? "text-[var(--edc-primary)]"
-                            : "text-slate-400 group-hover:text-slate-600"
+                            ? "text-sidebar-active-foreground"
+                            : "text-sidebar-muted-foreground group-hover:text-sidebar-accent-foreground"
                         }`}
                       />
 
@@ -222,7 +222,7 @@ export function EduCoreSidebar({
                         <TooltipContent side="right" sideOffset={12} className="font-medium">
                           <div>
                             <p className="font-semibold">{item.label}</p>
-                            <p className="text-[10px] text-slate-300">{group.label}</p>
+                            <p className="text-[10px] opacity-70">{group.label}</p>
                           </div>
                         </TooltipContent>
                       </Tooltip>
@@ -239,12 +239,12 @@ export function EduCoreSidebar({
 
       {/* Tarjeta de Seguridad (solo expandido) */}
       {!sidebarCollapsed && (
-        <div className="mx-3 mb-2 rounded-xl bg-slate-50/90 border border-slate-100 p-2.5">
+        <div className="mx-3 mb-2 rounded-xl border border-sidebar-border bg-sidebar-accent p-2.5">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            <span className="text-[11px] font-semibold text-slate-700">Aislamiento Seguro</span>
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-[11px] font-semibold text-sidebar-foreground">Aislamiento Seguro</span>
           </div>
-          <p className="mt-0.5 text-[10px] leading-3.5 text-slate-400 truncate">
+          <p className="mt-0.5 text-[10px] leading-3.5 text-sidebar-muted-foreground truncate">
             RBAC activo · {schoolName}
           </p>
         </div>
@@ -252,34 +252,34 @@ export function EduCoreSidebar({
 
       {/* Footer de Usuario */}
       <div
-        className={`border-t border-slate-100 p-2.5 ${
+        className={`border-t border-sidebar-border p-2.5 ${
           sidebarCollapsed ? "flex flex-col items-center gap-2" : "flex items-center gap-3"
         }`}
       >
         {sidebarCollapsed ? (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex h-9 w-9 cursor-default items-center justify-center rounded-full bg-[var(--edc-secondary)] text-xs font-bold text-[var(--edc-primary)] ring-1 ring-slate-200">
+              <div className="flex h-9 w-9 cursor-default items-center justify-center rounded-full bg-sidebar-active text-xs font-bold text-sidebar-active-foreground ring-1 ring-sidebar-border">
                 {getRoleAvatarInitials(role, user)}
               </div>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={12}>
               <p className="font-semibold">{role === "teacher" ? (user?.name || "Juan Diego Loaiza") : ROLE_LABELS[role]}</p>
-              <p className="text-[10px] text-slate-300">{schoolName}</p>
+              <p className="text-[10px] opacity-70">{schoolName}</p>
             </TooltipContent>
           </Tooltip>
         ) : (
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--edc-secondary)] text-xs font-bold text-[var(--edc-primary)] ring-1 ring-slate-200">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-active text-xs font-bold text-sidebar-active-foreground ring-1 ring-sidebar-border">
             {getRoleAvatarInitials(role, user)}
           </div>
         )}
 
         {!sidebarCollapsed && (
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-bold text-slate-800">
+            <p className="truncate text-xs font-bold text-sidebar-foreground">
               {role === "teacher" ? (user?.name || "Juan Diego Loaiza") : role === "admin" ? "Rectoría / Admin" : ROLE_LABELS[role]}
             </p>
-            <p className="truncate text-[10px] font-medium text-slate-400">
+            <p className="truncate text-[10px] font-medium text-sidebar-muted-foreground">
               {schoolName}
             </p>
           </div>
@@ -290,7 +290,7 @@ export function EduCoreSidebar({
           onClick={onLogout}
           aria-label="Cerrar sesión"
           title="Cerrar sesión"
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-muted-foreground transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/15 dark:hover:text-rose-400 cursor-pointer"
         >
           <LogOut className="h-4 w-4" />
         </button>

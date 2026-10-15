@@ -34,6 +34,19 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
+  /* Navegación lateral (sidebar de escritorio + navegación móvil) */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
   /* Escala académica institucional Grade Center */
   --color-gc-bajo: var(--gc-bajo);
   --color-gc-basico: var(--gc-basico);
@@ -78,6 +91,17 @@
   --edc-text: #182131;
   --edc-muted: #7a8798;
   --edc-radius: 12px;
+
+  /* Sidebar: valores claros equivalentes al diseño original (white / slate) */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-muted-foreground: #94a3b8;
+  --sidebar-primary: #2475cf;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f8fafc;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #86bff2;
 }
 
 .dark {
@@ -96,6 +120,17 @@
   --border: #263a53;
   --input: #2b4360;
   --ring: #64a9e8;
+
+  /* Sidebar nocturna: alineada con la paleta "night" de Grade Center */
+  --sidebar: oklch(0.185 0.024 266);
+  --sidebar-foreground: oklch(0.955 0.005 265);
+  --sidebar-muted-foreground: oklch(0.68 0.02 265);
+  --sidebar-primary: oklch(0.64 0.19 266);
+  --sidebar-primary-foreground: oklch(0.99 0.004 265);
+  --sidebar-accent: oklch(1 0 0 / 6%);
+  --sidebar-accent-foreground: oklch(0.98 0.004 265);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.68 0.17 266);
 }
 
 @layer base {
@@ -116,6 +151,22 @@
   .surface-card { border: 1px solid color-mix(in srgb, var(--edc-primary) 8%, #e2e8f0); background: color-mix(in srgb, var(--edc-surface) 96%, transparent); box-shadow: var(--spatial-shadow-soft); }
   .glass-nav { background: color-mix(in srgb, var(--edc-surface) 78%, transparent); border-color: color-mix(in srgb, var(--edc-primary) 12%, #e2e8f0); box-shadow: 0 10px 35px color-mix(in srgb, var(--edc-primary) 7%, transparent), inset 0 1px 0 rgba(255,255,255,0.7); backdrop-filter: blur(22px) saturate(145%); }
   .sidebar-surface { background: color-mix(in srgb, var(--edc-surface) 91%, var(--edc-background)); border-color: color-mix(in srgb, var(--edc-primary) 8%, #e2e8f0); }
+
+  /*
+   * Tokens de estado activo para la navegación (sidebar + nav móvil).
+   * Se declaran sobre el propio contenedor (.edc-nav) y no en :root para que
+   * resuelvan contra los colores institucionales (--edc-*) que EduCoreShell
+   * inyecta inline; en :root se resolverían con los valores por defecto.
+   */
+  .edc-nav {
+    --sidebar-active: var(--edc-secondary);
+    --sidebar-active-foreground: var(--edc-primary);
+  }
+  .dark .edc-nav {
+    --sidebar-active: color-mix(in srgb, var(--edc-primary) 24%, transparent);
+    --sidebar-active-foreground: color-mix(in srgb, var(--edc-primary) 45%, white);
+    color-scheme: dark;
+  }
   .premium-panel { box-shadow: var(--spatial-shadow); }
   .page-shell { background: radial-gradient(circle at 85% 0%, color-mix(in srgb, var(--edc-secondary) 42%, transparent), transparent 28rem), var(--edc-background, var(--background)); }
   .page-transition { animation: spatial-enter 240ms var(--ease-out) both; }
