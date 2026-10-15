@@ -135,6 +135,7 @@ export type Action =
   | { type: "selection/cell"; key: string; cell: CellRef; rangeKeys?: string[]; additive?: boolean }
   | { type: "selection/clear" }
   | { type: "paste/preview"; preview: PastePreview | null }
+  | { type: "dataset/load"; dataset: Dataset }
   | { type: "restore"; dataset: Dataset }
   | { type: "remote/update"; dataset: Dataset }
   | { type: "createEvaluation"; evaluation: Evaluation }
@@ -158,8 +159,28 @@ export function createInitialState(customDataset?: Dataset, readOnly?: boolean):
   const preferences = loadPreferences();
   const confirmedDataset = customDataset ?? loadConfirmedDataset(createEmptyDataset());
   const draftSnapshot = readOnly ? null : loadDraftSnapshot(confirmedDataset);
-  const initialDataset = draftSnapshot?.dataset ?? confirmedDataset;
-  const initialDrafts = (draftSnapshot?.changes ?? {}) as Record<string, DraftChange>;
+  const rawInitialDrafts = (draftSnapshot?.changes ?? {}) as Record<string, DraftChange>;
+
+  // Filtrar borradores que ya coinciden con confirmedDataset o no pertenecen a este dataset
+  const initialDrafts: Record<string, DraftChange> = {};
+  for (const [key, draft] of Object.entries(rawInitialDrafts)) {
+    if (draft.kind === "grade" && draft.studentId && draft.evaluationId) {
+      const confirmedVal = confirmedDataset.grades[key] ?? null;
+      const confirmedComm = (confirmedDataset.comments[key] ?? "").trim();
+      const draftVal = draft.value ?? null;
+      const draftComm = (draft.comment ?? "").trim();
+      if (draftVal !== confirmedVal || draftComm !== confirmedComm) {
+        initialDrafts[key] = draft;
+      }
+    }
+  }
+
+  const initialDataset = Object.keys(initialDrafts).length > 0 && draftSnapshot?.dataset?.key === confirmedDataset.key
+    ? draftSnapshot.dataset
+    : confirmedDataset;
+
+  const pendingCount = readOnly ? 0 : Object.keys(initialDrafts).length;
+
   return {
     confirmedDataset,
     dataset: initialDataset,
@@ -167,8 +188,8 @@ export function createInitialState(customDataset?: Dataset, readOnly?: boolean):
     preferences,
     sync: {
       ...INITIAL_SYNC_STATE,
-      status: readOnly ? "synced" : Object.keys(initialDrafts).length > 0 ? "pending" : "idle",
-      pending: readOnly ? 0 : Object.keys(initialDrafts).length,
+      status: readOnly ? "synced" : pendingCount > 0 ? "pending" : "idle",
+      pending: pendingCount,
     },
     activeCell: { row: 0, col: 0 },
     editing: false,
@@ -291,12 +312,60 @@ export function gradeCenterReducer(state: State, action: Action): State {
       return { ...state, selectedRows: [], selectedCells: [], selectionAnchor: null };
     case "paste/preview":
       return { ...state, pastePreview: action.preview };
+
+    case "dataset/load":
+      return {
+        ...state,
+        confirmedDataset: action.dataset,
+        dataset: action.dataset,
+        drafts: {},
+        sync: {
+          ...INITIAL_SYNC_STATE,
+          status: "idle",
+          pending: 0,
+          lastSyncedAt: Date.now(),
+          retries: 0,
+          lastError: null,
+        },
+        selectedRows: [],
+        selectedCells: [],
+        selectionAnchor: null,
+        pastePreview: null,
+      };
+
     case "restore": {
+      // Si el dataset a restaurar tiene una clave distinta, no es un undo/redo sino un dataset nuevo
+      if (action.dataset.key !== state.confirmedDataset.key) {
+        return {
+          ...state,
+          confirmedDataset: action.dataset,
+          dataset: action.dataset,
+          drafts: {},
+          sync: { ...INITIAL_SYNC_STATE, status: "idle", pending: 0, lastSyncedAt: Date.now(), lastError: null },
+          selectedRows: [],
+          selectedCells: [],
+          selectionAnchor: null,
+          pastePreview: null,
+        };
+      }
+
       const drafts: Record<string, DraftChange> = {};
-      for (const student of action.dataset.students) for (const evaluation of action.dataset.evaluations) {
-        const key = gradeKey(student.id, evaluation.id);
-        if (action.dataset.grades[key] !== state.confirmedDataset.grades[key] || action.dataset.comments[key] !== state.confirmedDataset.comments[key]) {
-          drafts[key] = { kind: "grade", studentId: student.id, evaluationId: evaluation.id, value: action.dataset.grades[key] ?? null, comment: action.dataset.comments[key] ?? "" };
+      for (const student of action.dataset.students) {
+        for (const evaluation of action.dataset.evaluations) {
+          const key = gradeKey(student.id, evaluation.id);
+          const actionGrade = action.dataset.grades[key] ?? null;
+          const confirmedGrade = state.confirmedDataset.grades[key] ?? null;
+          const actionComment = (action.dataset.comments[key] ?? "").trim();
+          const confirmedComment = (state.confirmedDataset.comments[key] ?? "").trim();
+          if (actionGrade !== confirmedGrade || actionComment !== confirmedComment) {
+            drafts[key] = {
+              kind: "grade",
+              studentId: student.id,
+              evaluationId: evaluation.id,
+              value: actionGrade,
+              comment: actionComment,
+            };
+          }
         }
       }
       const restoredEvaluations = new Map(action.dataset.evaluations.map((evaluation) => [evaluation.id, evaluation]));
@@ -313,7 +382,18 @@ export function gradeCenterReducer(state: State, action: Action): State {
           drafts[`evaluation::${evaluation.id}`] = { kind: "evaluation", evaluationId: evaluation.id, operation: "update", patch: restored };
         }
       }
-      return { ...state, dataset: action.dataset, drafts, sync: { ...state.sync, status: Object.keys(drafts).length ? "pending" : "idle", pending: Object.keys(drafts).length, lastError: null } };
+      const pending = Object.keys(drafts).length;
+      return {
+        ...state,
+        dataset: action.dataset,
+        drafts,
+        sync: {
+          ...state.sync,
+          status: pending ? "pending" : "idle",
+          pending,
+          lastError: null,
+        },
+      };
     }
 
     case "remote/update": {
@@ -493,13 +573,17 @@ export function gradeCenterReducer(state: State, action: Action): State {
         comments: nextConfirmedComments,
       };
 
-      // 2. Limpiar SOLAMENTE los borradores cuyo valor coincide con lo guardado en el servidor.
+      // 2. Limpiar SOLAMENTE los borradores cuyo valor difiere de lo confirmado en el servidor.
       // Si el docente editó de nuevo la celda mientras la petición estaba en vuelo, se conserva ese borrador nuevo.
       const remainingDrafts: Record<string, DraftChange> = {};
       for (const [key, draft] of Object.entries(state.drafts)) {
         const saved = action.savedDrafts[key];
         if (saved) {
-          if (draft.value !== saved.value || draft.comment !== saved.comment) {
+          const draftVal = draft.value ?? null;
+          const savedVal = saved.value ?? null;
+          const draftComm = (draft.comment ?? "").trim();
+          const savedComm = (saved.comment ?? "").trim();
+          if (draftVal !== savedVal || draftComm !== savedComm) {
             remainingDrafts[key] = draft;
           }
         } else {
@@ -664,16 +748,48 @@ export function GradeCenterProvider({
     () => createInitialState(initialDataset, readOnly),
   );
 
+  const timers = useRef<number[]>([]);
+  const datasetRef = useRef(state.dataset);
+  const draftsRef = useRef(state.drafts);
+  const pendingCountRef = useRef(Object.keys(state.drafts).length);
+  const syncAttemptRef = useRef<(attempt: number) => Promise<void> | void>(() => undefined);
+  const persistenceRef = useRef(persistence);
+  persistenceRef.current = persistence;
+  const onDataSavedRef = useRef(onDataSaved);
+  onDataSavedRef.current = onDataSaved;
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
+  const readOnlyReasonRef = useRef(readOnlyReason);
+  readOnlyReasonRef.current = readOnlyReason;
+
+  const undoStack = useRef<Dataset[]>([]);
+  const redoStack = useRef<Dataset[]>([]);
+  datasetRef.current = state.dataset;
+  draftsRef.current = state.drafts;
+  pendingCountRef.current = Object.keys(state.drafts).length;
+
+  const isSyncingRef = useRef(false);
+  const queuedSyncRef = useRef(false);
+
+  const clearTimers = useCallback(() => {
+    timers.current.forEach((id) => window.clearTimeout(id));
+    timers.current = [];
+  }, []);
+
   const prevInitialDatasetRef = useRef(initialDataset);
   useEffect(() => {
     if (!initialDataset) return;
     if (initialDataset.key !== state.confirmedDataset.key) {
-      dispatch({ type: "restore", dataset: initialDataset });
+      clearTimers();
+      undoStack.current = [];
+      redoStack.current = [];
+      dispatch({ type: "dataset/load", dataset: initialDataset });
+      persistDraftChanges({}, initialDataset);
     } else if (prevInitialDatasetRef.current !== initialDataset) {
       dispatch({ type: "remote/update", dataset: initialDataset });
     }
     prevInitialDatasetRef.current = initialDataset;
-  }, [initialDataset, state.confirmedDataset.key]);
+  }, [initialDataset, state.confirmedDataset.key, clearTimers]);
 
   const analytics = useMemo(() => buildAnalytics(state.dataset), [state.dataset]);
 
@@ -699,34 +815,12 @@ export function GradeCenterProvider({
   /* Cola real de guardado con debounce, persistencia server y reintentos */
   /* ------------------------------------------------------------------ */
 
-  const timers = useRef<number[]>([]);
-  const datasetRef = useRef(state.dataset);
-  const draftsRef = useRef(state.drafts);
-  const pendingCountRef = useRef(Object.keys(state.drafts).length);
-  const syncAttemptRef = useRef<(attempt: number) => Promise<void> | void>(() => undefined);
-  const persistenceRef = useRef(persistence);
-  persistenceRef.current = persistence;
-  const onDataSavedRef = useRef(onDataSaved);
-  onDataSavedRef.current = onDataSaved;
-  const readOnlyRef = useRef(readOnly);
-  readOnlyRef.current = readOnly;
-  const readOnlyReasonRef = useRef(readOnlyReason);
-  readOnlyReasonRef.current = readOnlyReason;
-
-  const undoStack = useRef<Dataset[]>([]);
-  const redoStack = useRef<Dataset[]>([]);
-  datasetRef.current = state.dataset;
-  draftsRef.current = state.drafts;
-  pendingCountRef.current = Object.keys(state.drafts).length;
-
-  const clearTimers = useCallback(() => {
-    timers.current.forEach((id) => window.clearTimeout(id));
-    timers.current = [];
-  }, []);
-
   syncAttemptRef.current = async (attempt: number) => {
     if (readOnlyRef.current || pendingCountRef.current === 0) return;
-    dispatch({ type: "sync/saving" });
+    if (isSyncingRef.current) {
+      queuedSyncRef.current = true;
+      return;
+    }
 
     const snapshotDrafts = { ...draftsRef.current };
     const snapshotKeys = Object.keys(snapshotDrafts);
@@ -735,7 +829,11 @@ export function GradeCenterProvider({
       return;
     }
 
+    isSyncingRef.current = true;
+    dispatch({ type: "sync/saving" });
+
     try {
+      let performedServerSave = false;
       if (persistenceRef.current?.saveGrades) {
         // Agrupar calificaciones por evaluación para despachar en lote seguro
         const byEval: Record<number, Array<{ studentId: number; value: number | null; comment?: string }>> = {};
@@ -755,10 +853,13 @@ export function GradeCenterProvider({
         }
 
         const evalIds = Object.keys(byEval).map(Number);
-        for (const evalId of evalIds) {
-          const items = byEval[evalId];
-          if (items && items.length > 0) {
-            await persistenceRef.current.saveGrades(evalId, items);
+        if (evalIds.length > 0) {
+          for (const evalId of evalIds) {
+            const items = byEval[evalId];
+            if (items && items.length > 0) {
+              await persistenceRef.current.saveGrades(evalId, items);
+              performedServerSave = true;
+            }
           }
         }
       } else {
@@ -771,7 +872,9 @@ export function GradeCenterProvider({
         window.setTimeout(() => {
           dispatch({ type: "sync/confirmed-batch", savedDrafts: snapshotDrafts });
           persistConfirmedDataset(datasetRef.current);
-          onDataSavedRef.current?.();
+          if (performedServerSave) {
+            onDataSavedRef.current?.();
+          }
 
           timers.current.push(
             window.setTimeout(() => {
@@ -790,13 +893,24 @@ export function GradeCenterProvider({
           }, SYNC_TIMINGS.retryMs)
         );
       }
+    } finally {
+      isSyncingRef.current = false;
+      if (queuedSyncRef.current) {
+        queuedSyncRef.current = false;
+        if (pendingCountRef.current > 0) {
+          scheduleSync();
+        }
+      }
     }
   };
 
   const scheduleSync = useCallback(() => {
     if (readOnly) return;
     clearTimers();
-    if (pendingCountRef.current === 0) return;
+    if (pendingCountRef.current === 0) {
+      dispatch({ type: "sync/idle-if-empty" });
+      return;
+    }
     dispatch({ type: "sync/pending", count: pendingCountRef.current });
     timers.current.push(window.setTimeout(() => syncAttemptRef.current(0), SYNC_TIMINGS.debounceMs));
   }, [clearTimers, readOnly]);
