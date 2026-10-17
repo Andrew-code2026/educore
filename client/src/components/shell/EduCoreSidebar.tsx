@@ -57,7 +57,7 @@ export function EduCoreSidebar({
   notificationCount = 0,
   user,
 }: EduCoreSidebarProps) {
-  const { sidebarCollapsed, toggleSidebar } = useShellContext();
+  const { sidebarCollapsed, toggleSidebar, isFocusMode } = useShellContext();
   const groups = getNavGroupsForRole(role, notificationCount);
 
   // Atajo de teclado (Ctrl+B / ⌘+B) para colapsar/expandir el sidebar
@@ -90,7 +90,9 @@ export function EduCoreSidebar({
   return (
     <aside
       aria-label="Navegación principal"
-      className={`edc-nav fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground backdrop-blur-md transition-all duration-200 ease-out lg:flex ${
+      className={`edc-nav fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground backdrop-blur-md transition-all duration-200 ease-out ${
+        isFocusMode ? "-translate-x-full pointer-events-none opacity-0" : "translate-x-0"
+      } lg:flex ${
         sidebarCollapsed ? "w-[72px]" : "w-[250px]"
       }`}
       style={{

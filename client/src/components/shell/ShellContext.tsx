@@ -17,6 +17,8 @@ interface ShellContextType {
   schoolName: string;
   navGuard: ((action: () => void, targetSection?: Section) => void) | null;
   setNavGuard: (guard: ((action: () => void, targetSection?: Section) => void) | null) => void;
+  isFocusMode: boolean;
+  setIsFocusMode: (focus: boolean) => void;
 }
 
 const ShellContext = createContext<ShellContextType | undefined>(undefined);
@@ -46,6 +48,7 @@ export function ShellContextProvider({
   });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const [navGuard, setNavGuardInternal] = useState<((action: () => void, targetSection?: Section) => void) | null>(null);
 
   const setNavGuard = React.useCallback(
@@ -65,10 +68,11 @@ export function ShellContextProvider({
     }
   }, [sidebarCollapsed]);
 
-  // Limpiar contexto explícito y guardián al cambiar de sección
+  // Limpiar contexto explícito, foco y guardián al cambiar de sección
   useEffect(() => {
     setExplicitContext(null);
     setNavGuard(null);
+    setIsFocusMode(false);
   }, [section, role, setNavGuard]);
 
   const toggleSidebar = React.useCallback(() => {
@@ -208,6 +212,8 @@ export function ShellContextProvider({
       schoolName,
       navGuard,
       setNavGuard,
+      isFocusMode,
+      setIsFocusMode,
     }),
     [
       resolvedContext,
@@ -221,6 +227,7 @@ export function ShellContextProvider({
       schoolName,
       navGuard,
       setNavGuard,
+      isFocusMode,
     ]
   );
 

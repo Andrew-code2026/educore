@@ -49,6 +49,7 @@ export function EduCoreMobileNav({
     setMobileOpen,
     mobileMoreOpen,
     setMobileMoreOpen,
+    isFocusMode,
   } = useShellContext();
 
   const bottomItems = getMobileBottomNavItems(role, notificationCount);
@@ -57,6 +58,8 @@ export function EduCoreMobileNav({
 
   // Determinar si la sección activa está en los items del bottom nav
   const isBottomActive = bottomItems.some(item => item.id === section);
+
+  if (isFocusMode) return null;
 
   return (
     <>
