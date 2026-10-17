@@ -1387,11 +1387,14 @@ export async function upsertAttendance(records: InsertAttendanceRecord[], school
     const equiv = await getStudentEquivalence(record.studentId, targetSchoolId);
     const targetStudentId = equiv.primaryRosterStudentId;
 
+    const rawDate = record.attendanceDate instanceof Date ? record.attendanceDate : new Date(record.attendanceDate);
+    const normalizedDate = new Date(Date.UTC(rawDate.getUTCFullYear(), rawDate.getUTCMonth(), rawDate.getUTCDate(), 0, 0, 0, 0));
+
     const existing = await db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(and(
       eq(attendanceRecords.schoolId, targetSchoolId),
       eq(attendanceRecords.courseId, record.courseId),
       inArray(attendanceRecords.studentId, equiv.allIds),
-      eq(attendanceRecords.attendanceDate, record.attendanceDate),
+      eq(attendanceRecords.attendanceDate, normalizedDate),
     )).limit(1);
 
     if (existing[0]) {
@@ -1405,6 +1408,7 @@ export async function upsertAttendance(records: InsertAttendanceRecord[], school
     } else {
       await db.insert(attendanceRecords).values({
         ...record,
+        attendanceDate: normalizedDate,
         studentId: targetStudentId,
         schoolId: targetSchoolId,
       });

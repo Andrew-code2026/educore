@@ -17,7 +17,7 @@ function ShellInner({
   onLogout,
   notificationCount = 0,
 }: EduCoreShellProps) {
-  const { sidebarCollapsed, navGuard } = useShellContext();
+  const { sidebarCollapsed, navGuard, isFocusMode } = useShellContext();
 
   const handleSetSection = React.useCallback(
     (nextSection: Section) => {
@@ -40,17 +40,19 @@ function ShellInner({
   }, [navGuard, onLogout]);
 
   React.useEffect(() => {
-    if (section === "grades") {
+    if (section === "grades" || section === "attendance") {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       if (document.documentElement) document.documentElement.scrollTop = 0;
       if (document.body) document.body.scrollTop = 0;
     }
   }, [section]);
 
+  const isFullBleed = section === "grades" || section === "attendance";
+
   return (
     <div
       className={
-        section === "grades"
+        isFullBleed
           ? "h-screen max-h-screen overflow-hidden bg-transparent text-foreground"
           : "min-h-screen page-shell text-slate-900 selection:bg-blue-100"
       }
@@ -82,13 +84,13 @@ function ShellInner({
       {/* 2. Contenedor principal desplazable que se adapta al ancho de la barra lateral */}
       <div
         className={`flex ${
-          section === "grades" ? "h-screen max-h-screen overflow-hidden" : "min-h-screen"
+          isFullBleed ? "h-screen max-h-screen overflow-hidden" : "min-h-screen"
         } flex-col transition-all duration-200 ease-out ${
-          sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-[250px]"
+          isFocusMode ? "lg:pl-0" : (sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-[250px]")
         }`}
       >
         {/* Header contextual y contenido principal */}
-        {section === "grades" ? (
+        {isFullBleed ? (
           <main className="flex-1 flex flex-col min-h-0 h-full overflow-hidden w-full">
             {children}
           </main>

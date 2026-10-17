@@ -1,0 +1,2648 @@
+.attendance-workspace {
+  --background: oklch(0.972 0.006 258);
+  --foreground: oklch(0.235 0.024 262);
+  background-color: var(--background);
+  color: var(--foreground);
+}
+.dark .attendance-workspace {
+  --background: oklch(0.165 0.014 265);
+  --foreground: oklch(0.94 0.008 250);
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+
+@theme inline {
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-hairline: var(--hairline);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-soft: var(--brand-soft);
+  --color-attention: var(--attention);
+  --color-st-present: var(--st-present);
+  --color-st-absent: var(--st-absent);
+  --color-st-late: var(--st-late);
+  --color-st-excuse: var(--st-excuse);
+  --color-st-pending: var(--st-pending);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* =============================================================================
+   TEMA CLARO — "Aurora diurna": superficies frías translúcidas, aire amplio.
+   Diseñado por separado del oscuro: no es una inversión de colores.
+   ============================================================================= */
+:root {
+  --radius: 0.75rem;
+
+  --background: oklch(0.972 0.006 258);
+  --foreground: oklch(0.235 0.024 262);
+
+  --surface-1: oklch(1 0 0);
+  --surface-2: oklch(0.995 0.003 258);
+  --surface-3: oklch(0.965 0.006 258);
+
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.995 0.003 258);
+  --popover-foreground: var(--foreground);
+
+  --primary: oklch(0.52 0.14 232);
+  --primary-foreground: oklch(0.99 0.005 230);
+  --secondary: oklch(0.955 0.008 258);
+  --secondary-foreground: oklch(0.34 0.022 262);
+  --muted: oklch(0.955 0.008 258);
+  --muted-foreground: oklch(0.53 0.019 262);
+  --accent: oklch(0.945 0.012 245);
+  --accent-foreground: oklch(0.28 0.024 262);
+
+  --destructive: oklch(0.58 0.2 22);
+  --destructive-foreground: oklch(0.99 0.005 20);
+
+  --border: oklch(0.9 0.01 258);
+  --input: oklch(0.92 0.01 258);
+  --ring: oklch(0.62 0.13 232);
+
+  --hairline: oklch(0.24 0.02 262 / 0.09);
+  --hairline-strong: oklch(0.24 0.02 262 / 0.16);
+  --glass-bg: oklch(1 0 0 / 0.72);
+  --glass-bg-strong: oklch(1 0 0 / 0.88);
+  --glass-highlight: oklch(1 0 0 / 0.85);
+  --ambient-shadow: 0 1px 1px oklch(0.24 0.02 262 / 0.04), 0 10px 28px -14px oklch(0.24 0.03 262 / 0.22);
+  --lift-shadow: 0 2px 4px oklch(0.24 0.02 262 / 0.06), 0 22px 48px -18px oklch(0.24 0.03 262 / 0.28);
+  --row-hover: oklch(0.24 0.03 262 / 0.035);
+  --row-focus: oklch(0.62 0.13 232 / 0.08);
+  --sheet-head: oklch(0.985 0.005 258 / 0.92);
+  --grid-line: oklch(0.24 0.02 262 / 0.055);
+
+  --chart-1: oklch(0.72 0.13 205);
+  --chart-2: oklch(0.62 0.14 160);
+  --chart-3: oklch(0.7 0.15 75);
+  --chart-4: oklch(0.58 0.17 288);
+  --chart-5: oklch(0.58 0.2 22);
+
+  --sidebar: oklch(0.985 0.005 258);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: oklch(0.52 0.14 232);
+  --sidebar-primary-foreground: oklch(0.99 0.005 230);
+  --sidebar-accent: oklch(0.95 0.01 250);
+  --sidebar-accent-foreground: oklch(0.28 0.024 262);
+  --sidebar-border: oklch(0.9 0.01 258);
+  --sidebar-ring: oklch(0.62 0.13 232);
+
+  /* Estados de asistencia — semántica única en todo el módulo */
+  --st-present: oklch(0.58 0.14 158);
+  --st-absent: oklch(0.56 0.2 22);
+  --st-late: oklch(0.66 0.14 72);
+  --st-excuse: oklch(0.54 0.17 288);
+  --st-pending: oklch(0.62 0.015 262);
+  --attention: oklch(0.6 0.18 45);
+}
+
+/* =============================================================================
+   TEMA OSCURO — "Aurora nocturna": grafito profundo, luminiscencia contenida.
+   ============================================================================= */
+.dark {
+  --background: oklch(0.165 0.014 265);
+  --foreground: oklch(0.94 0.008 250);
+
+  --surface-1: oklch(0.205 0.016 265);
+  --surface-2: oklch(0.228 0.017 265);
+  --surface-3: oklch(0.255 0.018 265);
+
+  --card: oklch(0.21 0.016 265);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.215 0.017 265);
+  --popover-foreground: var(--foreground);
+
+  --primary: oklch(0.78 0.13 205);
+  --primary-foreground: oklch(0.18 0.02 250);
+  --secondary: oklch(0.26 0.018 265);
+  --secondary-foreground: oklch(0.9 0.01 250);
+  --muted: oklch(0.26 0.018 265);
+  --muted-foreground: oklch(0.71 0.016 255);
+  --accent: oklch(0.28 0.022 258);
+  --accent-foreground: oklch(0.95 0.008 250);
+
+  --destructive: oklch(0.68 0.19 22);
+  --destructive-foreground: oklch(0.15 0.02 20);
+
+  --border: oklch(1 0 0 / 0.1);
+  --input: oklch(1 0 0 / 0.14);
+  --ring: oklch(0.72 0.13 205);
+
+  --hairline: oklch(1 0 0 / 0.08);
+  --hairline-strong: oklch(1 0 0 / 0.16);
+  --glass-bg: oklch(0.24 0.018 265 / 0.62);
+  --glass-bg-strong: oklch(0.245 0.018 265 / 0.86);
+  --glass-highlight: oklch(1 0 0 / 0.07);
+  --ambient-shadow: 0 1px 1px oklch(0 0 0 / 0.4), 0 14px 34px -16px oklch(0 0 0 / 0.7);
+  --lift-shadow: 0 2px 6px oklch(0 0 0 / 0.45), 0 28px 60px -20px oklch(0 0 0 / 0.8);
+  --row-hover: oklch(1 0 0 / 0.045);
+  --row-focus: oklch(0.78 0.13 205 / 0.11);
+  --sheet-head: oklch(0.2 0.016 265 / 0.92);
+  --grid-line: oklch(1 0 0 / 0.055);
+
+  --st-present: oklch(0.78 0.16 160);
+  --st-absent: oklch(0.7 0.18 20);
+  --st-late: oklch(0.81 0.15 78);
+  --st-excuse: oklch(0.75 0.15 288);
+  --st-pending: oklch(0.66 0.015 262);
+  --attention: oklch(0.76 0.16 50);
+
+  --chart-1: oklch(0.78 0.13 205);
+  --chart-2: oklch(0.78 0.16 160);
+  --chart-3: oklch(0.81 0.15 78);
+  --chart-4: oklch(0.75 0.15 288);
+  --chart-5: oklch(0.7 0.18 20);
+}
+
+/* ---- Acentos de marca conmutables (EduCore real se alinea cambiando un token) ---- */
+:root,
+html[data-accent="aurora"] {
+  --brand: oklch(0.56 0.13 224);
+  --brand-foreground: oklch(0.99 0.005 230);
+  --brand-soft: oklch(0.56 0.13 224 / 0.12);
+}
+.dark,
+html.dark[data-accent="aurora"] {
+  --brand: oklch(0.8 0.13 205);
+  --brand-foreground: oklch(0.18 0.02 250);
+  --brand-soft: oklch(0.8 0.13 205 / 0.16);
+}
+html[data-accent="emerald"] {
+  --brand: oklch(0.54 0.13 168);
+  --brand-foreground: oklch(0.99 0.005 168);
+  --brand-soft: oklch(0.54 0.13 168 / 0.12);
+}
+html.dark[data-accent="emerald"] {
+  --brand: oklch(0.79 0.15 168);
+  --brand-foreground: oklch(0.18 0.02 168);
+  --brand-soft: oklch(0.79 0.15 168 / 0.16);
+}
+html[data-accent="indigo"] {
+  --brand: oklch(0.5 0.17 282);
+  --brand-foreground: oklch(0.99 0.005 282);
+  --brand-soft: oklch(0.5 0.17 282 / 0.12);
+}
+html.dark[data-accent="indigo"] {
+  --brand: oklch(0.75 0.15 285);
+  --brand-foreground: oklch(0.18 0.02 285);
+  --brand-soft: oklch(0.75 0.15 285 / 0.16);
+}
+
+
+
+@layer components {
+  .container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .flex {
+    min-height: 0;
+    min-width: 0;
+  }
+
+  /* Superficie de vidrio líquido: borde hairline + luz interior superior. */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border: 1px solid var(--hairline);
+    box-shadow: inset 0 1px 0 var(--glass-highlight), var(--ambient-shadow);
+  }
+
+  .glass-strong {
+    background: var(--glass-bg-strong);
+    backdrop-filter: blur(26px) saturate(165%);
+    -webkit-backdrop-filter: blur(26px) saturate(165%);
+    border: 1px solid var(--hairline);
+    box-shadow: inset 0 1px 0 var(--glass-highlight), var(--lift-shadow);
+  }
+
+  /* Separador luminoso: hairline con degradado, usado en franjas y sticky. */
+  .hairline-b {
+    box-shadow: inset 0 -1px 0 var(--hairline);
+  }
+  .hairline-t {
+    box-shadow: inset 0 1px 0 var(--hairline);
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.375rem;
+    padding: 0 0.375rem;
+    border-radius: 0.4rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--muted-foreground);
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    box-shadow: inset 0 -1px 0 var(--hairline);
+  }
+
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--hairline-strong) transparent;
+  }
+
+  /* Rejilla de la planilla: columnas alineadas entre encabezado y filas. */
+  .sheet-grid {
+    display: grid;
+    /* nombre (acotado) · separador flexible · P A T E · indicador de atención */
+    grid-template-columns: minmax(190px, 360px) 1fr repeat(4, 46px) 62px;
+  }
+
+  @media (min-width: 1700px) {
+    .sheet-grid {
+      grid-template-columns: minmax(220px, 400px) 1fr repeat(4, 52px) 68px;
+    }
+  }
+}
+
+@layer utilities {
+  .animate-pulse-dot {
+    animation: edu-pulse-dot 2.4s ease-in-out infinite;
+  }
+  .animate-sheen {
+    animation: edu-sheen 2.8s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    /* Cubre también las animaciones utilitarias de Tailwind que usa el módulo. */
+    .animate-pulse-dot,
+    .animate-sheen,
+    .animate-spin,
+    .animate-pulse,
+    .animate-ping,
+    .animate-bounce {
+      animation: none;
+    }
+  }
+}
+
+@keyframes edu-pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.86);
+  }
+}
+
+@keyframes edu-sheen {
+  0% {
+    transform: translateX(-120%);
+  }
+  60%,
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+
+/* =============================================================================
+   CHRONA GLASS — consola de pase de lista. El vidrio es una capa funcional;
+   el color semántico y el control del estado siguen siendo los protagonistas.
+   ============================================================================= */
+:root {
+  --chrona-cyan: oklch(0.79 0.11 205);
+  --chrona-cyan-strong: oklch(0.56 0.14 213);
+  --chrona-ink-on-state: oklch(0.99 0.004 250);
+  --roster-head: oklch(0.979 0.008 235 / 0.94);
+  --roster-foot: oklch(0.985 0.004 245 / 0.82);
+  --roster-zebra: oklch(0.45 0.025 235 / 0.018);
+  --roster-hover: oklch(0.74 0.095 205 / 0.075);
+  --chrona-control-bg: oklch(1 0 0 / 0.52);
+  --chrona-control-border: oklch(0.31 0.04 240 / 0.11);
+  --chrona-surface-shadow: 0 1px 0 oklch(1 0 0 / 0.86) inset, 0 10px 30px -22px oklch(0.2 0.04 238 / 0.42);
+}
+
+.dark {
+  --chrona-cyan: oklch(0.82 0.12 199);
+  --chrona-cyan-strong: oklch(0.82 0.12 199);
+  --chrona-ink-on-state: oklch(0.18 0.018 254);
+  --roster-head: oklch(0.2 0.028 254 / 0.96);
+  --roster-foot: oklch(0.18 0.025 258 / 0.92);
+  --roster-zebra: oklch(0.96 0.015 250 / 0.018);
+  --roster-hover: oklch(0.76 0.11 199 / 0.08);
+  --chrona-control-bg: oklch(0.28 0.025 254 / 0.68);
+  --chrona-control-border: oklch(0.96 0.015 250 / 0.11);
+  --chrona-surface-shadow: 0 1px 0 oklch(1 0 0 / 0.055) inset, 0 12px 34px -20px oklch(0 0 0 / 0.72);
+}
+
+@layer components {
+  .chrona-deck {
+    isolation: isolate;
+    border-color: color-mix(in oklab, var(--chrona-cyan) 24%, var(--hairline));
+    box-shadow: var(--chrona-surface-shadow), var(--ambient-shadow);
+  }
+  .chrona-deck::after {
+    position: absolute;
+    right: 2%;
+    bottom: 0;
+    left: 2%;
+    height: 1px;
+    content: "";
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--chrona-cyan) 68%, transparent), color-mix(in oklab, var(--brand) 34%, transparent), transparent);
+    opacity: 0.65;
+  }
+  .chrona-deck-orbit {
+    z-index: -1;
+    background:
+      radial-gradient(ellipse at 87% -20%, color-mix(in oklab, var(--chrona-cyan) 12%, transparent), transparent 46%),
+      radial-gradient(ellipse at 100% 120%, color-mix(in oklab, var(--brand) 7%, transparent), transparent 36%);
+  }
+  .chrona-mark {
+    color: var(--chrona-cyan-strong);
+    background: color-mix(in oklab, var(--chrona-cyan) 10%, var(--surface-1));
+    border: 1px solid color-mix(in oklab, var(--chrona-cyan) 30%, var(--hairline));
+    box-shadow: inset 0 1px 0 var(--glass-highlight), 0 4px 16px -12px var(--chrona-cyan-strong);
+  }
+  .chrona-mark-ring {
+    position: absolute;
+    inset: 5px;
+    border: 1px solid color-mix(in oklab, var(--chrona-cyan-strong) 52%, transparent);
+    border-radius: 999px;
+    transform: rotate(-24deg) scaleX(0.82);
+  }
+  .chrona-overline {
+    color: color-mix(in oklab, var(--muted-foreground) 88%, var(--chrona-cyan-strong));
+    font-size: 8.5px;
+    font-weight: 750;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+  .chrona-control,
+  .chrona-date-control {
+    border: 1px solid var(--chrona-control-border);
+    background: var(--chrona-control-bg);
+    box-shadow: inset 0 1px 0 var(--glass-highlight);
+  }
+  .chrona-control:hover,
+  .chrona-date-control:hover { border-color: color-mix(in oklab, var(--chrona-cyan-strong) 32%, var(--chrona-control-border)); }
+  .chrona-pulse {
+    isolation: isolate;
+    border-color: color-mix(in oklab, var(--chrona-cyan) 20%, var(--hairline));
+    background:
+      radial-gradient(ellipse at 7% 50%, color-mix(in oklab, var(--chrona-cyan) 9%, transparent), transparent 40%),
+      var(--glass-bg);
+    box-shadow: inset 0 1px 0 var(--glass-highlight), 0 7px 24px -22px var(--chrona-cyan-strong);
+  }
+  .chrona-pulse-orb {
+    color: var(--chrona-cyan-strong);
+    border: 1px solid color-mix(in oklab, var(--chrona-cyan-strong) 25%, var(--hairline));
+    background: color-mix(in oklab, var(--chrona-cyan) 9%, var(--surface-1));
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--chrona-cyan) 6%, transparent), inset 0 1px 0 var(--glass-highlight);
+  }
+  .chrona-pulse-complete {
+    color: var(--st-present);
+    border-color: color-mix(in oklab, var(--st-present) 35%, var(--hairline));
+    background: color-mix(in oklab, var(--st-present) 12%, var(--surface-1));
+  }
+  .chrona-progress-track { flex: 0.72 1 120px; background: color-mix(in oklab, var(--foreground) 9%, transparent); }
+  .chrona-pulse > div:last-child { flex: 1.5 1 390px; }
+  .chrona-metric-chip { color: var(--foreground); }
+  .chrona-metric-active { background: var(--brand-soft); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--brand) 25%, transparent); }
+  .chrona-pending-pulse { background: color-mix(in oklab, var(--st-late) 8%, transparent); }
+  .chrona-workbar {
+    border: 1px solid var(--hairline);
+    background: color-mix(in oklab, var(--glass-bg-strong) 84%, transparent);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    box-shadow: inset 0 1px 0 var(--glass-highlight), 0 7px 20px -22px var(--foreground);
+  }
+  .chrona-search {
+    border: 1px solid var(--chrona-control-border);
+    background: var(--chrona-control-bg);
+    box-shadow: inset 0 1px 0 var(--glass-highlight);
+  }
+  .chrona-search:focus-within {
+    border-color: color-mix(in oklab, var(--chrona-cyan-strong) 58%, var(--hairline));
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--chrona-cyan) 12%, transparent), inset 0 1px 0 var(--glass-highlight);
+  }
+  .chrona-action-primary {
+    color: var(--chrona-ink-on-state);
+    border: 1px solid color-mix(in oklab, var(--st-present) 80%, transparent);
+    background: linear-gradient(180deg, color-mix(in oklab, var(--st-present) 90%, white 10%), var(--st-present));
+    box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.22), 0 4px 12px -8px var(--st-present);
+  }
+  .chrona-action-primary:hover { filter: brightness(1.04); box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.25), 0 6px 16px -8px var(--st-present); }
+  .chrona-action-secondary {
+    color: var(--foreground);
+    border: 1px solid var(--chrona-control-border);
+    background: color-mix(in oklab, var(--surface-1) 56%, transparent);
+  }
+  .chrona-action-secondary:hover { background: color-mix(in oklab, var(--chrona-cyan) 7%, var(--surface-1)); border-color: color-mix(in oklab, var(--chrona-cyan-strong) 28%, var(--hairline)); }
+  .chrona-filter-primary {
+    border: 1px solid var(--hairline);
+    background: color-mix(in oklab, var(--foreground) 3.5%, transparent);
+  }
+  .chrona-attention-hot {
+    color: var(--st-absent);
+    border: 1px solid color-mix(in oklab, var(--st-absent) 27%, var(--hairline));
+    background: color-mix(in oklab, var(--st-absent) 7%, var(--surface-1));
+  }
+  .chrona-attention-hot:hover { background: color-mix(in oklab, var(--st-absent) 13%, var(--surface-1)); }
+  .chrona-attention-hot > span:last-child { color: var(--chrona-ink-on-state); background: var(--st-absent); }
+  .chrona-attention-clear { color: var(--st-present); border: 1px solid color-mix(in oklab, var(--st-present) 25%, var(--hairline)); background: color-mix(in oklab, var(--st-present) 7%, var(--surface-1)); }
+
+  .chrona-roster {
+    border-color: color-mix(in oklab, var(--chrona-cyan) 14%, var(--hairline));
+    box-shadow: var(--chrona-surface-shadow), var(--ambient-shadow);
+  }
+  .roster-grid { grid-template-columns: 38px minmax(230px, 1fr) 88px 190px minmax(132px, 174px) minmax(120px, 170px); }
+  .roster-header-grid { grid-column: 1 / -1; grid-template-columns: inherit; }
+  .roster-index { grid-column: 1; }
+  .roster-student-head, .roster-student-cell { grid-column: 2; left: 38px; }
+  .roster-col-attendance, .roster-attendance { grid-column: 3; }
+  .roster-col-status, .roster-status-cell { grid-column: 4; }
+  .roster-col-trace, .roster-trace-cell { grid-column: 5; }
+  .roster-col-signal, .roster-signal-cell { grid-column: 6; }
+  .roster-row { grid-column: 1 / -1; border-bottom: 1px solid var(--grid-line); }
+  .roster-row:nth-of-type(even) { background: var(--roster-zebra); }
+  .roster-row:hover { background: var(--roster-hover); }
+  .roster-row-focused { background: var(--row-focus) !important; }
+  .roster-row-accent { background: transparent; transition: background 180ms ease, box-shadow 180ms ease; }
+  .roster-row-focused .roster-row-accent { background: var(--chrona-cyan-strong); box-shadow: 0 0 12px color-mix(in oklab, var(--chrona-cyan-strong) 60%, transparent); }
+  .roster-heading { box-shadow: inset 0 -1px 0 var(--hairline-strong); }
+  .roster-student-head { box-shadow: inset 0 -1px 0 var(--hairline-strong), inset -1px 0 0 var(--hairline); }
+  .roster-student-cell { background: color-mix(in oklab, var(--surface-1) 93%, transparent); box-shadow: 10px 0 14px -15px var(--foreground); }
+  .roster-row:hover .roster-student-cell { background: color-mix(in oklab, var(--surface-1) 86%, var(--chrona-cyan) 14%); }
+  .roster-row-focused .roster-student-cell { background: color-mix(in oklab, var(--surface-1) 82%, var(--chrona-cyan) 18%); }
+  .roster-row-pending .roster-index { color: var(--chrona-cyan-strong); }
+  .chrona-rate-good { color: var(--st-present); background: color-mix(in oklab, var(--st-present) 7%, transparent); }
+  .chrona-rate-watch { color: var(--st-late); background: color-mix(in oklab, var(--st-late) 8%, transparent); }
+  .chrona-rate-low { color: var(--st-absent); background: color-mix(in oklab, var(--st-absent) 8%, transparent); }
+  .chrona-pate-group {
+    border: 1px solid var(--hairline-strong);
+    background: color-mix(in oklab, var(--surface-1) 75%, transparent);
+    box-shadow: inset 0 1px 0 var(--glass-highlight), 0 2px 5px -4px var(--foreground);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .chrona-pate-group button.chrona-pate-active[data-status="present"] { color: var(--chrona-ink-on-state); background: var(--st-present); border-color: color-mix(in oklab, var(--st-present) 88%, black); box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.23), 0 2px 8px -5px var(--st-present); }
+  .chrona-pate-group button.chrona-pate-active[data-status="absent"] { color: var(--chrona-ink-on-state); background: var(--st-absent); border-color: color-mix(in oklab, var(--st-absent) 88%, black); box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.2), 0 2px 8px -5px var(--st-absent); }
+  .chrona-pate-group button.chrona-pate-active[data-status="late"] { color: var(--chrona-ink-on-state); background: var(--st-late); border-color: color-mix(in oklab, var(--st-late) 88%, black); box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.21), 0 2px 8px -5px var(--st-late); }
+  .chrona-pate-group button.chrona-pate-active[data-status="excuse"] { color: var(--chrona-ink-on-state); background: var(--st-excuse); border-color: color-mix(in oklab, var(--st-excuse) 88%, black); box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.2), 0 2px 8px -5px var(--st-excuse); }
+  .chrona-pending-label { color: color-mix(in oklab, var(--muted-foreground) 82%, var(--chrona-cyan-strong)); }
+  .chrona-trace-dot { outline: 1px solid color-mix(in oklab, currentColor 13%, transparent); transition: filter 150ms ease; }
+  .chrona-trace-dot:hover { filter: drop-shadow(0 0 4px currentColor); }
+  .chrona-trace-latest { box-shadow: 0 0 0 1.5px var(--surface-1), 0 0 0 2.5px color-mix(in oklab, var(--chrona-cyan-strong) 50%, transparent); }
+}
+
+@media (max-width: 1100px) {
+  .roster-grid { grid-template-columns: 34px minmax(220px, 1fr) 80px 184px 132px 118px; }
+  .roster-student-head, .roster-student-cell { left: 34px; }
+}
+
+@media (max-width: 680px) {
+  .chrona-deck { padding: 10px; }
+  .chrona-workbar { align-items: stretch; flex-direction: column; }
+  .chrona-toolbar { width: 100%; }
+  .chrona-filters { width: 100%; flex-basis: auto; }
+  .chrona-workbar > .chrona-attention-trigger { align-self: flex-start; }
+  .chrona-pulse > div:first-child { min-width: 148px; }
+  .chrona-progress-track { flex: 1 1 100px; }
+  .chrona-pulse > div:last-child { flex: 1 1 100%; justify-content: flex-start; }
+  .chrona-pulse { gap: 8px; }
+}
+
+@media (min-width: 681px) and (max-width: 1399px) {
+  .chrona-attention-label { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roster-row,
+  .roster-row-accent,
+  .chrona-trace-dot,
+  .chrona-action-primary,
+  .chrona-action-secondary { transition-duration: 0.01ms !important; }
+}
+
+/* Elevación semántica sin capas: gana a los utilities de Tailwind del control PATE. */
+.chrona-pate-group button.chrona-pate-active[data-status="present"] { color: var(--chrona-ink-on-state); background-color: var(--st-present); border-color: color-mix(in oklab, var(--st-present) 88%, black); }
+.chrona-pate-group button.chrona-pate-active[data-status="absent"] { color: var(--chrona-ink-on-state); background-color: var(--st-absent); border-color: color-mix(in oklab, var(--st-absent) 88%, black); }
+.chrona-pate-group button.chrona-pate-active[data-status="late"] { color: var(--chrona-ink-on-state); background-color: var(--st-late); border-color: color-mix(in oklab, var(--st-late) 88%, black); }
+.chrona-pate-group button.chrona-pate-active[data-status="excuse"] { color: var(--chrona-ink-on-state); background-color: var(--st-excuse); border-color: color-mix(in oklab, var(--st-excuse) 88%, black); }
+
+
+@layer components {
+  .roster-grid { display: grid; }
+  .chrona-pate-group button.chrona-pate-active[data-status="late"] { color: oklch(0.2 0.025 65); }
+}
+
+/* Modo Enfocar asistencia: la sesión existente pasa a una capa de trabajo de viewport. */
+.chrona-focus-stage {
+  position: fixed;
+  z-index: 45;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  gap: clamp(6px, 0.8vh, 10px);
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  overflow: hidden;
+  border-radius: 0;
+  background:
+    radial-gradient(ellipse at 92% -12%, color-mix(in oklab, var(--chrona-cyan) 8%, transparent), transparent 42%),
+    var(--background);
+  animation: chrona-focus-enter 220ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+  overscroll-behavior: contain;
+}
+
+.chrona-focus-stage .chrona-deck,
+.chrona-focus-stage .chrona-pulse,
+.chrona-focus-stage .chrona-workbar { flex-shrink: 0; }
+.chrona-focus-stage .chrona-roster { min-height: 0; flex: 1 1 auto; }
+.chrona-focus-stage .chrona-deck { border-radius: 15px; }
+.chrona-focus-toggle {
+  color: var(--chrona-cyan-strong);
+  border: 1px solid color-mix(in oklab, var(--chrona-cyan-strong) 32%, var(--hairline));
+  background: color-mix(in oklab, var(--chrona-cyan) 8%, var(--surface-1));
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 4px 14px -10px var(--chrona-cyan-strong);
+}
+.chrona-focus-toggle:hover {
+  border-color: color-mix(in oklab, var(--chrona-cyan-strong) 58%, var(--hairline));
+  background: color-mix(in oklab, var(--chrona-cyan) 14%, var(--surface-1));
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 6px 18px -9px var(--chrona-cyan-strong);
+}
+
+@keyframes chrona-focus-enter {
+  from { opacity: 0.82; transform: scale(0.992); filter: blur(5px); }
+  to { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
+@media (min-width: 1200px) {
+  .chrona-focus-stage {
+    padding: max(14px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+      max(14px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrona-focus-stage { animation: none; }
+}
+
+
+/* -----------------------------------------------------------------------------
+   AttendanceCourseSelect · centro de control ejecutivo de jornada
+   ----------------------------------------------------------------------------- */
+.attendance-course-page {
+  scrollbar-gutter: stable;
+}
+.attendance-course-page > * {
+  flex-shrink: 0;
+}
+.attendance-course-hero {
+  box-shadow: var(--ambient-shadow);
+}
+.attendance-course-hero-glow {
+  background: radial-gradient(circle, color-mix(in oklab, var(--chrona-cyan) 16%, transparent), transparent 68%);
+  filter: blur(10px);
+}
+.attendance-course-date {
+  border: 1px solid var(--hairline);
+  background: color-mix(in oklab, var(--glass-bg) 80%, transparent);
+  backdrop-filter: blur(18px) saturate(1.16);
+}
+.attendance-select-kpi {
+  border: 1px solid var(--hairline);
+  box-shadow: var(--ambient-shadow);
+  backdrop-filter: blur(20px) saturate(1.12);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.attendance-select-kpi:hover {
+  border-color: color-mix(in oklab, var(--chrona-cyan-strong) 24%, var(--hairline));
+  box-shadow: var(--lift-shadow);
+}
+.attendance-select-kpi-attention {
+  border-color: color-mix(in oklab, var(--attention) 29%, var(--hairline));
+  background: color-mix(in oklab, var(--glass-bg) 92%, var(--attention) 3%);
+}
+.attendance-kpi-tick {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block: 16px;
+  width: 2px;
+  border-radius: 0 4px 4px 0;
+  background: color-mix(in oklab, var(--chrona-cyan-strong) 72%, transparent);
+  opacity: 0.72;
+}
+.attendance-kpi-tick-attention {
+  background: color-mix(in oklab, var(--attention) 78%, transparent);
+  opacity: 0.86;
+}
+.attendance-course-card {
+  border-top: 1px solid var(--hairline);
+  border-right: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  background: color-mix(in oklab, var(--glass-bg) 82%, transparent);
+  box-shadow: var(--ambient-shadow);
+  backdrop-filter: blur(20px) saturate(1.1);
+  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+.attendance-course-card:hover {
+  border-top-color: color-mix(in oklab, var(--chrona-cyan-strong) 30%, var(--hairline));
+  border-right-color: color-mix(in oklab, var(--chrona-cyan-strong) 30%, var(--hairline));
+  border-bottom-color: color-mix(in oklab, var(--chrona-cyan-strong) 30%, var(--hairline));
+  background: color-mix(in oklab, var(--glass-bg-strong) 92%, var(--chrona-cyan) 2%);
+  box-shadow: var(--lift-shadow);
+}
+.attendance-course-card:focus-visible {
+  outline: 2px solid var(--chrona-cyan-strong);
+  outline-offset: 2px;
+}
+.attendance-course-card[data-up-next="true"] {
+  border-top-color: color-mix(in oklab, var(--chrona-cyan-strong) 38%, var(--hairline));
+  border-right-color: color-mix(in oklab, var(--chrona-cyan-strong) 38%, var(--hairline));
+  border-bottom-color: color-mix(in oklab, var(--chrona-cyan-strong) 38%, var(--hairline));
+}
+.attendance-next-badge {
+  color: var(--chrona-cyan-strong);
+  background: color-mix(in oklab, var(--chrona-cyan) 10%, var(--surface-1));
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+.attendance-course-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+.attendance-course-state-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+}
+.attendance-course-state-complete {
+  color: var(--st-present);
+  background: color-mix(in oklab, var(--st-present) 10%, transparent);
+}
+.attendance-course-state-progress {
+  color: var(--chrona-cyan-strong);
+  background: color-mix(in oklab, var(--chrona-cyan) 10%, transparent);
+}
+.attendance-course-state-pending,
+.attendance-course-state-upcoming {
+  color: var(--muted-foreground);
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+.attendance-course-progress {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+.attendance-course-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--chrona-cyan-strong) 75%, var(--st-present)), var(--st-present));
+  transition: width 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.attendance-excuse-banner {
+  border: 1px solid color-mix(in oklab, var(--attention) 23%, var(--hairline));
+  background: color-mix(in oklab, var(--glass-bg) 90%, var(--attention) 2%);
+  box-shadow: 0 8px 22px -18px color-mix(in oklab, var(--attention) 55%, transparent);
+  backdrop-filter: blur(18px) saturate(1.1);
+}
+.attendance-excuse-action {
+  color: var(--attention);
+  border: 1px solid color-mix(in oklab, var(--attention) 30%, var(--hairline));
+  background: color-mix(in oklab, var(--attention) 8%, var(--surface-1));
+}
+.attendance-excuse-action:not(:disabled):hover {
+  border-color: color-mix(in oklab, var(--attention) 48%, var(--hairline));
+  background: color-mix(in oklab, var(--attention) 13%, var(--surface-1));
+}
+.attendance-course-empty {
+  border: 1px solid var(--hairline);
+  background: color-mix(in oklab, var(--glass-bg) 82%, transparent);
+}
+
+@media (max-width: 640px) {
+  .attendance-course-page { gap: 12px; }
+  .attendance-course-card { min-height: 148px; }
+  .attendance-next-badge { max-width: 146px; white-space: normal; line-height: 1.15; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attendance-select-kpi,
+  .attendance-course-card,
+  .attendance-course-progress > span { transition: none; }
+}
+
+@media (max-width: 640px) {
+  .attendance-excuse-banner {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+  }
+  .attendance-excuse-action {
+    justify-self: start;
+    margin-inline-start: 40px;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   AttendanceCourseSelect · Academic Creative
+   Editorial académico, vidrio atmosférico y acentos semánticos por dato.
+   ----------------------------------------------------------------------------- */
+.attendance-course-page {
+  --kpi-blue: oklch(0.54 0.13 248);
+  --kpi-violet: oklch(0.55 0.13 300);
+  --kpi-turquoise: oklch(0.54 0.12 184);
+  --kpi-amber: oklch(0.61 0.12 72);
+  gap: 12px;
+}
+.dark .attendance-course-page {
+  --kpi-blue: oklch(0.77 0.12 245);
+  --kpi-violet: oklch(0.76 0.12 300);
+  --kpi-turquoise: oklch(0.76 0.11 184);
+  --kpi-amber: oklch(0.79 0.12 74);
+}
+.attendance-course-page > * {
+  flex-shrink: 0;
+}
+
+.attendance-course-hero {
+  isolation: isolate;
+  min-height: 122px;
+  border: 1px solid color-mix(in oklab, var(--chrona-cyan-strong) 25%, var(--hairline));
+  background:
+    radial-gradient(ellipse 28rem 13rem at 88% 0%, color-mix(in oklab, var(--chrona-cyan) 23%, transparent), transparent 73%),
+    radial-gradient(ellipse 18rem 12rem at 4% 112%, color-mix(in oklab, var(--kpi-violet) 12%, transparent), transparent 75%),
+    linear-gradient(112deg, color-mix(in oklab, var(--surface-2) 84%, var(--chrona-cyan) 16%), color-mix(in oklab, var(--glass-bg-strong) 90%, var(--surface-1)));
+  box-shadow: var(--ambient-shadow), inset 0 1px 0 var(--glass-highlight);
+}
+.dark .attendance-course-hero {
+  border-color: color-mix(in oklab, var(--chrona-cyan-strong) 19%, var(--hairline));
+  background:
+    radial-gradient(ellipse 28rem 13rem at 88% 0%, color-mix(in oklab, var(--chrona-cyan-strong) 17%, transparent), transparent 72%),
+    radial-gradient(ellipse 18rem 12rem at 4% 112%, color-mix(in oklab, var(--kpi-violet) 9%, transparent), transparent 75%),
+    linear-gradient(112deg, color-mix(in oklab, var(--surface-1) 89%, var(--chrona-cyan) 11%), color-mix(in oklab, var(--glass-bg-strong) 92%, var(--surface-1)));
+}
+.attendance-course-hero-glow {
+  background: radial-gradient(circle, color-mix(in oklab, var(--chrona-cyan-strong) 25%, transparent), transparent 68%);
+  filter: blur(14px);
+  opacity: 0.8;
+}
+.attendance-course-hero-orbit {
+  z-index: -1;
+  right: 9%;
+  bottom: -186px;
+  width: 276px;
+  height: 276px;
+  border: 1px solid color-mix(in oklab, var(--chrona-cyan-strong) 13%, transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 24px color-mix(in oklab, var(--chrona-cyan-strong) 3%, transparent),
+    0 0 0 52px color-mix(in oklab, var(--kpi-violet) 3%, transparent);
+  opacity: 0.72;
+}
+.attendance-course-hero-content { z-index: 1; }
+.attendance-course-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted-foreground);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.attendance-course-eyebrow-mark {
+  width: 7px;
+  height: 7px;
+  border: 1px solid color-mix(in oklab, var(--chrona-cyan-strong) 60%, transparent);
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--chrona-cyan-strong) 35%, transparent);
+  box-shadow: 0 0 10px color-mix(in oklab, var(--chrona-cyan-strong) 22%, transparent);
+  transform: rotate(45deg);
+}
+.attendance-course-eyebrow-divider { color: color-mix(in oklab, var(--chrona-cyan-strong) 72%, var(--muted-foreground)); }
+.attendance-course-title {
+  color: var(--foreground);
+  font-size: clamp(1.7rem, 2.6vw, 2.1rem);
+  line-height: 0.98;
+}
+.attendance-course-subtitle {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+.attendance-course-subtitle svg { color: var(--chrona-cyan-strong); }
+.attendance-course-date {
+  flex: 0 1 auto;
+  border: 1px solid color-mix(in oklab, var(--chrona-cyan-strong) 15%, var(--hairline));
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--glass-bg-strong) 90%, var(--surface-1)), color-mix(in oklab, var(--glass-bg) 88%, var(--chrona-cyan) 5%));
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 9px 24px -20px var(--chrona-cyan-strong);
+  backdrop-filter: blur(18px) saturate(1.16);
+}
+.attendance-course-date-icon {
+  color: var(--chrona-cyan-strong);
+  border: 1px solid color-mix(in oklab, var(--chrona-cyan-strong) 18%, transparent);
+  background: color-mix(in oklab, var(--chrona-cyan) 11%, var(--surface-1));
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+.attendance-course-date-copy { max-width: 310px; }
+.attendance-course-date-kicker {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.attendance-course-date-value {
+  margin-top: 3px;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+.attendance-course-date-time {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.attendance-course-date-time svg { color: var(--chrona-cyan-strong); }
+
+.attendance-course-kpi-grid { gap: 10px; }
+.attendance-select-kpi {
+  --kpi-accent: var(--kpi-blue);
+  border: 1px solid color-mix(in oklab, var(--kpi-accent) 25%, var(--hairline));
+  background:
+    radial-gradient(ellipse 14rem 9rem at 100% 0%, color-mix(in oklab, var(--kpi-accent) 20%, transparent), transparent 73%),
+    linear-gradient(145deg, color-mix(in oklab, var(--surface-2) 88%, var(--kpi-accent) 12%), color-mix(in oklab, var(--glass-bg) 92%, var(--kpi-accent) 8%));
+  box-shadow: var(--ambient-shadow), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(20px) saturate(1.12);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+.dark .attendance-select-kpi {
+  border-color: color-mix(in oklab, var(--kpi-accent) 19%, var(--hairline));
+  background:
+    radial-gradient(ellipse 14rem 9rem at 100% 0%, color-mix(in oklab, var(--kpi-accent) 14%, transparent), transparent 73%),
+    linear-gradient(145deg, color-mix(in oklab, var(--glass-bg-strong) 91%, var(--surface-1)), color-mix(in oklab, var(--glass-bg) 94%, var(--kpi-accent) 4%));
+}
+.attendance-select-kpi-blue { --kpi-accent: var(--kpi-blue); }
+.attendance-select-kpi-violet { --kpi-accent: var(--kpi-violet); }
+.attendance-select-kpi-turquoise { --kpi-accent: var(--kpi-turquoise); }
+.attendance-select-kpi-amber { --kpi-accent: var(--kpi-amber); }
+.attendance-select-kpi:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--kpi-accent) 36%, var(--hairline));
+  box-shadow: var(--lift-shadow), inset 0 1px 0 var(--glass-highlight);
+}
+.attendance-select-kpi-icon {
+  color: var(--kpi-accent);
+  border: 1px solid color-mix(in oklab, var(--kpi-accent) 20%, transparent);
+  background: color-mix(in oklab, var(--kpi-accent) 14%, transparent);
+}
+.dark .attendance-select-kpi-icon { background: color-mix(in oklab, var(--kpi-accent) 11%, transparent); }
+.attendance-select-kpi-label {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+.attendance-select-kpi-value {
+  color: var(--foreground);
+  font-size: clamp(1.55rem, 2.2vw, 1.9rem);
+}
+.attendance-select-kpi-detail {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  line-height: 1.3;
+}
+.attendance-kpi-tick {
+  position: absolute;
+  inset-inline-start: 15px;
+  inset-block-end: 0;
+  width: 36px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(90deg, var(--kpi-accent), color-mix(in oklab, var(--kpi-accent) 5%, transparent));
+  opacity: 0.82;
+}
+
+.attendance-course-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.attendance-course-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 40px;
+  border: 1px solid var(--hairline);
+  border-radius: 13px;
+  padding: 3px;
+  background: color-mix(in oklab, var(--surface-2) 74%, var(--surface-1));
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+.attendance-course-filter {
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 0 12px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 650;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.attendance-course-filter:hover { color: var(--foreground); }
+.attendance-course-filter.is-active {
+  border-color: color-mix(in oklab, var(--chrona-cyan-strong) 22%, var(--hairline));
+  color: var(--foreground);
+  background: linear-gradient(135deg, color-mix(in oklab, var(--chrona-cyan) 16%, var(--surface-1)), var(--surface-1));
+  box-shadow: 0 2px 8px -6px var(--chrona-cyan-strong), inset 0 1px 0 var(--glass-highlight);
+}
+.dark .attendance-course-filters { background: color-mix(in oklab, var(--surface-1) 84%, transparent); }
+.dark .attendance-course-filter.is-active {
+  border-color: color-mix(in oklab, var(--chrona-cyan-strong) 26%, var(--hairline));
+  background: color-mix(in oklab, var(--chrona-cyan) 10%, var(--surface-2));
+}
+.attendance-course-filter:focus-visible,
+.attendance-course-search button:focus-visible {
+  outline: 2px solid var(--chrona-cyan-strong);
+  outline-offset: 2px;
+}
+.attendance-course-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 330px);
+  min-height: 40px;
+  border: 1px solid var(--hairline);
+  border-radius: 13px;
+  padding: 0 10px;
+  color: var(--muted-foreground);
+  background: color-mix(in oklab, var(--surface-2) 74%, var(--surface-1));
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.attendance-course-search:focus-within {
+  border-color: color-mix(in oklab, var(--chrona-cyan-strong) 48%, var(--hairline));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--chrona-cyan) 11%, transparent), inset 0 1px 0 var(--glass-highlight);
+}
+.attendance-course-search-icon { color: var(--chrona-cyan-strong); }
+.attendance-course-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: var(--foreground);
+  background: transparent;
+  font-size: 11px;
+}
+.attendance-course-search input::placeholder { color: var(--muted-foreground); opacity: 0.85; }
+.attendance-course-search button {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--muted-foreground);
+  transition: color 160ms ease, background 160ms ease;
+}
+.attendance-course-search button:hover { color: var(--foreground); background: color-mix(in oklab, var(--foreground) 6%, transparent); }
+
+.attendance-course-agenda { gap: 9px; }
+.attendance-course-agenda-heading { min-height: 40px; }
+.attendance-course-agenda-kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted-foreground);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.attendance-course-agenda-kicker span { color: var(--chrona-cyan-strong); }
+.attendance-course-agenda-title {
+  color: var(--foreground);
+  font-size: 17px;
+  line-height: 1.15;
+}
+.attendance-course-agenda-count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: var(--muted-foreground);
+  background: color-mix(in oklab, var(--glass-bg) 84%, transparent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.attendance-course-card {
+  isolation: isolate;
+  border-top: 1px solid color-mix(in oklab, var(--chrona-cyan-strong) 9%, var(--hairline));
+  border-right: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  background:
+    radial-gradient(ellipse 18rem 11rem at 105% -10%, color-mix(in oklab, var(--chrona-cyan) 11%, transparent), transparent 75%),
+    linear-gradient(145deg, color-mix(in oklab, var(--glass-bg-strong) 90%, var(--surface-1)), color-mix(in oklab, var(--glass-bg) 93%, var(--surface-1)));
+  box-shadow: var(--ambient-shadow), inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(18px) saturate(1.1);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+.dark .attendance-course-card {
+  background:
+    radial-gradient(ellipse 18rem 11rem at 105% -10%, color-mix(in oklab, var(--chrona-cyan-strong) 12%, transparent), transparent 75%),
+    linear-gradient(145deg, color-mix(in oklab, var(--surface-2) 90%, var(--chrona-cyan) 3%), color-mix(in oklab, var(--glass-bg) 95%, var(--surface-1)));
+}
+.attendance-course-card::after {
+  position: absolute;
+  z-index: -1;
+  inset: 1px;
+  border-radius: inherit;
+  background: linear-gradient(115deg, color-mix(in oklab, var(--glass-highlight) 42%, transparent), transparent 42%);
+  content: "";
+  opacity: 0.5;
+  pointer-events: none;
+}
+.attendance-course-card:hover {
+  transform: translateY(-2px);
+  border-top-color: color-mix(in oklab, var(--chrona-cyan-strong) 32%, var(--hairline));
+  border-right-color: color-mix(in oklab, var(--chrona-cyan-strong) 25%, var(--hairline));
+  border-bottom-color: color-mix(in oklab, var(--chrona-cyan-strong) 25%, var(--hairline));
+  background:
+    radial-gradient(ellipse 18rem 11rem at 105% -10%, color-mix(in oklab, var(--chrona-cyan) 16%, transparent), transparent 75%),
+    linear-gradient(145deg, color-mix(in oklab, var(--glass-bg-strong) 94%, var(--surface-1)), color-mix(in oklab, var(--glass-bg) 91%, var(--chrona-cyan) 4%));
+  box-shadow: var(--lift-shadow), inset 0 1px 0 var(--glass-highlight);
+}
+.attendance-course-card:focus-visible {
+  outline: 2px solid var(--chrona-cyan-strong);
+  outline-offset: 3px;
+}
+.attendance-course-card[data-up-next="true"] {
+  border-top-color: color-mix(in oklab, var(--chrona-cyan-strong) 40%, var(--hairline));
+  border-right-color: color-mix(in oklab, var(--chrona-cyan-strong) 27%, var(--hairline));
+  border-bottom-color: color-mix(in oklab, var(--chrona-cyan-strong) 27%, var(--hairline));
+}
+.attendance-course-group {
+  min-height: 21px;
+  border: 1px solid color-mix(in oklab, var(--chrona-cyan-strong) 17%, var(--hairline));
+  border-radius: 7px;
+  padding: 3px 7px;
+  color: color-mix(in oklab, var(--chrona-cyan-strong) 84%, var(--foreground));
+  background: color-mix(in oklab, var(--chrona-cyan) 7%, var(--surface-1));
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  line-height: 1.1;
+}
+.attendance-course-subject {
+  color: var(--foreground);
+  font-size: 14px;
+}
+.attendance-course-details {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.3;
+}
+.attendance-course-details svg { opacity: 0.84; }
+.attendance-next-badge {
+  border: 1px solid color-mix(in oklab, var(--chrona-cyan-strong) 20%, var(--hairline));
+  color: color-mix(in oklab, var(--chrona-cyan-strong) 88%, var(--foreground));
+  background: color-mix(in oklab, var(--chrona-cyan) 9%, var(--glass-bg));
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.15;
+}
+.attendance-course-card-status { min-height: 25px; }
+.attendance-course-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 23px;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+}
+.attendance-course-state-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in oklab, currentColor 11%, transparent);
+}
+.attendance-course-state-complete {
+  color: var(--st-present);
+  background: color-mix(in oklab, var(--st-present) 10%, var(--surface-1));
+}
+.attendance-course-state-progress {
+  color: var(--chrona-cyan-strong);
+  background: color-mix(in oklab, var(--chrona-cyan) 10%, var(--surface-1));
+}
+.attendance-course-state-pending,
+.attendance-course-state-upcoming {
+  color: var(--muted-foreground);
+  background: color-mix(in oklab, var(--foreground) 5%, var(--surface-1));
+}
+.attendance-course-students {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.attendance-course-students svg { color: var(--chrona-cyan-strong); }
+.attendance-course-open {
+  margin-inline-start: auto;
+  min-height: 30px;
+  border: 1px solid color-mix(in oklab, var(--chrona-cyan-strong) 31%, var(--hairline));
+  color: var(--chrona-cyan-strong);
+  background: color-mix(in oklab, var(--chrona-cyan) 12%, var(--surface-1));
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+.attendance-course-card:hover .attendance-course-open,
+.attendance-course-card:focus-visible .attendance-course-open {
+  border-color: color-mix(in oklab, var(--chrona-cyan-strong) 42%, var(--hairline));
+  background: color-mix(in oklab, var(--chrona-cyan) 14%, var(--surface-1));
+  transform: translateX(1px);
+}
+.attendance-course-progress {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+.attendance-course-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in oklab, var(--chrona-cyan-strong) 75%, var(--st-present)), var(--st-present));
+  transition: width 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.attendance-course-upcoming-note {
+  border-color: var(--hairline);
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+.attendance-course-date-groups { display: flex; flex-direction: column; gap: 10px; }
+.attendance-course-date-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid color-mix(in oklab, var(--kpi-blue) 20%, var(--hairline));
+  border-radius: 18px;
+  padding: 10px;
+  background: linear-gradient(145deg, color-mix(in oklab, var(--surface-2) 92%, var(--kpi-blue) 8%), color-mix(in oklab, var(--glass-bg) 94%, var(--surface-1)));
+  box-shadow: 0 8px 24px -22px var(--foreground), inset 0 1px 0 var(--glass-highlight);
+}
+.dark .attendance-course-date-group {
+  border-color: var(--hairline);
+  background: color-mix(in oklab, var(--surface-2) 45%, transparent);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+.attendance-course-date-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--hairline);
+  padding: 2px 3px 9px;
+}
+.attendance-course-date-group-heading p {
+  color: var(--muted-foreground);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.attendance-course-date-group-heading h3 {
+  margin-top: 3px;
+  color: var(--foreground);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.attendance-course-empty {
+  border: 1px solid var(--hairline);
+  background:
+    radial-gradient(ellipse 24rem 12rem at 50% 0%, color-mix(in oklab, var(--chrona-cyan) 8%, transparent), transparent 78%),
+    linear-gradient(145deg, color-mix(in oklab, var(--glass-bg-strong) 86%, var(--surface-1)), color-mix(in oklab, var(--glass-bg) 90%, var(--surface-1)));
+  box-shadow: var(--ambient-shadow), inset 0 1px 0 var(--glass-highlight);
+}
+.attendance-excuse-action:focus-visible {
+  outline: 2px solid var(--attention);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .attendance-course-page { gap: 10px; }
+  .attendance-course-hero { min-height: auto; padding: 15px; }
+  .attendance-course-hero-content { align-items: stretch; gap: 14px; }
+  .attendance-course-title { font-size: 27px; }
+  .attendance-course-date { width: 100%; }
+  .attendance-course-date-copy { max-width: none; }
+  .attendance-course-date-value { font-size: 10.5px; }
+  .attendance-course-kpi-grid { gap: 8px; }
+  .attendance-select-kpi { min-height: 96px; padding: 11px 12px; }
+  .attendance-select-kpi-label { font-size: 9px; letter-spacing: 0.08em; }
+  .attendance-select-kpi-value { font-size: 25px; }
+  .attendance-select-kpi-detail { max-width: 54%; font-size: 9px; }
+  .attendance-course-toolbar { align-items: stretch; flex-direction: column; }
+  .attendance-course-filters { display: grid; width: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .attendance-course-filter { min-height: 34px; padding-inline: 8px; font-size: 11px; }
+  .attendance-course-search { width: 100%; min-height: 42px; }
+  .attendance-course-search input { font-size: 12px; }
+  .attendance-course-agenda { gap: 8px; }
+  .attendance-course-agenda-title { font-size: 16px; }
+  .attendance-course-agenda-count { min-height: 27px; padding-inline: 9px; font-size: 9px; }
+  .attendance-course-agenda-kicker { font-size: 9px; }
+  .attendance-course-card { min-height: 160px; padding: 13px; }
+  .attendance-course-card-status { column-gap: 7px; }
+  .attendance-course-details { font-size: 10.5px; }
+  .attendance-course-students { font-size: 9.5px; }
+  .attendance-course-open { padding-inline: 9px; font-size: 9.5px; }
+  .attendance-course-card-metrics { gap: 7px; }
+  .attendance-next-badge { max-width: 146px; white-space: normal; }
+  .attendance-course-date-group { gap: 8px; padding: 8px; }
+  .attendance-course-date-group-heading h3 { font-size: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attendance-select-kpi,
+  .attendance-course-card,
+  .attendance-course-open,
+  .attendance-course-filter,
+  .attendance-course-search,
+  .attendance-course-search button,
+  .attendance-course-progress > span { transition: none; }
+  .attendance-select-kpi:hover,
+  .attendance-course-card:hover,
+  .attendance-course-card:hover .attendance-course-open { transform: none; }
+}
+
+
+/* Fuerza los mismos tokens glass del panel sobre los defaults de PopoverContent. */
+.chrona-student-surface {
+  background: var(--glass-bg);
+  border-color: var(--hairline);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), var(--ambient-shadow);
+}
+
+/* Entrada y salida serenas: escala/opacidad y un ajuste vertical casi imperceptible. */
+.chrona-popover-motion {
+  transform-origin: var(--radix-popover-content-transform-origin);
+  --chrona-popover-enter-y: 0px;
+  --chrona-popover-exit-y: 0px;
+}
+
+.chrona-popover-motion[data-side="bottom"] {
+  --chrona-popover-enter-y: -3px;
+  --chrona-popover-exit-y: -1px;
+}
+
+.chrona-popover-motion[data-side="top"] {
+  --chrona-popover-enter-y: 3px;
+  --chrona-popover-exit-y: 1px;
+}
+
+.chrona-popover-motion[data-state="open"] {
+  animation: chrona-popover-enter 165ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.chrona-popover-motion[data-state="closed"] {
+  animation: chrona-popover-exit 100ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes chrona-popover-enter {
+  from {
+    opacity: 0;
+    scale: 0.985;
+    translate: 0 var(--chrona-popover-enter-y);
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes chrona-popover-exit {
+  from {
+    opacity: 1;
+    scale: 1;
+    translate: 0 0;
+  }
+  to {
+    opacity: 0;
+    scale: 0.99;
+    translate: 0 var(--chrona-popover-exit-y);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrona-popover-motion[data-state] {
+    animation: none !important;
+  }
+}
+
+
+/* Academic Liquid Glass · jerarquía compacta de la planilla docente. */
+.chrona-deck-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chrona-deck-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.chrona-deck-identity {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.chrona-deck-course-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+.chrona-course-identity-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+}
+.chrona-course-field {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+}
+.chrona-course-field-separator {
+  width: 1px;
+  height: 15px;
+  flex: 0 0 1px;
+  background: var(--hairline-strong);
+}
+.chrona-context-label {
+  color: var(--muted-foreground);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.chrona-course-subject {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  color: var(--foreground);
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.chrona-deck-sync {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+.chrona-session-context {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 6px 7px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 9px;
+}
+.chrona-context-card {
+  display: flex;
+  min-width: 118px;
+  min-height: 38px;
+  flex: 1 1 132px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  border: 1px solid color-mix(in oklab, var(--hairline-strong) 72%, transparent);
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--surface-1) 62%, transparent);
+  padding: 5px 9px;
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+.chrona-context-date {
+  min-width: 192px;
+  flex: 1.35 1 206px;
+}
+.chrona-context-date-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+}
+.chrona-context-date-controls .chrona-date-control {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.chrona-context-value {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  color: var(--foreground);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.chrona-context-status {
+  min-width: 176px;
+  flex: 1.2 1 190px;
+}
+.chrona-context-status > span:last-child {
+  align-self: flex-start;
+}
+
+.chrona-pulse-summary {
+  min-width: 174px;
+  flex: 0 0 auto;
+}
+.chrona-progress-track {
+  flex: 0.72 1 120px;
+  background: color-mix(in oklab, var(--foreground) 9%, transparent);
+}
+.chrona-progress-empty {
+  background: color-mix(in oklab, var(--muted-foreground) 18%, transparent);
+  outline: 1px dashed color-mix(in oklab, var(--muted-foreground) 22%, transparent);
+  outline-offset: 2px;
+}
+.chrona-pulse-metrics {
+  min-width: 0;
+  flex: 1.5 1 390px;
+}
+.chrona-metric-chip:disabled {
+  opacity: 0.76;
+}
+.chrona-metric-label {
+  white-space: nowrap;
+}
+
+.chrona-workbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-color: color-mix(in oklab, var(--hairline-strong) 75%, transparent);
+  padding: 7px;
+}
+.chrona-toolbar {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 720px;
+  grid-template-columns: auto minmax(270px, 1fr) auto;
+  align-items: center;
+  gap: 8px 10px;
+}
+.chrona-toolbar-primary,
+.chrona-toolbar-secondary,
+.chrona-toolbar-filters {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+.chrona-toolbar-primary {
+  grid-column: 1;
+  grid-row: 1;
+  flex-wrap: wrap;
+}
+.chrona-toolbar-filters {
+  grid-column: 2;
+  grid-row: 1;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chrona-toolbar-filters > label {
+  width: clamp(170px, 18vw, 220px);
+  min-width: 155px;
+  flex: 0 1 220px;
+}
+.chrona-toolbar-filter-chips {
+  min-width: 0;
+  flex: 1 1 240px;
+}
+.chrona-toolbar-filter-chips .chrona-filters {
+  width: 100%;
+  min-width: 0;
+}
+.chrona-toolbar-secondary {
+  grid-column: 3;
+  grid-row: 1;
+  justify-content: flex-end;
+  border-left: 1px solid var(--hairline);
+  padding-left: 8px;
+}
+.chrona-toolbar-primary .chrona-action {
+  min-height: 34px;
+  padding-inline: 10px;
+}
+.chrona-workbar > .chrona-attention-trigger {
+  align-self: center;
+}
+
+.chrona-shortcut-dock {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  border-top: 1px solid var(--hairline);
+  background: color-mix(in oklab, var(--roster-foot) 84%, var(--surface-1) 16%);
+  padding: 7px 11px;
+  color: var(--muted-foreground);
+  font-size: 9.5px;
+}
+.chrona-shortcut-group {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+}
+.chrona-shortcut-group-label {
+  color: color-mix(in oklab, var(--muted-foreground) 80%, var(--chrona-cyan-strong));
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.chrona-shortcut-pair,
+.chrona-shortcut-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.chrona-shortcut-pair .kbd {
+  min-width: 20px;
+  min-height: 19px;
+  justify-content: center;
+  border-color: var(--hairline-strong);
+  background: color-mix(in oklab, var(--surface-1) 62%, transparent);
+  color: var(--foreground);
+  font-size: 9px;
+  line-height: 1;
+}
+
+@media (min-width: 681px) and (max-width: 1100px) {
+  .chrona-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .chrona-toolbar-primary {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .chrona-toolbar-secondary {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .chrona-toolbar-filters {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 680px) {
+  .chrona-deck-heading-row {
+    align-items: flex-start;
+  }
+  .chrona-deck-identity {
+    gap: 8px;
+  }
+  .chrona-course-identity-row {
+    gap: 5px 8px;
+  }
+  .chrona-course-field {
+    gap: 5px;
+  }
+  .chrona-course-subject {
+    font-size: 10.5px;
+  }
+  .chrona-session-context {
+    gap: 6px;
+    padding-top: 8px;
+  }
+  .chrona-context-card {
+    min-width: calc(50% - 3px);
+    flex: 1 1 calc(50% - 3px);
+    padding-inline: 8px;
+  }
+  .chrona-context-date {
+    min-width: 100%;
+    flex-basis: 100%;
+  }
+  .chrona-context-value {
+    font-size: 10.5px;
+  }
+  .chrona-pulse-summary {
+    min-width: 154px;
+  }
+  .chrona-progress-track {
+    min-width: 95px;
+    flex: 1 1 100px;
+  }
+  .chrona-pulse-metrics {
+    justify-content: flex-start;
+    flex: 1 1 100%;
+    gap: 2px;
+  }
+  .chrona-metric-chip {
+    height: 30px;
+    gap: 5px;
+    padding-inline: 7px;
+  }
+  .chrona-metric-label {
+    font-size: 9px;
+  }
+  .chrona-workbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .chrona-toolbar {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+  .chrona-toolbar-primary,
+  .chrona-toolbar-filters,
+  .chrona-toolbar-secondary {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .chrona-toolbar-primary {
+    justify-content: flex-start;
+  }
+  .chrona-toolbar-primary .chrona-action {
+    min-height: 34px;
+    padding-inline: 8px;
+    font-size: 10px;
+  }
+  .chrona-toolbar-filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .chrona-toolbar-filters > label {
+    width: 100%;
+    min-width: 0;
+    min-height: 36px;
+    flex: 1 1 auto;
+  }
+  .chrona-toolbar-filter-chips {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+  .chrona-toolbar-secondary {
+    justify-content: flex-start;
+    border-top: 1px solid var(--hairline);
+    border-left: 0;
+    padding-top: 6px;
+    padding-left: 0;
+  }
+  .chrona-workbar > .chrona-attention-trigger {
+    align-self: flex-start;
+  }
+  .chrona-shortcut-dock {
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 7px 12px;
+    padding: 8px;
+    font-size: 9px;
+  }
+  .chrona-shortcut-group {
+    flex: 1 1 100%;
+    gap: 5px 8px;
+  }
+  .chrona-shortcut-group-label {
+    min-width: 50px;
+    font-size: 7.5px;
+  }
+  .chrona-shortcut-pair .kbd {
+    min-height: 18px;
+    padding-inline: 4px;
+    font-size: 8.5px;
+  }
+}
+
+@media (max-width: 380px) {
+  .chrona-context-status {
+    min-width: 100%;
+    flex-basis: 100%;
+  }
+  .chrona-shortcut-group-label {
+    min-width: 42px;
+  }
+}
+
+
+/* Command Line: one working surface; metadata is inline instead of nested cards. */
+.chrona-command-grid {
+  display: grid;
+  grid-template-areas: "identity context";
+  grid-template-columns: minmax(270px, 0.9fr) minmax(0, 1.8fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.chrona-command-identity {
+  grid-area: identity;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+.chrona-command-back {
+  flex: 0 0 auto;
+  justify-content: center;
+}
+.chrona-command-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+.chrona-command-copy > .chrona-overline {
+  font-size: 7.5px;
+  line-height: 1;
+}
+.chrona-course-identity-row {
+  min-width: 0;
+  flex-wrap: nowrap;
+  gap: 4px 8px;
+}
+.chrona-course-field {
+  min-width: 0;
+  gap: 4px;
+}
+.chrona-course-field-separator {
+  height: 13px;
+}
+.chrona-course-subject-field {
+  flex: 1 1 0;
+}
+.chrona-course-subject {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chrona-session-context {
+  grid-area: context;
+  display: grid;
+  grid-template-columns: minmax(122px, 1.1fr) minmax(88px, 0.78fr) minmax(112px, 1fr) minmax(112px, 0.9fr) minmax(122px, 1.05fr);
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+.chrona-context-card {
+  display: flex;
+  min-width: 0;
+  min-height: 32px;
+  flex: initial;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  border-left: 1px solid color-mix(in oklab, var(--hairline-strong) 65%, transparent);
+  border-radius: 0;
+  background: transparent;
+  padding: 2px 7px 2px 9px;
+  box-shadow: none;
+}
+.chrona-context-date {
+  min-width: 0;
+  padding-left: 0;
+  border-left: 0;
+}
+.chrona-context-date-controls {
+  min-height: 23px;
+  gap: 0;
+}
+.chrona-context-date-controls > button {
+  width: 22px;
+  height: 22px;
+}
+.chrona-context-date-controls > button[aria-label^="Fecha de la jornada"] {
+  height: 24px;
+  gap: 5px;
+  padding-inline: 6px;
+  font-size: 10px;
+}
+.chrona-context-value {
+  overflow: hidden;
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chrona-context-status {
+  min-width: 0;
+  flex: initial;
+}
+.chrona-context-status > span:last-child {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chrona-context-sync {
+  min-width: 0;
+  border-right: 0;
+}
+.chrona-context-sync > div[role="status"] {
+  max-width: 100%;
+  height: 25px;
+  gap: 5px;
+  overflow: hidden;
+  padding-inline: 7px;
+  font-size: 10px;
+}
+.chrona-context-sync > div[role="status"] > svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+.chrona-context-sync > div[role="status"] > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1200px) {
+  .chrona-command-grid {
+    grid-template-areas: "identity" "context";
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+  .chrona-session-context {
+    grid-template-columns: minmax(135px, 1.1fr) repeat(4, minmax(96px, 1fr));
+    border-top: 1px solid var(--hairline);
+    padding-top: 7px;
+  }
+  .chrona-context-card:first-child {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .chrona-command-grid {
+    gap: 6px;
+  }
+  .chrona-command-identity {
+    gap: 7px;
+  }
+  .chrona-command-back span {
+    display: none;
+  }
+  .chrona-session-context {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 0;
+  }
+  .chrona-context-card {
+    min-height: 34px;
+    padding-inline: 8px;
+  }
+  .chrona-context-date {
+    grid-column: 1 / -1;
+    border-bottom: 1px solid var(--hairline);
+    padding-left: 0;
+  }
+  .chrona-context-card:nth-child(2) {
+    border-left: 0;
+    border-bottom: 1px solid var(--hairline);
+    padding-left: 0;
+  }
+  .chrona-context-card:nth-child(3) {
+    border-bottom: 1px solid var(--hairline);
+  }
+  .chrona-context-status {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .chrona-context-sync {
+    padding-right: 0;
+  }
+  .chrona-context-sync > div[role="status"] {
+    width: max-content;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 390px) {
+  .chrona-course-identity-row {
+    gap: 3px 6px;
+  }
+  .chrona-course-subject-field .chrona-context-label {
+    display: none;
+  }
+  .chrona-course-subject {
+    max-width: 110px;
+  }
+}
+
+
+/* Command deck · Academic Liquid Glass bifásico, compacto y de alto contraste. */
+.chrona-command-premium {
+  padding: 7px 10px;
+  border-color: color-mix(in oklab, var(--brand) 24%, var(--hairline-strong));
+  box-shadow: inset 0 1px 0 var(--glass-highlight), var(--ambient-shadow);
+}
+.chrona-command-premium .chrona-deck-orbit {
+  background:
+    radial-gradient(ellipse at 86% 0%, color-mix(in oklab, var(--brand) 13%, transparent), transparent 42%),
+    radial-gradient(ellipse at 100% 100%, color-mix(in oklab, var(--chrona-cyan) 9%, transparent), transparent 38%);
+}
+html:not(.dark) .chrona-command-premium {
+  background: linear-gradient(108deg, oklch(0.955 0.026 220) 0%, oklch(0.99 0.006 235) 48%, oklch(0.965 0.02 285) 100%);
+  border-color: oklch(0.82 0.055 225);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.92), 0 10px 24px -20px oklch(0.32 0.09 235 / 0.46);
+}
+.dark .chrona-command-premium {
+  background: linear-gradient(112deg, color-mix(in oklab, var(--surface-1) 91%, var(--brand) 9%), color-mix(in oklab, var(--surface-1) 93%, oklch(0.7 0.13 286) 7%));
+  border-color: color-mix(in oklab, var(--chrona-cyan) 24%, var(--hairline-strong));
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.07), 0 14px 32px -22px oklch(0 0 0 / 0.78);
+}
+
+.attendance-command-layout {
+  display: grid;
+  grid-template-areas: "identity date meta";
+  grid-template-columns: minmax(270px, 1.12fr) auto minmax(0, 1.65fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.attendance-command-identity {
+  grid-area: identity;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+}
+.attendance-back-button {
+  display: inline-flex;
+  width: 29px;
+  height: 31px;
+  flex: 0 0 29px;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--muted-foreground);
+  font-size: 10px;
+  font-weight: 650;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+html:not(.dark) .attendance-back-button {
+  background: oklch(1 0 0 / 0.76);
+  border-color: oklch(0.83 0.035 230);
+  color: oklch(0.36 0.065 245);
+}
+.dark .attendance-back-button {
+  background: oklch(1 0 0 / 0.045);
+  border-color: var(--hairline);
+}
+.attendance-back-button:hover {
+  color: var(--brand);
+  border-color: color-mix(in oklab, var(--brand) 34%, var(--hairline));
+  background: var(--brand-soft);
+}
+.attendance-course-trigger {
+  display: flex;
+  min-width: 100px;
+  max-width: 172px;
+  min-height: 38px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 4px 8px 4px 5px;
+  text-align: left;
+  transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+.attendance-course-trigger:hover { transform: translateY(-1px); }
+.attendance-course-trigger-icon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border-radius: 9px;
+}
+.attendance-course-trigger-copy,
+.attendance-subject-copy,
+.attendance-detail-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+.attendance-course-trigger .attendance-detail-label,
+.attendance-subject-block .attendance-detail-label {
+  font-size: 7px;
+  letter-spacing: 0.12em;
+  line-height: 1.05;
+}
+.attendance-course-name {
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attendance-course-chevron { opacity: 0.78; }
+html:not(.dark) .attendance-course-trigger {
+  color: white;
+  background: linear-gradient(135deg, oklch(0.47 0.13 235), oklch(0.54 0.14 205));
+  border-color: oklch(0.44 0.105 230);
+  box-shadow: 0 3px 9px -7px oklch(0.28 0.11 230 / 0.88), inset 0 1px 0 oklch(1 0 0 / 0.22);
+}
+html:not(.dark) .attendance-course-trigger .attendance-detail-label { color: oklch(0.97 0.014 220 / 0.8); }
+html:not(.dark) .attendance-course-trigger-icon { color: white; background: oklch(1 0 0 / 0.16); }
+html:not(.dark) .attendance-course-trigger:hover { background: linear-gradient(135deg, oklch(0.43 0.14 235), oklch(0.5 0.15 205)); }
+.dark .attendance-course-trigger {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--brand) 10%, var(--glass-bg));
+  border-color: color-mix(in oklab, var(--brand) 22%, var(--hairline));
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.06);
+}
+.dark .attendance-course-trigger .attendance-detail-label { color: var(--muted-foreground); }
+.dark .attendance-course-trigger-icon {
+  color: var(--chrona-cyan);
+  background: color-mix(in oklab, var(--chrona-cyan) 14%, transparent);
+}
+.dark .attendance-course-trigger:hover { background: color-mix(in oklab, var(--brand) 16%, var(--glass-bg)); }
+.attendance-course-menu { border-color: var(--hairline-strong); }
+.attendance-course-option { transition: background-color 140ms ease; }
+.attendance-course-option[data-highlighted] { background: var(--brand-soft); }
+.attendance-course-option-mark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 10px;
+  font-weight: 800;
+}
+.attendance-identity-separator {
+  width: 1px;
+  height: 27px;
+  flex: 0 0 1px;
+  background: color-mix(in oklab, var(--brand) 24%, var(--hairline-strong));
+}
+.attendance-subject-block {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 90px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  padding: 4px 7px;
+}
+.attendance-subject-icon {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 27px;
+  place-items: center;
+  border-radius: 8px;
+}
+.attendance-subject-name {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 10.5px;
+  font-weight: 730;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html:not(.dark) .attendance-subject-block {
+  background: oklch(1 0 0 / 0.78);
+  border-color: oklch(0.84 0.04 285);
+  box-shadow: inset 0 1px 0 white;
+}
+html:not(.dark) .attendance-subject-icon {
+  color: oklch(0.48 0.15 286);
+  background: oklch(0.93 0.045 286);
+}
+html:not(.dark) .attendance-subject-block .attendance-detail-label { color: oklch(0.5 0.08 286); }
+.dark .attendance-subject-block {
+  background: color-mix(in oklab, var(--surface-1) 66%, transparent);
+  border-color: var(--hairline);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.035);
+}
+.dark .attendance-subject-icon {
+  color: oklch(0.8 0.1 286);
+  background: oklch(0.75 0.15 286 / 0.12);
+}
+.dark .attendance-subject-block .attendance-detail-label { color: color-mix(in oklab, var(--muted-foreground) 72%, oklch(0.8 0.1 286)); }
+
+.attendance-command-date {
+  grid-area: date;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.attendance-date-step {
+  display: grid;
+  width: 23px;
+  height: 30px;
+  flex: 0 0 23px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--muted-foreground);
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+.attendance-date-step:hover {
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-color: color-mix(in oklab, var(--brand) 23%, var(--hairline));
+}
+.attendance-date-trigger {
+  display: inline-flex;
+  min-width: 78px;
+  height: 30px;
+  min-height: 30px;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 3px 7px 3px 4px;
+  text-align: left;
+  transition: transform 150ms ease, background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+.attendance-date-trigger:hover { transform: translateY(-1px); }
+.attendance-date-trigger-icon {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
+  border-radius: 7px;
+}
+.attendance-date-trigger-value {
+  font-size: 11.5px;
+  font-weight: 780;
+  letter-spacing: -0.015em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.attendance-date-trigger-chevron { width: 10px; height: 10px; opacity: 0.72; transition: transform 150ms ease; }
+.attendance-date-trigger[aria-expanded="true"] .attendance-date-trigger-chevron { transform: rotate(180deg); }
+html:not(.dark) .attendance-date-trigger {
+  color: white;
+  background: linear-gradient(135deg, oklch(0.55 0.15 222), oklch(0.58 0.14 197));
+  border-color: oklch(0.5 0.13 218);
+  box-shadow: 0 3px 10px -8px oklch(0.29 0.12 220 / 0.85), inset 0 1px 0 oklch(1 0 0 / 0.2);
+}
+html:not(.dark) .attendance-date-trigger-icon { background: oklch(1 0 0 / 0.17); }
+html:not(.dark) .attendance-date-step { background: oklch(1 0 0 / 0.8); border-color: oklch(0.84 0.035 225); }
+.dark .attendance-date-trigger {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--surface-1) 68%, var(--brand) 12%);
+  border-color: color-mix(in oklab, var(--chrona-cyan) 26%, var(--hairline-strong));
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.065), 0 0 18px -14px var(--chrona-cyan);
+}
+.dark .attendance-date-trigger-icon { color: var(--chrona-cyan); background: color-mix(in oklab, var(--chrona-cyan) 13%, transparent); }
+.dark .attendance-date-step { background: oklch(1 0 0 / 0.035); border-color: var(--hairline); }
+.attendance-date-popover { border-color: var(--hairline-strong); }
+
+.attendance-command-meta {
+  grid-area: meta;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+.attendance-detail-pill {
+  display: flex;
+  min-width: 0;
+  min-height: 35px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 4px 7px;
+}
+.attendance-detail-icon {
+  display: grid;
+  width: 23px;
+  height: 23px;
+  flex: 0 0 23px;
+  place-items: center;
+  border-radius: 7px;
+}
+.attendance-detail-pill .attendance-detail-label {
+  color: var(--muted-foreground);
+  font-size: 7px;
+  font-weight: 760;
+  letter-spacing: 0.11em;
+  line-height: 1.05;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.attendance-detail-value {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 10px;
+  font-weight: 720;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html:not(.dark) .attendance-detail-pill {
+  background: oklch(1 0 0 / 0.78);
+  border-color: oklch(0.86 0.025 235);
+  box-shadow: inset 0 1px 0 white;
+}
+html:not(.dark) .attendance-detail-pill--schedule .attendance-detail-icon {
+  color: oklch(0.44 0.12 222);
+  background: oklch(0.92 0.04 222);
+}
+html:not(.dark) .attendance-detail-pill--room .attendance-detail-icon {
+  color: oklch(0.48 0.14 286);
+  background: oklch(0.93 0.04 286);
+}
+html:not(.dark) .attendance-detail-pill--state {
+  background: oklch(0.96 0.035 148);
+  border-color: oklch(0.84 0.07 148);
+}
+.dark .attendance-detail-pill {
+  background: color-mix(in oklab, var(--surface-1) 70%, transparent);
+  border-color: var(--hairline);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.035);
+}
+.dark .attendance-detail-pill--schedule .attendance-detail-icon {
+  color: var(--chrona-cyan);
+  background: color-mix(in oklab, var(--chrona-cyan) 12%, transparent);
+}
+.dark .attendance-detail-pill--room .attendance-detail-icon {
+  color: oklch(0.79 0.1 286);
+  background: oklch(0.75 0.15 286 / 0.11);
+}
+.attendance-detail-pill--state,
+.attendance-detail-pill--sync {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+}
+.attendance-detail-pill--state > span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 7px;
+  padding: 0;
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.attendance-detail-pill--sync > div[role="status"] {
+  max-width: 148px;
+  min-height: 18px;
+  height: 18px;
+  gap: 4px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  font-size: 9px;
+  line-height: 1;
+}
+.attendance-detail-pill--sync > div[role="status"] > svg { width: 11px; height: 11px; flex: 0 0 11px; }
+.attendance-detail-pill--sync > div[role="status"] > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+html:not(.dark) .attendance-detail-pill--sync > div[role="status"] { color: oklch(0.4 0.07 220); }
+.dark .attendance-detail-pill--sync > div[role="status"] { color: var(--muted-foreground); }
+
+@media (max-width: 1200px) {
+  .attendance-command-layout {
+    grid-template-areas: "identity date" "meta meta";
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 9px;
+  }
+  .attendance-command-meta { justify-content: flex-start; padding-top: 5px; border-top: 1px solid var(--hairline); }
+}
+@media (max-width: 680px) {
+  .chrona-command-premium { padding: 7px; border-radius: 15px; }
+  .attendance-command-layout {
+    grid-template-areas: "identity" "date" "meta";
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .attendance-command-identity { gap: 5px; }
+  .attendance-course-trigger { max-width: 138px; min-height: 36px; gap: 5px; padding-right: 6px; }
+  .attendance-course-trigger-icon { width: 25px; height: 25px; flex-basis: 25px; }
+  .attendance-course-name { font-size: 13px; }
+  .attendance-subject-block { gap: 5px; padding-inline: 5px; }
+  .attendance-subject-icon { width: 24px; height: 24px; flex-basis: 24px; }
+  .attendance-subject-name { font-size: 10px; }
+  .attendance-command-date { justify-content: flex-start; padding-left: 31px; }
+  .attendance-command-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+  .attendance-detail-pill { min-height: 32px; padding: 4px 6px; }
+  .attendance-detail-pill--state,
+  .attendance-detail-pill--sync { align-items: flex-start; }
+  .attendance-detail-pill--sync > .attendance-detail-label { display: none; }
+  .attendance-detail-pill--sync > div[role="status"] { width: 100%; max-width: 100%; }
+}
+@media (max-width: 390px) {
+  .attendance-back-button { width: 25px; flex-basis: 25px; }
+  .attendance-back-button span { display: none; }
+  .attendance-identity-separator { margin-inline: 0; }
+  .attendance-subject-block .attendance-detail-label { display: none; }
+  .attendance-subject-name { max-width: 104px; }
+  .attendance-date-trigger { min-width: 76px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .attendance-course-trigger,
+  .attendance-date-trigger,
+  .attendance-date-step,
+  .attendance-back-button { transition: none; }
+  .attendance-course-trigger:hover,
+  .attendance-date-trigger:hover { transform: none; }
+}
+
+
+/* Pulse Rail · telemetría de asistencia, estados semánticos en burbujas compactas. */
+.chrona-pulse-premium {
+  isolation: isolate;
+  min-height: 56px;
+  overflow: hidden;
+  gap: 6px 10px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border-color: color-mix(in oklab, var(--chrona-cyan) 28%, var(--hairline-strong));
+  background:
+    radial-gradient(ellipse at 38% 0%, color-mix(in oklab, var(--brand) 7%, transparent), transparent 43%),
+    var(--glass-bg-strong);
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 8px 26px -22px var(--chrona-cyan-strong);
+}
+.chrona-pulse-premium::after {
+  position: absolute;
+  right: 2%;
+  bottom: 0;
+  left: 2%;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--chrona-cyan) 48%, transparent) 35%, color-mix(in oklab, var(--brand) 46%, transparent) 70%, transparent);
+  opacity: 0.75;
+  pointer-events: none;
+}
+html:not(.dark) .chrona-pulse-premium {
+  border-color: oklch(0.86 0.035 222);
+  background:
+    radial-gradient(ellipse at 50% 0%, oklch(0.93 0.035 220 / 0.66), transparent 58%),
+    linear-gradient(112deg, oklch(0.995 0.004 220), oklch(0.985 0.01 250));
+  box-shadow: inset 0 1px 0 white, 0 5px 16px -14px oklch(0.42 0.09 230 / 0.4);
+}
+.dark .chrona-pulse-premium {
+  border-color: color-mix(in oklab, var(--chrona-cyan) 25%, var(--hairline-strong));
+  background:
+    radial-gradient(ellipse at 8% 55%, color-mix(in oklab, var(--chrona-cyan) 10%, transparent), transparent 37%),
+    radial-gradient(ellipse at 74% -30%, color-mix(in oklab, oklch(0.7 0.13 286) 8%, transparent), transparent 44%),
+    color-mix(in oklab, var(--surface-1) 78%, transparent);
+  backdrop-filter: blur(16px) saturate(145%);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
+}
+.chrona-pulse-premium .chrona-pulse-summary {
+  position: relative;
+  z-index: 1;
+  min-width: 172px;
+  border: 1px solid color-mix(in oklab, var(--chrona-cyan) 20%, var(--hairline));
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--surface-1) 76%, var(--chrona-cyan) 5%);
+  padding: 3px 7px;
+  box-shadow: inset 0 1px 0 var(--glass-highlight), 0 3px 10px -9px var(--chrona-cyan-strong);
+}
+html:not(.dark) .chrona-pulse-premium .chrona-pulse-summary {
+  border-color: oklch(0.86 0.035 220);
+  background: linear-gradient(105deg, oklch(0.955 0.035 205), oklch(0.985 0.012 225));
+}
+.dark .chrona-pulse-premium .chrona-pulse-summary {
+  background: linear-gradient(105deg, oklch(0.78 0.12 199 / 0.085), color-mix(in oklab, var(--surface-1) 72%, transparent));
+}
+.chrona-pulse-premium .chrona-pulse-orb {
+  position: relative;
+  border-color: color-mix(in oklab, var(--chrona-cyan) 42%, var(--hairline));
+  background: radial-gradient(circle at 32% 25%, color-mix(in oklab, var(--chrona-cyan) 18%, var(--surface-1)), var(--surface-1));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--chrona-cyan) 7%, transparent), inset 0 1px 0 var(--glass-highlight), 0 0 16px -12px var(--chrona-cyan);
+}
+.chrona-pulse-premium .chrona-pulse-orb svg { filter: drop-shadow(0 0 4px color-mix(in oklab, var(--chrona-cyan) 34%, transparent)); }
+.chrona-pulse-premium .chrona-pulse-complete {
+  border-color: color-mix(in oklab, var(--st-present) 55%, var(--hairline));
+  background: color-mix(in oklab, var(--st-present) 15%, var(--surface-1));
+  color: var(--st-present);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--st-present) 8%, transparent), inset 0 1px 0 var(--glass-highlight), 0 0 16px -12px var(--st-present);
+}
+.chrona-pulse-premium .chrona-overline { font-size: 8px; letter-spacing: 0.14em; }
+.chrona-pulse-premium .chrona-pulse-summary p { font-size: 10px; }
+.chrona-pulse-premium .chrona-progress-track {
+  min-width: 90px;
+  height: 7px;
+  flex: 0 1 190px;
+  border: 1px solid color-mix(in oklab, var(--hairline-strong) 76%, transparent);
+  background: color-mix(in oklab, var(--foreground) 7%, var(--surface-1));
+  box-shadow: inset 0 1px 2px color-mix(in oklab, var(--foreground) 8%, transparent), 0 0 0 3px color-mix(in oklab, var(--brand) 3%, transparent);
+}
+.chrona-pulse-premium .chrona-progress-empty {
+  border: 1px dashed color-mix(in oklab, var(--chrona-cyan) 44%, var(--hairline-strong));
+  background: repeating-linear-gradient(90deg, color-mix(in oklab, var(--chrona-cyan) 10%, var(--surface-1)) 0 7px, color-mix(in oklab, var(--brand) 4%, var(--surface-1)) 7px 14px);
+  box-shadow: inset 0 1px 2px color-mix(in oklab, var(--foreground) 5%, transparent), 0 0 12px -9px var(--chrona-cyan);
+  outline: 0;
+}
+.dark .chrona-pulse-premium .chrona-progress-empty {
+  border-color: color-mix(in oklab, var(--chrona-cyan) 42%, var(--hairline-strong));
+  background: repeating-linear-gradient(90deg, color-mix(in oklab, var(--chrona-cyan) 12%, var(--surface-1)) 0 7px, color-mix(in oklab, var(--brand) 5%, var(--surface-1)) 7px 14px);
+}
+.chrona-progress-segment { border-radius: 999px; box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.24), 0 0 7px -4px currentColor; }
+.chrona-progress-segment[data-status="present"] { background: var(--st-present); }
+.chrona-progress-segment[data-status="absent"] { background: var(--st-absent); }
+.chrona-progress-segment[data-status="late"] { background: var(--st-late); }
+.chrona-progress-segment[data-status="excuse"] { background: var(--st-excuse); }
+.chrona-pulse-premium .chrona-pulse-metrics { flex: 1 1 500px; gap: 2px; }
+.chrona-pulse-premium .chrona-metric-chip {
+  --metric-accent: var(--chrona-cyan);
+  position: relative;
+  min-height: 29px;
+  height: 29px;
+  gap: 5px;
+  border: 1px solid color-mix(in oklab, var(--metric-accent) 22%, var(--hairline));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--metric-accent) 7%, var(--surface-1));
+  padding: 0 5px;
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  transition: transform 150ms ease, border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+.chrona-pulse-premium .chrona-metric-chip[data-metric="present"] { --metric-accent: var(--st-present); }
+.chrona-pulse-premium .chrona-metric-chip[data-metric="absent"] { --metric-accent: var(--st-absent); }
+.chrona-pulse-premium .chrona-metric-chip[data-metric="late"] { --metric-accent: var(--st-late); }
+.chrona-pulse-premium .chrona-metric-chip[data-metric="excuse"] { --metric-accent: var(--st-excuse); }
+.chrona-pulse-premium .chrona-metric-chip[data-metric="pending"] { --metric-accent: var(--st-pending); }
+.chrona-pulse-premium .chrona-metric-chip[data-metric="rate"] { --metric-accent: var(--chrona-cyan); }
+.chrona-pulse-premium .chrona-metric-chip:not(:disabled):hover { transform: translateY(-1px); border-color: color-mix(in oklab, var(--metric-accent) 50%, var(--hairline)); }
+.chrona-pulse-premium .chrona-metric-chip:focus-visible { outline: 2px solid color-mix(in oklab, var(--metric-accent) 75%, white); outline-offset: 2px; }
+.chrona-pulse-premium .chrona-metric-dot {
+  width: 6px;
+  height: 6px;
+  border: 1px solid color-mix(in oklab, var(--metric-accent) 76%, white);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--metric-accent) 12%, transparent), 0 0 7px -3px var(--metric-accent);
+}
+.chrona-pulse-premium .chrona-metric-label {
+  color: color-mix(in oklab, var(--foreground) 72%, var(--metric-accent));
+  font-size: 9px;
+  font-weight: 650;
+}
+.chrona-pulse-premium .chrona-metric-value {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid color-mix(in oklab, var(--metric-accent) 18%, transparent);
+  border-radius: 7px;
+  background: color-mix(in oklab, var(--metric-accent) 12%, var(--surface-1));
+  color: color-mix(in oklab, var(--foreground) 80%, var(--metric-accent));
+  padding: 0 4px;
+  font-size: 10px;
+}
+.chrona-pulse-premium .chrona-metric-chip[data-metric="excuse"] {
+  border-color: color-mix(in oklab, var(--st-excuse) 40%, var(--hairline));
+  background: color-mix(in oklab, var(--st-excuse) 11%, var(--surface-1));
+}
+.chrona-pulse-premium .chrona-metric-chip[data-metric="excuse"] .chrona-metric-label,
+.chrona-pulse-premium .chrona-metric-chip[data-metric="excuse"] .chrona-excuse-icon { color: var(--st-excuse); }
+.chrona-pulse-premium .chrona-metric-chip[data-metric="excuse"] .chrona-metric-value {
+  border-color: color-mix(in oklab, var(--st-excuse) 30%, transparent);
+  background: color-mix(in oklab, var(--st-excuse) 17%, var(--surface-1));
+  color: var(--st-excuse);
+}
+.chrona-pulse-premium .chrona-metric-chip[data-metric="excuse"]:not(:disabled):hover { background: color-mix(in oklab, var(--st-excuse) 18%, var(--surface-1)); }
+.chrona-pulse-premium .chrona-metric-chip:disabled { opacity: 0.68; }
+.chrona-pulse-premium .chrona-metric-chip[data-metric="excuse"]:disabled { opacity: 0.48; }
+.chrona-pulse-premium .chrona-metric-active {
+  border-color: color-mix(in oklab, var(--metric-accent) 80%, transparent);
+  background: var(--metric-accent);
+  color: var(--chrona-ink-on-state);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.22), 0 3px 11px -7px var(--metric-accent), 0 0 0 2px color-mix(in oklab, var(--metric-accent) 13%, transparent);
+}
+.chrona-pulse-premium .chrona-metric-active .chrona-metric-label,
+.chrona-pulse-premium .chrona-metric-active .chrona-excuse-icon,
+.chrona-pulse-premium .chrona-metric-active .chrona-metric-value { color: inherit; }
+.chrona-pulse-premium .chrona-metric-active .chrona-metric-value { border-color: oklch(1 0 0 / 0.18); background: oklch(1 0 0 / 0.16); }
+.chrona-pulse-premium .chrona-metric-chip[data-metric="late"].chrona-metric-active { color: oklch(0.2 0.025 65); }
+.chrona-pulse-premium .chrona-metric-chip[data-metric="late"].chrona-metric-active .chrona-metric-value { border-color: oklch(0.2 0.025 65 / 0.18); background: oklch(0.2 0.025 65 / 0.1); }
+.chrona-pulse-premium .chrona-pending-pulse { animation: chrona-pending-soft 2.6s ease-in-out infinite; }
+@keyframes chrona-pending-soft {
+  0%, 100% { box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 0 color-mix(in oklab, var(--st-late) 0%, transparent); }
+  50% { box-shadow: inset 0 1px 0 var(--glass-highlight), 0 0 0 2px color-mix(in oklab, var(--st-late) 12%, transparent); }
+}
+@media (max-width: 680px) {
+  .chrona-pulse-premium .chrona-pulse-summary { min-width: 154px; }
+  .chrona-pulse-premium .chrona-progress-track { flex: 1 1 100px; }
+  .chrona-pulse-premium .chrona-pulse-metrics { flex: 1 1 100%; }
+  .chrona-pulse-premium .chrona-pulse-metrics { gap: 3px; }
+  .chrona-pulse-premium .chrona-metric-chip { min-height: 28px; height: 28px; gap: 4px; padding-inline: 6px; }
+  .chrona-pulse-premium .chrona-metric-label { font-size: 8.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chrona-pulse-premium .chrona-metric-chip,
+  .chrona-pulse-premium .chrona-pending-pulse { transition: none; animation: none; }
+  .chrona-pulse-premium .chrona-metric-chip:not(:disabled):hover { transform: none; }
+}

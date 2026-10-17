@@ -593,18 +593,39 @@ export const appRouter = router({
         role: roleSchema.optional(),
       }))
       .mutation(async ({ input, ctx }) => {
+        let actorSchoolId = DEMO_SCHOOL_ID;
+        let auditRole: EduRole = input.role || "teacher";
         if (ctx.user) {
           const actor = await resolveActor(ctx, input.role || "teacher");
           if (actor.roleKey === "STUDENT" || actor.roleKey === "GUARDIAN") {
             throw new TRPCError({ code: "FORBIDDEN", message: "Los estudiantes y acudientes no tienen permisos para asentar o modificar la planilla de asistencia." });
           }
+          actorSchoolId = actor.schoolId;
+          auditRole = actor.roleKey === "TEACHER" ? "teacher" : "admin";
         }
         const currentActor = attendanceActor(ctx);
-        return upsertAttendance(input.records.map((record) => ({
+        const mappedRecords = input.records.map((record) => ({
           ...record,
           recordedByUserId: currentActor.userId,
           recordedByName: currentActor.name,
-        })));
+        }));
+        const result = actorSchoolId !== DEMO_SCHOOL_ID
+          ? await upsertAttendance(mappedRecords, actorSchoolId)
+          : await upsertAttendance(mappedRecords);
+
+        try {
+          const courseId = input.records[0]?.courseId;
+          await writeAuditLog(
+            auditRole,
+            "save_attendance",
+            `Planilla de asistencia asentada: ${input.records.length} registro(s) para el curso ${courseId}`,
+            actorSchoolId
+          );
+        } catch (auditErr) {
+          console.warn("[Audit] Failed to write attendance audit log:", auditErr);
+        }
+
+        return result;
       }),
   }),
   followUp: router({
