@@ -26,6 +26,7 @@ export function MatrixCanvas({
   className?: string;
 }) {
   const {
+    dataset,
     students,
     evaluations,
     preferences,
@@ -46,6 +47,16 @@ export function MatrixCanvas({
   const [containerWidth, setContainerWidth] = useState(0);
   const observerRef = useRef<ResizeObserver | null>(null);
 
+  // Al montar o cambiar de salón/curso, la planilla SIEMPRE arranca desde arriba a la izquierda
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.scrollTop = 0;
+    container.scrollLeft = 0;
+    setScrolledX(false);
+    setScrolledY(false);
+  }, [dataset?.key]);
+
   // Medimos el contenedor para repartir el espacio libre entre las evaluaciones
   // cuando el grupo tiene pocas columnas.
   const attachContainer = useCallback((node: HTMLDivElement | null) => {
@@ -54,6 +65,8 @@ export function MatrixCanvas({
     if (!node) return;
     node.scrollTop = 0;
     node.scrollLeft = 0;
+    setScrolledX(false);
+    setScrolledY(false);
     setContainerWidth(node.clientWidth);
     const observer = new ResizeObserver(() => setContainerWidth(node.clientWidth));
     observer.observe(node);

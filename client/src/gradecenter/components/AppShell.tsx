@@ -1,11 +1,9 @@
 import { useEffect, useState, type CSSProperties } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Minimize2, Search } from "lucide-react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useGradeCenter } from "../state/GradeCenterContext";
 import { TopRail } from "./TopRail";
 import { ControlStrip } from "./ControlStrip";
-import { SyncStatus } from "./SyncStatus";
 import { ShortcutHelp } from "./ShortcutHelp";
 import { ContextPanel } from "./insights/ContextPanel";
 import { CompactView, MatrixHints, ScaleLegend, StandardView } from "./views/MatrixViews";
@@ -73,6 +71,20 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
   const focus = preferences.focusMode;
   const isMatrixView = preferences.view === "standard" || preferences.view === "compact";
   const isLanding = screen === "landing";
+
+  // Sincronizar el modo enfoque con el shell global de EduCore para colapsar el sidebar exterior
+  useEffect(() => {
+    if (shellContext) {
+      shellContext.setIsFocusMode(focus);
+    }
+  }, [focus, shellContext]);
+
+  useEffect(() => {
+    return () => {
+      shellContext?.setIsFocusMode(false);
+    };
+  }, [shellContext]);
+
   const openMatrix = (view: ViewId = "standard") => {
     setScreen("workspace");
     setFocusMode(false);
@@ -81,6 +93,16 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     if (document.documentElement) document.documentElement.scrollTop = 0;
     if (document.body) document.body.scrollTop = 0;
+    const resetScroll = () => {
+      const roots = document.querySelectorAll<HTMLElement>(".gc-workspace-root, .gc-scroll, main, [role='grid']");
+      roots.forEach((el) => {
+        el.scrollTop = 0;
+        el.scrollLeft = 0;
+      });
+    };
+    resetScroll();
+    requestAnimationFrame(resetScroll);
+    setTimeout(resetScroll, 50);
   };
 
   useEffect(() => {
@@ -88,10 +110,17 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       if (document.documentElement) document.documentElement.scrollTop = 0;
       if (document.body) document.body.scrollTop = 0;
-      const roots = document.querySelectorAll<HTMLElement>(".gc-workspace-root, .gc-scroll, main");
-      roots.forEach((el) => {
-        el.scrollTop = 0;
-      });
+      const resetScroll = () => {
+        const roots = document.querySelectorAll<HTMLElement>(".gc-workspace-root, .gc-scroll, main, [role='grid']");
+        roots.forEach((el) => {
+          el.scrollTop = 0;
+          el.scrollLeft = 0;
+        });
+      };
+      resetScroll();
+      requestAnimationFrame(resetScroll);
+      setTimeout(resetScroll, 50);
+      setTimeout(resetScroll, 150);
     }
   }, [screen]);
 
@@ -168,7 +197,7 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
         />
       )}
 
-      {!focus && !isLanding && (
+      {!isLanding && (
         <TopRail
           onOpenHelp={() => setHelpOpen(true)}
           onToggleSidebar={handleToggleSidebar}
@@ -182,7 +211,7 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
           }}
         />
       )}
-      {!focus && !isLanding && <ControlStrip />}
+      {!isLanding && <ControlStrip />}
 
       <main className="relative flex min-h-0 flex-1 flex-col">
         {screen === "landing" ? (
@@ -200,69 +229,30 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
         {!isLanding && <ContextPanel />}
       </main>
 
-      {/* El modo enfoque deja libre la franja donde flota su barra de control */}
-      {focus && <div className="h-14 shrink-0" />}
-
       {/* Barra de estado: leyenda de la escala y pistas de uso */}
-      {!isLanding && <footer className="glass-soft relative z-20 flex h-8 shrink-0 items-center gap-3 border-t border-white/8 px-3 text-[10px]">
-        {!focus && (
-          <span className="hidden items-center gap-1.5 text-muted-foreground md:flex">
-            <span className="gc-label text-[9px]">Vista</span>
-            <span className="text-foreground/90">
-              {VIEW_OPTIONS.find((option) => option.id === preferences.view)?.label}
+      {!isLanding && (
+        <footer className="glass-soft relative z-20 flex h-8 shrink-0 items-center gap-3 border-t border-white/8 px-3 text-[10px]">
+          {!focus && (
+            <span className="hidden items-center gap-1.5 text-muted-foreground md:flex">
+              <span className="gc-label text-[9px]">Vista</span>
+              <span className="text-foreground/90">
+                {VIEW_OPTIONS.find((option) => option.id === preferences.view)?.label}
+              </span>
+              <span className="opacity-40">·</span>
+              <span className="gc-label text-[9px]">Densidad</span>
+              <span className="text-foreground/90">{DENSITY_LABEL[preferences.density]}</span>
+              <span className="opacity-40">·</span>
+              <span className="gc-num">
+                {students.length} de {analytics.students.length} estudiantes visibles
+              </span>
             </span>
-            <span className="opacity-40">·</span>
-            <span className="gc-label text-[9px]">Densidad</span>
-            <span className="text-foreground/90">{DENSITY_LABEL[preferences.density]}</span>
-            <span className="opacity-40">·</span>
-            <span className="gc-num">
-              {students.length} de {analytics.students.length} estudiantes visibles
-            </span>
-          </span>
-        )}
+          )}
 
-        <div className="flex-1" />
+          <div className="flex-1" />
 
-        {isMatrixView ? <MatrixHints /> : <ScaleLegend />}
-      </footer>}
-
-      {/* Modo enfoque: solo lo esencial flota sobre la matriz */}
-      <AnimatePresence>
-        {focus && (
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 14 }}
-            transition={{ type: "spring", stiffness: 380, damping: 34 }}
-            className="glass-strong pointer-events-auto absolute bottom-4 left-1/2 z-50 flex w-[min(560px,calc(100%-2rem))] -translate-x-1/2 items-center gap-2 rounded-2xl border border-white/12 px-2.5 py-2"
-          >
-            <span className="gc-label shrink-0 pl-1 text-[9px] text-[var(--gc-cobalt)]">Enfoque</span>
-            <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={preferences.filters.query}
-                onChange={(event) => setFilters({ ...preferences.filters, query: event.target.value })}
-                placeholder="Buscar estudiante…"
-                aria-label="Buscar estudiante"
-                className="w-full rounded-xl border border-white/8 bg-white/5 py-1.5 pr-2.5 pl-8 text-[12px] outline-none placeholder:text-muted-foreground/70 focus:border-[var(--gc-cobalt)]/60"
-              />
-            </div>
-            <SyncStatus />
-            <button
-              type="button"
-              onClick={() => setFocusMode(false)}
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5",
-                "text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground",
-              )}
-            >
-              <Minimize2 className="size-3.5" />
-              Salir
-              <kbd className="gc-num rounded border border-white/12 bg-white/6 px-1 text-[9.5px]">Esc</kbd>
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          {isMatrixView ? <MatrixHints /> : <ScaleLegend />}
+        </footer>
+      )}
 
       {pastePreview && (
         <div className="pointer-events-none fixed inset-0 z-[90] flex items-end justify-center p-4 sm:items-center">

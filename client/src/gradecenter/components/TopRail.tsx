@@ -73,30 +73,41 @@ export function TopRail({
         <span>Volver</span>
       </button>
 
-      {!focus && <div className="hidden h-8 w-px shrink-0 bg-white/10 md:block" />}
+      <div className="hidden h-7 w-px shrink-0 bg-white/10 md:block" />
 
       {/* Grupo y experimentación con la cantidad de evaluaciones */}
-      {!focus && (
-        <div className="hidden shrink-0 md:block">
-          <Popover>
+      <div className="hidden shrink-0 md:block">
+        <Popover>
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="group flex min-w-0 items-center gap-2 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-left transition-colors hover:bg-white/8"
+              className={cn(
+                "group flex min-w-0 items-center gap-2 rounded-xl border border-white/8 bg-white/4 text-left transition-colors hover:bg-white/8",
+                focus ? "px-2 py-1" : "px-2.5 py-1.5",
+              )}
             >
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[var(--gc-cobalt)]/18 text-[var(--gc-cobalt)]">
+              <span
+                className={cn(
+                  "flex shrink-0 items-center justify-center rounded-lg bg-[var(--gc-cobalt)]/18 text-[var(--gc-cobalt)]",
+                  focus ? "size-6" : "size-7",
+                )}
+              >
                 <GraduationCap className="size-3.5" />
               </span>
               <span className="min-w-0">
                 <span className="flex items-baseline gap-1.5">
-                  <span className="truncate text-[12.5px] font-semibold">{dataset.course}</span>
+                  <span className={cn("truncate font-semibold", focus ? "text-[12px]" : "text-[12.5px]")}>
+                    {dataset.course}
+                  </span>
                   <span className="gc-num text-[10px] text-muted-foreground">{students.length} est.</span>
                 </span>
-                <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                  <span className="truncate">{dataset.subject}</span>
-                  <span className="opacity-50">·</span>
-                  <span className="gc-num">{dataset.evaluations.length} evaluaciones</span>
-                </span>
+                {!focus && (
+                  <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                    <span className="truncate">{dataset.subject}</span>
+                    <span className="opacity-50">·</span>
+                    <span className="gc-num">{dataset.evaluations.length} evaluaciones</span>
+                  </span>
+                )}
               </span>
               <ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
             </button>
@@ -181,7 +192,6 @@ export function TopRail({
           </PopoverContent>
           </Popover>
         </div>
-      )}
 
       {/* Búsqueda */}
       <div className={cn("relative min-w-[200px] flex-1", focus ? "max-w-[280px]" : "max-w-[540px] lg:max-w-[640px] xl:max-w-[760px]")}>
@@ -247,18 +257,18 @@ export function TopRail({
               onClick={() => setFocusMode(!focus)}
               aria-pressed={focus}
               className={cn(
-                "hidden items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-medium transition-all md:flex",
+                "flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-medium transition-all",
                 focus
-                  ? "border-[var(--gc-cobalt)]/50 bg-[var(--gc-cobalt)]/16 text-foreground"
+                  ? "border-[var(--gc-cobalt)]/60 bg-[var(--gc-cobalt)]/20 text-foreground font-semibold shadow-xs"
                   : "border-white/8 bg-white/4 text-muted-foreground hover:bg-white/8 hover:text-foreground",
               )}
             >
-              {focus ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-              <span className="hidden xl:inline">{focus ? "Salir de enfoque" : "Enfoque"}</span>
+              {focus ? <Minimize2 className="size-3.5 text-[var(--gc-cobalt)]" /> : <Maximize2 className="size-3.5" />}
+              <span className="hidden sm:inline">{focus ? "Salir de enfoque" : "Enfoque"}</span>
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            Modo enfoque: la matriz ocupa la pantalla. <span className="gc-num">Esc</span> para salir.
+            {focus ? "Salir de modo enfoque" : "Modo enfoque: la matriz ocupa la pantalla"} (<span className="gc-num">Esc</span>)
           </TooltipContent>
         </Tooltip>
 

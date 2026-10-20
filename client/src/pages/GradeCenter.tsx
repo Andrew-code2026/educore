@@ -197,7 +197,7 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
   }
 
   // Estado de carga con estética Liquid Glass
-  if (contextQuery.isLoading) {
+  if (!contextQuery.data && contextQuery.isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center p-6">
         <div className="glass-strong flex w-full max-w-sm flex-col items-center rounded-3xl border border-white/10 p-8 text-center shadow-2xl">
