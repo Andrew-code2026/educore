@@ -116,3 +116,6 @@ client/public/__manus__/version.json
 # Local uploads
 uploads/
 
+
+# Scratch files
+scratch_*

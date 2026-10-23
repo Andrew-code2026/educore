@@ -40,14 +40,14 @@ function ShellInner({
   }, [navGuard, onLogout]);
 
   React.useEffect(() => {
-    if (section === "grades" || section === "attendance") {
+    if (section === "grades" || section === "attendance" || section === "classroom") {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       if (document.documentElement) document.documentElement.scrollTop = 0;
       if (document.body) document.body.scrollTop = 0;
     }
   }, [section]);
 
-  const isFullBleed = section === "grades" || section === "attendance";
+  const isFullBleed = section === "grades" || section === "attendance" || section === "classroom";
 
   return (
     <div

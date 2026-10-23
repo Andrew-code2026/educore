@@ -313,3 +313,14 @@ body [class*="rounded-[28px]"] { border-radius: 24px; }
     border: none !important;
   }
 }
+
+/* Utilidad global para ocultar scrollbars nativas en Windows manteniendo scroll funcional */
+.scrollbar-none {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}

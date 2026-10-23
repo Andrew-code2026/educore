@@ -49,6 +49,7 @@ import { toast } from "sonner";
 import { GradeCenterPage } from "./GradeCenter";
 import { TeacherDashboard, StudentDashboard } from "@/components/dashboard";
 import { AttendancePage } from "./Attendance";
+import { ClassroomPage } from "./Classroom";
 import {
   EduCoreShell,
   type EduRole,
@@ -188,7 +189,7 @@ function GradeRow({ grade, role, mutation }: { grade: any; role: EduRole; mutati
   return <tr className="border-t border-slate-100"><td className="px-4 py-4 font-medium text-slate-700">{grade.studentName}</td><td className="px-4 py-4 text-slate-500">{grade.period}</td><td className="px-4 py-4"><input aria-label={`Nota de ${grade.studentName}`} value={value} onChange={event => setValue(event.target.value)} onBlur={() => { const parsed = Number(value); if (parsed >= 0 && parsed <= 5 && parsed !== grade.value) mutation.mutate({ role, studentName: grade.studentName, course: grade.course, subject: grade.subject, period: grade.period, value: parsed }); }} className="h-8 w-16 rounded-lg border border-slate-200 px-2 text-center text-sm font-semibold text-slate-800 outline-none focus:border-[#368de8] focus:ring-2 focus:ring-[#dceeff]" /></td><td className="px-4 py-4"><span className={`inline-flex items-center gap-1 text-xs font-medium ${grade.value < 3 ? "text-rose-600" : "text-emerald-600"}`}>{grade.value < 3 ? <AlertCircle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}{grade.value < 3 ? "Requiere seguimiento" : "En buen camino"}</span></td></tr>;
 }
 
-function ClassroomPage({ data, role, onChanged, setSection }: { data: any; role: EduRole; onChanged: () => void; setSection: (s: Section) => void }) {
+function InlineClassroomPageOld({ data, role, onChanged, setSection }: { data: any; role: EduRole; onChanged: () => void; setSection: (s: Section) => void }) {
   const [showCreate, setShowCreate] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
   const [title, setTitle] = useState(""); const [subject, setSubject] = useState("Matemáticas"); const [course, setCourse] = useState("11-2"); const [description, setDescription] = useState(""); const [dueAt, setDueAt] = useState(todayInput());

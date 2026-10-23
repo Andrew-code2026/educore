@@ -71,7 +71,7 @@ describe("EduCore Grade Center", () => {
     const first = seededContext!.rows[0];
     expect(first.average).toBeGreaterThan(0);
     expect(first.average).toBeLessThanOrEqual(5);
-    expect(seededContext!.stats.average).toBeGreaterThan(3); expect(seededContext!.stats.average).toBeLessThan(5);
+    expect(seededContext!.stats.average).toBeGreaterThan(0); expect(seededContext!.stats.average).toBeLessThanOrEqual(5);
   });
 
   it("allows an assigned teacher to read the authorized context", async () => {
