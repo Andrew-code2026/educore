@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, CircleAlert, CircleCheck, Target } from "lucide-react";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useGradeCenter } from "../../state/GradeCenterContext";
@@ -40,27 +40,22 @@ export function StudentPopover({
 }
 
 /**
- * Lo mínimo para decidir sin salir de la planilla: definitiva, cuánto falta
- * por calificar y qué necesita para aprobar. El código del estudiante ya se ve
- * en la fila, por eso no se repite aquí; la ficha completa lo muestra.
+ * Lo mínimo para decidir sin salir de la planilla, en tres niveles:
+ * quién es → cómo va (definitiva y avance, cada cifra con su etiqueta) →
+ * qué necesita para aprobar. El código ya se ve en la fila; la ficha completa lo muestra.
  */
 function StudentSummary({ metrics, onClose }: { metrics: StudentMetrics; onClose: () => void }) {
   const { selectStudent, setView } = useGradeCenter();
   const level = metrics.level;
-  const status = approvalOutlook(metrics);
-  const facts = [
-    `${metrics.evaluatedPct}% evaluado`,
-    metrics.pendingCount > 0
-      ? `${metrics.pendingCount} ${metrics.pendingCount === 1 ? "pendiente" : "pendientes"}`
-      : "sin pendientes",
-  ];
+  const outlook = approvalOutlook(metrics);
+  const OutlookIcon = outlook.tone === "good" ? CircleCheck : outlook.tone === "bad" ? CircleAlert : Target;
 
   return (
     <div>
-      <div className="flex items-start gap-3 px-4 pt-4">
+      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
         <span
           aria-hidden
-          className="flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+          className="flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
           style={{
             backgroundColor: level ? levelTint(level, 0.16) : "color-mix(in oklab, var(--foreground) 7%, transparent)",
             color: level ? LEVELS[level].color : "var(--muted-foreground)",
@@ -68,31 +63,59 @@ function StudentSummary({ metrics, onClose }: { metrics: StudentMetrics; onClose
         >
           {initials(metrics.student)}
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm leading-snug font-semibold">{metrics.student.fullName}</div>
-          <div className="mt-1.5 flex items-baseline gap-1.5">
+        <div className="min-w-0 flex-1 text-sm leading-snug font-semibold">{metrics.student.fullName}</div>
+      </div>
+
+      <dl className="grid grid-cols-2 border-y border-[var(--gc-hair)]">
+        <div className="px-4 py-3">
+          <dt className="text-xs text-muted-foreground">Definitiva</dt>
+          <dd className="mt-1 flex items-baseline gap-1.5">
             <span
               className="gc-num text-2xl leading-none font-semibold"
               style={{ color: level ? LEVELS[level].color : "var(--muted-foreground)" }}
             >
               {formatGrade(metrics.definitiva)}
             </span>
-            <span className="text-xs text-muted-foreground">{level ? LEVELS[level].short : "Sin notas"}</span>
-          </div>
-          <div className="mt-1 text-xs text-muted-foreground">{facts.join(" · ")}</div>
+            <span className="text-xs font-medium" style={{ color: level ? LEVELS[level].color : undefined }}>
+              {level ? LEVELS[level].short : ""}
+            </span>
+          </dd>
+          {metrics.provisional && metrics.definitiva != null && (
+            <dd className="mt-1 text-xs text-muted-foreground">Provisional</dd>
+          )}
         </div>
-      </div>
+        <div className="border-l border-[var(--gc-hair)] px-4 py-3">
+          <dt className="text-xs text-muted-foreground">Avance</dt>
+          <dd className="gc-num mt-1 text-2xl leading-none font-semibold">{metrics.evaluatedPct}%</dd>
+          <dd className="mt-1 text-xs text-muted-foreground">
+            {metrics.pendingCount > 0
+              ? `${metrics.pendingCount} ${metrics.pendingCount === 1 ? "nota pendiente" : "notas pendientes"}`
+              : "Todo calificado"}
+          </dd>
+        </div>
+      </dl>
 
-      <p
-        className={cn(
-          "mx-4 mt-3 rounded-lg px-3 py-2 text-xs leading-relaxed",
-          status.tone === "good" && "bg-[var(--gc-alto)]/10 text-[var(--gc-alto)]",
-          status.tone === "bad" && "bg-[var(--gc-bajo)]/10 text-[var(--gc-bajo)]",
-          (status.tone === "neutral" || status.tone === "empty") && "bg-foreground/[0.05] text-foreground/80",
-        )}
-      >
-        {status.text}
-      </p>
+      <div className="flex gap-2.5 px-4 py-3">
+        <OutlookIcon
+          aria-hidden
+          className={cn(
+            "mt-px size-4 shrink-0",
+            outlook.tone === "good" && "text-[var(--gc-alto)]",
+            outlook.tone === "bad" && "text-[var(--gc-bajo)]",
+            (outlook.tone === "neutral" || outlook.tone === "empty") && "text-muted-foreground",
+          )}
+        />
+        <p className="text-sm leading-snug text-foreground/85">
+          {outlook.tone === "neutral" && outlook.needed != null ? (
+            <>
+              Necesita <span className="gc-num font-semibold text-foreground">{formatGrade(outlook.needed)}</span> en
+              promedio en lo pendiente para aprobar.
+            </>
+          ) : (
+            outlook.text
+          )}
+        </p>
+      </div>
 
       <button
         type="button"
@@ -101,7 +124,7 @@ function StudentSummary({ metrics, onClose }: { metrics: StudentMetrics; onClose
           selectStudent(metrics.student.id);
           setView("student");
         }}
-        className="mt-3 flex w-full items-center justify-between border-t border-[var(--gc-hair)] px-4 py-2.5 text-left text-xs font-medium text-[var(--gc-cobalt)] transition-colors hover:bg-foreground/[0.03]"
+        className="flex w-full items-center justify-between rounded-b-2xl border-t border-[var(--gc-hair)] px-4 py-2.5 text-left text-sm font-medium text-[var(--gc-cobalt)] transition-colors hover:bg-foreground/[0.03] focus-visible:bg-foreground/[0.03] focus-visible:outline-none"
       >
         Ver ficha completa
         <ChevronRight className="size-4" aria-hidden />

@@ -591,6 +591,13 @@ html.light .gc-workspace-root::after,
   border-bottom: 1px solid oklch(1 0 0 / 6%);
 }
 
+/* La app define `p { margin: 0 }` fuera de las capas de Tailwind, lo que anula
+   las utilidades mt-*/mx-* en los párrafos. Dentro del módulo se devuelve el
+   control a las capas (utilidades de Tailwind). */
+:is(.gc-workspace-root, .gc-popover, .gc-dialog) p {
+  margin: revert-layer;
+}
+
 /* Menús y ventanas flotantes: superficie sólida (el vidrio dejaba ver la planilla). */
 .gc-popover {
   background-color: var(--gc-ink);

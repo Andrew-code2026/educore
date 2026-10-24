@@ -35,7 +35,7 @@ export function DeleteEvaluationDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
-      <AlertDialogContent className="glass-strong rounded-2xl border-white/12 sm:max-w-md">
+      <AlertDialogContent className="gc-dialog glass-strong rounded-2xl border-white/12 sm:max-w-md">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-base">
             ¿Eliminar {evaluation.code} · {evaluation.name}?

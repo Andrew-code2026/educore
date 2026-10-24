@@ -36,7 +36,7 @@ const GROUPS: { title: string; items: { keys: string[]; label: string }[] }[] = 
 export function ShortcutHelp({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-strong rounded-2xl border-white/10 sm:max-w-2xl">
+      <DialogContent className="gc-dialog glass-strong rounded-2xl border-white/10 sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Atajos de teclado</DialogTitle>
           <DialogDescription>Toda la planilla se puede calificar sin soltar el teclado.</DialogDescription>

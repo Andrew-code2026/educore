@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
  */
 
 export const DIALOG_CONTENT_CLASS =
-  "glass-strong gap-0 rounded-2xl border-white/12 p-0 sm:max-w-lg";
+  "gc-dialog glass-strong gap-0 rounded-2xl border-white/12 p-0 sm:max-w-lg";
 
 export const FIELD_CLASS =
   "w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-[var(--gc-cobalt)]/70 focus:bg-white/8 aria-[invalid=true]:border-[var(--gc-bajo)]/70";
