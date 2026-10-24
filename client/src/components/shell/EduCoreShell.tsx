@@ -53,6 +53,7 @@ function ShellInner({
     section === "attendance" ||
     section === "classroom" ||
     section === "analytics" ||
+    section === "calendar" ||
     section === "communications";
 
   return (

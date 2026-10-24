@@ -25,6 +25,7 @@ import {
   updateDemoGrade,
   updateSchoolSettings,
   createAcademicPeriod,
+  createSchoolEvent,
   updateAcademicPeriod,
   writeAuditLog,
   acceptInvitation,
@@ -529,6 +530,20 @@ export const appRouter = router({
       const actor = await requirePermission(ctx, input.role, "settings.update", true);
       const result = await updateAcademicPeriod(input, actor.schoolId);
       await writeAuditLog(input.role, "update_academic_period", input.name, actor.schoolId);
+      return result;
+    }),
+    createEvent: publicProcedure.input(z.object({
+      role: roleSchema,
+      title: z.string().trim().min(3).max(180),
+      type: z.enum(["Examen", "Reunión", "Actividad institucional", "Institucional"]),
+      eventDate: z.coerce.date(),
+      location: z.string().trim().max(180).nullable().default(null),
+      audience: z.string().trim().min(2).max(120),
+    })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "communications.create", true);
+      const { role: _role, ...event } = input;
+      const result = await createSchoolEvent({ ...event, location: event.location || null }, actor.schoolId);
+      await writeAuditLog(input.role, "create_event", input.title, actor.schoolId);
       return result;
     }),
     generateDraft: publicProcedure.input(z.object({
