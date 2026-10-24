@@ -4,6 +4,7 @@ import { ShellContextProvider, useShellContext } from "./ShellContext";
 import { EduCoreSidebar } from "./EduCoreSidebar";
 import { EduCoreHeader } from "./EduCoreHeader";
 import { EduCoreMobileNav } from "./EduCoreMobileNav";
+import "./shell.css";
 
 function ShellInner({
   children,
@@ -51,7 +52,7 @@ function ShellInner({
 
   return (
     <div
-      className="h-screen max-h-screen overflow-hidden bg-transparent text-foreground page-shell selection:bg-blue-100 flex flex-col"
+      className="edc-shell selection:bg-blue-100"
       style={
         {
           "--edc-primary": school?.primaryColor ?? "#2475cf",
@@ -65,25 +66,8 @@ function ShellInner({
         } as React.CSSProperties
       }
     >
-      {/* 1. Sidebar de escritorio colapsable */}
-      <EduCoreSidebar
-        role={role}
-        section={section}
-        setSection={handleSetSection}
-        school={school}
-        schoolName={schoolName}
-        onLogout={handleLogout}
-        notificationCount={notificationCount}
-        user={user}
-      />
-
-      {/* 2. Contenedor principal desplazable que se adapta al ancho de la barra lateral */}
-      <div
-        className={`flex h-screen max-h-screen overflow-hidden flex-col transition-all duration-200 ease-out ${
-          isFocusMode ? "lg:pl-0" : (sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-[250px]")
-        }`}
-      >
-        {/* Topbar estandarizada institucional para todas las vistas */}
+      {/* Marco: riel lateral a la izquierda, topbar y panel principal a la derecha */}
+      <div className="edc-frame" data-collapsed={sidebarCollapsed} data-focus={isFocusMode}>
         <EduCoreHeader
           role={role}
           section={section}
@@ -93,32 +77,39 @@ function ShellInner({
           user={user}
         />
 
-        {/* Contenido principal de la página */}
-        {/* Contenido principal con posición de scrollbar estandarizada en el borde derecho */}
-        {isFullBleed ? (
-          <main className="flex-1 flex flex-col min-h-0 h-full overflow-hidden w-full">
-            {children}
-          </main>
-        ) : (
-          <main id="educore-main-content" className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden">
-            <div className="page-transition mx-auto w-full max-w-[1440px] px-4 pb-24 pt-5 sm:px-6 lg:px-8 lg:pb-10 lg:pt-6">
-              {children}
-            </div>
-          </main>
-        )}
-
-        {/* Navegación móvil inferior inteligente + Drawer */}
-        <EduCoreMobileNav
+        <EduCoreSidebar
           role={role}
           section={section}
           setSection={handleSetSection}
           school={school}
           schoolName={schoolName}
-          onRoleChange={onRoleChange}
           onLogout={handleLogout}
           notificationCount={notificationCount}
+          user={user}
         />
+
+        {isFullBleed ? (
+          <main className="edc-main edc-main--bleed">{children}</main>
+        ) : (
+          <main id="educore-main-content" className="edc-main">
+            <div aria-hidden="true" className="edc-main__glow edc-main__glow--a" />
+            <div aria-hidden="true" className="edc-main__glow edc-main__glow--b" />
+            <div className="edc-main__content page-transition">{children}</div>
+          </main>
+        )}
       </div>
+
+      {/* Navegación móvil inferior inteligente + Drawer */}
+      <EduCoreMobileNav
+        role={role}
+        section={section}
+        setSection={handleSetSection}
+        school={school}
+        schoolName={schoolName}
+        onRoleChange={onRoleChange}
+        onLogout={handleLogout}
+        notificationCount={notificationCount}
+      />
     </div>
   );
 }

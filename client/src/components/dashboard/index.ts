@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./dashboardSelectors";
 export * from "./TeacherHero";
+export * from "./TeacherNextClass";
 export * from "./TeacherMetricsRow";
 export * from "./TeacherAgenda";
 export * from "./TeacherOperationalDetails";

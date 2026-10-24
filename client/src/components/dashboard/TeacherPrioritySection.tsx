@@ -1,110 +1,95 @@
 import React from "react";
-import {
-  ArrowRight,
-  AlertCircle,
-  CheckCircle2,
-  ClipboardCheck,
-  FileCheck,
-  ShieldAlert,
-} from "lucide-react";
 import type { TeacherPriorityItem } from "./types";
 
 interface TeacherPrioritySectionProps {
   items: TeacherPriorityItem[];
 }
 
-export function TeacherPrioritySection({
-  items,
-}: TeacherPrioritySectionProps) {
-  const getPriorityIcon = (
-    id: string,
-    severity: TeacherPriorityItem["severity"]
-  ) => {
-    if (id.includes("attendance")) return ClipboardCheck;
-    if (id.includes("pending")) return FileCheck;
-    if (severity === "high") return AlertCircle;
-    return ShieldAlert;
-  };
+function PriorityIcon({ id }: { id: string }) {
+  if (id.includes("attendance")) {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
+        <rect width="8" height="4" x="8" y="2" rx="1" />
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+        <path d="m9 14 2 2 4-4" />
+      </svg>
+    );
+  }
+  if (id.includes("pending")) {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
+        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+        <path d="m9 15 2 2 4-4" />
+      </svg>
+    );
+  }
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
+      <circle cx="12" cy="8" r="5" />
+      <path d="M20 21a8 8 0 0 0-16 0" />
+    </svg>
+  );
+}
+
+/** "Por hacer": pendientes accionables del día. */
+export function TeacherPrioritySection({ items }: TeacherPrioritySectionProps) {
+  const hasItems = items.length > 0;
 
   return (
-    <section
-      aria-label="Atención prioritaria"
-      className="flex flex-col justify-between rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#131f30] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] dark:shadow-none sm:p-4"
-    >
-      <div>
-        <div className="mb-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="rounded-lg bg-rose-50 dark:bg-rose-950/60 p-2 text-rose-600 dark:text-rose-400 shrink-0">
-              <AlertCircle className="h-4 w-4" />
-            </span>
-            <div>
-              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                Atención prioritaria
-              </h2>
-              <p className="text-xs text-slate-400 dark:text-slate-400">
-                Intervenciones sugeridas para hoy
-              </p>
-            </div>
-          </div>
-          {items.length > 0 && (
-            <span className="rounded-full bg-rose-50 dark:bg-rose-950/70 px-2 py-0.5 text-xs font-bold text-rose-600 dark:text-rose-300">
-              {items.length}
-            </span>
-          )}
-        </div>
-
-        <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
-          {items.map((item) => {
-            const Icon = getPriorityIcon(item.id, item.severity);
-            const isHigh = item.severity === "high";
-
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={item.onAction}
-                className="group flex w-full items-center gap-3 py-2.5 px-1.5 text-left transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/50 rounded-lg"
-              >
-                <span
-                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
-                    isHigh
-                      ? "bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400"
-                      : "bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                </span>
-
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-bold text-slate-800 dark:text-slate-100">
-                    {item.title}
-                  </span>
-                  <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
-                    {item.context}
-                  </span>
-                </span>
-
-                <span className="whitespace-nowrap rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 group-hover:border-blue-300 dark:group-hover:border-blue-700 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors shrink-0">
-                  {item.actionLabel}{" "}
-                  <ArrowRight className="ml-1 inline h-2.5 w-2.5" />
-                </span>
-              </button>
-            );
-          })}
-
-          {items.length === 0 && (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-emerald-200/80 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 py-6 px-4 text-center">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mb-1" />
-              <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
-                Todo al día en tus cursos
-              </p>
-              <p className="mt-0.5 text-xs text-emerald-700/80 dark:text-emerald-400/80">
-                Sin entregas ni alertas urgentes pendientes por resolver hoy.
-              </p>
-            </div>
-          )}
-        </div>
+    <section aria-labelledby="h-todo" className="edc-card edc-todo">
+      <div className="edc-card__head">
+        <span className="edc-card__bubble">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
+            <path d="M9 11l3 3L22 4" />
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+          </svg>
+        </span>
+        <h2 id="h-todo" className="edc-card__title">Por hacer</h2>
+        {hasItems && (
+          <>
+            <span className="edc-count">{items.length}</span>
+            <span className="edc-todo__hint">pendientes para hoy</span>
+          </>
+        )}
       </div>
+
+      {hasItems ? (
+        <ul className="edc-todo__list">
+          {items.map(item => (
+            <li key={item.id} className="edc-todo__item">
+              <div className="edc-todo__row">
+                <span className="edc-todo__icon">
+                  <PriorityIcon id={item.id} />
+                </span>
+                <div className="edc-todo__text">
+                  <div className="edc-todo__title">{item.title}</div>
+                  <div className="edc-todo__context">{item.context}</div>
+                </div>
+              </div>
+              <button type="button" className="edc-dark-btn" onClick={item.onAction}>
+                {item.actionLabel}
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path d="M5 12h14" />
+                  <path d="m12 5 7 7-7 7" />
+                </svg>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="edc-todo__done">
+          <span className="edc-todo__done-icon">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </span>
+          <div>
+            <div className="edc-todo__done-title">Estás al día</div>
+            <div className="edc-todo__done-text">No tienes asistencia, entregas ni seguimientos pendientes.</div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

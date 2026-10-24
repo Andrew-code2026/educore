@@ -1,13 +1,6 @@
 import React, { useMemo } from "react";
-import {
-  BookOpen,
-  AlertTriangle,
-  ClipboardCheck,
-  FileCheck,
-  Plus,
-} from "lucide-react";
 import { TeacherHero } from "./TeacherHero";
-import { TeacherMetricsRow } from "./TeacherMetricsRow";
+import { TeacherNextClass } from "./TeacherNextClass";
 import { TeacherAgenda } from "./TeacherAgenda";
 import { TeacherCoursesCard } from "./TeacherCoursesCard";
 import { TeacherPrioritySection } from "./TeacherPrioritySection";
@@ -25,10 +18,52 @@ import {
 } from "./dashboardSelectors";
 import type {
   TeacherDashboardProps,
-  TeacherMetricItem,
   TeacherAgendaItem,
+  TeacherNextClassItem,
   QuickAnalyticsItem,
 } from "./types";
+import "./teacher-home.css";
+
+// Horario del día del docente (aún no proviene del backend).
+const TODAY_CLASSES = [
+  {
+    id: "class-1",
+    title: "Biología Celular y Genética",
+    course: "11-2",
+    subject: "Biología",
+    room: "Laboratorio de Ciencias",
+    start: "07:00",
+    end: "08:30",
+    tag: "Clase",
+  },
+  {
+    id: "class-2",
+    title: "Práctica de Microscopía y Tejidos",
+    course: "11-1",
+    subject: "Biología",
+    room: "Laboratorio de Biología",
+    start: "10:00",
+    end: "11:30",
+    tag: "Laboratorio",
+  },
+];
+
+const toMinutes = (hhmm: string) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+
+/** "Juan Diego Loaiza" → "Juan Diego"; "Laura Gómez" → "Laura". */
+const greetingName = (fullName: string) => {
+  const parts = fullName.replace(/^Prof\.\s*/, "").trim().split(/\s+/);
+  return parts.slice(0, parts.length >= 3 ? 2 : 1).join(" ");
+};
+
+const shortDate = (date: Date) =>
+  new Intl.DateTimeFormat("es-CO", { weekday: "short", day: "numeric", month: "short" })
+    .format(date)
+    .replace(/[.,]/g, "")
+    .replace(/\s+de\s+/g, " ");
 
 export function TeacherDashboard({
   data,
@@ -121,121 +156,37 @@ export function TeacherDashboard({
     return (sum / validGrades.length).toFixed(2);
   }, [grades]);
 
-  // 4. Fila de 4 KPIs sincronizada con los datos reales
-  const courseListLabel = useMemo(() => {
-    if (courses.length > 0) {
-      return courses.map((c: any) => c.name).join(" · ");
-    }
-    return "11-1 · 11-2";
-  }, [courses]);
-
-  const metrics: TeacherMetricItem[] = useMemo(
-    () => [
-      {
-        id: "pending-grades",
-        label: "Por calificar",
-        value: pendingGradesCount,
-        detail:
-          pendingGradesCount === 0
-            ? "todo calificado"
-            : pendingGradesCount === 1
-              ? "entrega pendiente"
-              : "entregas pendientes",
-        tone: pendingGradesCount > 0 ? "warning" : "success",
-        icon: FileCheck,
-        onClick: () => setSection("grades"),
-      },
-      {
-        id: "assigned-courses",
-        label: "Mis cursos",
-        value: courses.length > 0 ? courses.length : courseCards.length,
-        detail: courseListLabel,
-        tone: "info",
-        icon: BookOpen,
-        onClick: () => setSection("grades"),
-      },
-      {
-        id: "students-attention",
-        label: "Atención académica",
-        value: studentsAtRiskList.length,
-        detail:
-          studentsAtRiskList.length === 0
-            ? "sin promedios < 3.0"
-            : "con promedio < 3.0",
-        tone: studentsAtRiskList.length > 0 ? "danger" : "success",
-        icon: AlertTriangle,
-        onClick: () => setSection("grades"),
-      },
-      {
-        id: "attendance-today",
-        label: "Asistencia hoy",
-        value: todayAttendanceStatus.label,
-        detail: todayAttendanceStatus.text,
-        tone:
-          todayAttendanceStatus.label === "Al día"
-            ? "success"
-            : todayAttendanceStatus.label === "Parcial"
-              ? "warning"
-              : "violet",
-        icon: ClipboardCheck,
-        onClick: () => setSection("attendance"),
-      },
-    ],
-    [
-      pendingGradesCount,
-      courses.length,
-      courseCards.length,
-      courseListLabel,
-      studentsAtRiskList.length,
-      todayAttendanceStatus,
-      setSection,
-    ]
-  );
-
-  // 5. Agenda del día y próximos eventos
+  // 4. Agenda del día y próximos eventos
   const { todayAgendaItems, upcomingAgendaItems } = useMemo(() => {
-    const todayList: TeacherAgendaItem[] = [
-      {
-        id: "class-1",
-        type: "activity",
-        timeOrDate: "07:00 - 08:30",
-        title: "Biología Celular y Genética",
-        subtitle: "11-2 · Biología · Laboratorio de Ciencias",
-        isToday: true,
-        tag: "Clase",
-        tagTone: "info",
-        onClick: () => setSection("classroom"),
-      },
-      {
-        id: "class-2",
-        type: "activity",
-        timeOrDate: "10:00 - 11:30",
-        title: "Práctica de Microscopía y Tejidos",
-        subtitle: "11-1 · Biología · Laboratorio de Biología",
-        isToday: true,
-        tag: "Laboratorio",
-        tagTone: "info",
-        onClick: () => setSection("classroom"),
-      },
-    ];
+    const todayList: TeacherAgendaItem[] = TODAY_CLASSES.map((c) => ({
+      id: c.id,
+      type: "activity",
+      timeOrDate: `${c.start} – ${c.end}`,
+      title: c.title,
+      subtitle: `${c.course} · ${c.subject} · ${c.room}`,
+      isToday: true,
+      tag: c.tag,
+      tagTone: "info",
+      onClick: () => setSection("classroom"),
+    }));
 
     const upcomingList: TeacherAgendaItem[] = events.map((ev: any) => {
-      const formattedDate = ev.eventDate
-        ? new Date(ev.eventDate).toLocaleDateString("es-CO", {
-            day: "2-digit",
-            month: "short",
-          })
-        : "Próx.";
+      const date = ev.eventDate ? new Date(ev.eventDate) : null;
+      const time = date
+        ? date.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false })
+        : "";
 
       return {
         id: `event-${ev.id}`,
         type: "event",
-        timeOrDate: formattedDate,
+        timeOrDate: time,
         title: ev.title,
         subtitle: `${ev.type || "Evento institucional"}${
           ev.location ? ` · ${ev.location}` : ""
         }`,
         isToday: false,
+        date,
+        highlight: /cierre/i.test(ev.title || ""),
         tag: ev.type || "Evento",
         tagTone: "neutral",
         onClick: () => setSection("calendar"),
@@ -248,7 +199,37 @@ export function TeacherDashboard({
     };
   }, [events, setSection]);
 
-  // 6. Atención prioritaria detallada y coherente con la materia del docente
+  // 5. Próxima clase: la primera que aún no termina (o la primera del día)
+  const nextClass: TeacherNextClassItem | null = useMemo(() => {
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const next =
+      TODAY_CLASSES.find((c) => toMinutes(c.end) > nowMinutes) ?? TODAY_CLASSES[0];
+    if (!next) return null;
+    return {
+      title: next.title,
+      course: next.course,
+      room: next.room,
+      timeRange: `${next.start} – ${next.end}`,
+    };
+  }, []);
+
+  // Fecha de cierre de notas: próximo "cierre" de la agenda o, si no hay, fin del periodo activo
+  const closingLabel = useMemo(() => {
+    const startOfToday = new Date().setHours(0, 0, 0, 0);
+    const candidates = [
+      ...events
+        .filter((ev: any) => /cierre/i.test(ev.title || "") && ev.eventDate)
+        .map((ev: any) => new Date(ev.eventDate)),
+      ...(activePeriod?.endDate ? [new Date(activePeriod.endDate)] : []),
+    ];
+    const closing = candidates
+      .filter((d: Date) => d.getTime() >= startOfToday)
+      .sort((a: Date, b: Date) => a.getTime() - b.getTime())[0];
+    return closing ? shortDate(closing) : undefined;
+  }, [events, activePeriod?.endDate]);
+
+  // 6. Pendientes del día ("Por hacer"), coherentes con la materia del docente
   const priorityItems = useMemo(
     () =>
       calculatePriorityItems(
@@ -274,32 +255,7 @@ export function TeacherDashboard({
     ]
   );
 
-  // 7. Acción de creación rápida en el Hero (sin repetir los botones de alerta de abajo)
-  const heroAction = useMemo(
-    () => ({
-      label: "Nueva actividad",
-      icon: Plus,
-      onClick: () => setSection("classroom"),
-    }),
-    [setSection]
-  );
-
-  const heroSummaryText = useMemo(() => {
-    const classesCount = todayAgendaItems.length;
-    if (pendingGradesCount > 0) {
-      return `Tienes ${classesCount} clases programadas hoy y ${pendingGradesCount} ${
-        pendingGradesCount === 1
-          ? "entrega lista para calificar"
-          : "entregas listas para calificar"
-      }.`;
-    }
-    if (todayAttendanceStatus.label !== "Al día") {
-      return `Tienes ${classesCount} clases programadas hoy. Recuerda completar el registro de asistencia.`;
-    }
-    return `Tienes ${classesCount} clases programadas hoy y todas tus entregas están al día.`;
-  }, [todayAgendaItems.length, pendingGradesCount, todayAttendanceStatus.label]);
-
-  // 8. Analítica (exclusiva para la vista Análisis & Alertas)
+  // 7. Analítica (exclusiva para la vista Análisis & Alertas)
   const quickAnalyticsItems: QuickAnalyticsItem[] = useMemo(
     () => [
       { label: "Taller celular y mitosis", value: 76, color: "bg-blue-500" },
@@ -315,7 +271,7 @@ export function TeacherDashboard({
   );
 
   return (
-    <div className="teacher-dashboard space-y-3.5 pb-4">
+    <div className={mode === "analytics" ? "teacher-dashboard space-y-3.5 pb-4" : undefined}>
       {mode === "analytics" ? (
         <div className="space-y-4">
           <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
@@ -333,34 +289,38 @@ export function TeacherDashboard({
           />
         </div>
       ) : (
-        <div className="space-y-3.5">
-          {/* Fila 1: Hero Contextual Compacto */}
+        <div className="edc-home">
           <TeacherHero
-            teacherName={teacherName}
+            teacherName={greetingName(teacherName)}
             activePeriodName={activePeriodName}
-            summaryText={heroSummaryText}
-            action={heroAction}
           />
 
-          {/* Fila 2: 4 KPIs en Fila Horizontal */}
-          <TeacherMetricsRow metrics={metrics} />
+          <div className="edc-home__grid">
+            <div className="edc-home__primary">
+              <div className="edc-home__top">
+                {nextClass && (
+                  <TeacherNextClass
+                    item={nextClass}
+                    onOpen={() => setSection("classroom")}
+                  />
+                )}
+                <TeacherCoursesCard
+                  courses={courseCards}
+                  closingLabel={closingLabel}
+                  onViewAll={() => setSection("grades")}
+                />
+              </div>
 
-          {/* Fila 3: Operación del Día en 2 Columnas Equilibradas (Mi jornada + Atención prioritaria) */}
-          <div className="grid items-stretch gap-3.5 xl:grid-cols-[1.15fr_0.85fr]">
+              <TeacherPrioritySection items={priorityItems} />
+            </div>
+
             <TeacherAgenda
               todayItems={todayAgendaItems}
               upcomingItems={upcomingAgendaItems}
               onOpenCalendar={() => setSection("calendar")}
+              onNewActivity={() => setSection("classroom")}
             />
-
-            <TeacherPrioritySection items={priorityItems} />
           </div>
-
-          {/* Fila 4: Mis Cursos (Totalmente visible en viewport) */}
-          <TeacherCoursesCard
-            courses={courseCards}
-            onViewAll={() => setSection("grades")}
-          />
         </div>
       )}
     </div>
