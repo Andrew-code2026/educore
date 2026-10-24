@@ -6,8 +6,8 @@
  * e inyecta cursos, estados y callbacks de persistencia del host.
  */
 export { AttendancePanel } from "./AttendancePanel";
-export { AttendanceCourseSelect } from "./AttendanceCourseSelect";
-export type { AttendanceCourseSelectProps } from "./AttendanceCourseSelect";
+export { AttendanceLanding } from "./landing/AttendanceLanding";
+export { buildAttendanceLanding } from "./landing/landing";
 export { AttendanceHeader } from "./components/AttendanceHeader";
 export { AttendanceSheet } from "./components/AttendanceSheet";
 export { AttendanceToolbar } from "./components/AttendanceToolbar";

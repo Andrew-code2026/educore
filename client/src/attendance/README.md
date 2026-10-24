@@ -12,7 +12,7 @@ El panel y el selector respetan el tema claro/oscuro y `prefers-reduced-motion`.
 
 | Archivo / carpeta | Responsabilidad |
 | --- | --- |
-| `AttendanceCourseSelect.tsx` | Resumen, búsqueda y filtros locales Hoy/Próximos/Todos; agrupa la agenda por fecha y abre la planilla mediante un callback. |
+| `landing/` | Portada docente (diseño EduCore Docente): resumen del periodo, clases de hoy, justificaciones por revisar y próximas clases. `landing.ts` es el modelo de presentación puro, con pruebas. |
 | `AttendancePanel.tsx` | Orquestador del panel docente y su sesión local. |
 | `components/AttendanceHeader.tsx` | Command Deck: curso, fecha, cambio de día, clase, sincronización y regreso al selector. |
 | `components/DaySummaryRail.tsx` | Pulse Rail con avance y conteos semánticos. |
@@ -35,13 +35,15 @@ El panel y el selector respetan el tema claro/oscuro y `prefers-reduced-motion`.
 Importa la API pública y adapta los datos existentes a `Course`, `Student`, `AttendanceRecord` y `SessionStatuses`:
 
 ```tsx
-import { AttendanceCourseSelect, AttendancePanel } from "@/features/attendance";
+import { AttendanceLanding, AttendancePanel } from "@/features/attendance";
 
-<AttendanceCourseSelect
+<AttendanceLanding
   courses={cursosDelDocente}
-  statuses={registrosDeLaJornada}
-  onSelectCourse={(courseId, date) => abrirPlanilla(courseId, date)}
-  onReviewExcuses={(courseId, date) => abrirRevisionExistente(courseId, date)}
+  statusesByCourse={registrosDeHoyPorCurso}
+  justifications={justificaciones}
+  periods={periodosAcademicos}
+  onOpenSession={(courseId, date, filter) => abrirPlanilla(courseId, date, filter)}
+  onReviewJustification={(courseId, id) => abrirRevisionExistente(courseId, id)}
 />;
 
 <AttendancePanel
@@ -65,14 +67,14 @@ El shell anfitrión debe mostrar **una única entrada global** para Asistencia. 
 
 ### Contratos y datos
 
-- `courses` y `statuses` son valores de entrada del host; la vista no hace consultas ni conserva fixtures.
-- La búsqueda filtra por nombre, grado, materia y salón; los filtros Hoy/Próximos/Todos y la agrupación de sesiones por fecha son estado de presentación local basado en `classDays` recibido. Una recurrencia aparece bajo su fecha siguiente, identificada como tal.
-- “Continuar asistencia” reutiliza la apertura existente y solo se muestra si `statuses` refleja una sesión parcialmente registrada. Las métricas de roster vacío no muestran tasas o alertas de cero y los mensajes de ausencia de justificaciones requieren una fuente real de conteos/estudiantes.
+- `courses`, `statusesByCourse` y `justifications` son valores de entrada del host; la portada no hace consultas ni conserva fixtures.
+- Una clase de hoy queda “Lista tomada” cuando no hay pendientes, “En curso” durante su horario y “Lista pendiente” si terminó sin lista completa; en esos dos últimos casos la acción principal es “Tomar lista”. Un reloj por minuto mantiene el estado al día.
+- “Con alertas” cuenta estudiantes con ausencias consecutivas o asistencia baja; la alerta de una clase abre la planilla con el filtro de atención docente (`initialFilter`).
+- “Asistencia del periodo” usa el histórico dentro de las fechas del periodo activo (si cubren hoy) más la jornada de hoy; sin registros muestra “Sin registros aún”.
 - `initialStatuses` representa la jornada abierta al montar el panel. El host adapta la respuesta de su API a `SessionStatuses` y la pasa con curso y fecha.
 - `onPersist` recibe la instantánea inmutable `{ courseId, date, statuses }`. Los guardados se serializan y una respuesta obsoleta no marca como guardada una edición posterior; un rechazo activa el estado de error y el reintento. Si se omite, los cambios permanecen en la sesión local y el indicador no afirma que se guardaron en EduCore.
 - `onOpenExpediente`, `onOpenHistory` y `onOpenFollowUp` delegan a las vistas ya existentes en EduCore Main. Sin callback, las acciones correspondientes quedan deshabilitadas o se muestra el resumen docente local.
 - `getStudentSummaryProfile` puede proporcionar `studentCode`, `guardianPhone` y `guardianEmail`. `Student.guardian` y los conteos de solicitudes/excusas deben proceder de EduCore; el módulo no inventa datos familiares ni crea flujos documentales.
-- El estado vacío del selector significa que no se recibieron cursos. No se interpreta como una agenda cargada sin clases y no presenta KPIs de cero.
 
 ## Sesión y reglas de negocio
 

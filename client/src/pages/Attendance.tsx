@@ -16,7 +16,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useShellContext } from "@/components/shell";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
-import { AttendanceCourseSelect } from "@/attendance/AttendanceCourseSelect";
+import { AttendanceLanding } from "@/attendance/landing/AttendanceLanding";
 import { AttendancePanel } from "@/attendance/AttendancePanel";
 import { adaptEduCoreDataToManus, getStudentSummaryFamilyProfile } from "@/attendance/adapter";
 import { AttendanceModule as AttendanceLegacyModule } from "@/components/attendance/AttendanceModule";
@@ -33,7 +33,7 @@ import {
   type AttendanceStudent,
   type StudentRecordTab,
 } from "@/components/attendance/types";
-import type { Course, SessionStatuses, Student } from "@/attendance/types";
+import type { AttendanceFilter, SessionStatuses, Student } from "@/attendance/types";
 
 export interface AttendancePageProps {
   data: any;
@@ -164,6 +164,8 @@ function AttendanceNextContainer({
   const [selectedDate, setSelectedDate] = React.useState<string>(() => {
     return new Date().toISOString().slice(0, 10);
   });
+  const [selectedFilter, setSelectedFilter] = React.useState<AttendanceFilter>("all");
+  const [reviewJustificationId, setReviewJustificationId] = React.useState<number | null>(null);
 
   // Estado para el Expediente 360° Integral
   const [isRecordModalOpen, setIsRecordModalOpen] = React.useState(false);
@@ -177,15 +179,11 @@ function AttendanceNextContainer({
   // Consultas de datos reales desde tRPC
   const utils = trpc.useUtils();
 
-  const attendanceQuery = trpc.attendance.list.useQuery(
-    { courseId: selectedCourseId },
-    { staleTime: 30_000, retry: 1 }
-  );
+  // Registros y justificaciones de todos los cursos: la portada resume la jornada completa
+  // y la planilla puede cambiar de curso sin perder el histórico real
+  const attendanceQuery = trpc.attendance.list.useQuery(undefined, { staleTime: 30_000, retry: 1 });
 
-  const justificationsQuery = trpc.justification.list.useQuery(
-    { courseId: selectedCourseId },
-    { enabled: Boolean(selectedCourseId), staleTime: 30_000, retry: 1 }
-  );
+  const justificationsQuery = trpc.justification.list.useQuery(undefined, { staleTime: 30_000, retry: 1 });
 
   const followUpQuery = trpc.followUp.list.useQuery(
     { courseId: selectedCourseId },
@@ -334,7 +332,7 @@ function AttendanceNextContainer({
   );
 
   // Adaptación de datos de EduCore a modelos de Manus
-  const { courses, todayStatuses, eduStudentMap, eduCourseMap, recordsByStudentDate } = React.useMemo(() => {
+  const { courses, todayStatuses, todayStatusesByCourse, eduStudentMap, eduCourseMap, recordsByStudentDate } = React.useMemo(() => {
     return adaptEduCoreDataToManus({
       snapshotData: data,
       realAttendanceRecords: attendanceQuery.data,
@@ -349,14 +347,6 @@ function AttendanceNextContainer({
       setSelectedCourseId(courses[0].id);
     }
   }, [courses, selectedCourseId]);
-
-  // Conteo de justificaciones pendientes
-  const pendingJustificationsCount = React.useMemo(() => {
-    const list = justificationsQuery.data ?? [];
-    return list.filter((j: any) =>
-      ["submitted", "pending_physical_support", "in_review", "absence_registered"].includes(j.status)
-    ).length;
-  }, [justificationsQuery.data]);
 
   // Lista de justificaciones tipadas para el Expediente y Modal
   const justificationsList = React.useMemo<AttendanceJustificationItem[]>(() => {
@@ -395,6 +385,12 @@ function AttendanceNextContainer({
       studentCode: j.student?.studentCode,
     }));
   }, [justificationsQuery.data]);
+
+  // El Expediente y el modal de justificaciones trabajan sobre el curso seleccionado
+  const courseJustifications = React.useMemo(
+    () => justificationsList.filter((j) => j.courseId === selectedCourseId),
+    [justificationsList, selectedCourseId]
+  );
 
   // Lista de casos de seguimiento tipados
   const followUpCasesList = React.useMemo<AttendanceFollowUpCaseItem[]>(() => {
@@ -595,52 +591,60 @@ function AttendanceNextContainer({
     [submitJustificationMutation]
   );
 
+  const handleOpenSession = React.useCallback((courseId: string, date: string, filter: AttendanceFilter = "all") => {
+    setSelectedCourseId(courseId);
+    setSelectedDate(date);
+    setSelectedFilter(filter);
+    setViewMode("panel");
+  }, []);
+
+  const handleReviewJustification = React.useCallback((courseId: string, justificationId: number) => {
+    setSelectedCourseId(courseId);
+    setReviewJustificationId(justificationId);
+    setIsJustificationModalOpen(true);
+  }, []);
+
+  const isLanding = viewMode === "course-select";
+
   return (
-    <div className="attendance-workspace font-sans relative flex h-full flex-col overflow-hidden bg-background text-foreground">
-      {/* Aurora ambiental de fondo */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-48 left-[18%] h-[520px] w-[520px] rounded-full bg-brand/10 blur-[130px]" />
-        <div className="absolute -bottom-56 right-[-6%] h-[460px] w-[460px] rounded-full bg-st-excuse/10 blur-[140px]" />
-      </div>
-
-
-
-      {/* 2. Área principal de contenido */}
-      {viewMode === "course-select" ? (
-        <main id="educore-attendance-content" className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden w-full">
-          <div className="page-transition mx-auto w-full max-w-[1440px] px-4 pb-24 pt-4 sm:px-6 sm:pb-10 sm:pt-5 lg:px-8 flex-1 flex flex-col">
-            <AttendanceCourseSelect
-              courses={courses}
-              statuses={todayStatuses}
-              pendingExcusesCount={pendingJustificationsCount}
-              onSelectCourse={(courseId, date) => {
-                setSelectedCourseId(courseId);
-                setSelectedDate(date);
-                setViewMode("panel");
-              }}
-              onReviewExcuses={(courseId) => {
-                setSelectedCourseId(courseId);
-                setIsJustificationModalOpen(true);
-              }}
-            />
-          </div>
-        </main>
+    <div
+      className="attendance-workspace font-sans relative flex h-full flex-col overflow-hidden bg-background text-foreground"
+      data-screen={isLanding ? "landing" : undefined}
+    >
+      {isLanding ? (
+        <AttendanceLanding
+          courses={courses}
+          statusesByCourse={todayStatusesByCourse}
+          justifications={justificationsList}
+          periods={data?.academicPeriods}
+          onOpenSession={handleOpenSession}
+          onReviewJustification={handleReviewJustification}
+        />
       ) : (
-        <main className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden w-full px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
-          <AttendancePanel
-            courses={courses}
-            initialCourseId={selectedCourseId}
-            initialDate={selectedDate}
-            initialStatuses={todayStatuses}
-            onBackToCourses={() => setViewMode("course-select")}
-            onOpenExpediente={handleOpenExpediente}
-            onOpenHistory={handleOpenHistory}
-            onOpenFollowUp={handleOpenFollowUp}
-            getStudentSummaryProfile={(student) => getStudentSummaryFamilyProfile(student, eduStudentMap)}
-            onPersist={handlePersist}
-            onFocusModeChange={setIsFocusMode}
-          />
-        </main>
+        <>
+          {/* Aurora ambiental de fondo */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute -top-48 left-[18%] h-[520px] w-[520px] rounded-full bg-brand/10 blur-[130px]" />
+            <div className="absolute -bottom-56 right-[-6%] h-[460px] w-[460px] rounded-full bg-st-excuse/10 blur-[140px]" />
+          </div>
+
+          <main className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden w-full px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
+            <AttendancePanel
+              courses={courses}
+              initialCourseId={selectedCourseId}
+              initialDate={selectedDate}
+              initialStatuses={todayStatuses}
+              initialFilter={selectedFilter}
+              onBackToCourses={() => setViewMode("course-select")}
+              onOpenExpediente={handleOpenExpediente}
+              onOpenHistory={handleOpenHistory}
+              onOpenFollowUp={handleOpenFollowUp}
+              getStudentSummaryProfile={(student) => getStudentSummaryFamilyProfile(student, eduStudentMap)}
+              onPersist={handlePersist}
+              onFocusModeChange={setIsFocusMode}
+            />
+          </main>
+        </>
       )}
 
       {/* 3. Expediente Integral 360° (Modal con 5 pestañas, ficha técnica, visor de adjuntos e impresión dossier) */}
@@ -682,7 +686,7 @@ function AttendanceNextContainer({
           isOpeningCase={openFollowUpMutation.isPending}
           isUpdatingCase={updateFollowUpMutation.isPending}
           isAddingNote={addNoteMutation.isPending}
-          justifications={justificationsList}
+          justifications={courseJustifications}
           onRecordPhysicalReceipt={handleRecordPhysicalReceipt}
           onEscalateJustification={handleEscalateJustification}
           onResolveJustification={handleResolveJustification}
@@ -695,10 +699,15 @@ function AttendanceNextContainer({
       {/* 4. Modal Administrativo de Excusas y Justificaciones */}
       <JustificationModal
         isOpen={isJustificationModalOpen}
-        onClose={() => setIsJustificationModalOpen(false)}
+        onClose={() => {
+          setIsJustificationModalOpen(false);
+          setReviewJustificationId(null);
+        }}
         courseLabel={currentEduCourse.label}
         students={currentEduCourse.students}
-        justifications={justificationsList}
+        justifications={courseJustifications}
+        selectedJustificationId={reviewJustificationId}
+        onSelectJustificationId={setReviewJustificationId}
         getStatus={getRecordCellStatus}
         onRecordPhysicalReceipt={handleRecordPhysicalReceipt}
         onEscalateToCoordination={handleEscalateJustification}

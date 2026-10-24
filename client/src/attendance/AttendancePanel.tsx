@@ -72,6 +72,7 @@ function AttendanceSessionView({
   initialCourseId,
   initialDate,
   initialStatuses,
+  initialFilter = "all",
   onOpenExpediente,
   onOpenHistory,
   onOpenFollowUp,
@@ -91,7 +92,7 @@ function AttendanceSessionView({
   const sessionStatuses = session.statuses;
   const setSessionStatus = session.setStatus;
 
-  const [filter, setFilter] = useState<AttendanceFilter>("all");
+  const [filter, setFilter] = useState<AttendanceFilter>(initialFilter);
   const [query, setQuery] = useState("");
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);

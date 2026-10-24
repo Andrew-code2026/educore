@@ -94,6 +94,8 @@ export function adaptEduCoreDataToManus({
 }: AttendanceAdapterOptions): {
   courses: Course[];
   todayStatuses: SessionStatuses;
+  /** Estados de la jornada de hoy separados por curso (un estudiante puede estar en varios). */
+  todayStatusesByCourse: Record<string, SessionStatuses>;
   statusesByDate: Record<string, SessionStatuses>;
   eduStudentMap: Map<string, EduAttendanceStudent>;
   eduCourseMap: Map<string, EduAttendanceCourse>;
@@ -171,6 +173,7 @@ export function adaptEduCoreDataToManus({
   const eduCourseMap = new Map<string, EduAttendanceCourse>();
   const statusesByDate: Record<string, SessionStatuses> = {};
   const todayStatuses: SessionStatuses = {};
+  const todayStatusesByCourse: Record<string, SessionStatuses> = {};
 
   const courses: Course[] = courseNames.map((courseName, cIdx) => {
     const meta =
@@ -182,6 +185,9 @@ export function adaptEduCoreDataToManus({
         classDays: [1, 2, 3, 4, 5],
         color: "from-slate-600 to-indigo-600",
       };
+
+    const courseTodayStatuses: SessionStatuses = {};
+    todayStatusesByCourse[courseName] = courseTodayStatuses;
 
     let matchedStudents = rawStudents.filter((s: any) => s.course === courseName);
     if (!matchedStudents.length) {
@@ -209,6 +215,7 @@ export function adaptEduCoreDataToManus({
             history.push({ date: recordDate, status });
           } else {
             todayStatuses[studentIdStr] = status;
+            courseTodayStatuses[studentIdStr] = status;
           }
         }
       }
@@ -294,6 +301,7 @@ export function adaptEduCoreDataToManus({
   return {
     courses,
     todayStatuses,
+    todayStatusesByCourse,
     statusesByDate,
     eduStudentMap,
     eduCourseMap,
