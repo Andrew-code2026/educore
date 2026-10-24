@@ -17,7 +17,6 @@ export const SECTION_PATHS = {
   calendar: "/calendar",
   communications: "/communications",
   reports: "/reports",
-  ai: "/ai",
   users: "/users",
   settings: "/settings",
   analytics: "/analytics",

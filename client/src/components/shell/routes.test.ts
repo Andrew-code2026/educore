@@ -50,6 +50,7 @@ describe("EduCore Shell Routes", () => {
     }
     expect(SECTION_ROUTE_PATTERN.test("/grades/")).toBe(true);
     expect(SECTION_ROUTE_PATTERN.test("/404")).toBe(false);
+    expect(SECTION_ROUTE_PATTERN.test("/ai")).toBe(false);
     expect(SECTION_ROUTE_PATTERN.test("/gradesx")).toBe(false);
     expect(SECTION_ROUTE_PATTERN.test("/grades/extra")).toBe(false);
   });

@@ -77,12 +77,6 @@ export const ALL_NAV_ITEMS: Record<Section, Omit<NavItem, "roles" | "groupKey" |
     icon: BarChart3,
     description: "Boletines y analítica de rendimiento",
   },
-  ai: {
-    id: "ai",
-    label: "EduCore AI",
-    icon: Sparkles,
-    description: "Copiloto pedagógico y analítico con IA",
-  },
   users: {
     id: "users",
     label: "Usuarios",
@@ -114,7 +108,6 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
           { ...ALL_NAV_ITEMS.overview, roles: ["teacher"], groupKey: "teaching", mobilePriority: "bottom" },
           { ...ALL_NAV_ITEMS.grades, label: "Grade Center", roles: ["teacher"], groupKey: "teaching", mobilePriority: "bottom" },
           { ...ALL_NAV_ITEMS.classroom, label: "Classroom", roles: ["teacher"], groupKey: "teaching", mobilePriority: "bottom" },
-          { ...ALL_NAV_ITEMS.academic, label: "Mis clases", roles: ["teacher"], groupKey: "teaching", mobilePriority: "more" },
         ],
       },
       {
@@ -129,7 +122,7 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
       },
       {
         key: "communication",
-        label: "Comunidad & IA",
+        label: "Comunidad",
         items: [
           {
             ...ALL_NAV_ITEMS.communications,
@@ -138,7 +131,6 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
             mobilePriority: "more",
             badge: notificationCount > 0 ? notificationCount : undefined,
           },
-          { ...ALL_NAV_ITEMS.ai, roles: ["teacher"], groupKey: "communication", mobilePriority: "more" },
         ],
       },
     ];
@@ -170,13 +162,6 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
           },
         ],
       },
-      {
-        key: "intelligence",
-        label: "Inteligencia",
-        items: [
-          { ...ALL_NAV_ITEMS.ai, roles: ["student"], groupKey: "intelligence", mobilePriority: "more" },
-        ],
-      },
     ];
   }
 
@@ -194,7 +179,7 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
       },
       {
         key: "communication",
-        label: "Comunidad & IA",
+        label: "Comunidad",
         items: [
           {
             ...ALL_NAV_ITEMS.communications,
@@ -203,7 +188,6 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
             mobilePriority: "more",
             badge: notificationCount > 0 ? notificationCount : undefined,
           },
-          { ...ALL_NAV_ITEMS.ai, roles: ["guardian"], groupKey: "communication", mobilePriority: "more" },
         ],
       },
     ];
@@ -244,7 +228,6 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
           mobilePriority: "more",
           badge: notificationCount > 0 ? notificationCount : undefined,
         },
-        { ...ALL_NAV_ITEMS.ai, roles: ["admin"], groupKey: "analysis_comm", mobilePriority: "more" },
       ],
     },
   ];

@@ -11,7 +11,6 @@ export type Section =
   | "calendar"
   | "communications"
   | "reports"
-  | "ai"
   | "users"
   | "settings"
   | "analytics";

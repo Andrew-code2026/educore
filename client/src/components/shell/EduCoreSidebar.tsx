@@ -2,7 +2,6 @@ import React from "react";
 import {
   LogOut,
   PanelLeftClose,
-  ShieldCheck,
   GraduationCap,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -131,9 +130,6 @@ export function EduCoreSidebar({
                   <span className="text-[15px] font-extrabold tracking-[0.16em] text-sidebar-foreground">
                     EDUCORE
                   </span>
-                  <span className="rounded-md border border-blue-200 bg-blue-50 px-1.5 py-0 text-xs font-bold tracking-wider text-blue-700 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-300">
-                    2.0
-                  </span>
                 </div>
                 <p className="truncate text-xs font-medium tracking-[0.01em] text-sidebar-muted-foreground">
                   {schoolName}
@@ -238,19 +234,6 @@ export function EduCoreSidebar({
           ))}
         </nav>
       </div>
-
-      {/* Tarjeta de Seguridad (solo expandido) */}
-      {!sidebarCollapsed && (
-        <div className="mx-3 mb-2 rounded-xl border border-sidebar-border bg-sidebar-accent p-2.5">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-xs font-semibold text-sidebar-foreground">Aislamiento Seguro</span>
-          </div>
-          <p className="mt-0.5 text-xs leading-3.5 text-sidebar-muted-foreground truncate">
-            RBAC activo · {schoolName}
-          </p>
-        </div>
-      )}
 
       {/* Footer de Usuario */}
       <div
