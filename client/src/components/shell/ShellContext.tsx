@@ -112,7 +112,7 @@ export function ShellContextProvider({
           title: "Inicio",
           subtitle: schoolName,
           breadcrumbs: [{ label: "Inicio", isCurrent: true }],
-          contextPills: [{ label: schoolName, tone: "default" }, { label: "Año 2026", tone: "primary" }],
+          contextPills: [{ label: "Año 2026", tone: "primary" }],
         };
       case "grades":
         return {

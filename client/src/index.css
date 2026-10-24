@@ -185,20 +185,12 @@
 
   .teacher-dashboard {
     --teacher-ease: cubic-bezier(0.23, 1, 0.32, 1);
-  }
-
-  .teacher-dashboard .teacher-hero::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.22) 46%, transparent 67%);
-    transform: translateX(-100%);
-    animation: teacher-sheen 9s var(--teacher-ease) infinite;
-  }
-
-  .teacher-dashboard .teacher-glow {
-    animation: teacher-float 7s ease-in-out infinite;
+    --radius: 0.625rem;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 12px;
+    --radius-2xl: 16px;
   }
 
   .teacher-dashboard .group,
@@ -224,16 +216,6 @@
   table button:hover {
     transform: none !important;
   }
-}
-
-@keyframes teacher-sheen {
-  0%, 58% { transform: translateX(-100%); }
-  80%, 100% { transform: translateX(100%); }
-}
-
-@keyframes teacher-float {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(-10px, 8px, 0) scale(1.06); }
 }
 
 @keyframes spatial-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }

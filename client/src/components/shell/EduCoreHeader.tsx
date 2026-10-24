@@ -65,8 +65,6 @@ const ROLE_PROFILES: Record<
 
 export function EduCoreHeader({
   role,
-  section,
-  setSection,
   onRoleChange,
   notificationCount = 0,
   user,
@@ -113,6 +111,8 @@ export function EduCoreHeader({
   };
 
   const activeProfile = ROLE_PROFILES[role] || ROLE_PROFILES.teacher;
+  const hasHierarchicalBreadcrumbs =
+    Boolean(moduleContext?.breadcrumbs && moduleContext.breadcrumbs.length > 1);
 
   return (
     <header
@@ -136,8 +136,8 @@ export function EduCoreHeader({
 
         {/* Migas de Pan y Contexto */}
         <div className="flex min-w-0 flex-col justify-center">
-          {/* Breadcrumbs sutiles */}
-          {moduleContext?.breadcrumbs && moduleContext.breadcrumbs.length > 0 && (
+          {/* Breadcrumbs sutiles (solo cuando hay jerarquía > 1 nivel para evitar 'Inicio / Inicio') */}
+          {hasHierarchicalBreadcrumbs && moduleContext?.breadcrumbs && (
             <div className="hidden items-center gap-1 text-xs text-slate-400 dark:text-slate-500 sm:flex">
               {moduleContext.breadcrumbs.map((crumb, idx) => (
                 <React.Fragment key={crumb.label + idx}>
@@ -168,7 +168,7 @@ export function EduCoreHeader({
                 {moduleContext.contextPills.map((pill, idx) => (
                   <span
                     key={pill.label + idx}
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium transition ${
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition ${
                       pill.tone === "primary"
                         ? "bg-[var(--edc-secondary)] text-[var(--edc-primary)] font-semibold dark:bg-blue-950/60 dark:text-blue-300"
                         : pill.tone === "emerald"
