@@ -4,11 +4,9 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import {
   BookOpen,
-  History,
   Moon,
   PanelLeft,
   Sliders,
-  Sparkles,
   Sun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,7 +17,6 @@ import { Switch } from "@/components/ui/switch";
 import { AttendanceLanding } from "@/attendance/landing/AttendanceLanding";
 import { AttendancePanel } from "@/attendance/AttendancePanel";
 import { adaptEduCoreDataToManus, getStudentSummaryFamilyProfile } from "@/attendance/adapter";
-import { AttendanceModule as AttendanceLegacyModule } from "@/components/attendance/AttendanceModule";
 import { StudentAttendancePortal } from "@/components/attendance/StudentAttendancePortal";
 import { StudentFullRecordModal } from "@/components/attendance/StudentFullRecordModal";
 import { JustificationModal } from "@/components/attendance/JustificationModal";
@@ -74,59 +71,7 @@ export function AttendancePage({
     );
   }
 
-  // 2. Mecanismo de reversibilidad instantánea hacia la versión previa de Asistencia
-  const [useLegacy, setUseLegacy] = React.useState<boolean>(() => {
-    try {
-      return localStorage.getItem("educore_attendance_version") === "legacy";
-    } catch {
-      return false;
-    }
-  });
-
-  const toggleLegacy = React.useCallback((legacy: boolean) => {
-    setUseLegacy(legacy);
-    try {
-      localStorage.setItem("educore_attendance_version", legacy ? "legacy" : "next");
-    } catch {}
-  }, []);
-
-  // Si el usuario eligió la versión legacy, renderizar el módulo previo con un acceso flotante para volver a Next
-  if (useLegacy) {
-    return (
-      <div className="relative">
-        <AttendanceLegacyModule
-          data={data}
-          role={role}
-          user={user}
-          selectedStudentId={selectedStudentId}
-          onSelectStudent={onSelectStudent}
-          onNavigate={onNavigate}
-        />
-        {/* Botón flotante para regresar a la experiencia Next */}
-        <div className="fixed bottom-4 right-4 z-50">
-          <button
-            type="button"
-            onClick={() => toggleLegacy(false)}
-            className="flex items-center gap-2 rounded-full border border-sky-300 bg-sky-600/95 px-3.5 py-2 text-xs font-semibold text-white shadow-xl backdrop-blur-md transition-all hover:scale-105 hover:bg-sky-500"
-            title="Volver a la nueva experiencia de Asistencia Next (Manus)"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Volver a Asistencia Next</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <AttendanceNextContainer
-      data={data}
-      role={role}
-      user={user}
-      onNavigate={onNavigate}
-      onSwitchToLegacy={() => toggleLegacy(true)}
-    />
-  );
+  return <AttendanceNextContainer data={data} role={role} user={user} onNavigate={onNavigate} />;
 }
 
 interface AttendanceNextContainerProps {
@@ -134,7 +79,6 @@ interface AttendanceNextContainerProps {
   role: "admin" | "teacher" | "student" | "guardian";
   user?: any;
   onNavigate?: (section: any) => void;
-  onSwitchToLegacy: () => void;
 }
 
 function AttendanceNextContainer({
@@ -142,10 +86,9 @@ function AttendanceNextContainer({
   role,
   user,
   onNavigate,
-  onSwitchToLegacy,
 }: AttendanceNextContainerProps) {
   const { theme, toggleTheme } = useTheme();
-  const { sidebarCollapsed, setSidebarCollapsed, isFocusMode, setIsFocusMode } = useShellContext();
+  const { sidebarCollapsed, setSidebarCollapsed, setIsFocusMode } = useShellContext();
 
   const [accent, setAccentState] = React.useState<AccentId>(() => {
     const stored = typeof localStorage !== "undefined" ? localStorage.getItem("edu-accent") : null;
@@ -714,21 +657,6 @@ function AttendanceNextContainer({
         onResolveJustification={handleResolveJustification}
         onSubmitJustification={handleSubmitJustification}
       />
-
-      {/* 5. Botón flotante para alternar a la versión anterior (Contingencia sin riesgo) */}
-      {!isFocusMode && (
-        <div className="fixed bottom-4 right-4 z-40">
-          <button
-            type="button"
-            onClick={onSwitchToLegacy}
-            className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/90 px-3.5 py-1.5 text-xs font-medium text-slate-600 shadow-md backdrop-blur-md transition-all hover:border-slate-300 hover:bg-white hover:text-slate-900 hover:shadow-lg dark:border-white/10 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:bg-slate-900"
-            title="Cambiar a la versión anterior de Asistencia"
-          >
-            <History className="h-3.5 w-3.5 text-slate-400" />
-            <span>Versión anterior</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }
