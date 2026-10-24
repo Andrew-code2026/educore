@@ -194,10 +194,11 @@ export const GradeCell = memo(function GradeCell({
       onKeyDown={handleCellKeyDown}
       className={cn(
         "gc-cell relative flex h-full w-full cursor-default items-center justify-center outline-none",
+        // Fondo neutro: solo se resalta la excepción (nota que no aprueba).
+        grade != null && !isApproved(grade) && "gc-cell-low",
         isActive && "gc-cell-active",
         isSelected && "gc-cell-selected",
       )}
-      style={grade != null ? { backgroundColor: levelTint(level ?? "basico", isActive ? 0.2 : 0.07) } : undefined}
     >
       {pulseAt > 0 && (
         <span

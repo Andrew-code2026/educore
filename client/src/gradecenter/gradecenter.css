@@ -643,15 +643,22 @@ html.light .gc-workspace-root::after,
 .gc-cell {
   transition: background-color 120ms ease;
 }
-.gc-cell:hover {
+/* El hover no tapa el resaltado de nota baja ni el de la celda activa. */
+.gc-cell:not(.gc-cell-low, .gc-cell-active):hover {
   background-color: oklch(1 0 0 / 5%);
+}
+/* Única celda con fondo de color: la nota que no aprueba. */
+.gc-cell-low {
+  background-color: color-mix(in oklab, var(--gc-bajo) 10%, transparent);
 }
 .gc-cell-selected {
   background-color: color-mix(in oklab, var(--gc-cobalt) 12%, transparent) !important;
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--gc-cobalt) 45%, transparent);
 }
+/* La celda activa se ve igual sea cual sea la nota. */
 .gc-cell-active,
 .gc-cell:focus-visible {
+  background-color: color-mix(in oklab, var(--gc-cobalt) 9%, transparent);
   box-shadow: inset 0 0 0 2px var(--gc-cobalt);
   z-index: 1;
 }
@@ -690,7 +697,7 @@ html.light .gc-workspace-root::after,
   border-bottom-color: oklch(0.22 0.025 266 / 8%);
 }
 .light .gc-matrix .gc-row:hover > td:not(.gc-solid),
-.light .gc-cell:hover {
+.light .gc-cell:not(.gc-cell-low, .gc-cell-active):hover {
   background-color: oklch(0.22 0.025 266 / 3.5%);
 }
 .light .gc-matrix[data-scrolled-x] tr > :first-child {
