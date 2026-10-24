@@ -142,6 +142,8 @@ export interface AttendancePanelProps {
   initialDate?: string;
   /** Registros ya guardados de la jornada abierta (id de estudiante → estado). */
   initialStatuses?: SessionStatuses;
+  /** Filtro con el que abre la planilla (por defecto, todos). */
+  initialFilter?: AttendanceFilter;
   /** Si se provee, delega al expediente completo del host; si se omite, muestra el resumen docente local. */
   onOpenExpediente?: (student: Student) => void;
   /** Abre el historial existente del host; sin callback, la acción queda deshabilitada. */
