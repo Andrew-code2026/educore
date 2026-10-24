@@ -58,6 +58,7 @@ import {
 import { ENV } from "./_core/env";
 import { DEMO_ROLE_MAP, IDENTITY_ROLES, PERMISSIONS, PERMISSION_METADATA, ROLE_DESCRIPTIONS, ROLE_HIERARCHY, ROLE_LABELS, type DemoRole, type IdentityRole, hasPermission, permissionsForRole } from "./identityModel";
 import { ensureDatabaseRunning } from "./_core/ensureDatabase";
+import { ANNOUNCEMENT_STATUS, isAudienceFor, type AnnouncementReader } from "@shared/communications";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _dbInitPromise: Promise<void> | null = null;
@@ -514,7 +515,11 @@ export async function getEduCoreSnapshot(
     assignments: scopedAssignments,
     submissions: scopedSubmissions,
     events: eventRows,
-    announcements: effectiveRoleKey === "STUDENT" ? announcementRows.filter(row => row.audience === "Todo el colegio" || row.audience.includes("Estudiantes")) : announcementRows,
+    // Los borradores solo los ve quien puede redactar; estudiantes y acudientes, solo lo dirigido a ellos
+    announcements: announcementRows.filter(row =>
+      (hasPermission(effectiveRoleKey, "communications.create") || row.status === ANNOUNCEMENT_STATUS.published)
+      && (isStudentOrGuardian ? isAudienceFor(effectiveRoleKey as AnnouncementReader, row.audience) : true)
+    ),
     notifications: notificationRows,
     reportCards: isStudentOrGuardian ? reportCardRows.filter(row => row.studentName === targetStudentName) : reportCardRows,
     planning: planningRows,
@@ -543,6 +548,15 @@ export async function updateSchoolSettings(input: Partial<typeof schools.$inferI
   return (await db.select().from(schools).where(eq(schools.id, targetId)).limit(1))[0];
 }
 
+export async function createSchoolEvent(input: { title: string; type: string; eventDate: Date; location: string | null; audience: string }, targetSchoolId?: number) {
+  const db = await getDb();
+  const school = await ensureEduCoreSeeded();
+  if (!db || !school) return null;
+  const schoolId = targetSchoolId ?? school.id;
+  await db.insert(events).values({ schoolId, ...input });
+  return (await db.select().from(events).where(eq(events.schoolId, schoolId)).orderBy(desc(events.id)).limit(1))[0];
+}
+
 export async function createAcademicPeriod(input: { name: string; startDate: Date; endDate: Date; status: string }, targetSchoolId?: number) {
   const db = await getDb();
   const school = await ensureEduCoreSeeded();
@@ -568,6 +582,30 @@ export async function createDemoAssignment(input: { title: string; subject: stri
   if (!db || !school) return null;
   await db.insert(assignments).values({ schoolId: school.id, ...input, status: "Publicado" });
   return (await db.select().from(assignments).where(eq(assignments.schoolId, school.id)).orderBy(desc(assignments.id)).limit(1))[0];
+}
+
+export async function createAnnouncement(schoolId: number, input: { title: string; message: string; audience: string; status: string }) {
+  const db = await getDb();
+  if (!db) return null;
+  const [result] = await db.insert(announcements).values({ schoolId, ...input, publishedAt: new Date() }).$returningId();
+  return (await db.select().from(announcements).where(eq(announcements.id, result.id)).limit(1))[0] ?? null;
+}
+
+/** Publica un borrador; la fecha pasa a ser la de publicación. Devuelve `false` si no existe en el colegio. */
+export async function publishAnnouncement(schoolId: number, id: number) {
+  const db = await getDb();
+  if (!db) return false;
+  const [result] = await db.update(announcements)
+    .set({ status: ANNOUNCEMENT_STATUS.published, publishedAt: new Date() })
+    .where(and(eq(announcements.id, id), eq(announcements.schoolId, schoolId)));
+  return result.affectedRows > 0;
+}
+
+export async function deleteAnnouncement(schoolId: number, id: number) {
+  const db = await getDb();
+  if (!db) return false;
+  const [result] = await db.delete(announcements).where(and(eq(announcements.id, id), eq(announcements.schoolId, schoolId)));
+  return result.affectedRows > 0;
 }
 
 export async function submitDemoAssignment(input: { assignmentId: number; studentName: string; fileName: string; comment: string }) {
