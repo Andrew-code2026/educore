@@ -52,7 +52,7 @@ export function ViewOptionsMenu() {
           <ChevronDown className="size-3 opacity-60" aria-hidden />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={6} className="glass-strong w-72 rounded-2xl border-white/10 p-3">
+      <PopoverContent align="end" sideOffset={6} className="gc-popover w-72 rounded-2xl p-3">
         <Section title="Densidad">
           <div role="radiogroup" aria-label="Densidad de la planilla" className="grid grid-cols-3 gap-1 rounded-xl bg-white/5 p-1">
             {DENSITIES.map((density) => {

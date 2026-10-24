@@ -99,7 +99,7 @@ export const EvaluationHeader = memo(function EvaluationHeader({
           align="start"
           sideOffset={6}
           collisionPadding={12}
-          className="glass-strong w-[min(300px,calc(100vw-24px))] rounded-2xl border-white/12 p-0 shadow-2xl"
+          className="gc-popover w-[min(300px,calc(100vw-24px))] rounded-2xl p-0"
         >
           <div className="px-3.5 pt-3 pb-2.5">
             <div className="flex items-start justify-between gap-3">

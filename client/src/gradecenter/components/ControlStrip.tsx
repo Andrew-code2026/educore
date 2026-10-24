@@ -108,7 +108,7 @@ export function ControlStrip() {
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="start"
-              className="glass-strong w-52 rounded-xl border-white/10"
+              className="gc-popover w-52 rounded-xl"
             >
               <DropdownMenuLabel className="text-xs text-muted-foreground">
                 Ordenar por
@@ -173,7 +173,7 @@ export function ControlStrip() {
             <PopoverContent
               align="start"
               sideOffset={6}
-              className="glass-strong w-64 rounded-2xl border-white/10 p-3"
+              className="gc-popover w-64 rounded-2xl p-3"
             >
               <div className="mb-1.5 text-xs font-medium text-muted-foreground">
                 Nivel de la definitiva

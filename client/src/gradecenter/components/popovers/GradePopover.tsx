@@ -71,7 +71,7 @@ export function GradePopover({
         sideOffset={6}
         collisionPadding={12}
         onCloseAutoFocus={onCloseAutoFocus}
-        className="glass-strong w-[min(280px,calc(100vw-24px))] rounded-2xl border-white/12 p-3 shadow-2xl"
+        className="gc-popover w-[min(280px,calc(100vw-24px))] rounded-2xl p-3"
       >
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">

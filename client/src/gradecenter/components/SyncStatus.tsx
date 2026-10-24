@@ -34,7 +34,7 @@ export function SyncStatus() {
             <span className="hidden sm:inline">Solo lectura</span>
           </button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="glass-strong w-72 rounded-2xl border-white/10 p-3.5">
+        <PopoverContent align="end" className="gc-popover w-72 rounded-2xl p-3.5">
           <div className="text-sm font-semibold">Planilla en solo lectura</div>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             {readOnlyReason ?? "No tienes permisos para modificar esta planilla."}
@@ -73,7 +73,7 @@ export function SyncStatus() {
             {!isError && <span className="sr-only lg:hidden">{label}</span>}
           </button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="glass-strong w-72 rounded-2xl border-white/10 p-3.5">
+        <PopoverContent align="end" className="gc-popover w-72 rounded-2xl p-3.5">
           <div className="text-sm font-semibold">{label}</div>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
             {isError

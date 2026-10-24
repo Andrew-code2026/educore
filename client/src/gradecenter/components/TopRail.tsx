@@ -122,7 +122,7 @@ function PlanillaSwitcher({ onBack }: { onBack: () => void }) {
           />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" sideOffset={6} className="glass-strong w-80 rounded-2xl border-white/10 p-0">
+      <PopoverContent align="start" sideOffset={6} className="gc-popover w-80 rounded-2xl p-0">
         <div className="px-3.5 pt-3 pb-2">
           <div className="text-sm font-semibold">
             {dataset.course} · {dataset.subject}

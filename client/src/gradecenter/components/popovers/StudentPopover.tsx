@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useGradeCenter } from "../../state/GradeCenterContext";
 import { LEVELS, levelTint } from "../../domain/scale";
 import { approvalOutlook } from "../../domain/outlook";
-import { formatDelta, formatGrade, initials } from "../../lib/format";
+import { formatGrade, initials } from "../../lib/format";
 import type { StudentMetrics } from "../../domain/metrics";
 
 /**
@@ -31,7 +31,7 @@ export function StudentPopover({
         align="start"
         sideOffset={8}
         collisionPadding={12}
-        className="glass-strong w-[min(320px,calc(100vw-24px))] rounded-2xl border-white/12 p-3 shadow-2xl"
+        className="gc-popover w-[min(300px,calc(100vw-24px))] rounded-2xl p-0"
       >
         <StudentSummary metrics={metrics} onClose={onClose} />
       </PopoverContent>
@@ -39,51 +39,56 @@ export function StudentPopover({
   );
 }
 
+/**
+ * Lo mínimo para decidir sin salir de la planilla: definitiva, cuánto falta
+ * por calificar y qué necesita para aprobar. El código del estudiante ya se ve
+ * en la fila, por eso no se repite aquí; la ficha completa lo muestra.
+ */
 function StudentSummary({ metrics, onClose }: { metrics: StudentMetrics; onClose: () => void }) {
-  const { analytics, jumpToStudent, setView } = useGradeCenter();
+  const { selectStudent, setView } = useGradeCenter();
   const level = metrics.level;
-  const groupAverage = analytics.group.average;
   const status = approvalOutlook(metrics);
+  const facts = [
+    `${metrics.evaluatedPct}% evaluado`,
+    metrics.pendingCount > 0
+      ? `${metrics.pendingCount} ${metrics.pendingCount === 1 ? "pendiente" : "pendientes"}`
+      : "sin pendientes",
+  ];
 
   return (
-    <>
-      <div className="flex items-center gap-2.5">
+    <div>
+      <div className="flex items-start gap-3 px-4 pt-4">
         <span
-          className="flex size-9 shrink-0 items-center justify-center rounded-xl text-xs font-semibold"
+          aria-hidden
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
           style={{
             backgroundColor: level ? levelTint(level, 0.16) : "color-mix(in oklab, var(--foreground) 7%, transparent)",
-            color: level ? LEVELS[level].color : undefined,
+            color: level ? LEVELS[level].color : "var(--muted-foreground)",
           }}
         >
           {initials(metrics.student)}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold">{metrics.student.fullName}</div>
-          <div className="gc-num text-xs text-muted-foreground">Código {metrics.student.code}</div>
-        </div>
-        <div className="text-right">
-          <div className="gc-num text-lg leading-none font-semibold" style={{ color: level ? LEVELS[level].color : undefined }}>
-            {formatGrade(metrics.definitiva)}
+          <div className="text-sm leading-snug font-semibold">{metrics.student.fullName}</div>
+          <div className="mt-1.5 flex items-baseline gap-1.5">
+            <span
+              className="gc-num text-2xl leading-none font-semibold"
+              style={{ color: level ? LEVELS[level].color : "var(--muted-foreground)" }}
+            >
+              {formatGrade(metrics.definitiva)}
+            </span>
+            <span className="text-xs text-muted-foreground">{level ? LEVELS[level].short : "Sin notas"}</span>
           </div>
-          <div className="mt-0.5 text-xs text-muted-foreground">{level ? LEVELS[level].label : "Sin notas"}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{facts.join(" · ")}</div>
         </div>
       </div>
 
-      <dl className="mt-3 grid grid-cols-3 gap-1.5 text-center">
-        <Stat label="Evaluado" value={`${metrics.evaluatedPct}%`} />
-        <Stat label="Pendientes" value={String(metrics.pendingCount)} warn={metrics.pendingCount > 0} />
-        <Stat
-          label="vs. grupo"
-          value={groupAverage != null && metrics.definitiva != null ? formatDelta(metrics.definitiva - groupAverage) : "—"}
-        />
-      </dl>
-
       <p
         className={cn(
-          "mt-2 rounded-xl px-2.5 py-2 text-xs",
+          "mx-4 mt-3 rounded-lg px-3 py-2 text-xs leading-relaxed",
           status.tone === "good" && "bg-[var(--gc-alto)]/10 text-[var(--gc-alto)]",
           status.tone === "bad" && "bg-[var(--gc-bajo)]/10 text-[var(--gc-bajo)]",
-          (status.tone === "neutral" || status.tone === "empty") && "bg-white/5 text-muted-foreground",
+          (status.tone === "neutral" || status.tone === "empty") && "bg-foreground/[0.05] text-foreground/80",
         )}
       >
         {status.text}
@@ -93,23 +98,14 @@ function StudentSummary({ metrics, onClose }: { metrics: StudentMetrics; onClose
         type="button"
         onClick={() => {
           onClose();
+          selectStudent(metrics.student.id);
           setView("student");
-          jumpToStudent(metrics.student.id);
         }}
-        className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 px-2 py-1.5 text-xs font-medium transition-colors hover:bg-white/8"
+        className="mt-3 flex w-full items-center justify-between border-t border-[var(--gc-hair)] px-4 py-2.5 text-left text-xs font-medium text-[var(--gc-cobalt)] transition-colors hover:bg-foreground/[0.03]"
       >
-        Ver ficha del estudiante
-        <ArrowUpRight className="size-3.5" />
+        Ver ficha completa
+        <ChevronRight className="size-4" aria-hidden />
       </button>
-    </>
-  );
-}
-
-function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
-  return (
-    <div className="rounded-lg bg-white/4 px-2 py-1.5">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className={cn("gc-num text-sm font-semibold", warn && "text-[var(--gc-bajo)]")}>{value}</dd>
     </div>
   );
 }
