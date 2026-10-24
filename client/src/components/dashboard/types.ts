@@ -18,6 +18,7 @@ export interface TeacherAgendaItem {
   title: string;
   subtitle?: string;
   isToday: boolean;
+  dayOffset?: number;
   tag?: string;
   tagTone?: "neutral" | "info" | "warning" | "danger" | "success";
   onClick?: () => void;

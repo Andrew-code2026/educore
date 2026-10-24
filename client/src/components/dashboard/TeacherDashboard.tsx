@@ -1,33 +1,32 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
-  ClipboardList,
   BookOpen,
   AlertTriangle,
   ClipboardCheck,
-  CalendarDays,
-  Plus,
   FileCheck,
-  FileText,
-  UserCheck,
+  Plus,
 } from "lucide-react";
 import { TeacherHero } from "./TeacherHero";
 import { TeacherMetricsRow } from "./TeacherMetricsRow";
 import { TeacherAgenda } from "./TeacherAgenda";
 import { TeacherCoursesCard } from "./TeacherCoursesCard";
-import { TeacherQuickActions } from "./TeacherQuickActions";
 import { TeacherPrioritySection } from "./TeacherPrioritySection";
 import { TeacherGroupPerformance } from "./TeacherGroupPerformance";
 import { TeacherQuickAnalytics } from "./TeacherQuickAnalytics";
 import { TeacherOperationalDetails } from "./TeacherOperationalDetails";
+import {
+  calculatePendingGrades,
+  calculateStudentsAtRisk,
+  calculateAttendanceStatus,
+  calculateGradingQueue,
+  calculatePriorityItems,
+  buildTeacherCourseCards,
+  buildStudentAlerts,
+} from "./dashboardSelectors";
 import type {
   TeacherDashboardProps,
   TeacherMetricItem,
   TeacherAgendaItem,
-  TeacherPriorityItem,
-  TeacherGradingItem,
-  TeacherStudentAlert,
-  TeacherQuickActionItem,
-  TeacherCourseCardItem,
   QuickAnalyticsItem,
 } from "./types";
 
@@ -37,25 +36,21 @@ export function TeacherDashboard({
   setSection,
   mode = "overview",
 }: TeacherDashboardProps) {
-  // Tab state for modular navigation (Overview vs Analytics).
-  // Grade Center is NOT a local tab: it navigates to the global "grades" section
-  // so the sidebar stays in sync and there is a single Grade Center instance.
-
-
-  // 1. Basic contextual labels
+  // 1. Etiquetas contextuales básicas
   const teacherName =
     user?.name ||
     (data?.teachers && data.teachers[0]?.name) ||
     "Juan Diego Loaiza";
 
-  const schoolName = data?.school?.name || "EduCore";
+  const teacherSubject =
+    (data?.teachers && data.teachers[0]?.subjectFocus) || "Biología";
 
   const activePeriod = (data?.academicPeriods || []).find(
     (p: any) => p.status === "Activo"
   );
   const activePeriodName = activePeriod?.name || "Periodo 2";
 
-  // 2. Data extractions
+  // 2. Extracción determinista de datos
   const courses: any[] = useMemo(() => data?.courses || [], [data?.courses]);
   const assignments: any[] = useMemo(
     () => data?.assignments || [],
@@ -73,46 +68,50 @@ export function TeacherDashboard({
   const events: any[] = useMemo(() => data?.events || [], [data?.events]);
   const students: any[] = useMemo(() => data?.students || [], [data?.students]);
 
-  // 3. Calculated metrics (deterministic & real)
-  const pendingSubmissions = useMemo(
-    () => submissions.filter((s: any) => s.grade === null),
+  // 3. Cálculos centralizados (Única Fuente de Verdad)
+  const pendingGradesCount = useMemo(
+    () => calculatePendingGrades(submissions),
     [submissions]
   );
-  const pendingGradesCount = pendingSubmissions.length > 0 ? pendingSubmissions.length : 4;
 
-  // Calculate students with average < 3.0 in teacher's scope
-  const studentsAtRiskList = useMemo(() => {
-    const studentGradesMap: Record<
-      string,
-      { total: number; count: number; course: string; subject: string }
-    > = {};
+  const studentsAtRiskList = useMemo(
+    () => calculateStudentsAtRisk(grades),
+    [grades]
+  );
 
-    grades.forEach((g: any) => {
-      if (!g.studentName || typeof g.value !== "number") return;
-      if (!studentGradesMap[g.studentName]) {
-        studentGradesMap[g.studentName] = {
-          total: 0,
-          count: 0,
-          course: g.course || "",
-          subject: g.subject || "",
-        };
-      }
-      studentGradesMap[g.studentName].total += g.value;
-      studentGradesMap[g.studentName].count += 1;
-    });
+  const todayAttendanceStatus = useMemo(
+    () => calculateAttendanceStatus(attendance, courses),
+    [attendance, courses]
+  );
 
-    const calculated = Object.entries(studentGradesMap).map(([name, stat]) => ({
-      name,
-      course: stat.course,
-      subject: stat.subject,
-      avg: stat.count > 0 ? stat.total / stat.count : 0,
-    }));
+  const gradingQueueItems = useMemo(
+    () =>
+      calculateGradingQueue(assignments, submissions, () =>
+        setSection("grades")
+      ),
+    [assignments, submissions, setSection]
+  );
 
-    const filtered = calculated.filter((s) => s.avg > 0 && s.avg < 3.0);
-    return filtered.length > 0 ? filtered : [{ name: "Carlos Rojas", course: "11-2", subject: "Biología", avg: 2.7 }];
-  }, [grades]);
+  const studentAlertItems = useMemo(
+    () =>
+      buildStudentAlerts(studentsAtRiskList, students, () =>
+        setSection("grades")
+      ),
+    [studentsAtRiskList, students, setSection]
+  );
 
-  // Overall average across all grades
+  const courseCards = useMemo(
+    () =>
+      buildTeacherCourseCards(
+        courses,
+        grades,
+        assignments,
+        submissions,
+        () => setSection("grades")
+      ),
+    [courses, grades, assignments, submissions, setSection]
+  );
+
   const overallAverage = useMemo(() => {
     const validGrades = grades.filter(
       (g: any) => typeof g.value === "number" && g.value > 0
@@ -122,28 +121,35 @@ export function TeacherDashboard({
     return (sum / validGrades.length).toFixed(2);
   }, [grades]);
 
-  // Check today's attendance status
-  const todayAttendanceStatus = useMemo(() => {
-    return { label: "Pendiente", tone: "violet" as const, text: "registro pendiente hoy" };
-  }, []);
+  // 4. Fila de 4 KPIs sincronizada con los datos reales
+  const courseListLabel = useMemo(() => {
+    if (courses.length > 0) {
+      return courses.map((c: any) => c.name).join(" · ");
+    }
+    return "11-1 · 11-2";
+  }, [courses]);
 
-  // 4. Metrics row objects matching screenshot
   const metrics: TeacherMetricItem[] = useMemo(
     () => [
       {
         id: "pending-grades",
         label: "Por calificar",
         value: pendingGradesCount,
-        detail: "entregas pendientes",
-        tone: "warning",
+        detail:
+          pendingGradesCount === 0
+            ? "todo calificado"
+            : pendingGradesCount === 1
+              ? "entrega pendiente"
+              : "entregas pendientes",
+        tone: pendingGradesCount > 0 ? "warning" : "success",
         icon: FileCheck,
         onClick: () => setSection("grades"),
       },
       {
         id: "assigned-courses",
         label: "Mis cursos",
-        value: courses.length > 0 ? courses.length : 2,
-        detail: "11-1 · 11-2",
+        value: courses.length > 0 ? courses.length : courseCards.length,
+        detail: courseListLabel,
         tone: "info",
         icon: BookOpen,
         onClick: () => setSection("academic"),
@@ -151,9 +157,12 @@ export function TeacherDashboard({
       {
         id: "students-attention",
         label: "Atención académica",
-        value: studentsAtRiskList.length > 0 ? Math.max(studentsAtRiskList.length, 5) : 5,
-        detail: "con promedio < 3.0",
-        tone: "danger",
+        value: studentsAtRiskList.length,
+        detail:
+          studentsAtRiskList.length === 0
+            ? "sin promedios < 3.0"
+            : "con promedio < 3.0",
+        tone: studentsAtRiskList.length > 0 ? "danger" : "success",
         icon: AlertTriangle,
         onClick: () => setSection("grades"),
       },
@@ -162,7 +171,12 @@ export function TeacherDashboard({
         label: "Asistencia hoy",
         value: todayAttendanceStatus.label,
         detail: todayAttendanceStatus.text,
-        tone: todayAttendanceStatus.tone,
+        tone:
+          todayAttendanceStatus.label === "Al día"
+            ? "success"
+            : todayAttendanceStatus.label === "Parcial"
+              ? "warning"
+              : "violet",
         icon: ClipboardCheck,
         onClick: () => setSection("attendance"),
       },
@@ -170,14 +184,15 @@ export function TeacherDashboard({
     [
       pendingGradesCount,
       courses.length,
+      courseCards.length,
+      courseListLabel,
       studentsAtRiskList.length,
       todayAttendanceStatus,
       setSection,
     ]
   );
 
-
-  // 6. Agenda items (Today vs Upcoming) with rich classes matching screenshot
+  // 5. Agenda del día y próximos eventos
   const { todayAgendaItems, upcomingAgendaItems } = useMemo(() => {
     const todayList: TeacherAgendaItem[] = [
       {
@@ -198,25 +213,33 @@ export function TeacherDashboard({
         title: "Práctica de Microscopía y Tejidos",
         subtitle: "11-1 · Biología · Laboratorio de Biología",
         isToday: true,
-        tag: "Clase",
+        tag: "Laboratorio",
         tagTone: "info",
         onClick: () => setSection("classroom"),
       },
     ];
 
-    const upcomingList: TeacherAgendaItem[] = [];
-    events.forEach((ev: any) => {
-      upcomingList.push({
+    const upcomingList: TeacherAgendaItem[] = events.map((ev: any) => {
+      const formattedDate = ev.eventDate
+        ? new Date(ev.eventDate).toLocaleDateString("es-CO", {
+            day: "2-digit",
+            month: "short",
+          })
+        : "Próx.";
+
+      return {
         id: `event-${ev.id}`,
         type: "event",
-        timeOrDate: "Próx.",
+        timeOrDate: formattedDate,
         title: ev.title,
-        subtitle: `${ev.type || "Evento institucional"}${ev.location ? ` · ${ev.location}` : ""}`,
+        subtitle: `${ev.type || "Evento institucional"}${
+          ev.location ? ` · ${ev.location}` : ""
+        }`,
         isToday: false,
-        tag: "Evento",
+        tag: ev.type || "Evento",
         tagTone: "neutral",
         onClick: () => setSection("calendar"),
-      });
+      };
     });
 
     return {
@@ -225,166 +248,82 @@ export function TeacherDashboard({
     };
   }, [events, setSection]);
 
-  // 7. Priority Items matching screenshot
-  const priorityItems: TeacherPriorityItem[] = useMemo(() => {
-    return [
-      {
-        id: "priority-attendance",
-        severity: "medium",
-        title: "Asistencia de hoy no completada",
-        context: "Registro pendiente en tus cursos asignados.",
-        actionLabel: "Tomar lista",
-        onAction: () => setSection("attendance"),
-      },
-      {
-        id: "priority-pending-grades",
-        severity: "high",
-        title: `${pendingGradesCount} entregas pendientes de calificación`,
-        context: "Revisa los envíos recibidos para mantener las notas al día.",
-        count: pendingGradesCount,
-        actionLabel: "Calificar",
-        onAction: () => setSection("grades"),
-      },
-      {
-        id: "priority-students-risk",
-        severity: "high",
-        title: `${Math.max(studentsAtRiskList.length, 5)} estudiante(s) requiere(n) seguimiento`,
-        context: "Promedio inferior a 3.0 en una evaluación.",
-        count: Math.max(studentsAtRiskList.length, 5),
-        actionLabel: "Ver notas",
-        onAction: () => setSection("grades"),
-      },
-    ];
-  }, [pendingGradesCount, studentsAtRiskList.length, setSection]);
+  // 6. Atención prioritaria detallada y coherente con la materia del docente
+  const priorityItems = useMemo(
+    () =>
+      calculatePriorityItems(
+        todayAttendanceStatus.label,
+        pendingGradesCount,
+        studentsAtRiskList.length,
+        {
+          pendingCourses: todayAttendanceStatus.pendingCourses,
+          gradingQueue: gradingQueueItems,
+          studentsAtRisk: studentsAtRiskList,
+          teacherSubject,
+          onTakeAttendance: () => setSection("attendance"),
+          onOpenGrades: () => setSection("grades"),
+        }
+      ),
+    [
+      todayAttendanceStatus,
+      pendingGradesCount,
+      studentsAtRiskList,
+      gradingQueueItems,
+      teacherSubject,
+      setSection,
+    ]
+  );
 
-  // 8. Grading Queue Items
-  const gradingQueueItems: TeacherGradingItem[] = useMemo(() => {
-    return assignments
-      .map((a: any) => {
-        const subsForA = submissions.filter(
-          (s: any) => s.assignmentId === a.id
-        );
-        const pendingForA = subsForA.filter(
-          (s: any) => s.grade === null
-        ).length;
-
-        return {
-          assignmentId: a.id,
-          title: a.title,
-          course: a.course,
-          subject: a.subject,
-          pendingCount: pendingForA,
-          totalSubmissions: subsForA.length,
-          dueAt: a.dueAt,
-          onGrade: () => setSection("grades"),
-        };
-      })
-      .filter((item: TeacherGradingItem) => item.pendingCount > 0)
-      .sort((a, b) => b.pendingCount - a.pendingCount);
-  }, [assignments, submissions]);
-
-  // 9. Student Alert Items
-  const studentAlertItems: TeacherStudentAlert[] = useMemo(() => {
-    return studentsAtRiskList.map((s) => {
-      const studentObj = students.find((st: any) => st.name === s.name);
-      return {
-        studentId: studentObj?.id,
-        name: s.name,
-        course: s.course,
-        subject: s.subject,
-        currentGrade: s.avg,
-        reason: "Promedio < 3.0",
-        avatarColor: studentObj?.avatarColor ?? "#fee2e2",
-        onOpenGradeCenter: () => setSection("grades"),
-      };
-    });
-  }, [studentsAtRiskList, students]);
-
-  // 10. Courses Card Data matching screenshot
-  const courseCards: TeacherCourseCardItem[] = useMemo(() => {
-    return [
-      {
-        id: 1,
-        name: "Biología 11-2",
-        studentCount: 24,
-        averageGrade: 4.3,
-        pendingCount: 2,
-        progress: 78,
-        tone: "bg-blue-600",
-        onClick: () => setSection("grades"),
-      },
-      {
-        id: 2,
-        name: "Biología 11-1",
-        studentCount: 21,
-        averageGrade: 4.1,
-        pendingCount: 1,
-        progress: 65,
-        tone: "bg-violet-500",
-        onClick: () => setSection("grades"),
-      },
-    ];
-  }, []);
-
-  // 11. Quick Analytics Data matching screenshot
-  const quickAnalyticsItems: QuickAnalyticsItem[] = useMemo(() => {
-    return [
-      { label: "Taller celular y mitosis", value: 76, color: "bg-blue-500" },
-      { label: "Informe de laboratorio", value: 84, color: "bg-indigo-500" },
-      { label: "Quiz de genética", value: 62, color: "bg-amber-500" },
-      { label: "Evaluación de ecosistemas", value: 91, color: "bg-emerald-500" },
-    ];
-  }, []);
-
-  // 12. Quick Actions matching screenshot
-  const quickActions: TeacherQuickActionItem[] = useMemo(
-    () => [
-      {
-        id: "create-task",
-        label: "Nueva tarea",
-        icon: FileText,
-        onClick: () => setSection("classroom"),
-      },
-      {
-        id: "grade-center",
-        label: "Grade Center",
-        icon: FileCheck,
-        onClick: () => setSection("grades"),
-      },
-      {
-        id: "take-attendance",
-        label: "Tomar asistencia",
-        icon: UserCheck,
-        onClick: () => setSection("attendance"),
-      },
-    ],
+  // 7. Acción de creación rápida en el Hero (sin repetir los botones de alerta de abajo)
+  const heroAction = useMemo(
+    () => ({
+      label: "Nueva actividad",
+      icon: Plus,
+      onClick: () => setSection("classroom"),
+    }),
     [setSection]
   );
 
-  // Contextual highlighted action matching screenshot
-  const highlightedAction: TeacherQuickActionItem = useMemo(() => {
-    return {
-      id: "action-grade-now",
-      label: `Calificar ahora (${pendingGradesCount} pendientes)`,
-      icon: ClipboardCheck,
-      onClick: () => setSection("grades"),
-    };
-  }, [pendingGradesCount]);
+  const heroSummaryText = useMemo(() => {
+    const classesCount = todayAgendaItems.length;
+    if (pendingGradesCount > 0) {
+      return `Tienes ${classesCount} clases programadas hoy y ${pendingGradesCount} ${
+        pendingGradesCount === 1
+          ? "entrega lista para calificar"
+          : "entregas listas para calificar"
+      }.`;
+    }
+    if (todayAttendanceStatus.label !== "Al día") {
+      return `Tienes ${classesCount} clases programadas hoy. Recuerda completar el registro de asistencia.`;
+    }
+    return `Tienes ${classesCount} clases programadas hoy y todas tus entregas están al día.`;
+  }, [todayAgendaItems.length, pendingGradesCount, todayAttendanceStatus.label]);
+
+  // 8. Analítica (exclusiva para la vista Análisis & Alertas)
+  const quickAnalyticsItems: QuickAnalyticsItem[] = useMemo(
+    () => [
+      { label: "Taller celular y mitosis", value: 76, color: "bg-blue-500" },
+      { label: "Informe de laboratorio", value: 84, color: "bg-indigo-500" },
+      { label: "Quiz de genética", value: 62, color: "bg-amber-500" },
+      {
+        label: "Evaluación de ecosistemas",
+        value: 91,
+        color: "bg-emerald-500",
+      },
+    ],
+    []
+  );
 
   return (
-    <div className="teacher-dashboard space-y-4 pb-6">
+    <div className="teacher-dashboard space-y-3.5 pb-4">
       {mode === "analytics" ? (
         <div className="space-y-4">
           <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
             <TeacherGroupPerformance
               period1Average={3.42}
               period2Average={Number(overallAverage)}
-              onViewAnalysis={() => setSection("analytics")}
             />
-            <TeacherQuickAnalytics
-              items={quickAnalyticsItems}
-              onViewAnalytics={() => setSection("analytics")}
-            />
+            <TeacherQuickAnalytics items={quickAnalyticsItems} />
           </section>
           <TeacherOperationalDetails
             gradingItems={gradingQueueItems}
@@ -394,66 +333,34 @@ export function TeacherDashboard({
           />
         </div>
       ) : (
-        /* Overview: EXACT COMPOSITION AND ORDER OF SCREENSHOT */
-        <div className="space-y-4">
-          {/* Row 1: Hero Contextual */}
+        <div className="space-y-3.5">
+          {/* Fila 1: Hero Contextual Compacto */}
           <TeacherHero
             teacherName={teacherName}
-            schoolName={schoolName}
             activePeriodName={activePeriodName}
-
-            pendingGradesCount={pendingGradesCount}
-            onOpenGradeCenter={() => setSection("grades")}
-            onOpenCalendar={() => setSection("calendar")}
-            onOpenClassroom={() => setSection("classroom")}
+            summaryText={heroSummaryText}
+            action={heroAction}
           />
 
-          {/* Row 2: 4 KPIs en Fila Horizontal */}
+          {/* Fila 2: 4 KPIs en Fila Horizontal */}
           <TeacherMetricsRow metrics={metrics} />
 
-          {/* Row 3: Cuadrícula Principal en 2 Columnas (1.35fr : 0.85fr) */}
-          <div className="grid items-start gap-4 xl:grid-cols-[1.35fr_0.85fr]">
-            {/* Columna Izquierda: Mi jornada + Mis cursos */}
-            <div className="space-y-4">
-              <TeacherAgenda
-                todayItems={todayAgendaItems}
-                upcomingItems={upcomingAgendaItems}
-                onOpenCalendar={() => setSection("calendar")}
-              />
+          {/* Fila 3: Operación del Día en 2 Columnas Equilibradas (Mi jornada + Atención prioritaria) */}
+          <div className="grid items-stretch gap-3.5 xl:grid-cols-[1.15fr_0.85fr]">
+            <TeacherAgenda
+              todayItems={todayAgendaItems}
+              upcomingItems={upcomingAgendaItems}
+              onOpenCalendar={() => setSection("calendar")}
+            />
 
-              <TeacherCoursesCard
-                courses={courseCards}
-                onViewAll={() => setSection("academic")}
-              />
-            </div>
-
-            {/* Columna Derecha: Acciones rápidas + Atención prioritaria */}
-            <div className="space-y-4">
-              <TeacherQuickActions
-                actions={quickActions}
-                highlightedAction={highlightedAction}
-              />
-
-              <TeacherPrioritySection
-                items={priorityItems}
-                onViewAll={() => setSection("grades")}
-              />
-            </div>
+            <TeacherPrioritySection items={priorityItems} />
           </div>
 
-          {/* Row 4: Cuadrícula Inferior Analítica (1.2fr : 0.8fr) */}
-          <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <TeacherGroupPerformance
-              period1Average={3.42}
-              period2Average={3.88}
-              onViewAnalysis={() => setSection("analytics")}
-            />
-
-            <TeacherQuickAnalytics
-              items={quickAnalyticsItems}
-              onViewAnalytics={() => setSection("analytics")}
-            />
-          </section>
+          {/* Fila 4: Mis Cursos (Totalmente visible en viewport) */}
+          <TeacherCoursesCard
+            courses={courseCards}
+            onViewAll={() => setSection("academic")}
+          />
         </div>
       )}
     </div>

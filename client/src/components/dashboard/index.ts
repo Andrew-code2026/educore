@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./dashboardSelectors";
 export * from "./TeacherHero";
 export * from "./TeacherMetricsRow";
 export * from "./TeacherAgenda";

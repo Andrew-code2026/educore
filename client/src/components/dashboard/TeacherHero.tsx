@@ -1,22 +1,24 @@
 import React from "react";
-import { Calendar } from "lucide-react";
+import { Calendar, Plus } from "lucide-react";
+
+export interface TeacherHeroAction {
+  label: string;
+  onClick: () => void;
+  icon?: React.ComponentType<{ className?: string }>;
+}
 
 interface TeacherHeroProps {
   teacherName: string;
-  schoolName?: string;
   activePeriodName?: string;
   summaryText?: string;
-  pendingGradesCount?: number;
-  onOpenGradeCenter?: () => void;
-  onOpenCalendar?: () => void;
-  onOpenClassroom?: () => void;
+  action?: TeacherHeroAction;
 }
 
 export function TeacherHero({
   teacherName,
-  schoolName,
   activePeriodName = "Periodo 2",
   summaryText,
+  action,
 }: TeacherHeroProps) {
   const currentHour = new Date().getHours();
   const greeting =
@@ -35,34 +37,51 @@ export function TeacherHero({
   const capitalizedDate =
     todayFormatted.charAt(0).toUpperCase() + todayFormatted.slice(1);
 
+  const ActionIcon = action?.icon ?? Plus;
+
   return (
     <section
       data-testid="teacher-hero"
-      className="teacher-hero relative overflow-hidden rounded-[24px] border border-blue-100/80 dark:border-blue-900/30 bg-gradient-to-br from-[#eef5ff] via-[#e5efff] to-[#dbe8ff] dark:from-[#111c2e] dark:via-[#0e1726] dark:to-[#0a111d] p-5 sm:p-6 shadow-[0_12px_32px_rgba(69,105,180,0.08)] dark:shadow-none"
+      className="relative overflow-hidden rounded-2xl border border-blue-100/90 dark:border-blue-900/40 bg-gradient-to-br from-[#eef5ff] via-[#e6f0ff] to-[#dce9ff] dark:from-[#121e31] dark:via-[#0f192a] dark:to-[#0c1422] px-5 py-3.5 sm:px-6 sm:py-4 shadow-[0_6px_20px_rgba(37,99,235,0.06)] dark:shadow-none"
     >
-      <div className="teacher-glow pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-indigo-300/20 blur-3xl" />
+      <div className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-blue-400/15 dark:bg-blue-500/10 blur-3xl" />
 
-      <div className="relative z-10">
-        {/* Fecha y Periodo */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-white/90 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 shadow-xs">
-          <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
-          <span>{capitalizedDate}</span>
-          <span className="text-slate-300 dark:text-slate-600">·</span>
-          <span className="font-semibold text-blue-700 dark:text-blue-400">{activePeriodName}</span>
+      <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* Lado izquierdo: Contexto temporal, saludo y pulso del día */}
+        <div className="min-w-0">
+          <div className="inline-flex items-center gap-2 rounded-full border border-blue-200/70 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-300 shadow-2xs">
+            <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+            <span>{capitalizedDate}</span>
+            <span className="text-slate-300 dark:text-slate-600">·</span>
+            <span className="font-semibold text-blue-700 dark:text-blue-400">
+              {activePeriodName}
+            </span>
+          </div>
+
+          <h1 className="mt-2 text-xl font-extrabold tracking-[-0.025em] text-[#172554] dark:text-white sm:text-2xl">
+            {greeting}, {teacherName}
+          </h1>
+
+          {summaryText && (
+            <p className="mt-0.5 text-xs text-[#475b82] dark:text-slate-300 leading-relaxed max-w-2xl">
+              {summaryText}
+            </p>
+          )}
         </div>
 
-        {/* Saludo dinámico según la hora del día */}
-        <h1 className="mt-3.5 text-2xl font-extrabold tracking-[-0.03em] text-[#172554] dark:text-white sm:text-3xl">
-          {greeting}, {teacherName}
-        </h1>
-
-        {/* Pulso resumido de la jornada */}
-        {summaryText ? (
-          <p
-            className="mt-1.5 text-xs sm:text-sm text-[#52668f] dark:text-slate-400 leading-relaxed max-w-3xl"
-            dangerouslySetInnerHTML={{ __html: summaryText }}
-          />
-        ) : null}
+        {/* Lado derecho: Acción rápida de creación (sin duplicar las alertas de calificación) */}
+        {action && (
+          <div className="flex items-center shrink-0">
+            <button
+              type="button"
+              onClick={action.onClick}
+              className="inline-flex items-center gap-2 rounded-lg border border-blue-200/90 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2 text-xs font-bold text-blue-700 dark:text-blue-300 shadow-2xs transition hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-slate-700 active:scale-[0.99]"
+            >
+              <ActionIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+              <span>{action.label}</span>
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );
