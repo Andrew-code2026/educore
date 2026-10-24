@@ -1,6 +1,7 @@
 import { z } from "zod";
 import path from "node:path";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { ANNOUNCEMENT_AUDIENCES, ANNOUNCEMENT_MESSAGE_MAX, ANNOUNCEMENT_STATUS, ANNOUNCEMENT_TITLE_MAX } from "@shared/communications";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { invokeLLM } from "./_core/llm";
 import { sdk } from "./_core/sdk";
@@ -10,7 +11,10 @@ import { TRPCError } from "@trpc/server";
 import { storagePut } from "./storage";
 import { saveUploadedDocument } from "./documentStorage";
 import {
+  createAnnouncement,
   createDemoAssignment,
+  deleteAnnouncement,
+  publishAnnouncement,
   DEMO_SCHOOL_ID,
   EduRole,
   getEduCoreSnapshot,
@@ -648,6 +652,38 @@ export const appRouter = router({
 
         return result;
       }),
+  }),
+  communications: router({
+    create: publicProcedure.input(z.object({
+      role: roleSchema,
+      title: z.string().trim().min(3).max(ANNOUNCEMENT_TITLE_MAX),
+      message: z.string().trim().min(5).max(ANNOUNCEMENT_MESSAGE_MAX),
+      audience: z.enum(ANNOUNCEMENT_AUDIENCES),
+      publish: z.boolean().default(false),
+    })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "communications.create", true);
+      // Redactar no implica poder enviar: publicar exige además communications.send
+      if (input.publish && !hasPermission(actor.roleKey, "communications.send")) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Puedes guardar el comunicado como borrador; publicarlo requiere permisos de envío." });
+      }
+      const status = input.publish ? ANNOUNCEMENT_STATUS.published : ANNOUNCEMENT_STATUS.draft;
+      const created = await createAnnouncement(actor.schoolId, { title: input.title, message: input.message, audience: input.audience, status });
+      if (!created) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No se pudo guardar el comunicado." });
+      await writeAuditLog(input.role, input.publish ? "publish_announcement" : "draft_announcement", input.title, actor.schoolId);
+      return created;
+    }),
+    publish: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "communications.send", true);
+      if (!(await publishAnnouncement(actor.schoolId, input.id))) throw new TRPCError({ code: "NOT_FOUND", message: "El comunicado ya no existe." });
+      await writeAuditLog(input.role, "publish_announcement", `Comunicado ${input.id}`, actor.schoolId);
+      return { id: input.id };
+    }),
+    remove: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "communications.send", true);
+      if (!(await deleteAnnouncement(actor.schoolId, input.id))) throw new TRPCError({ code: "NOT_FOUND", message: "El comunicado ya no existe." });
+      await writeAuditLog(input.role, "delete_announcement", `Comunicado ${input.id}`, actor.schoolId);
+      return { id: input.id };
+    }),
   }),
   followUp: router({
     list: publicProcedure
