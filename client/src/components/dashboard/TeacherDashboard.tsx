@@ -152,7 +152,7 @@ export function TeacherDashboard({
         detail: courseListLabel,
         tone: "info",
         icon: BookOpen,
-        onClick: () => setSection("academic"),
+        onClick: () => setSection("grades"),
       },
       {
         id: "students-attention",
@@ -359,7 +359,7 @@ export function TeacherDashboard({
           {/* Fila 4: Mis Cursos (Totalmente visible en viewport) */}
           <TeacherCoursesCard
             courses={courseCards}
-            onViewAll={() => setSection("academic")}
+            onViewAll={() => setSection("grades")}
           />
         </div>
       )}

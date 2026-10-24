@@ -166,13 +166,6 @@ export function ShellContextProvider({
           breadcrumbs: [{ label: "Análisis" }, { label: "Reportes", isCurrent: true }],
           contextPills: [{ label: "Periodo 2", tone: "primary" }],
         };
-      case "ai":
-        return {
-          title: "EduCore AI",
-          subtitle: "Copiloto pedagógico y analítico",
-          breadcrumbs: [{ label: "Inteligencia" }, { label: "EduCore AI", isCurrent: true }],
-          contextPills: [{ label: "Modo contextual activo", tone: "violet" }],
-        };
       case "users":
         return {
           title: "Directorio de Usuarios",
