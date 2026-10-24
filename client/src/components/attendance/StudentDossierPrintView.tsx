@@ -109,7 +109,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
               </div>
             )}
             <div>
-              <span className="text-[10px] font-bold tracking-widest text-slate-500 uppercase block">
+              <span className="text-xs font-bold tracking-widest text-slate-500 uppercase block">
                 {schoolName}
               </span>
               <h1 className="text-xl font-black tracking-tight text-slate-900 leading-tight">
@@ -122,13 +122,13 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
           </div>
 
           <div className="text-right shrink-0">
-            <div className="inline-block px-2.5 py-1 bg-slate-100 border border-slate-300 rounded text-[11px] font-mono font-bold text-slate-800">
+            <div className="inline-block px-2.5 py-1 bg-slate-100 border border-slate-300 rounded text-xs font-mono font-bold text-slate-800">
               Folio: {folioCode}
             </div>
-            <p className="text-[10px] text-slate-500 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Emisión: {formattedGenerationDate}
             </p>
-            <p className="text-[10px] font-semibold text-slate-700">
+            <p className="text-xs font-semibold text-slate-700">
               {academicPeriod}
             </p>
           </div>
@@ -139,7 +139,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
       {/* 2. IDENTIFICACIÓN DEL ESTUDIANTE Y ACUDIENTE                          */}
       {/* ===================================================================== */}
       <section className="mb-5 break-inside-avoid border border-slate-300 rounded-lg p-3.5 bg-slate-50/50">
-        <h2 className="text-[11px] font-bold tracking-wider text-slate-700 uppercase mb-2.5 border-b border-slate-200 pb-1 flex items-center justify-between">
+        <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase mb-2.5 border-b border-slate-200 pb-1 flex items-center justify-between">
           <span>1. Identificación del Estudiante</span>
           <span className="text-slate-500 font-normal">
             Curso: {course.label} ({course.subject})
@@ -148,14 +148,14 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
           <div>
-            <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+            <span className="text-slate-500 block text-xs uppercase font-semibold">
               Nombre Completo:
             </span>
             <span className="font-bold text-slate-900 text-sm">{student.name}</span>
           </div>
 
           <div>
-            <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+            <span className="text-slate-500 block text-xs uppercase font-semibold">
               Código / Matrícula:
             </span>
             <span className="font-mono font-semibold text-slate-800">
@@ -164,7 +164,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
           </div>
 
           <div>
-            <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+            <span className="text-slate-500 block text-xs uppercase font-semibold">
               Curso / Grado:
             </span>
             <span className="font-medium text-slate-800">
@@ -174,7 +174,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
           </div>
 
           <div>
-            <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+            <span className="text-slate-500 block text-xs uppercase font-semibold">
               Estado en Matrícula:
             </span>
             <span className="font-semibold text-slate-800">
@@ -183,7 +183,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
           </div>
 
           <div>
-            <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+            <span className="text-slate-500 block text-xs uppercase font-semibold">
               Padre / Madre / Acudiente:
             </span>
             <span className="font-medium text-slate-800">
@@ -192,7 +192,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
           </div>
 
           <div>
-            <span className="text-slate-500 block text-[10px] uppercase font-semibold">
+            <span className="text-slate-500 block text-xs uppercase font-semibold">
               Contacto Acudiente:
             </span>
             <span className="text-slate-700">
@@ -207,13 +207,13 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
       {/* 3. RESUMEN DE ASISTENCIA Y RENDIMIENTO                                */}
       {/* ===================================================================== */}
       <section className="mb-5 break-inside-avoid">
-        <h2 className="text-[11px] font-bold tracking-wider text-slate-700 uppercase mb-2 border-b border-slate-200 pb-1">
+        <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase mb-2 border-b border-slate-200 pb-1">
           2. Resumen Factual de Asistencia en el Período
         </h2>
 
         <div className="grid grid-cols-6 gap-2 text-center">
           <div className="border border-slate-300 rounded p-2 bg-slate-50">
-            <span className="block text-[10px] text-slate-600 font-bold uppercase">
+            <span className="block text-xs text-slate-600 font-bold uppercase">
               Asistencia
             </span>
             <span
@@ -230,7 +230,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
           </div>
 
           <div className="border border-slate-200 rounded p-2">
-            <span className="block text-[10px] text-slate-500 uppercase">
+            <span className="block text-xs text-slate-500 uppercase">
               Evaluadas
             </span>
             <span className="text-lg font-bold text-slate-800">
@@ -239,7 +239,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
           </div>
 
           <div className="border border-slate-200 rounded p-2 bg-emerald-50/40">
-            <span className="block text-[10px] text-emerald-800 font-semibold uppercase">
+            <span className="block text-xs text-emerald-800 font-semibold uppercase">
               Presentes
             </span>
             <span className="text-lg font-bold text-emerald-700">
@@ -248,7 +248,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
           </div>
 
           <div className="border border-slate-200 rounded p-2 bg-rose-50/40">
-            <span className="block text-[10px] text-rose-800 font-semibold uppercase">
+            <span className="block text-xs text-rose-800 font-semibold uppercase">
               Ausencias
             </span>
             <span className="text-lg font-bold text-rose-700">
@@ -257,7 +257,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
           </div>
 
           <div className="border border-slate-200 rounded p-2 bg-amber-50/40">
-            <span className="block text-[10px] text-amber-800 font-semibold uppercase">
+            <span className="block text-xs text-amber-800 font-semibold uppercase">
               Tardanzas
             </span>
             <span className="text-lg font-bold text-amber-700">
@@ -266,7 +266,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
           </div>
 
           <div className="border border-slate-200 rounded p-2 bg-blue-50/40">
-            <span className="block text-[10px] text-blue-800 font-semibold uppercase">
+            <span className="block text-xs text-blue-800 font-semibold uppercase">
               Excusas
             </span>
             <span className="text-lg font-bold text-blue-700">
@@ -280,10 +280,10 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
       {/* 4. ANÁLISIS FACTUAL DEL PERÍODO Y ALERTAS                             */}
       {/* ===================================================================== */}
       <section className="mb-5 break-inside-avoid">
-        <h2 className="text-[11px] font-bold tracking-wider text-slate-700 uppercase mb-2 border-b border-slate-200 pb-1 flex items-center justify-between">
+        <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase mb-2 border-b border-slate-200 pb-1 flex items-center justify-between">
           <span>3. Diagnóstico y Análisis del Período</span>
           <span
-            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+            className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
               patternAnalysis.severity === "critical"
                 ? "bg-rose-100 text-rose-800 border border-rose-300"
                 : patternAnalysis.severity === "preventive"
@@ -304,11 +304,11 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
           <div className="border border-slate-200 rounded p-2.5 bg-slate-50/40 text-xs">
             <div className="flex items-center justify-between font-bold text-slate-800 mb-1">
               <span>• {patternAnalysis.headline}</span>
-              <span className="text-[10px] uppercase font-semibold text-slate-500">
+              <span className="text-xs uppercase font-semibold text-slate-500">
                 Severidad: {patternAnalysis.severity === "critical" ? "Alta" : "Media"}
               </span>
             </div>
-            <p className="text-[11px] text-slate-700 leading-relaxed pl-3 border-l-2 border-slate-300">
+            <p className="text-xs text-slate-700 leading-relaxed pl-3 border-l-2 border-slate-300">
               {patternAnalysis.explanation}
             </p>
             {patternAnalysis.badges.length > 0 && (
@@ -316,7 +316,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
                 {patternAnalysis.badges.map((b, idx) => (
                   <span
                     key={idx}
-                    className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-white border border-slate-300 text-slate-700"
+                    className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-white border border-slate-300 text-slate-700"
                   >
                     {b.label}
                   </span>
@@ -335,7 +335,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
       {/* 5. NOVEDADES DE ASISTENCIA (Inasistencias y Tardanzas cronológicas)     */}
       {/* ===================================================================== */}
       <section className="mb-5 break-inside-avoid">
-        <h2 className="text-[11px] font-bold tracking-wider text-slate-700 uppercase mb-2 border-b border-slate-200 pb-1">
+        <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase mb-2 border-b border-slate-200 pb-1">
           4. Registro Cronológico de Novedades de Asistencia
         </h2>
 
@@ -356,7 +356,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
                   <td className="p-1.5 text-slate-700">{item.label}</td>
                   <td className="p-1.5">
                     <span
-                      className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                      className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
                         item.status === "absent"
                           ? "bg-rose-100 text-rose-800"
                           : item.status === "late"
@@ -385,7 +385,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
       {/* 6. HISTORIAL DE EXCUSAS Y JUSTIFICACIONES                             */}
       {/* ===================================================================== */}
       <section className="mb-5 break-inside-avoid">
-        <h2 className="text-[11px] font-bold tracking-wider text-slate-700 uppercase mb-2 border-b border-slate-200 pb-1">
+        <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase mb-2 border-b border-slate-200 pb-1">
           5. Excusas y Justificaciones Radicadas
         </h2>
 
@@ -401,7 +401,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
                     Folio #{just.id} · Fecha de falta: {just.attendanceDate}
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                    className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
                       just.status === "approved"
                         ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                         : just.status === "rejected" || just.status === "unjustified"
@@ -413,7 +413,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700 mb-1.5">
+                <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 mb-1.5">
                   <div>
                     <span className="font-semibold text-slate-500">Motivo: </span>
                     {JUSTIFICATION_REASON_LABELS[just.reasonCategory] || just.reasonCategory}
@@ -447,13 +447,13 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-800 bg-white border border-slate-200 rounded p-1.5">
+                <p className="text-xs text-slate-800 bg-white border border-slate-200 rounded p-1.5">
                   <span className="font-semibold text-slate-600">Descripción: </span>
                   {just.description || "Sin descripción adicional."}
                 </p>
 
                 {just.resolutionNotes && (
-                  <p className="text-[11px] text-slate-700 mt-1.5 pl-2 border-l-2 border-slate-400">
+                  <p className="text-xs text-slate-700 mt-1.5 pl-2 border-l-2 border-slate-400">
                     <span className="font-semibold">Resolución docente/coordinación: </span>
                     {just.resolutionNotes}
                   </p>
@@ -472,7 +472,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
       {/* 7. SEGUIMIENTO PEDAGÓGICO Y CASOS DE CONVIVENCIA                       */}
       {/* ===================================================================== */}
       <section className="mb-5 break-inside-avoid">
-        <h2 className="text-[11px] font-bold tracking-wider text-slate-700 uppercase mb-2 border-b border-slate-200 pb-1">
+        <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase mb-2 border-b border-slate-200 pb-1">
           6. Seguimiento Pedagógico y Acompañamiento
         </h2>
 
@@ -487,7 +487,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
                   ? "Media"
                   : "Baja"}
               </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 uppercase">
+              <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 uppercase">
                 {studentActiveCase.status === "open" ? "Abierto" : "En revisión"}
               </span>
             </div>
@@ -497,7 +497,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
               {studentActiveCase.reason}
             </p>
 
-            <div className="text-[11px] text-slate-500 mb-2">
+            <div className="text-xs text-slate-500 mb-2">
               Iniciado el{" "}
               {new Date(studentActiveCase.createdAt).toLocaleDateString("es-CO")} por{" "}
               <span className="font-medium text-slate-700">
@@ -508,15 +508,15 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
             {/* Acuerdos docentes y notas de seguimiento */}
             {currentCaseNotes.length > 0 ? (
               <div className="mt-2 space-y-1.5 border-t border-slate-200 pt-2">
-                <span className="text-[10px] font-bold uppercase text-slate-600 block">
+                <span className="text-xs font-bold uppercase text-slate-600 block">
                   Acuerdos y notas docentes registradas:
                 </span>
                 {currentCaseNotes.map((note) => (
                   <div
                     key={note.id}
-                    className="p-1.5 bg-white border border-slate-200 rounded text-[11px] text-slate-700"
+                    className="p-1.5 bg-white border border-slate-200 rounded text-xs text-slate-700"
                   >
-                    <div className="flex items-center justify-between text-[10px] text-slate-500 mb-0.5">
+                    <div className="flex items-center justify-between text-xs text-slate-500 mb-0.5">
                       <span className="font-semibold text-slate-800">
                         {note.authorName}
                       </span>
@@ -529,7 +529,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
                 ))}
               </div>
             ) : (
-              <p className="text-[11px] text-slate-500 italic mt-1">
+              <p className="text-xs text-slate-500 italic mt-1">
                 Sin notas docentes ni compromisos registrados en este caso.
               </p>
             )}
@@ -543,10 +543,10 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
         {/* Antecedentes resueltos */}
         {resolvedCases.length > 0 && (
           <div className="border border-slate-200 rounded p-2.5 bg-slate-50/20 text-xs break-inside-avoid">
-            <span className="text-[10px] font-bold uppercase text-slate-600 block mb-1">
+            <span className="text-xs font-bold uppercase text-slate-600 block mb-1">
               Antecedentes pedagógicos resueltos ({resolvedCases.length}):
             </span>
-            <ul className="space-y-1 text-[11px] text-slate-700">
+            <ul className="space-y-1 text-xs text-slate-700">
               {resolvedCases.map((rc) => (
                 <li key={rc.id} className="flex items-center justify-between">
                   <span>
@@ -569,7 +569,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
       {/* 8. LÍNEA DE TIEMPO RESUMIDA                                           */}
       {/* ===================================================================== */}
       <section className="mb-6 break-inside-avoid">
-        <h2 className="text-[11px] font-bold tracking-wider text-slate-700 uppercase mb-2 border-b border-slate-200 pb-1">
+        <h2 className="text-xs font-bold tracking-wider text-slate-700 uppercase mb-2 border-b border-slate-200 pb-1">
           7. Hitos Cronológicos Destacados
         </h2>
 
@@ -577,19 +577,19 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
           <div className="border border-slate-200 rounded divide-y divide-slate-100 text-xs">
             {unifiedTimeline.slice(0, 10).map((event) => (
               <div key={event.id} className="p-2 flex items-start gap-3">
-                <span className="font-mono text-[10px] text-slate-500 shrink-0 w-20">
+                <span className="font-mono text-xs text-slate-500 shrink-0 w-20">
                   {event.date}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-800 text-[11px]">
+                    <span className="font-bold text-slate-800 text-xs">
                       {event.title}
                     </span>
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-xs text-slate-500">
                       ({event.actorName || event.actorRole})
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-600 truncate">
+                  <p className="text-xs text-slate-600 truncate">
                     {event.description}
                   </p>
                 </div>
@@ -607,7 +607,7 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
       {/* 9. FIRMAS DE CONFORMIDAD INSTITUCIONAL                                */}
       {/* ===================================================================== */}
       <footer className="mt-8 pt-4 border-t-2 border-slate-300 break-inside-avoid">
-        <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider text-center mb-8">
+        <div className="text-xs text-slate-500 uppercase font-bold tracking-wider text-center mb-8">
           Constancia de revisión y verificación institucional
         </div>
 
@@ -618,10 +618,10 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
             <span className="font-bold text-slate-900 block text-xs">
               {course.teacherName || "Juan Diego Loaiza"}
             </span>
-            <span className="text-[10px] text-slate-500 block">
+            <span className="text-xs text-slate-500 block">
               Docente Responsable · {course.label} ({course.subject})
             </span>
-            <span className="text-[9px] text-slate-400 block mt-0.5">
+            <span className="text-xs text-slate-400 block mt-0.5">
               Firma y Documento de Identidad
             </span>
           </div>
@@ -632,10 +632,10 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
             <span className="font-bold text-slate-900 block text-xs">
               Coordinación Académica / Convivencia
             </span>
-            <span className="text-[10px] text-slate-500 block">
+            <span className="text-xs text-slate-500 block">
               Sello y Visto Bueno
             </span>
-            <span className="text-[9px] text-slate-400 block mt-0.5">
+            <span className="text-xs text-slate-400 block mt-0.5">
               Firma Autorizada
             </span>
           </div>
@@ -646,16 +646,16 @@ export const StudentDossierPrintView: React.FC<StudentDossierPrintViewProps> = (
             <span className="font-bold text-slate-900 block text-xs">
               Padre / Madre / Acudiente
             </span>
-            <span className="text-[10px] text-slate-500 block">
+            <span className="text-xs text-slate-500 block">
               {student.guardianName || "Nombre del acudiente"}
             </span>
-            <span className="text-[9px] text-slate-400 block mt-0.5">
+            <span className="text-xs text-slate-400 block mt-0.5">
               Cédula / Documento de Identidad
             </span>
           </div>
         </div>
 
-        <div className="mt-6 pt-3 border-t border-slate-200 text-center text-[9px] text-slate-400">
+        <div className="mt-6 pt-3 border-t border-slate-200 text-center text-xs text-slate-400">
           Documento oficial generado desde EduCore · Expediente Integral del Estudiante · Prohibida su alteración sin autorización institucional · Página 1 de 1 (Ficha A4)
         </div>
       </footer>

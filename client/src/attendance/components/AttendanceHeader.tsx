@@ -94,7 +94,7 @@ export function AttendanceHeader({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" sideOffset={8} className="attendance-course-menu glass-strong w-[280px] rounded-2xl p-1.5">
-              <p className="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/75">
+              <p className="px-2 pb-1.5 pt-1 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground/75">
                 Cambiar de grupo
               </p>
               {courses.map(item => (
@@ -110,7 +110,7 @@ export function AttendanceHeader({
                     <span className="block truncate text-[12px] font-semibold">
                       {item.name} <span className="font-normal text-muted-foreground">· {item.subject || "Sin asignatura"}</span>
                     </span>
-                    <span className="tabular mt-0.5 block text-[10px] text-muted-foreground">
+                    <span className="tabular mt-0.5 block text-xs text-muted-foreground">
                       {item.students.length} estudiantes · {item.start && item.end ? `${item.start}–${item.end}` : "Horario no registrado"}
                     </span>
                   </span>

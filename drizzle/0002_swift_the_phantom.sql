@@ -10,7 +10,7 @@ CREATE TABLE `academic_periods` (
   CONSTRAINT `academic_periods_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
-ALTER TABLE `schools` ADD `shortName` varchar(80) DEFAULT 'Gimnasio Moderno' NOT NULL;
+ALTER TABLE `schools` ADD `shortName` varchar(80) DEFAULT 'EduCore' NOT NULL;
 --> statement-breakpoint
 ALTER TABLE `schools` ADD `department` varchar(100) DEFAULT 'Valle del Cauca' NOT NULL;
 --> statement-breakpoint

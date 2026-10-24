@@ -12,8 +12,8 @@ interface AvatarProps {
 }
 
 const SIZE_CLASS: Record<NonNullable<AvatarProps["size"]>, string> = {
-  sm: "h-6 w-6 text-[10px]",
-  md: "h-7 w-7 text-[11px]",
+  sm: "h-6 w-6 text-xs",
+  md: "h-7 w-7 text-xs",
   lg: "h-11 w-11 text-sm",
 };
 

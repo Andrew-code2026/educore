@@ -18,9 +18,9 @@ export function TeacherPrioritySection({
       <div className="mb-2 flex items-center justify-between">
         <div>
           <h2 className="text-sm font-bold text-slate-800">Atención prioritaria</h2>
-          <p className="text-[10px] text-slate-400">Intervenciones sugeridas para hoy</p>
+          <p className="text-xs text-slate-400">Intervenciones sugeridas para hoy</p>
         </div>
-        <span className="rounded-full border-0 bg-rose-50 px-2 py-0.5 text-[9px] font-bold text-rose-600">
+        <span className="rounded-full border-0 bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-600">
           {items.length}
         </span>
       </div>
@@ -39,14 +39,14 @@ export function TeacherPrioritySection({
               }`}
             />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[10px] font-bold text-slate-700">
+              <span className="block truncate text-xs font-bold text-slate-700">
                 {item.title}
               </span>
-              <span className="block truncate text-[9px] text-slate-400">
+              <span className="block truncate text-xs text-slate-400">
                 {item.context}
               </span>
             </span>
-            <span className="whitespace-nowrap rounded-full border border-slate-200 px-2 py-1 text-[8px] font-bold text-slate-500 group-hover:border-blue-300 group-hover:text-blue-600 transition-colors shrink-0">
+            <span className="whitespace-nowrap rounded-full border border-slate-200 px-2 py-1 text-xs font-bold text-slate-500 group-hover:border-blue-300 group-hover:text-blue-600 transition-colors shrink-0">
               {item.actionLabel} <ArrowRight className="ml-1 inline h-2.5 w-2.5" />
             </span>
           </button>

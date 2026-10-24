@@ -119,7 +119,7 @@ export function EduCoreSidebar({
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={12}>
               <p className="font-semibold">Expandir menú (Ctrl+B)</p>
-              <p className="text-[10px] opacity-70">{schoolName}</p>
+              <p className="text-xs opacity-70">{schoolName}</p>
             </TooltipContent>
           </Tooltip>
         ) : (
@@ -131,11 +131,11 @@ export function EduCoreSidebar({
                   <span className="text-[15px] font-extrabold tracking-[0.16em] text-sidebar-foreground">
                     EDUCORE
                   </span>
-                  <span className="rounded-md border border-blue-200 bg-blue-50 px-1.5 py-0 text-[8px] font-bold tracking-wider text-blue-700 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-300">
+                  <span className="rounded-md border border-blue-200 bg-blue-50 px-1.5 py-0 text-xs font-bold tracking-wider text-blue-700 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-300">
                     2.0
                   </span>
                 </div>
-                <p className="truncate text-[10px] font-medium tracking-[0.01em] text-sidebar-muted-foreground">
+                <p className="truncate text-xs font-medium tracking-[0.01em] text-sidebar-muted-foreground">
                   {schoolName}
                 </p>
               </div>
@@ -161,7 +161,7 @@ export function EduCoreSidebar({
           {groups.map((group, groupIndex) => (
             <div key={group.key} className="space-y-1">
               {!sidebarCollapsed ? (
-                <p className="px-3 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
+                <p className="px-3 pt-1 text-xs font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
                   {group.label}
                 </p>
               ) : groupIndex > 0 ? (
@@ -208,7 +208,7 @@ export function EduCoreSidebar({
                         <>
                           <span className="truncate text-sm font-medium">{item.label}</span>
                           {item.badge !== undefined && (
-                            <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--edc-primary)] px-1.5 text-[10px] font-bold text-white">
+                            <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--edc-primary)] px-1.5 text-xs font-bold text-white">
                               {item.badge}
                             </span>
                           )}
@@ -224,7 +224,7 @@ export function EduCoreSidebar({
                         <TooltipContent side="right" sideOffset={12} className="font-medium">
                           <div>
                             <p className="font-semibold">{item.label}</p>
-                            <p className="text-[10px] opacity-70">{group.label}</p>
+                            <p className="text-xs opacity-70">{group.label}</p>
                           </div>
                         </TooltipContent>
                       </Tooltip>
@@ -244,9 +244,9 @@ export function EduCoreSidebar({
         <div className="mx-3 mb-2 rounded-xl border border-sidebar-border bg-sidebar-accent p-2.5">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-[11px] font-semibold text-sidebar-foreground">Aislamiento Seguro</span>
+            <span className="text-xs font-semibold text-sidebar-foreground">Aislamiento Seguro</span>
           </div>
-          <p className="mt-0.5 text-[10px] leading-3.5 text-sidebar-muted-foreground truncate">
+          <p className="mt-0.5 text-xs leading-3.5 text-sidebar-muted-foreground truncate">
             RBAC activo · {schoolName}
           </p>
         </div>
@@ -267,7 +267,7 @@ export function EduCoreSidebar({
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={12}>
               <p className="font-semibold">{role === "teacher" ? (user?.name || "Juan Diego Loaiza") : ROLE_LABELS[role]}</p>
-              <p className="text-[10px] opacity-70">{schoolName}</p>
+              <p className="text-xs opacity-70">{schoolName}</p>
             </TooltipContent>
           </Tooltip>
         ) : (
@@ -281,7 +281,7 @@ export function EduCoreSidebar({
             <p className="truncate text-xs font-bold text-sidebar-foreground">
               {role === "teacher" ? (user?.name || "Juan Diego Loaiza") : role === "admin" ? "Rectoría / Admin" : ROLE_LABELS[role]}
             </p>
-            <p className="truncate text-[10px] font-medium text-sidebar-muted-foreground">
+            <p className="truncate text-xs font-medium text-sidebar-muted-foreground">
               {schoolName}
             </p>
           </div>

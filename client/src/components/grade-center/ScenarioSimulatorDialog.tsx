@@ -189,7 +189,7 @@ export function ScenarioSimulatorDialog({
                   Simulador de Escenarios
                   <Badge
                     variant="outline"
-                    className="text-[10px] uppercase font-bold tracking-wider py-0 px-1.5 border-indigo-200 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
+                    className="text-xs uppercase font-bold tracking-wider py-0 px-1.5 border-indigo-200 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
                   >
                     100% en memoria
                   </Badge>
@@ -220,12 +220,12 @@ export function ScenarioSimulatorDialog({
             {/* Definitiva Real */}
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                   Definitiva Real
                 </span>
                 {actualDefinitiva !== null && (
                   <span
-                    className={`rounded px-1.5 py-0.2 text-[9px] font-bold leading-none ${actualTone.badgeColor}`}
+                    className={`rounded px-1.5 py-0.2 text-xs font-bold leading-none ${actualTone.badgeColor}`}
                   >
                     {actualTone.label}
                   </span>
@@ -237,7 +237,7 @@ export function ScenarioSimulatorDialog({
                 </span>
                 <span className="text-xs text-slate-400">/ {maxVal.toFixed(1)}</span>
               </div>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-slate-500">
                 Basada en {baseValues.length - pendingAssessments.length} de {baseValues.length}{" "}
                 notas oficiales
               </p>
@@ -246,12 +246,12 @@ export function ScenarioSimulatorDialog({
             {/* Definitiva Simulada */}
             <div className="space-y-1 border-l border-slate-200/80 pl-3.5 dark:border-slate-700/80">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
                   <Sparkles className="h-3 w-3" /> Simulación
                 </span>
                 {delta !== null && delta !== 0 && (
                   <span
-                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    className={`text-xs font-bold px-1.5 py-0.5 rounded ${
                       delta > 0
                         ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
                         : "bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300"
@@ -267,7 +267,7 @@ export function ScenarioSimulatorDialog({
                 </span>
                 {simulatedDefinitiva !== null && (
                   <Badge
-                    className={`text-[10px] font-bold py-0 px-1.5 ${
+                    className={`text-xs font-bold py-0 px-1.5 ${
                       isPassingSimulated
                         ? "bg-emerald-500 hover:bg-emerald-600 text-white"
                         : "bg-rose-500 hover:bg-rose-600 text-white"
@@ -277,7 +277,7 @@ export function ScenarioSimulatorDialog({
                   </Badge>
                 )}
               </div>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-xs text-slate-500">
                 {overriddenCount === 0
                   ? "Sin cambios simulados"
                   : `${overriddenCount} evaluación${overriddenCount === 1 ? "" : "es"} simulada${
@@ -316,13 +316,13 @@ export function ScenarioSimulatorDialog({
                         size="sm"
                         variant="outline"
                         onClick={() => handleApplyPresetToPending(neededToPass.requiredGrade!)}
-                        className="h-6 text-[10px] px-2 border-amber-300 bg-white/80 hover:bg-amber-100 text-amber-900 font-semibold dark:bg-amber-900/40 dark:border-amber-700 dark:text-amber-200 cursor-pointer"
+                        className="h-6 text-xs px-2 border-amber-300 bg-white/80 hover:bg-amber-100 text-amber-900 font-semibold dark:bg-amber-900/40 dark:border-amber-700 dark:text-amber-200 cursor-pointer"
                       >
                         Probar nota mínima ({neededToPass.requiredGrade})
                       </Button>
                     )}
                 </div>
-                <p className="text-[11px] opacity-90">
+                <p className="text-xs opacity-90">
                   Nota mínima aprobatoria institucional:{" "}
                   <strong>{passingGrade.toFixed(1)}</strong> ({maxVal.toFixed(1)} máx).
                 </p>
@@ -333,7 +333,7 @@ export function ScenarioSimulatorDialog({
           {/* Atajos Rápidos de Escenarios */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
                 {pendingAssessments.length > 0
                   ? "Atajos rápidos (simular evaluaciones pendientes):"
                   : "Atajos de simulación:"}
@@ -344,7 +344,7 @@ export function ScenarioSimulatorDialog({
                   variant="ghost"
                   size="sm"
                   onClick={() => setSimulatedGrades({})}
-                  className="h-6 text-[11px] font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 cursor-pointer"
+                  className="h-6 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/40 cursor-pointer"
                 >
                   <RotateCcw className="h-3 w-3 mr-1" />
                   Restablecer a notas reales
@@ -372,7 +372,7 @@ export function ScenarioSimulatorDialog({
 
           {/* Lista de TODAS las Evaluaciones (tanto calificadas como pendientes) */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400">
               <span>Evaluaciones ({baseValues.length})</span>
               <span>Nota Real vs Simulada</span>
             </div>
@@ -401,22 +401,22 @@ export function ScenarioSimulatorDialog({
                         {isOriginallyPending ? (
                           <Badge
                             variant="secondary"
-                            className="text-[9px] py-0 px-1 font-semibold text-amber-700 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300"
+                            className="text-xs py-0 px-1 font-semibold text-amber-700 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300"
                           >
                             Pendiente
                           </Badge>
                         ) : (
-                          <span className="text-[11px] font-medium text-slate-500">
+                          <span className="text-xs font-medium text-slate-500">
                             (Real: <strong>{item.originalValue?.toFixed(decimals)}</strong>)
                           </span>
                         )}
                         {isOverridden && (
-                          <Badge className="text-[9px] py-0 px-1 font-bold bg-indigo-600 text-white">
+                          <Badge className="text-xs py-0 px-1 font-bold bg-indigo-600 text-white">
                             Simulada
                           </Badge>
                         )}
                       </div>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-xs text-slate-400">
                         Peso: {item.weight}% · Escala máx: {item.maxValue.toFixed(1)}
                       </span>
                     </div>
@@ -469,7 +469,7 @@ export function ScenarioSimulatorDialog({
           </div>
 
           {/* Recordatorio de aislamiento y seguridad */}
-          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-[11px] text-slate-500 dark:bg-slate-850 dark:border-slate-800 dark:text-slate-400">
+          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-500 dark:bg-slate-850 dark:border-slate-800 dark:text-slate-400">
             <Info className="h-4 w-4 shrink-0 text-slate-400 mt-0.2" />
             <span>
               Este simulador opera exclusivamente en memoria temporal del navegador. Ningún valor

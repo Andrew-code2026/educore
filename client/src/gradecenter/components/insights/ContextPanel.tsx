@@ -89,7 +89,7 @@ export function ContextPanel() {
           </div>
 
           {mode === "group" && (
-            <div className="shrink-0 border-t border-white/8 px-3 py-2 text-[10px] text-muted-foreground">
+            <div className="shrink-0 border-t border-white/8 px-3 py-2 text-xs text-muted-foreground">
               {students.length} de {analytics.students.length} estudiantes visibles ·{" "}
               {dataset.evaluations.length} evaluaciones del periodo
             </div>
@@ -117,7 +117,7 @@ function ModeTab({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex-1 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-all",
+        "flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-all",
         active ? "bg-white/10 text-foreground" : "text-muted-foreground",
         disabled ? "opacity-40" : "hover:text-foreground",
       )}

@@ -91,8 +91,8 @@ export function ViewSwitcher({ className }: { className?: string }) {
               </button>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-56">
-              <div className="text-[11px] font-semibold">{option.label}</div>
-              <div className="text-[10px] opacity-80">{option.description}</div>
+              <div className="text-xs font-semibold">{option.label}</div>
+              <div className="text-xs opacity-80">{option.description}</div>
             </TooltipContent>
           </Tooltip>
         );

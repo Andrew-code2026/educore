@@ -98,7 +98,7 @@ export const AttendanceSheet = memo(function AttendanceSheet({
             <div className="flex flex-col items-center gap-2">
               {noRoster ? <Users className="h-6 w-6 text-muted-foreground/60" aria-hidden="true" /> : <SearchX className="h-6 w-6 text-muted-foreground/60" aria-hidden="true" />}
               <p className="text-[13px] font-medium">{noRoster ? "Sin estudiantes asignados" : "Ningún estudiante coincide con la vista actual"}</p>
-              <p className="max-w-[300px] text-[11px] text-muted-foreground">
+              <p className="max-w-[300px] text-xs text-muted-foreground">
                 {noRoster ? "Cuando EduCore cargue el roster de este curso, aparecerá aquí." : "Prueba otro filtro o limpia la búsqueda para volver al roster completo."}
               </p>
             </div>
@@ -113,19 +113,19 @@ export const AttendanceSheet = memo(function AttendanceSheet({
             aria-colcount={6}
           >
             <div className="roster-grid roster-header-grid" role="row" aria-rowindex={1}>
-              <div className="roster-heading roster-index sticky top-0 z-40 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/70" role="columnheader" aria-colindex={1}>
+              <div className="roster-heading roster-index sticky top-0 z-40 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground/70" role="columnheader" aria-colindex={1}>
                 #
               </div>
-              <div className="roster-heading roster-student-head sticky top-0 z-40 flex h-9 items-center gap-2 border-b border-hairline-strong bg-[var(--roster-head)] px-3 text-[9.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground" role="columnheader" aria-colindex={2}>
+              <div className="roster-heading roster-student-head sticky top-0 z-40 flex h-9 items-center gap-2 border-b border-hairline-strong bg-[var(--roster-head)] px-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground" role="columnheader" aria-colindex={2}>
                 <span>Estudiante</span>
-                <span className="rounded-full bg-foreground/[0.045] px-1.5 py-0.5 text-[8.5px] tracking-normal">{students.length} en lista</span>
+                <span className="rounded-full bg-foreground/[0.045] px-1.5 py-0.5 text-xs tracking-normal">{students.length} en lista</span>
               </div>
-              <div className="roster-heading roster-col-attendance sticky top-0 z-30 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground" role="columnheader" aria-colindex={3}>Asistencia</div>
-              <div className="roster-heading roster-col-status sticky top-0 z-30 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground" role="columnheader" aria-colindex={4}>
+              <div className="roster-heading roster-col-attendance sticky top-0 z-30 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground" role="columnheader" aria-colindex={3}>Asistencia</div>
+              <div className="roster-heading roster-col-status sticky top-0 z-30 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground" role="columnheader" aria-colindex={4}>
                 Estado <span className="ml-1 hidden text-[var(--chrona-cyan-strong)] sm:inline">· hoy</span>
               </div>
-              <div className="roster-heading roster-col-trace sticky top-0 z-30 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground" role="columnheader" aria-colindex={5}>Últimas 8</div>
-              <div className="roster-heading roster-col-signal sticky top-0 z-30 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground" role="columnheader" aria-colindex={6}>Señal</div>
+              <div className="roster-heading roster-col-trace sticky top-0 z-30 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground" role="columnheader" aria-colindex={5}>Últimas 8</div>
+              <div className="roster-heading roster-col-signal sticky top-0 z-30 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground" role="columnheader" aria-colindex={6}>Señal</div>
             </div>
 
             {students.map((student, index) => {

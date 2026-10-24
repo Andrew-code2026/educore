@@ -260,17 +260,17 @@ function EmptyMatrix({ students, hasStudents, onOpenAnalysis }: { students: Stud
           <div className="glass flex size-10 shrink-0 items-center justify-center rounded-2xl"><Info className="size-5 text-[var(--gc-cobalt)]" /></div>
           <div>
             <div className="text-sm font-semibold">{hasStudents ? "Planilla lista para comenzar" : "Ningún estudiante coincide con los filtros"}</div>
-            <p className="mt-1 max-w-xl text-[11px] text-muted-foreground">{hasStudents ? "La lista de estudiantes está lista. Crea la primera evaluación para comenzar a registrar calificaciones." : "Quita algún filtro activo para volver a ver el grupo completo. Los filtros están siempre visibles en la barra superior."}</p>
+            <p className="mt-1 max-w-xl text-xs text-muted-foreground">{hasStudents ? "La lista de estudiantes está lista. Crea la primera evaluación para comenzar a registrar calificaciones." : "Quita algún filtro activo para volver a ver el grupo completo. Los filtros están siempre visibles en la barra superior."}</p>
           </div>
         </div>
-        <button type="button" onClick={onOpenAnalysis} className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-medium transition-colors hover:bg-white/10">Ver el análisis del grupo</button>
+        <button type="button" onClick={onOpenAnalysis} className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/10">Ver el análisis del grupo</button>
       </div>
       {hasStudents && (
         <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {students.map((metrics, index) => (
             <div key={metrics.student.id} className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/3 px-3 py-2.5 text-left">
-              <span className="gc-num flex size-6 shrink-0 items-center justify-center rounded-lg bg-[var(--gc-cobalt)]/12 text-[9px] text-[var(--gc-cobalt)]">{index + 1}</span>
-              <span className="min-w-0"><span className="block truncate text-[11px] font-medium">{metrics.student.fullName}</span><span className="gc-num mt-0.5 block text-[9px] text-muted-foreground">{metrics.student.code}</span></span>
+              <span className="gc-num flex size-6 shrink-0 items-center justify-center rounded-lg bg-[var(--gc-cobalt)]/12 text-xs text-[var(--gc-cobalt)]">{index + 1}</span>
+              <span className="min-w-0"><span className="block truncate text-xs font-medium">{metrics.student.fullName}</span><span className="gc-num mt-0.5 block text-xs text-muted-foreground">{metrics.student.code}</span></span>
             </div>
           ))}
         </div>

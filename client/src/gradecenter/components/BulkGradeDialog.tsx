@@ -99,14 +99,14 @@ export function BulkGradeDialog({ open, onOpenChange, initialEvaluationId }: Bul
             </div>
             <div>
               <DialogTitle className="text-base">Calificación masiva</DialogTitle>
-              <DialogDescription className="mt-1 text-[11px]">Asigna una misma nota a una evaluación específica sin salir de la matriz.</DialogDescription>
+              <DialogDescription className="mt-1 text-xs">Asigna una misma nota a una evaluación específica sin salir de la matriz.</DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         <div className="mt-1 space-y-4">
           <label className="block">
-            <span className="gc-label mb-1.5 block text-[9px]">1. ¿QUÉ EVALUACIÓN?</span>
+            <span className="gc-label mb-1.5 block text-xs">1. ¿QUÉ EVALUACIÓN?</span>
             <select
               value={evaluation?.id ?? ""}
               onChange={(event) => setEvaluationId(event.target.value)}
@@ -117,7 +117,7 @@ export function BulkGradeDialog({ open, onOpenChange, initialEvaluationId }: Bul
           </label>
 
           <div>
-            <div className="gc-label mb-2 text-[9px]">2. ¿QUÉ NOTA APLICAR?</div>
+            <div className="gc-label mb-2 text-xs">2. ¿QUÉ NOTA APLICAR?</div>
             <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-2">
               <input
                 value={value}
@@ -128,14 +128,14 @@ export function BulkGradeDialog({ open, onOpenChange, initialEvaluationId }: Bul
                 autoFocus
                 className="gc-input gc-num min-w-0 flex-1 rounded-xl px-3 py-2.5 text-center text-xl font-semibold outline-none"
               />
-              <span className="rounded-xl border border-white/8 bg-white/4 px-3 py-2 text-[11px] text-muted-foreground">Escala /5.0</span>
-              <button type="button" onClick={() => setValue("5.0")} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[11px] hover:bg-white/9">5.0</button>
+              <span className="rounded-xl border border-white/8 bg-white/4 px-3 py-2 text-xs text-muted-foreground">Escala /5.0</span>
+              <button type="button" onClick={() => setValue("5.0")} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs hover:bg-white/9">5.0</button>
             </div>
-            {error && <div role="alert" className="mt-1.5 flex items-center gap-1.5 text-[10px] text-[var(--gc-bajo)]"><AlertTriangle className="size-3" />{error}</div>}
+            {error && <div role="alert" className="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--gc-bajo)]"><AlertTriangle className="size-3" />{error}</div>}
           </div>
 
           <div>
-            <div className="gc-label mb-2 text-[9px]">3. ¿A QUIÉNES APLICAR?</div>
+            <div className="gc-label mb-2 text-xs">3. ¿A QUIÉNES APLICAR?</div>
             <div className="space-y-2">
               {scopeOptions.map((option) => {
                 const Icon = option.icon;
@@ -155,30 +155,30 @@ export function BulkGradeDialog({ open, onOpenChange, initialEvaluationId }: Bul
                   >
                     <span className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full border", active ? "border-[var(--gc-cobalt)]/45 bg-[var(--gc-cobalt)]/25 text-[var(--gc-cobalt)]" : "border-white/10 bg-white/5 text-muted-foreground")}><Icon className="size-3.5" /></span>
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-center justify-between gap-2 text-[12px] font-semibold"><span>{option.title}</span><span className="gc-num text-[10px] text-muted-foreground">{option.id === "selected" ? `${selectedRows.length} marcados` : `${option.id === "empty" ? candidates.length : students.length} alumnos`}</span></span>
-                      <span className="mt-0.5 block text-[10px] leading-relaxed text-muted-foreground">{option.description}</span>
+                      <span className="flex items-center justify-between gap-2 text-[12px] font-semibold"><span>{option.title}</span><span className="gc-num text-xs text-muted-foreground">{option.id === "selected" ? `${selectedRows.length} marcados` : `${option.id === "empty" ? candidates.length : students.length} alumnos`}</span></span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{option.description}</span>
                     </span>
                   </button>
                 );
               })}
             </div>
-            <label className="mt-2 flex items-center gap-2 rounded-xl border border-white/8 bg-white/3 px-3 py-2 text-[10px] text-muted-foreground">
+            <label className="mt-2 flex items-center gap-2 rounded-xl border border-white/8 bg-white/3 px-3 py-2 text-xs text-muted-foreground">
               <input type="checkbox" checked={protectExisting || scope === "empty"} disabled={scope === "empty"} onChange={(event) => setProtectExisting(event.target.checked)} className="size-3 accent-[var(--gc-cobalt)]" />
               Proteger notas existentes
-              {scope === "empty" && <span className="ml-auto rounded-full bg-[var(--gc-basico)]/20 px-2 py-0.5 text-[9px] text-[var(--gc-basico)]">Protege notas existentes</span>}
+              {scope === "empty" && <span className="ml-auto rounded-full bg-[var(--gc-basico)]/20 px-2 py-0.5 text-xs text-[var(--gc-basico)]">Protege notas existentes</span>}
             </label>
           </div>
 
           <div className="flex items-center justify-between rounded-2xl border border-[var(--gc-cobalt)]/20 bg-[var(--gc-cobalt)]/7 px-3 py-2.5">
-            <span className="text-[11px] font-semibold">Resumen de estudiantes afectados:</span>
-            <span className="gc-num rounded-full bg-[var(--gc-cobalt)]/18 px-2.5 py-1 text-[11px] font-semibold text-[var(--gc-cobalt)]">{candidates.length} de {scope === "selected" ? selectedRows.length : students.length} estudiantes</span>
+            <span className="text-xs font-semibold">Resumen de estudiantes afectados:</span>
+            <span className="gc-num rounded-full bg-[var(--gc-cobalt)]/18 px-2.5 py-1 text-xs font-semibold text-[var(--gc-cobalt)]">{candidates.length} de {scope === "selected" ? selectedRows.length : students.length} estudiantes</span>
           </div>
 
-          {existingCount > 0 && !protectExisting && scope !== "empty" && <div className="flex items-start gap-2 text-[10px] text-[var(--gc-basico)]"><AlertTriangle className="mt-0.5 size-3 shrink-0" />Se reemplazarán {existingCount} notas existentes en esta evaluación.</div>}
+          {existingCount > 0 && !protectExisting && scope !== "empty" && <div className="flex items-start gap-2 text-xs text-[var(--gc-basico)]"><AlertTriangle className="mt-0.5 size-3 shrink-0" />Se reemplazarán {existingCount} notas existentes en esta evaluación.</div>}
 
           <div className="flex justify-end gap-2 border-t border-white/8 pt-3">
-            <button type="button" onClick={() => onOpenChange(false)} className="rounded-xl border border-white/10 px-3 py-2 text-[11px] text-muted-foreground hover:bg-white/8">Cancelar</button>
-            <button type="button" onClick={save} disabled={!evaluation || candidates.length === 0} className="flex items-center gap-1.5 rounded-xl bg-[var(--gc-cobalt)]/25 px-3.5 py-2 text-[11px] font-semibold hover:bg-[var(--gc-cobalt)]/35 disabled:cursor-not-allowed disabled:opacity-40"><CheckCircle2 className="size-3.5" />Aplicar a {candidates.length}</button>
+            <button type="button" onClick={() => onOpenChange(false)} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-muted-foreground hover:bg-white/8">Cancelar</button>
+            <button type="button" onClick={save} disabled={!evaluation || candidates.length === 0} className="flex items-center gap-1.5 rounded-xl bg-[var(--gc-cobalt)]/25 px-3.5 py-2 text-xs font-semibold hover:bg-[var(--gc-cobalt)]/35 disabled:cursor-not-allowed disabled:opacity-40"><CheckCircle2 className="size-3.5" />Aplicar a {candidates.length}</button>
           </div>
         </div>
       </DialogContent>

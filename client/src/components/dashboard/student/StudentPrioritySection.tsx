@@ -69,13 +69,13 @@ export function StudentPrioritySection({
               {alerts.length > 0 && (
                 <Badge
                   variant="secondary"
-                  className="rounded-full bg-rose-50 text-rose-700 border-rose-200 text-[10px] font-semibold py-0 px-2"
+                  className="rounded-full bg-rose-50 text-rose-700 border-rose-200 text-xs font-semibold py-0 px-2"
                 >
                   {alerts.length} {alerts.length === 1 ? "prioridad" : "prioridades"}
                 </Badge>
               )}
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-slate-500">
               Señales clave para mantener tu progreso académico al día.
             </p>
           </div>
@@ -107,13 +107,13 @@ export function StudentPrioritySection({
                         {alert.title}
                       </h3>
                       <span
-                        className={`shrink-0 rounded-full border px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wider ${config.badge}`}
+                        className={`shrink-0 rounded-full border px-1.5 py-0.2 text-xs font-bold uppercase tracking-wider ${config.badge}`}
                       >
                         {config.badgeLabel}
                       </span>
                     </div>
 
-                    <p className="mt-0.5 text-[11px] text-slate-600 line-clamp-2">
+                    <p className="mt-0.5 text-xs text-slate-600 line-clamp-2">
                       {alert.context}
                     </p>
                   </div>
@@ -145,7 +145,7 @@ export function StudentPrioritySection({
               <p className="text-xs font-bold text-slate-900">
                 Todo bajo control académico
               </p>
-              <p className="text-[11px] text-slate-600 truncate">
+              <p className="text-xs text-slate-600 truncate">
                 No tienes entregas vencidas ni alertas académicas que requieran atención inmediata.
               </p>
             </div>

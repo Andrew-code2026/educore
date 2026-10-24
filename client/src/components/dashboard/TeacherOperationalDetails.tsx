@@ -46,21 +46,21 @@ export function TeacherOperationalDetails({
           <h2 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
             Detalles operativos
           </h2>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-xs text-slate-500">
             Seguimiento de entregas por revisar y alertas académicas.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           {totalPendingGrades > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200/80 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200/80 px-2 py-0.5 text-xs font-bold text-amber-800">
               <ClipboardList className="h-3 w-3" />
               {totalPendingGrades} {totalPendingGrades === 1 ? "por calificar" : "por calificar"}
             </span>
           )}
 
           {studentsAtRisk.length > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200/80 px-2 py-0.5 text-[10px] font-bold text-rose-800">
+            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200/80 px-2 py-0.5 text-xs font-bold text-rose-800">
               <AlertCircle className="h-3 w-3" />
               {studentsAtRisk.length} {studentsAtRisk.length === 1 ? "en riesgo" : "en riesgo"}
             </span>
@@ -77,7 +77,7 @@ export function TeacherOperationalDetails({
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Por calificar
               </span>
-              <span className="text-[11px] font-medium text-slate-400">
+              <span className="text-xs font-medium text-slate-400">
                 {gradingItems.length} {gradingItems.length === 1 ? "tarea activa" : "tareas activas"}
               </span>
             </div>
@@ -95,13 +95,13 @@ export function TeacherOperationalDetails({
                       <p className="truncate text-xs font-semibold text-slate-800 group-hover:text-amber-900">
                         {item.title}
                       </p>
-                      <p className="truncate text-[10px] text-slate-500">
+                      <p className="truncate text-xs text-slate-500">
                         {item.course} · {item.subject}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="rounded bg-white border border-slate-200/80 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 shadow-2xs">
+                      <span className="rounded bg-white border border-slate-200/80 px-1.5 py-0.5 text-xs font-bold text-amber-700 shadow-2xs">
                         {item.pendingCount}
                         {item.totalSubmissions > 0 && (
                           <span className="text-slate-400 font-normal"> / {item.totalSubmissions}</span>
@@ -126,7 +126,7 @@ export function TeacherOperationalDetails({
             <button
               type="button"
               onClick={onViewAllClassroom}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:text-blue-900 transition"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-900 transition"
             >
               <span>Ver todas las actividades</span>
               <ArrowRight className="h-3 w-3" />
@@ -141,7 +141,7 @@ export function TeacherOperationalDetails({
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                 Atención académica
               </span>
-              <span className="text-[11px] font-medium text-slate-400">
+              <span className="text-xs font-medium text-slate-400">
                 Promedios &lt; 3.0
               </span>
             </div>
@@ -157,7 +157,7 @@ export function TeacherOperationalDetails({
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <div
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-slate-700 shadow-2xs"
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-slate-700 shadow-2xs"
                         style={{ backgroundColor: student.avatarColor ?? "#fee2e2" }}
                       >
                         {initials(student.name)}
@@ -166,14 +166,14 @@ export function TeacherOperationalDetails({
                         <p className="truncate text-xs font-semibold text-slate-800 group-hover:text-rose-900">
                           {student.name}
                         </p>
-                        <p className="truncate text-[10px] text-slate-400">
+                        <p className="truncate text-xs text-slate-400">
                           {student.course} {student.subject ? `· ${student.subject}` : ""}
                         </p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="rounded bg-rose-50 border border-rose-200 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
+                      <span className="rounded bg-rose-50 border border-rose-200 px-1.5 py-0.5 text-xs font-bold text-rose-700">
                         {student.currentGrade.toFixed(1)}
                       </span>
                       <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-rose-600" />
@@ -195,7 +195,7 @@ export function TeacherOperationalDetails({
             <button
               type="button"
               onClick={onViewAllGrades}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:text-blue-900 transition"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-900 transition"
             >
               <span>Abrir Grade Center</span>
               <ArrowRight className="h-3 w-3" />

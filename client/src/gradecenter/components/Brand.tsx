@@ -72,13 +72,13 @@ export function BrandWordmark({ className, compact = false }: { className?: stri
             </span>
           </span>
           {!compact && (
-            <span className="gc-brand-next rounded-full border border-white/10 bg-white/5 px-1.5 py-px text-[9px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+            <span className="gc-brand-next rounded-full border border-white/10 bg-white/5 px-1.5 py-px text-xs font-semibold tracking-[0.16em] text-muted-foreground uppercase">
               Next
             </span>
           )}
         </div>
         {!compact && (
-          <div className="gc-brand-meta mt-1 flex items-center gap-1.5 text-[10px] tracking-[0.14em] text-muted-foreground/70 uppercase">
+          <div className="gc-brand-meta mt-1 flex items-center gap-1.5 text-xs tracking-[0.14em] text-muted-foreground/70 uppercase">
             <span>EduCore</span>
             <span className="size-1 rounded-full bg-current opacity-50" />
             <span>Workspace académico</span>

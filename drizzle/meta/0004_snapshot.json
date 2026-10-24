@@ -1377,7 +1377,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'Gimnasio Moderno'"
+          "default": "'EduCore'"
         },
         "city": {
           "name": "city",

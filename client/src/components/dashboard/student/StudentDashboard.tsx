@@ -73,7 +73,7 @@ export function StudentDashboard({
 
   const studentName = currentStudent?.name ?? "Sofía Martínez";
   const courseName = currentStudent?.course ?? "11-2";
-  const schoolName = data.school?.name ?? "Gimnasio Moderno del Valle";
+  const schoolName = data.school?.name ?? "EduCore";
 
   // Academic period active
   const activePeriod = useMemo(() => {

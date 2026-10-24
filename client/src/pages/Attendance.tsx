@@ -603,102 +603,30 @@ function AttendanceNextContainer({
         <div className="absolute -bottom-56 right-[-6%] h-[460px] w-[460px] rounded-full bg-st-excuse/10 blur-[140px]" />
       </div>
 
-      {/* 1. Barra superior institucional original de Manus */}
-      <header className={cn("relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4 sm:px-6 bg-[var(--surface-1)]/80 backdrop-blur-md", isFocusMode && "hidden")}>
-        <div className="flex min-w-0 items-center gap-2">
-          <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground/70" aria-hidden="true" />
-          <span className="text-[12px] text-muted-foreground">EduCore</span>
-          <span className="text-muted-foreground/40">/</span>
-          <span className="truncate text-[12.5px] font-medium text-foreground">Asistencia</span>
-        </div>
 
-        <div className="ml-auto flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => toggleTheme?.()}
-            aria-label="Cambiar tema"
-            className="grid h-8 w-8 place-items-center rounded-[10px] bg-foreground/[0.04] text-muted-foreground ring-1 ring-inset ring-hairline transition-colors duration-150 hover:bg-foreground/[0.08] hover:text-foreground"
-          >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
 
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="flex h-8 items-center gap-1.5 rounded-[10px] bg-foreground/[0.04] px-2.5 text-[11.5px] font-medium text-muted-foreground ring-1 ring-inset ring-hairline transition-colors duration-150 hover:bg-foreground/[0.08] hover:text-foreground"
-              >
-                <Sliders className="h-3.5 w-3.5" aria-hidden="true" />
-                Apariencia
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" sideOffset={8} className="glass-strong w-[286px] rounded-2xl p-3 z-50">
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
-                Preferencias visuales
-              </p>
-
-              <div className="mt-2.5 space-y-2.5">
-                <div>
-                  <p className="text-[11.5px] font-medium">Acento de marca</p>
-                  <p className="mb-1.5 text-[10.5px] text-muted-foreground">
-                    Para alinear con la paleta real de EduCore.
-                  </p>
-                  <div className="flex gap-1.5">
-                    {ACCENTS.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setAccentState(item.id)}
-                        aria-pressed={accent === item.id}
-                        className={cn(
-                          "flex flex-1 items-center gap-1.5 rounded-xl px-2 py-1.5 text-[11px] font-medium ring-1 ring-inset transition-colors",
-                          accent === item.id
-                            ? "bg-brand-soft text-brand ring-brand/30"
-                            : "bg-foreground/[0.03] text-muted-foreground ring-hairline hover:bg-foreground/[0.07]"
-                        )}
-                      >
-                        <span className="h-3.5 w-3.5 rounded-full" style={{ background: item.swatch }} />
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <label className="flex items-center justify-between gap-3 rounded-xl bg-foreground/[0.03] px-2.5 py-2 ring-1 ring-inset ring-hairline">
-                  <span className="min-w-0">
-                    <span className="block text-[11.5px] font-medium">Sidebar colapsada</span>
-                    <span className="block text-[10.5px] text-muted-foreground">250 px ↔ 72 px</span>
-                  </span>
-                  <Switch checked={sidebarCollapsed} onCheckedChange={setSidebarCollapsed} />
-                </label>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </header>
-
-      {/* 2. Área principal de contenido a pantalla completa */}
-      <main className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
-        {/* Vista Selección de Cursos (Academic Liquid Glass) */}
-        {viewMode === "course-select" && (
-          <AttendanceCourseSelect
-            courses={courses}
-            statuses={todayStatuses}
-            pendingExcusesCount={pendingJustificationsCount}
-            onSelectCourse={(courseId, date) => {
-              setSelectedCourseId(courseId);
-              setSelectedDate(date);
-              setViewMode("panel");
-            }}
-            onReviewExcuses={(courseId) => {
-              setSelectedCourseId(courseId);
-              setIsJustificationModalOpen(true);
-            }}
-          />
-        )}
-
-        {/* Vista Planilla de Asistencia (AttendancePanel de Manus) */}
-        {viewMode === "panel" && (
+      {/* 2. Área principal de contenido */}
+      {viewMode === "course-select" ? (
+        <main id="educore-attendance-content" className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden w-full">
+          <div className="page-transition mx-auto w-full max-w-[1440px] px-4 pb-24 pt-4 sm:px-6 sm:pb-10 sm:pt-5 lg:px-8 flex-1 flex flex-col">
+            <AttendanceCourseSelect
+              courses={courses}
+              statuses={todayStatuses}
+              pendingExcusesCount={pendingJustificationsCount}
+              onSelectCourse={(courseId, date) => {
+                setSelectedCourseId(courseId);
+                setSelectedDate(date);
+                setViewMode("panel");
+              }}
+              onReviewExcuses={(courseId) => {
+                setSelectedCourseId(courseId);
+                setIsJustificationModalOpen(true);
+              }}
+            />
+          </div>
+        </main>
+      ) : (
+        <main className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden w-full px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
           <AttendancePanel
             courses={courses}
             initialCourseId={selectedCourseId}
@@ -712,8 +640,8 @@ function AttendanceNextContainer({
             onPersist={handlePersist}
             onFocusModeChange={setIsFocusMode}
           />
-        )}
-      </main>
+        </main>
+      )}
 
       {/* 3. Expediente Integral 360° (Modal con 5 pestañas, ficha técnica, visor de adjuntos e impresión dossier) */}
       {recordStudent && isRecordModalOpen && (
@@ -784,7 +712,7 @@ function AttendanceNextContainer({
           <button
             type="button"
             onClick={onSwitchToLegacy}
-            className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/90 px-3.5 py-1.5 text-[11px] font-medium text-slate-600 shadow-md backdrop-blur-md transition-all hover:border-slate-300 hover:bg-white hover:text-slate-900 hover:shadow-lg dark:border-white/10 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:bg-slate-900"
+            className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/90 px-3.5 py-1.5 text-xs font-medium text-slate-600 shadow-md backdrop-blur-md transition-all hover:border-slate-300 hover:bg-white hover:text-slate-900 hover:shadow-lg dark:border-white/10 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:bg-slate-900"
             title="Cambiar a la versión anterior de Asistencia"
           >
             <History className="h-3.5 w-3.5 text-slate-400" />

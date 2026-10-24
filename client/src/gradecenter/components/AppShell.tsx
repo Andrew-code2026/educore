@@ -221,7 +221,6 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
               openMatrix("standard");
               setAnalysisOpen(true);
             }}
-            onBack={onBack}
           />
         ) : (
           <ViewRouter />
@@ -231,15 +230,15 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
 
       {/* Barra de estado: leyenda de la escala y pistas de uso */}
       {!isLanding && (
-        <footer className="glass-soft relative z-20 flex h-8 shrink-0 items-center gap-3 border-t border-white/8 px-3 text-[10px]">
+        <footer className="glass-soft relative z-20 flex h-8 shrink-0 items-center gap-3 border-t border-white/8 px-3 text-xs">
           {!focus && (
             <span className="hidden items-center gap-1.5 text-muted-foreground md:flex">
-              <span className="gc-label text-[9px]">Vista</span>
+              <span className="gc-label text-xs">Vista</span>
               <span className="text-foreground/90">
                 {VIEW_OPTIONS.find((option) => option.id === preferences.view)?.label}
               </span>
               <span className="opacity-40">·</span>
-              <span className="gc-label text-[9px]">Densidad</span>
+              <span className="gc-label text-xs">Densidad</span>
               <span className="text-foreground/90">{DENSITY_LABEL[preferences.density]}</span>
               <span className="opacity-40">·</span>
               <span className="gc-num">
@@ -260,17 +259,17 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold">Vista previa de pegado</div>
-                <p className="mt-1 text-[11px] text-muted-foreground">{pastePreview.rows.length} filas × {Math.max(...pastePreview.rows.map((row) => row.length))} columnas desde Excel o Sheets.</p>
+                <p className="mt-1 text-xs text-muted-foreground">{pastePreview.rows.length} filas × {Math.max(...pastePreview.rows.map((row) => row.length))} columnas desde Excel o Sheets.</p>
               </div>
               <button type="button" onClick={cancelPastePreview} className="rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-white/8">Esc</button>
             </div>
             <div className="mt-3 max-h-52 overflow-auto rounded-xl border border-white/8 bg-black/10">
-              <table className="w-full border-collapse text-[11px]"><tbody>{pastePreview.rows.slice(0, 8).map((row, rowIndex) => <tr key={rowIndex}>{row.slice(0, 8).map((value, colIndex) => <td key={colIndex} className="border-b border-r border-white/8 px-2 py-1.5 font-mono">{value || "—"}</td>)}</tr>)}</tbody></table>
+              <table className="w-full border-collapse text-xs"><tbody>{pastePreview.rows.slice(0, 8).map((row, rowIndex) => <tr key={rowIndex}>{row.slice(0, 8).map((value, colIndex) => <td key={colIndex} className="border-b border-r border-white/8 px-2 py-1.5 font-mono">{value || "—"}</td>)}</tr>)}</tbody></table>
             </div>
-            {pastePreview.error && <div role="alert" className="mt-2 rounded-xl border border-[var(--gc-bajo)]/30 bg-[var(--gc-bajo)]/8 px-3 py-2 text-[10px] text-[var(--gc-bajo)]">{pastePreview.error}</div>}
+            {pastePreview.error && <div role="alert" className="mt-2 rounded-xl border border-[var(--gc-bajo)]/30 bg-[var(--gc-bajo)]/8 px-3 py-2 text-xs text-[var(--gc-bajo)]">{pastePreview.error}</div>}
             <div className="mt-3 flex justify-end gap-2">
-              <button type="button" onClick={cancelPastePreview} className="rounded-xl border border-white/10 px-3 py-1.5 text-[11px] text-muted-foreground hover:bg-white/8">Cancelar</button>
-              <button type="button" onClick={applyPastePreview} disabled={Boolean(pastePreview.error)} className="rounded-xl bg-[var(--gc-cobalt)]/25 px-3 py-1.5 text-[11px] font-semibold hover:bg-[var(--gc-cobalt)]/35 disabled:cursor-not-allowed disabled:opacity-40">Aplicar pegado</button>
+              <button type="button" onClick={cancelPastePreview} className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-muted-foreground hover:bg-white/8">Cancelar</button>
+              <button type="button" onClick={applyPastePreview} disabled={Boolean(pastePreview.error)} className="rounded-xl bg-[var(--gc-cobalt)]/25 px-3 py-1.5 text-xs font-semibold hover:bg-[var(--gc-cobalt)]/35 disabled:cursor-not-allowed disabled:opacity-40">Aplicar pegado</button>
             </div>
           </div>
         </div>

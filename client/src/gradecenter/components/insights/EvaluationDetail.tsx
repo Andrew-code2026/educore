@@ -44,14 +44,14 @@ export function EvaluationDetail({
     <div className={cn("space-y-4", wide && "space-y-5")}>
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="gc-num text-[11px] font-semibold text-[var(--gc-cobalt)]">{evaluation.code}</span>
-          <span className="gc-num rounded-full border border-white/10 bg-white/5 px-1.5 py-px text-[10px]">
+          <span className="gc-num text-xs font-semibold text-[var(--gc-cobalt)]">{evaluation.code}</span>
+          <span className="gc-num rounded-full border border-white/10 bg-white/5 px-1.5 py-px text-xs">
             {evaluation.weight}%
           </span>
           <LevelBadge level={metric.level} score={metric.avg} />
         </div>
         <div className="mt-1 text-[14px] font-semibold">{evaluation.name}</div>
-        <div className="text-[10.5px] text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           {TYPE_META[evaluation.type].label} · {formatLongDate(evaluation.date)} · {evaluation.period}
         </div>
       </div>
@@ -108,9 +108,9 @@ export function EvaluationDetail({
                 >
                   <BookOpenCheck className="mt-0.5 size-3.5 shrink-0 text-[var(--gc-cobalt)]" />
                   <div className="min-w-0">
-                    <div className="gc-num text-[10px] font-semibold text-[var(--gc-cobalt)]">{dba.code}</div>
-                    <div className="text-[11px] font-medium">{dba.title}</div>
-                    <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+                    <div className="gc-num text-xs font-semibold text-[var(--gc-cobalt)]">{dba.code}</div>
+                    <div className="text-xs font-medium">{dba.title}</div>
+                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                       {dba.statement}
                     </p>
                   </div>
@@ -131,12 +131,12 @@ export function EvaluationDetail({
               evaluationState: "pending",
             })
           }
-          className="flex w-full items-center gap-2 rounded-xl border border-[color-mix(in_oklab,var(--gc-bajo)_45%,transparent)] bg-[color-mix(in_oklab,var(--gc-bajo)_12%,transparent)] px-3 py-2 text-left text-[11px]"
+          className="flex w-full items-center gap-2 rounded-xl border border-[color-mix(in_oklab,var(--gc-bajo)_45%,transparent)] bg-[color-mix(in_oklab,var(--gc-bajo)_12%,transparent)] px-3 py-2 text-left text-xs"
         >
           <Clock className="size-3.5 shrink-0 text-[var(--gc-bajo)]" />
           <span className="flex-1">
             <span className="block font-medium">Ver los {metric.pending} pendientes</span>
-            <span className="block text-[10px] text-muted-foreground">
+            <span className="block text-xs text-muted-foreground">
               Filtra la matriz para calificar solo lo que falta
             </span>
           </span>
@@ -156,12 +156,12 @@ export function EvaluationDetail({
               }}
               className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/6"
             >
-              <span className="min-w-0 flex-1 truncate text-[11px]">{student.fullName}</span>
-              <span className="gc-num shrink-0 text-[9.5px] text-muted-foreground">
+              <span className="min-w-0 flex-1 truncate text-xs">{student.fullName}</span>
+              <span className="gc-num shrink-0 text-xs text-muted-foreground">
                 {formatGrade(metrics.definitiva)}
               </span>
               {outcome.grade == null ? (
-                <span className="gc-num w-10 shrink-0 text-right text-[10px] text-[var(--gc-bajo)]">
+                <span className="gc-num w-10 shrink-0 text-right text-xs text-[var(--gc-bajo)]">
                   pend.
                 </span>
               ) : (

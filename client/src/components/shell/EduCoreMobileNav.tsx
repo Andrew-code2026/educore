@@ -83,7 +83,7 @@ export function EduCoreMobileNav({
                 setMobileMoreOpen(false);
               }}
               aria-label={item.label}
-              className={`relative flex min-h-[50px] flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-semibold transition cursor-pointer ${
+              className={`relative flex min-h-[50px] flex-col items-center justify-center gap-1 rounded-xl text-xs font-semibold transition cursor-pointer ${
                 isActive
                   ? "bg-sidebar-active text-sidebar-active-foreground font-bold shadow-2xs"
                   : "text-sidebar-foreground/65 hover:text-sidebar-foreground"
@@ -92,7 +92,7 @@ export function EduCoreMobileNav({
               <Icon className={`h-4 w-4 ${isActive ? "text-sidebar-active-foreground" : "text-sidebar-muted-foreground"}`} />
               <span className="truncate max-w-[64px]">{item.label}</span>
               {item.badge !== undefined && (
-                <span className="absolute right-2 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--edc-primary)] px-1 text-[9px] font-bold text-white">
+                <span className="absolute right-2 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--edc-primary)] px-1 text-xs font-bold text-white">
                   {item.badge}
                 </span>
               )}
@@ -105,7 +105,7 @@ export function EduCoreMobileNav({
           type="button"
           onClick={() => setMobileMoreOpen(true)}
           aria-label="Más opciones"
-          className={`flex min-h-[50px] flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-semibold transition cursor-pointer ${
+          className={`flex min-h-[50px] flex-col items-center justify-center gap-1 rounded-xl text-xs font-semibold transition cursor-pointer ${
             !isBottomActive
               ? "bg-sidebar-active text-sidebar-active-foreground font-bold shadow-2xs"
               : "text-sidebar-foreground/65 hover:text-sidebar-foreground"
@@ -131,7 +131,7 @@ export function EduCoreMobileNav({
           <div className="mt-4 space-y-4">
             {moreGroups.map(group => (
               <div key={group.key} className="space-y-1.5">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
                   {group.label}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
@@ -163,7 +163,7 @@ export function EduCoreMobileNav({
 
             {/* Cambio rápido de rol demo */}
             <div className="pt-3 border-t border-sidebar-border">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
                 Cambiar vista demo
               </p>
               <div className="grid grid-cols-2 gap-2">
@@ -210,7 +210,7 @@ export function EduCoreMobileNav({
                 <SheetTitle className="text-sm font-bold text-sidebar-foreground">
                   EduCore
                 </SheetTitle>
-                <p className="text-[10px] uppercase tracking-wider text-sidebar-muted-foreground">
+                <p className="text-xs uppercase tracking-wider text-sidebar-muted-foreground">
                   School OS
                 </p>
               </div>
@@ -221,7 +221,7 @@ export function EduCoreMobileNav({
           <div className="mt-5 space-y-4 overflow-y-auto max-h-[calc(100vh-180px)] pr-1">
             {allGroups.map(group => (
               <div key={group.key} className="space-y-1">
-                <p className="px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
+                <p className="px-2 text-xs font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
                   {group.label}
                 </p>
                 <div className="space-y-0.5">
@@ -249,7 +249,7 @@ export function EduCoreMobileNav({
                         />
                         <span className="truncate">{item.label}</span>
                         {item.badge !== undefined && (
-                          <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--edc-primary)] px-1 text-[9px] font-bold text-white">
+                          <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--edc-primary)] px-1 text-xs font-bold text-white">
                             {item.badge}
                           </span>
                         )}
@@ -267,7 +267,7 @@ export function EduCoreMobileNav({
               <p className="truncate text-xs font-bold text-sidebar-foreground">
                 {ROLE_LABELS[role]}
               </p>
-              <p className="truncate text-[10px] text-sidebar-muted-foreground">{schoolName}</p>
+              <p className="truncate text-xs text-sidebar-muted-foreground">{schoolName}</p>
             </div>
             <button
               type="button"

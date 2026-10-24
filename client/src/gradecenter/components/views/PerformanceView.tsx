@@ -25,7 +25,7 @@ export function PerformanceView() {
               <div className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
                 Desempeño del grupo
               </div>
-              <div className="text-[11px] text-muted-foreground">
+              <div className="text-xs text-muted-foreground">
                 {dataset.course} · {dataset.subject} · {dataset.evaluations.length} evaluaciones ·{" "}
                 {dataset.students.length} estudiantes
               </div>
@@ -40,23 +40,23 @@ export function PerformanceView() {
 
         <div className="grid gap-3 md:grid-cols-2">
           <div className="glass-soft rounded-2xl p-3">
-            <div className="gc-label mb-2 text-[9px]">Cómo leer esta vista</div>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <div className="gc-label mb-2 text-xs">Cómo leer esta vista</div>
+            <p className="text-xs leading-relaxed text-muted-foreground">
               Todo lo que ves aquí sale del mismo conjunto de datos que la matriz: no hay módulos
               paralelos ni cifras que se calculen aparte. Si calificas una nota en la vista estándar,
               estas métricas cambian al instante.
             </p>
           </div>
           <div className="glass-soft rounded-2xl p-3">
-            <div className="gc-label mb-2 text-[9px]">Inteligencia visual, no dashboard</div>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <div className="gc-label mb-2 text-xs">Inteligencia visual, no dashboard</div>
+            <p className="text-xs leading-relaxed text-muted-foreground">
               El análisis no invade la pantalla principal de calificación: aparece aquí o en el panel
               contextual, según lo que el docente necesite en ese momento.
             </p>
           </div>
         </div>
 
-        <div className="text-[10px] text-muted-foreground">
+        <div className="text-xs text-muted-foreground">
           {analytics.group.totalPending} notas pendientes · {analytics.group.attention.length} estudiantes en
           atención · {analytics.group.declining.length} en descenso
         </div>

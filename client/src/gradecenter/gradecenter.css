@@ -4,7 +4,7 @@
    ========================================================================== */
 
 @theme inline {
-  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   --color-gc-bajo: var(--gc-bajo);
@@ -145,7 +145,7 @@ html.light [data-slot="tooltip-content"],
 [data-radix-popper-content-wrapper],
 [data-slot="dialog-content"],
 [data-slot="tooltip-content"] {
-  font-family: var(--font-sans, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-family: var(--font-sans, 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
   font-feature-settings: "cv02", "cv03", "cv04", "ss01";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -156,7 +156,7 @@ html.light [data-slot="tooltip-content"],
 .gc-workspace-root h3,
 .gc-workspace-root h4,
 [data-slot="dialog-title"] {
-  font-family: var(--font-display, "Sora", sans-serif);
+  font-family: var(--font-display, 'Outfit', sans-serif);
   letter-spacing: -0.018em;
 }
 
@@ -171,8 +171,8 @@ html.light [data-slot="tooltip-content"],
 .gc-workspace-root .gc-label,
 [data-radix-popper-content-wrapper] .gc-label,
 [data-slot="dialog-content"] .gc-label {
-  font-family: var(--font-display, "Sora", sans-serif);
-  font-size: 0.6875rem;
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -329,7 +329,7 @@ html.light .gc-workspace-root::after,
   background: var(--gc-surface-soft);
   padding: 0.55rem 0.65rem;
   color: var(--gc-muted);
-  font-size: 0.625rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   text-align: left;
   transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
@@ -439,24 +439,24 @@ html.light .gc-workspace-root::after,
 /* Scrollbars y sombras de sincronía */
 .gc-scroll {
   scrollbar-width: thin;
-  scrollbar-color: oklch(1 0 0 / 16%) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 .gc-scroll::-webkit-scrollbar {
-  width: 11px;
-  height: 11px;
+  width: var(--scrollbar-width, 8px);
+  height: var(--scrollbar-width, 8px);
 }
 .gc-scroll::-webkit-scrollbar-track {
-  background: oklch(0 0 0 / 18%);
+  background: var(--scrollbar-track, transparent);
 }
 .gc-scroll::-webkit-scrollbar-thumb {
-  background: oklch(1 0 0 / 15%);
-  border-radius: 999px;
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
   border: 2px solid transparent;
-  background-clip: content-box;
+  background-clip: padding-box;
 }
 .gc-scroll::-webkit-scrollbar-thumb:hover {
-  background: oklch(1 0 0 / 26%);
-  background-clip: content-box;
+  background-color: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
 }
 .gc-scroll::-webkit-scrollbar-corner {
   background: transparent;
@@ -739,27 +739,7 @@ html.light .gc-resizer::after,
   background: oklch(0.22 0.025 266 / 20%);
 }
 
-html.light .gc-scroll,
-.light .gc-scroll {
-  scrollbar-color: oklch(0.22 0.025 266 / 22%) transparent;
-}
-
-html.light .gc-scroll::-webkit-scrollbar-track,
-.light .gc-scroll::-webkit-scrollbar-track {
-  background: oklch(0.22 0.025 266 / 5%);
-}
-
-html.light .gc-scroll::-webkit-scrollbar-thumb,
-.light .gc-scroll::-webkit-scrollbar-thumb {
-  background: oklch(0.22 0.025 266 / 20%);
-  background-clip: content-box;
-}
-
-html.light .gc-scroll::-webkit-scrollbar-thumb:hover,
-.light .gc-scroll::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.22 0.025 266 / 30%);
-  background-clip: content-box;
-}
+/* Estandarizado con variables globales de scrollbar */
 
 @media (max-width: 640px) {
   .gc-brand-copy {

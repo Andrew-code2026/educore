@@ -1,4 +1,5 @@
 import {
+  Activity,
   BarChart3,
   CalendarDays,
   ClipboardCheck,
@@ -88,6 +89,12 @@ export const ALL_NAV_ITEMS: Record<Section, Omit<NavItem, "roles" | "groupKey" |
     icon: Users,
     description: "Directorio institucional, accesos y roles",
   },
+  analytics: {
+    id: "analytics",
+    label: "Análisis & Alertas",
+    icon: Activity,
+    description: "Rendimiento grupal, alertas tempranas y métricas",
+  },
   settings: {
     id: "settings",
     label: "Configuración",
@@ -115,6 +122,7 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
         label: "Seguimiento",
         items: [
           { ...ALL_NAV_ITEMS.attendance, roles: ["teacher"], groupKey: "tracking", mobilePriority: "more" },
+          { ...ALL_NAV_ITEMS.analytics, roles: ["teacher"], groupKey: "tracking", mobilePriority: "more" },
           { ...ALL_NAV_ITEMS.calendar, roles: ["teacher"], groupKey: "tracking", mobilePriority: "more" },
           { ...ALL_NAV_ITEMS.reports, roles: ["teacher"], groupKey: "tracking", mobilePriority: "more" },
         ],
@@ -227,6 +235,7 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
       key: "analysis_comm",
       label: "Análisis & Comunidad",
       items: [
+        { ...ALL_NAV_ITEMS.analytics, roles: ["admin"], groupKey: "analysis_comm", mobilePriority: "more" },
         { ...ALL_NAV_ITEMS.reports, roles: ["admin"], groupKey: "analysis_comm", mobilePriority: "more" },
         {
           ...ALL_NAV_ITEMS.communications,

@@ -710,7 +710,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/60 p-4 sm:p-6 lg:p-8 space-y-6 max-w-6xl mx-auto">
+    <div className="h-full overflow-y-auto bg-slate-50/60 dark:bg-background/40 p-4 sm:p-6 lg:p-8 space-y-6 max-w-6xl mx-auto">
       {/* 1. HEADER DEL PORTAL */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -799,7 +799,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                     ? "Tienes 1 inasistencia pendiente por justificar"
                     : `Tienes ${unjustifiedAbsences.length} inasistencias pendientes por justificar`}
                 </h2>
-                <span className="px-2 py-0.5 text-[10px] font-extrabold rounded-full bg-amber-200 text-amber-900">
+                <span className="px-2 py-0.5 text-xs font-extrabold rounded-full bg-amber-200 text-amber-900">
                   Atención requerida
                 </span>
               </div>
@@ -823,7 +823,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         {/* Asistencia general */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
             Asistencia
           </span>
           <div className="flex items-baseline gap-1">
@@ -835,23 +835,23 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
               {summaryMetrics.rate}%
             </span>
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">Total del periodo</p>
+          <p className="text-xs text-slate-500 mt-1">Total del periodo</p>
         </div>
 
         {/* Presentes */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
             Presentes
           </span>
           <span className="text-2xl font-extrabold text-slate-800">
             {summaryMetrics.present}
           </span>
-          <p className="text-[11px] text-slate-500 mt-1">Días asistidos</p>
+          <p className="text-xs text-slate-500 mt-1">Días asistidos</p>
         </div>
 
         {/* Ausencias */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
             Ausencias
           </span>
           <span
@@ -861,12 +861,12 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
           >
             {summaryMetrics.absent}
           </span>
-          <p className="text-[11px] text-slate-500 mt-1">Faltas registradas</p>
+          <p className="text-xs text-slate-500 mt-1">Faltas registradas</p>
         </div>
 
         {/* Tardanzas */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
             Tardanzas
           </span>
           <span
@@ -876,29 +876,29 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
           >
             {summaryMetrics.late}
           </span>
-          <p className="text-[11px] text-slate-500 mt-1">Llegadas tarde</p>
+          <p className="text-xs text-slate-500 mt-1">Llegadas tarde</p>
         </div>
 
         {/* Excusas Justificadas */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
             Justificadas
           </span>
           <span className="text-2xl font-extrabold text-emerald-600">
             {summaryMetrics.excused}
           </span>
-          <p className="text-[11px] text-slate-500 mt-1">Excusas aprobadas</p>
+          <p className="text-xs text-slate-500 mt-1">Excusas aprobadas</p>
         </div>
 
         {/* En trámite */}
         <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-1">
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
             En Revisión
           </span>
           <span className="text-2xl font-extrabold text-blue-600">
             {summaryMetrics.inReviewCount}
           </span>
-          <p className="text-[11px] text-slate-500 mt-1">Trámites activos</p>
+          <p className="text-xs text-slate-500 mt-1">Trámites activos</p>
         </div>
       </div>
 
@@ -917,7 +917,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
             <AlertCircle className="w-4 h-4 text-rose-500" />
             <span>Inasistencias y Justificaciones</span>
             {absenceRecords.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-700 text-[10px] font-extrabold">
+              <span className="px-1.5 py-0.2 rounded-full bg-rose-100 text-rose-700 text-xs font-extrabold">
                 {absenceRecords.length}
               </span>
             )}
@@ -934,7 +934,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
           >
             <FileCheck2 className="w-4 h-4 text-blue-600" />
             <span>Mis Trámites Radicados</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">
+            <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 text-xs font-bold">
               {justificationsList.length}
             </span>
           </button>
@@ -990,7 +990,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                             <span className="text-sm font-bold text-slate-900 capitalize">
                               {formatDate(item.date)}
                             </span>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
+                            <span className="px-2 py-0.5 rounded text-xs font-extrabold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
                               Ausente
                             </span>
                           </div>
@@ -1018,7 +1018,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                                 />
                                 Trámite: {JUSTIFICATION_STATUS_META[just.status].label}
                               </span>
-                              <span className="text-[11px] text-slate-500">
+                              <span className="text-xs text-slate-500">
                                 ({JUSTIFICATION_REASON_LABELS[just.reasonCategory]})
                               </span>
                             </div>
@@ -1104,7 +1104,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                             Radicado #JUST-{j.id}
                           </span>
                           <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold border ${meta.badge}`}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${meta.badge}`}
                           >
                             <span className={`w-1.5 h-1.5 rounded-full ${meta.dotColor}`} />
                             <StatusIcon className="w-3 h-3" />
@@ -1117,14 +1117,14 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                             Inasistencia: <strong>{formatDate(j.attendanceDate)}</strong> · Motivo:{" "}
                             <strong>{JUSTIFICATION_REASON_LABELS[j.reasonCategory]}</strong>
                           </p>
-                          <p className="text-[11px] text-slate-400">
+                          <p className="text-xs text-slate-400">
                             Radicado el {formatShortDate(j.submittedAt || j.createdAt)} por {j.submittedByName} ({j.submittedByRole === "guardian" ? "Acudiente" : "Estudiante"})
                           </p>
                         </div>
 
                         {/* Physical support state */}
                         {j.requiresPhysicalSupport && (
-                          <div className="mt-1.5 text-[11px]">
+                          <div className="mt-1.5 text-xs">
                             {j.physicalSupportReceivedAt ? (
                               <span className="text-emerald-700 font-medium inline-flex items-center gap-1">
                                 <Check className="w-3 h-3" /> Soporte físico recibido por el colegio
@@ -1173,8 +1173,8 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                       ? `Justificar la inasistencia de ${activeStudent.name}`
                       : "Justificar mi inasistencia"}
                   </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Expediente oficial de justificación · Colegio Gimnasio Moderno del Valle
+                  <p className="text-xs text-slate-500">
+                    Expediente oficial de justificación{data?.school?.name ? ` · ${data.school.name}` : ""}
                   </p>
                 </div>
               </div>
@@ -1190,7 +1190,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
             {/* Inattendance Context Card */}
             <div className="px-6 py-3 bg-blue-50/60 border-b border-blue-100/80 text-xs shrink-0 grid grid-cols-2 gap-2 text-slate-700">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                <span className="text-xs uppercase font-bold text-slate-400 block">
                   Estudiante y Curso
                 </span>
                 <span className="font-semibold text-slate-900">
@@ -1198,7 +1198,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                 </span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                <span className="text-xs uppercase font-bold text-slate-400 block">
                   Fecha de inasistencia
                 </span>
                 <span className="font-semibold text-slate-900 capitalize">
@@ -1206,7 +1206,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                 </span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                <span className="text-xs uppercase font-bold text-slate-400 block">
                   Asignatura / Docente
                 </span>
                 <span>
@@ -1214,7 +1214,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                 </span>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                <span className="text-xs uppercase font-bold text-slate-400 block">
                   Estado actual
                 </span>
                 <span className="inline-flex items-center gap-1 font-bold text-rose-700">
@@ -1274,7 +1274,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                     <label className="font-bold text-slate-900 block mb-1">
                       2. Cuéntanos brevemente qué ocurrió <span className="text-rose-500">*</span>
                     </label>
-                    <p className="text-[11px] text-slate-500 mb-2">
+                    <p className="text-xs text-slate-500 mb-2">
                       Esta información será revisada por la institución y podrá formar parte del expediente de la justificación.
                     </p>
                     <textarea
@@ -1291,7 +1291,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                     <label className="font-bold text-slate-900 block">
                       3. Soporte de la justificación
                     </label>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-xs text-slate-500">
                       Puedes adjuntar la constancia que respalda esta justificación (PDF, Word, Excel, texto o imagen hasta 25 MB). No es obligatorio si entregarás el documento en físico en secretaría.
                     </p>
 
@@ -1303,7 +1303,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                             <span className="font-semibold text-slate-900 truncate block">
                               {digitalFileName}
                             </span>
-                            <span className="text-[10px] text-slate-400">{digitalFileSize}</span>
+                            <span className="text-xs text-slate-400">{digitalFileSize}</span>
                           </div>
                         </div>
                         <button
@@ -1330,7 +1330,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                             className="hidden"
                           />
                         </label>
-                        <span className="text-[11px] text-slate-400 italic">
+                        <span className="text-xs text-slate-400 italic">
                           No se adjuntó soporte digital. Podrá ser entregado físicamente.
                         </span>
                       </div>
@@ -1343,7 +1343,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                       <Hourglass className="w-4 h-4 text-amber-700" />
                       Compromiso de entrega del soporte físico
                     </div>
-                    <p className="text-[11px] text-amber-900 leading-relaxed">
+                    <p className="text-xs text-amber-900 leading-relaxed">
                       La radicación de esta solicitud no significa que la inasistencia haya sido justificada. Si la institución requiere el soporte físico, me comprometo a entregarlo en la secretaría del colegio dentro del plazo establecido.
                     </p>
 
@@ -1361,7 +1361,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                   </div>
 
                   {/* Advertencia institucional */}
-                  <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 text-[11px] flex items-start gap-2">
+                  <div className="p-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 text-xs flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
                     <span>
                       <strong>Importante:</strong> Esta solicitud será revisada por la institución. Mientras no sea aprobada, la inasistencia continuará registrada como <strong>Ausente</strong>.
@@ -1428,7 +1428,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                     </div>
                   </div>
 
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900">
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
                     Al radicar, la solicitud ingresará a la bandeja administrativa en estado{" "}
                     <strong>En revisión</strong>. La falta en la planilla solo se modificará a{" "}
                     <strong>Excusa</strong> cuando el docente o directivo apruebe formalmente la solicitud.
@@ -1474,7 +1474,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                     </div>
                   </div>
 
-                  <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-[11px] text-blue-900 max-w-md mx-auto">
+                  <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-xs text-blue-900 max-w-md mx-auto">
                     <strong>Recordatorio:</strong> La inasistencia continúa registrada como{" "}
                     <strong>Ausente</strong> hasta que la institución revise los soportes y resuelva la solicitud.
                   </div>
@@ -1559,7 +1559,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                   <h3 className="text-sm font-bold text-slate-900">
                     Expediente #JUST-{inspectingJustification.id}
                   </h3>
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-xs text-slate-500">
                     Seguimiento familiar de justificación de inasistencia
                   </span>
                 </div>
@@ -1590,7 +1590,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                     {JUSTIFICATION_STATUS_META[inspectingJustification.status].label}
                   </span>
                 </div>
-                <span className="text-[11px] text-slate-600">
+                <span className="text-xs text-slate-600">
                   {JUSTIFICATION_REASON_LABELS[inspectingJustification.reasonCategory]}
                 </span>
               </div>
@@ -1603,7 +1603,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                     <strong className="block font-bold">
                       Aviso institucional: Registro de asistencia modificado
                     </strong>
-                    <p className="text-[11px] text-amber-800 mt-0.5">
+                    <p className="text-xs text-amber-800 mt-0.5">
                       El registro de asistencia para esta fecha figura actualmente como{" "}
                       <strong className="uppercase">{inspectingJustification.currentAttendanceStatus || "modificado"}</strong>{" "}
                       en el sistema escolar del colegio.
@@ -1614,12 +1614,12 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
 
               {/* Attendance & Class Details */}
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider block">
+                <span className="font-bold text-slate-800 text-xs uppercase tracking-wider block">
                   Información de la Inasistencia
                 </span>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <span className="text-slate-400 text-[11px] block">
+                    <span className="text-slate-400 text-xs block">
                       {inspectingJustification.status === "scheduled_absence"
                         ? "Fecha programada:"
                         : "Fecha de falta:"}
@@ -1629,13 +1629,13 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                     </strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 text-[11px] block">Curso / Grado:</span>
+                    <span className="text-slate-400 text-xs block">Curso / Grado:</span>
                     <strong className="text-slate-900">
                       Curso {inspectingJustification.courseId}
                     </strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 text-[11px] block">Estado en planilla:</span>
+                    <span className="text-slate-400 text-xs block">Estado en planilla:</span>
                     <strong
                       className={
                         inspectingJustification.status === "approved"
@@ -1653,7 +1653,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                     </strong>
                   </div>
                   <div>
-                    <span className="text-slate-400 text-[11px] block">Radicado por:</span>
+                    <span className="text-slate-400 text-xs block">Radicado por:</span>
                     <span className="text-slate-800 font-medium">
                       {inspectingJustification.submittedByName} (
                       {inspectingJustification.submittedByRole === "guardian"
@@ -1667,7 +1667,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
 
               {/* Description */}
               <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-1.5">
-                <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider block">
+                <span className="font-bold text-slate-800 text-xs uppercase tracking-wider block">
                   Descripción de los Hechos
                 </span>
                 <p className="text-slate-700 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100">
@@ -1679,7 +1679,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
               {(inspectingJustification.digitalEvidenceName ||
                 inspectingJustification.digitalEvidenceUrl) && (
                 <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
-                  <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider block">
+                  <span className="font-bold text-slate-800 text-xs uppercase tracking-wider block">
                     Constancia Digital Adjunta
                   </span>
                   <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 gap-3">
@@ -1691,7 +1691,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                         <p className="font-medium text-slate-800 truncate text-xs">
                           {inspectingJustification.digitalEvidenceName || "Documento de soporte"}
                         </p>
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-xs text-slate-400">
                           Soporte digital adjunto al radicado
                         </span>
                       </div>
@@ -1715,12 +1715,12 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
 
               {/* Physical Support Status */}
               <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
-                <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider block">
+                <span className="font-bold text-slate-800 text-xs uppercase tracking-wider block">
                   Soporte Físico
                 </span>
                 {inspectingJustification.requiresPhysicalSupport ? (
                   <div className="space-y-2">
-                    <p className="text-[11px] text-slate-600">
+                    <p className="text-xs text-slate-600">
                       Compromiso de entrega física adquirido en la radicación.
                       {inspectingJustification.physicalSupportDeadline && (
                         <span>
@@ -1738,7 +1738,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                         <div>
                           <strong>Soporte físico recibido en el colegio</strong>
-                          <p className="text-[11px] text-emerald-700 mt-0.5">
+                          <p className="text-xs text-emerald-700 mt-0.5">
                             Recibido por {inspectingJustification.physicalSupportReceivedByName} el{" "}
                             {formatShortDate(inspectingJustification.physicalSupportReceivedAt)}
                           </p>
@@ -1749,7 +1749,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                         <Hourglass className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                         <div>
                           <strong>Pendiente de entrega física</strong>
-                          <p className="text-[11px] text-amber-800 mt-0.5">
+                          <p className="text-xs text-amber-800 mt-0.5">
                             Recuerda entregar la constancia original en secretaría académica.
                           </p>
                         </div>
@@ -1757,7 +1757,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                     )}
                   </div>
                 ) : (
-                  <p className="text-[11px] text-slate-500 italic">
+                  <p className="text-xs text-slate-500 italic">
                     Este trámite no requirió entrega de soporte físico original.
                   </p>
                 )}
@@ -1765,19 +1765,19 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
 
               {/* Institutional Resolution */}
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider block">
+                <span className="font-bold text-slate-800 text-xs uppercase tracking-wider block">
                   Resolución Institucional
                 </span>
 
                 {inspectingJustification.status === "approved" ? (
                   <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-950 space-y-1">
                     <strong className="block text-sm">Justificación Aprobada</strong>
-                    <p className="text-[11px] text-emerald-800">
+                    <p className="text-xs text-emerald-800">
                       Resuelta por <strong>{inspectingJustification.resolvedByName}</strong> el{" "}
                       {formatShortDate(inspectingJustification.resolvedAt)}. La inasistencia fue justificada formalmente en la planilla del colegio.
                     </p>
                     {inspectingJustification.resolutionNotes && (
-                      <p className="text-[11px] text-emerald-900 italic pt-1">
+                      <p className="text-xs text-emerald-900 italic pt-1">
                         Observaciones: "{inspectingJustification.resolutionNotes}"
                       </p>
                     )}
@@ -1789,12 +1789,12 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                         ? "Excusa Rechazada"
                         : "No Justificada"}
                     </strong>
-                    <p className="text-[11px] text-rose-800">
+                    <p className="text-xs text-rose-800">
                       Resuelta por <strong>{inspectingJustification.resolvedByName}</strong> el{" "}
                       {formatShortDate(inspectingJustification.resolvedAt)}. La falta se mantiene sin justificar.
                     </p>
                     {inspectingJustification.resolutionNotes && (
-                      <p className="text-[11px] text-rose-900 italic pt-1">
+                      <p className="text-xs text-rose-900 italic pt-1">
                         Fundamento: "{inspectingJustification.resolutionNotes}"
                       </p>
                     )}
@@ -1802,14 +1802,14 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                 ) : inspectingJustification.status === "scheduled_absence" ? (
                   <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-purple-950 space-y-1">
                     <strong className="block text-sm">Inasistencia Programada (Aviso Previo)</strong>
-                    <p className="text-[11px] text-purple-800">
+                    <p className="text-xs text-purple-800">
                       Este aviso fue notificado formalmente a los docentes. Cuando llegue la fecha de la sesión, el docente verá la observación preventiva en su planilla.
                     </p>
                   </div>
                 ) : (
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-950 space-y-1">
                     <strong className="block">La institución aún está revisando esta solicitud</strong>
-                    <p className="text-[11px] text-blue-800">
+                    <p className="text-xs text-blue-800">
                       El equipo docente y administrativo está validando la constancia. La inasistencia continuará registrada como Ausente hasta que se emita la resolución final.
                     </p>
                   </div>
@@ -1845,7 +1845,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                   <h3 className="text-sm font-bold text-slate-900 leading-tight">
                     Programar inasistencia prevista
                   </h3>
-                  <p className="text-[11px] text-purple-700 font-medium">
+                  <p className="text-xs text-purple-700 font-medium">
                     Aviso preventivo escolar · {activeStudent.name} ({activeStudent.course})
                   </p>
                 </div>
@@ -1884,7 +1884,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                   onChange={(e) => setScheduleDate(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 bg-white"
                 />
-                <span className="text-[11px] text-slate-400 mt-1 block">
+                <span className="text-xs text-slate-400 mt-1 block">
                   Selecciona la fecha futura en que el estudiante no podrá asistir.
                 </span>
               </div>
@@ -1948,7 +1948,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                 <label className="font-bold text-slate-900 block">
                   4. Constancia digital previa (opcional)
                 </label>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-xs text-slate-500">
                   Si ya cuentas con la cita, volante o constancia oficial (PDF o imagen), puedes adjuntarla anticipadamente.
                 </p>
 
@@ -1960,7 +1960,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                         <span className="font-semibold text-slate-900 truncate block">
                           {scheduleDigitalFileName}
                         </span>
-                        <span className="text-[10px] text-slate-400">{scheduleDigitalFileSize}</span>
+                        <span className="text-xs text-slate-400">{scheduleDigitalFileSize}</span>
                       </div>
                     </div>
                     <button
@@ -1986,7 +1986,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                         className="hidden"
                       />
                     </label>
-                    <span className="text-[11px] text-slate-400 italic">
+                    <span className="text-xs text-slate-400 italic">
                       PDF, Word, Excel, imagen o texto hasta 25 MB
                     </span>
                   </div>
@@ -2002,7 +2002,7 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                     onChange={(e) => setSchedulePhysicalCommitment(e.target.checked)}
                     className="mt-0.5 rounded border-purple-300 text-purple-600 focus:ring-purple-500"
                   />
-                  <div className="text-[11px] leading-relaxed">
+                  <div className="text-xs leading-relaxed">
                     <strong className="text-purple-950 block font-bold">
                       Compromiso de entrega de soporte físico original
                     </strong>

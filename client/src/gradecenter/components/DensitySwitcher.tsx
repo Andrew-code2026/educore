@@ -26,7 +26,7 @@ export function DensitySwitcher({ className }: { className?: string }) {
                 type="button"
                 onClick={() => setDensity(density.id)}
                 className={cn(
-                  "rounded-xl px-2.5 py-1.5 text-[11px] font-medium transition-all duration-150",
+                  "rounded-xl px-2.5 py-1.5 text-xs font-medium transition-all duration-150",
                   active
                     ? "border border-white/12 bg-white/10 text-foreground"
                     : "border border-transparent text-muted-foreground hover:text-foreground",
@@ -54,14 +54,14 @@ export function ColumnVisibilityMenu({ className }: { className?: string }) {
           variant="ghost"
           size="sm"
           className={cn(
-            "h-8 gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 text-[11px] text-muted-foreground hover:bg-white/8 hover:text-foreground",
+            "h-8 gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 text-xs text-muted-foreground hover:bg-white/8 hover:text-foreground",
             className,
           )}
         >
           <Columns3 className="size-3.5" />
           <span className="hidden md:inline">Columnas</span>
           {hidden > 0 && (
-            <span className="gc-num rounded-full bg-[var(--gc-cobalt)] px-1.5 py-px text-[10px] font-semibold text-white">
+            <span className="gc-num rounded-full bg-[var(--gc-cobalt)] px-1.5 py-px text-xs font-semibold text-white">
               {dataset.evaluations.length - hidden}
             </span>
           )}
@@ -71,14 +71,14 @@ export function ColumnVisibilityMenu({ className }: { className?: string }) {
         <div className="flex items-center justify-between pb-2">
           <div>
             <div className="text-[12px] font-semibold">Columnas visibles</div>
-            <div className="text-[10px] text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               {dataset.evaluations.length - hidden} de {dataset.evaluations.length} evaluaciones
             </div>
           </div>
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 rounded-lg px-2 text-[10px] text-muted-foreground hover:text-foreground"
+            className="h-7 rounded-lg px-2 text-xs text-muted-foreground hover:text-foreground"
             onClick={showAllEvaluations}
           >
             Mostrar todas
@@ -94,9 +94,9 @@ export function ColumnVisibilityMenu({ className }: { className?: string }) {
                 onClick={() => toggleEvaluation(evaluation.id)}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/6"
               >
-                <span className="gc-num w-8 shrink-0 text-[10px] text-muted-foreground">{evaluation.code}</span>
-                <span className="min-w-0 flex-1 truncate text-[11px]">{evaluation.name}</span>
-                <span className="gc-num shrink-0 text-[10px] text-muted-foreground">{evaluation.weight}%</span>
+                <span className="gc-num w-8 shrink-0 text-xs text-muted-foreground">{evaluation.code}</span>
+                <span className="min-w-0 flex-1 truncate text-xs">{evaluation.name}</span>
+                <span className="gc-num shrink-0 text-xs text-muted-foreground">{evaluation.weight}%</span>
                 {visible ? (
                   <Eye className="size-3.5 shrink-0 text-[var(--gc-cobalt)]" />
                 ) : (
@@ -110,7 +110,7 @@ export function ColumnVisibilityMenu({ className }: { className?: string }) {
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 w-full rounded-lg text-[10px] text-muted-foreground hover:text-foreground"
+            className="h-7 w-full rounded-lg text-xs text-muted-foreground hover:text-foreground"
             onClick={resetAllPreferences}
           >
             <RotateCcw className="size-3" />

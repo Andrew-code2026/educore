@@ -69,7 +69,7 @@ export function StudentHero({
         {/* Top Header Row: Context Pill + Action Buttons */}
         <div className="flex flex-col gap-3.5 sm:flex-row sm:items-center sm:justify-between">
           {/* Context Pill */}
-          <div className="inline-flex items-center gap-2 self-start rounded-full border border-blue-200/60 bg-white/85 px-3 py-0.5 text-[11px] font-semibold text-blue-900 shadow-2xs">
+          <div className="inline-flex items-center gap-2 self-start rounded-full border border-blue-200/60 bg-white/85 px-3 py-0.5 text-xs font-semibold text-blue-900 shadow-2xs">
             <GreetingIcon className="h-3.5 w-3.5 text-amber-500 shrink-0" />
             <span>{greeting}, {capitalizedDate}</span>
             <span className="text-slate-300">·</span>
@@ -93,7 +93,7 @@ export function StudentHero({
               {averageGrade > 0 && (
                 <Badge
                   variant="secondary"
-                  className="ml-1.5 h-4 min-w-4 rounded-full bg-emerald-400/20 px-1.5 text-[10px] font-bold text-emerald-300"
+                  className="ml-1.5 h-4 min-w-4 rounded-full bg-emerald-400/20 px-1.5 text-xs font-bold text-emerald-300"
                 >
                   {averageGrade.toFixed(1)}
                 </Badge>
@@ -112,7 +112,7 @@ export function StudentHero({
               {pendingActivitiesCount > 0 && (
                 <Badge
                   variant="secondary"
-                  className="ml-1.5 h-4 min-w-4 rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800"
+                  className="ml-1.5 h-4 min-w-4 rounded-full bg-amber-100 px-1.5 text-xs font-bold text-amber-800"
                 >
                   {pendingActivitiesCount}
                 </Badge>
@@ -124,7 +124,7 @@ export function StudentHero({
         {/* Greeting & Summary */}
         <div className="mt-2.5 max-w-3xl">
           <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-            Hola, {studentName}
+            {greeting}, {studentName}
           </h1>
           <p className="mt-1 text-xs sm:text-sm leading-normal text-slate-600">
             {summaryText}
@@ -138,7 +138,7 @@ export function StudentHero({
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-blue-600 text-white shadow-2xs">
                 <Sparkles className="h-3 w-3" />
               </span>
-              <p className="truncate text-[11px] text-slate-700">
+              <p className="truncate text-xs text-slate-700">
                 <span className="font-semibold text-blue-900">EduCore AI:</span>{" "}
                 <span className="text-slate-600">"{aiSuggestion.text}"</span>
               </p>
@@ -147,7 +147,7 @@ export function StudentHero({
             <button
               type="button"
               onClick={aiSuggestion.onAction}
-              className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-blue-700 hover:text-blue-900 transition ml-2"
+              className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-blue-700 hover:text-blue-900 transition ml-2"
             >
               <span>Explorar</span>
               <ArrowRight className="h-3 w-3" />

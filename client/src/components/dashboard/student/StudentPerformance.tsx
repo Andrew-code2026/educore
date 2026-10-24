@@ -105,13 +105,13 @@ export function StudentPerformance({
               {periodAverage > 0 && (
                 <Badge
                   variant="secondary"
-                  className="rounded-full bg-slate-100 text-slate-700 border-slate-200 text-[10px] font-semibold py-0 px-2"
+                  className="rounded-full bg-slate-100 text-slate-700 border-slate-200 text-xs font-semibold py-0 px-2"
                 >
                   Prom. {periodAverage.toFixed(1)}
                 </Badge>
               )}
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-slate-500">
               Calificaciones publicadas y escala oficial MEN Colombia.
             </p>
           </div>
@@ -163,7 +163,7 @@ export function StudentPerformance({
         <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-3.5 py-2.5">
           <div className="flex items-center gap-3">
             <div>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 {selectedPeriod === "all" ? "Promedio acumulado" : `Promedio ${selectedPeriod}`}
               </span>
               <div className="flex items-baseline gap-2">
@@ -177,12 +177,12 @@ export function StudentPerformance({
             <div className="h-7 w-px bg-slate-200" />
 
             <div>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Nivel MEN
               </span>
               <div>
                 <span
-                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${levelStyle.badge}`}
+                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${levelStyle.badge}`}
                 >
                   {levelStyle.label}
                 </span>
@@ -191,7 +191,7 @@ export function StudentPerformance({
           </div>
 
           <div className="text-right">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Registros
             </span>
             <p className="text-xs font-semibold text-slate-700">
@@ -220,12 +220,12 @@ export function StudentPerformance({
                     </p>
                     <Badge
                       variant="outline"
-                      className="text-[9px] font-medium text-slate-500 border-slate-200 py-0 px-1.5"
+                      className="text-xs font-medium text-slate-500 border-slate-200 py-0 px-1.5"
                     >
                       {item.period}
                     </Badge>
                   </div>
-                  <div className="mt-0.5 flex items-center gap-1.5 text-[11px]">
+                  <div className="mt-0.5 flex items-center gap-1.5 text-xs">
                     {isApproved ? (
                       <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
                         <CheckCircle2 className="h-3 w-3" />

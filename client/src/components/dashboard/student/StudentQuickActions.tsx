@@ -46,7 +46,7 @@ export function StudentQuickActions({ actions }: StudentQuickActionsProps) {
                   {act.label}
                 </span>
                 {act.badge !== undefined && (
-                  <span className="text-[10px] text-slate-500 font-medium">
+                  <span className="text-xs text-slate-500 font-medium">
                     {act.badge}
                   </span>
                 )}

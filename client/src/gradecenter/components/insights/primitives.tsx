@@ -42,7 +42,7 @@ export function LevelBadge({
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border font-medium whitespace-nowrap",
-        size === "xs" ? "px-1.5 py-px text-[10px]" : "px-2 py-0.5 text-[11px]",
+        size === "xs" ? "px-1.5 py-px text-xs" : "px-2 py-0.5 text-xs",
         className,
       )}
       style={
@@ -118,7 +118,7 @@ export function Sparkline({
 }) {
   const valid = points.map((value, index) => ({ index, value })).filter((p) => p.value != null);
   if (valid.length === 0) {
-    return <div className={cn("text-[10px] text-muted-foreground", className)}>Sin datos suficientes</div>;
+    return <div className={cn("text-xs text-muted-foreground", className)}>Sin datos suficientes</div>;
   }
 
   const stroke = color ?? LEVELS[levelFromScore(valid[valid.length - 1].value) ?? "basico"].color;
@@ -188,7 +188,7 @@ export function DistributionBars({
         const pct = total > 0 ? (count / total) * 100 : 0;
         return (
           <div key={level} className="flex items-center gap-2">
-            <span className={cn("shrink-0 text-muted-foreground", dense ? "w-3 text-[9px]" : "w-16 text-[10px]")}>
+            <span className={cn("shrink-0 text-muted-foreground", dense ? "w-3 text-xs" : "w-16 text-xs")}>
               {dense ? LEVELS[level].short.charAt(0) : LEVELS[level].label}
             </span>
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/6">
@@ -201,7 +201,7 @@ export function DistributionBars({
                 }}
               />
             </div>
-            <span className="gc-num w-9 shrink-0 text-right text-[10px] text-muted-foreground">
+            <span className="gc-num w-9 shrink-0 text-right text-xs text-muted-foreground">
               {count}
             </span>
           </div>
@@ -255,7 +255,7 @@ export function TrendStrip({ trend, className }: { trend: TrendInfo; className?:
   const arrow = trend.direction === "up" ? "↗" : trend.direction === "down" ? "↘" : "→";
 
   return (
-    <span className={cn("inline-flex items-center gap-1 text-[11px] font-medium", className)} style={{ color: tone }}>
+    <span className={cn("inline-flex items-center gap-1 text-xs font-medium", className)} style={{ color: tone }}>
       <span className="text-[13px] leading-none">{arrow}</span>
       {trend.label}
     </span>
@@ -281,14 +281,14 @@ export function MetricTile({
 }) {
   return (
     <div className={cn("glass-soft rounded-xl px-3 py-2.5", className)}>
-      <div className="gc-label text-[9px]">{label}</div>
+      <div className="gc-label text-xs">{label}</div>
       <div
         className="gc-num mt-1 text-lg leading-none font-semibold"
         style={accent ? { color: accent } : undefined}
       >
         {value}
       </div>
-      {hint && <div className="mt-1 text-[10px] text-muted-foreground">{hint}</div>}
+      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
     </div>
   );
 }
@@ -304,7 +304,7 @@ export function ScoreChip({
 }) {
   const level = levelFromScore(score);
   const sizes: Record<string, string> = {
-    xs: "text-[11px]",
+    xs: "text-xs",
     sm: "text-[13px]",
     md: "text-[15px]",
     lg: "text-2xl",

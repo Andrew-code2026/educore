@@ -1,21 +1,14 @@
-import {
-  Calendar,
-  FileCheck,
-  Sparkles,
-  ArrowRight,
-  Sun,
-  Sunset,
-  Moon,
-} from "lucide-react";
+import React from "react";
+import { Calendar } from "lucide-react";
 
 interface TeacherHeroProps {
   teacherName: string;
-  schoolName: string;
+  schoolName?: string;
   activePeriodName?: string;
-  summaryText: string;
-  pendingGradesCount: number;
-  onOpenGradeCenter: () => void;
-  onOpenCalendar: () => void;
+  summaryText?: string;
+  pendingGradesCount?: number;
+  onOpenGradeCenter?: () => void;
+  onOpenCalendar?: () => void;
   onOpenClassroom?: () => void;
 }
 
@@ -24,10 +17,6 @@ export function TeacherHero({
   schoolName,
   activePeriodName = "Periodo 2",
   summaryText,
-  pendingGradesCount,
-  onOpenGradeCenter,
-  onOpenCalendar,
-  onOpenClassroom,
 }: TeacherHeroProps) {
   const currentHour = new Date().getHours();
   const greeting =
@@ -49,75 +38,31 @@ export function TeacherHero({
   return (
     <section
       data-testid="teacher-hero"
-      className="teacher-hero relative overflow-hidden rounded-[24px] border border-blue-100/80 bg-gradient-to-br from-[#eef5ff] via-[#e5efff] to-[#dbe8ff] p-4 shadow-[0_16px_42px_rgba(69,105,180,0.12)] sm:p-5"
+      className="teacher-hero relative overflow-hidden rounded-[24px] border border-blue-100/80 dark:border-blue-900/30 bg-gradient-to-br from-[#eef5ff] via-[#e5efff] to-[#dbe8ff] dark:from-[#111c2e] dark:via-[#0e1726] dark:to-[#0a111d] p-5 sm:p-6 shadow-[0_12px_32px_rgba(69,105,180,0.08)] dark:shadow-none"
     >
       <div className="teacher-glow pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-indigo-300/20 blur-3xl" />
 
       <div className="relative z-10">
-        {/* Top Header Row: Pill + Quick Action Buttons */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/90 bg-white/70 px-3 py-1.5 text-[10px] font-semibold text-slate-600 shadow-sm">
-            <Calendar className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-            <span>
-              {greeting}, {capitalizedDate}
-            </span>
-            <span className="text-slate-300">·</span>
-            <span>{schoolName}</span>
-            <span className="text-blue-700 font-bold">· {activePeriodName}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onOpenGradeCenter}
-              className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-3 py-2 text-[10px] font-bold text-white shadow-sm transition-transform hover:-translate-y-0.5 active:translate-y-0"
-            >
-              <FileCheck className="h-3.5 w-3.5 text-emerald-300" />
-              <span>Grade Center</span>
-              {pendingGradesCount > 0 && (
-                <span className="rounded-full bg-amber-400 px-1.5 text-[9px] text-slate-950 font-bold">
-                  {pendingGradesCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={onOpenCalendar}
-              className="inline-flex items-center gap-2 rounded-xl border border-white bg-white/80 px-3 py-2 text-[10px] font-bold text-slate-600 shadow-sm hover:bg-white transition active:translate-y-0"
-            >
-              <Calendar className="h-3.5 w-3.5 text-blue-600" />
-              <span>Ver calendario</span>
-            </button>
-          </div>
+        {/* Fecha y Periodo */}
+        <div className="inline-flex items-center gap-2 rounded-full border border-white/90 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 shadow-xs">
+          <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+          <span>{capitalizedDate}</span>
+          <span className="text-slate-300 dark:text-slate-600">·</span>
+          <span className="font-semibold text-blue-700 dark:text-blue-400">{activePeriodName}</span>
         </div>
 
-        {/* Greeting & Summary */}
-        <h1 className="mt-5 text-2xl font-extrabold tracking-[-0.04em] text-[#172554] sm:text-3xl">
-          Hola, {teacherName}
+        {/* Saludo dinámico según la hora del día */}
+        <h1 className="mt-3.5 text-2xl font-extrabold tracking-[-0.03em] text-[#172554] dark:text-white sm:text-3xl">
+          {greeting}, {teacherName}
         </h1>
-        <div
-          className="mt-1 text-xs text-[#52668f] leading-normal"
-          dangerouslySetInnerHTML={{ __html: summaryText }}
-        />
 
-        {/* Suggestion Banner */}
-        {pendingGradesCount > 0 && onOpenClassroom && (
-          <button
-            type="button"
-            onClick={onOpenClassroom}
-            className="mt-4 flex w-full items-center gap-2 rounded-xl border border-white bg-white/75 px-3 py-2.5 text-left text-[10px] font-semibold text-blue-700 shadow-sm transition-all hover:bg-white group"
-          >
-            <Sparkles className="h-4 w-4 shrink-0 text-blue-600" />
-            <span className="truncate min-w-0 flex-1">
-              Sugerencia de jornada:{" "}
-              <span className="font-medium text-slate-600">
-                Revisar {pendingGradesCount} entrega(s) y registrar retroalimentación constructiva.
-              </span>
-            </span>
-            <ArrowRight className="ml-auto h-3.5 w-3.5 shrink-0 text-blue-600 transition-transform group-hover:translate-x-0.5" />
-          </button>
-        )}
+        {/* Pulso resumido de la jornada */}
+        {summaryText ? (
+          <p
+            className="mt-1.5 text-xs sm:text-sm text-[#52668f] dark:text-slate-400 leading-relaxed max-w-3xl"
+            dangerouslySetInnerHTML={{ __html: summaryText }}
+          />
+        ) : null}
       </div>
     </section>
   );

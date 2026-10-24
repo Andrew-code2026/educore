@@ -28,14 +28,14 @@ export function TeacherGroupPerformance({
           </span>
           <div>
             <h2 className="text-sm font-bold text-slate-800">Rendimiento del grupo</h2>
-            <p className="text-[10px] text-slate-400">Evolución del promedio por periodo</p>
+            <p className="text-xs text-slate-400">Evolución del promedio por periodo</p>
           </div>
         </div>
         {onViewAnalysis && (
           <button
             type="button"
             onClick={onViewAnalysis}
-            className="text-[10px] font-bold text-blue-700 hover:text-blue-800 flex items-center gap-1 transition-colors"
+            className="text-xs font-bold text-blue-700 hover:text-blue-800 flex items-center gap-1 transition-colors"
           >
             <span>Ver análisis</span>
             <ArrowRight className="inline h-3 w-3" />
@@ -80,7 +80,7 @@ export function TeacherGroupPerformance({
         </svg>
       </div>
 
-      <div className="mt-2 flex items-center justify-between text-[9px] text-slate-400">
+      <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
         <span>{period1Label} ({period1Average.toFixed(2)})</span>
         <span
           className={`font-bold ${

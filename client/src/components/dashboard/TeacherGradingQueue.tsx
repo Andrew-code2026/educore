@@ -24,14 +24,14 @@ export function TeacherGradingQueue({
               <h3 className="text-sm font-bold text-slate-900">
                 Por calificar
               </h3>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Entregas esperando revisión
               </p>
             </div>
           </div>
 
           {items.length > 0 && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
               {items.reduce((sum, item) => sum + item.pendingCount, 0)}
             </span>
           )}
@@ -51,13 +51,13 @@ export function TeacherGradingQueue({
                   <p className="truncate text-xs font-semibold text-slate-800 group-hover:text-amber-900">
                     {item.title}
                   </p>
-                  <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                  <p className="mt-0.5 truncate text-xs text-slate-500">
                     {item.course} · {item.subject}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="rounded-md bg-white border border-slate-200/80 px-2 py-0.5 text-[11px] font-bold text-amber-700 shadow-2xs">
+                  <span className="rounded-md bg-white border border-slate-200/80 px-2 py-0.5 text-xs font-bold text-amber-700 shadow-2xs">
                     {item.pendingCount}
                     {item.totalSubmissions > 0 && (
                       <span className="text-slate-400 font-normal"> / {item.totalSubmissions}</span>
@@ -74,7 +74,7 @@ export function TeacherGradingQueue({
             <p className="text-xs font-semibold text-slate-700">
               Todo calificado
             </p>
-            <p className="text-[11px] text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-400 mt-0.5">
               No tienes entregas pendientes de revisión.
             </p>
           </div>

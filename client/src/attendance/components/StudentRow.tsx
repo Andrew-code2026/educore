@@ -74,7 +74,7 @@ export const StudentRow = memo(function StudentRow({
           pending && "roster-row-pending",
         )}
       >
-        <span className="roster-index tabular flex h-full items-center justify-center text-[10px] font-medium text-muted-foreground/55" role="gridcell" aria-colindex={1}>
+        <span className="roster-index tabular flex h-full items-center justify-center text-xs font-medium text-muted-foreground/55" role="gridcell" aria-colindex={1}>
           {String(index).padStart(2, "0")}
         </span>
 
@@ -90,14 +90,14 @@ export const StudentRow = memo(function StudentRow({
               <Avatar name={student.fullName} initials={student.initials} size="md" className="shrink-0" />
               <span className="min-w-0 flex-1">
                 <span className="flex min-w-0 items-center gap-1.5">
-                  <span className="truncate text-[11.5px] font-semibold leading-tight">{student.fullName}</span>
+                  <span className="truncate text-xs font-semibold leading-tight">{student.fullName}</span>
                   {student.pendingExcuses > 0 ? (
-                    <span className="hidden shrink-0 rounded-full bg-st-excuse/10 px-1.5 py-0.5 text-[8.5px] font-semibold text-st-excuse ring-1 ring-inset ring-st-excuse/20 xl:inline-flex">
+                    <span className="hidden shrink-0 rounded-full bg-st-excuse/10 px-1.5 py-0.5 text-xs font-semibold text-st-excuse ring-1 ring-inset ring-st-excuse/20 xl:inline-flex">
                       {student.pendingExcuses} excusa{student.pendingExcuses > 1 ? "s" : ""}
                     </span>
                   ) : null}
                 </span>
-                <span className="mt-0.5 block truncate text-[9.5px] leading-tight text-muted-foreground">
+                <span className="mt-0.5 block truncate text-xs leading-tight text-muted-foreground">
                   {student.group} · {course.subject}
                 </span>
               </span>
@@ -113,7 +113,7 @@ export const StudentRow = memo(function StudentRow({
               ? "bg-foreground/[0.035] text-muted-foreground/60"
               : attendanceRate >= 85 ? "chrona-rate-good" : attendanceRate >= 70 ? "chrona-rate-watch" : "chrona-rate-low",
           )}>
-            <span className="tabular text-[11.5px] font-bold leading-none">{attendanceRate === null ? "—" : `${attendanceRate}%`}</span>
+            <span className="tabular text-xs font-bold leading-none">{attendanceRate === null ? "—" : `${attendanceRate}%`}</span>
             {attendanceRate !== null ? (
               <span className="mt-1 h-[2px] w-full overflow-hidden rounded-full bg-foreground/[0.09]">
                 <span className="block h-full rounded-full bg-current" style={{ width: `${attendanceRate}%` }} />
@@ -137,7 +137,7 @@ export const StudentRow = memo(function StudentRow({
               />
             ))}
           </div>
-          {pending ? <span className="chrona-pending-label hidden whitespace-nowrap text-[8px] font-semibold uppercase tracking-[0.02em] sm:inline">Por pasar</span> : null}
+          {pending ? <span className="chrona-pending-label hidden whitespace-nowrap text-xs font-semibold uppercase tracking-[0.02em] sm:inline">Por pasar</span> : null}
         </div>
 
         <div className="roster-trace-cell flex h-full items-center justify-center px-1.5" role="gridcell" aria-colindex={5} aria-label={`Historial reciente de ${student.fullName}`}>
@@ -156,7 +156,7 @@ export const StudentRow = memo(function StudentRow({
                 )}
               />
             ))}
-            {trace.length === 0 ? <span className="text-[9px] text-muted-foreground/50">Sin historial</span> : null}
+            {trace.length === 0 ? <span className="text-xs text-muted-foreground/50">Sin historial</span> : null}
           </div>
         </div>
 
@@ -177,12 +177,12 @@ export const StudentRow = memo(function StudentRow({
               {flag ? (
                 <>
                   <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", SEVERITY_DOT[flag.severity])} />
-                  <span className={cn("max-w-full truncate rounded-full px-1.5 py-0.5 text-[9px] font-semibold", SEVERITY_CLASS[flag.severity])}>
+                  <span className={cn("max-w-full truncate rounded-full px-1.5 py-0.5 text-xs font-semibold", SEVERITY_CLASS[flag.severity])}>
                     <AlertCircle className="mr-1 inline h-2.5 w-2.5" aria-hidden="true" />{flag.label}
                   </span>
                 </>
               ) : (
-                <span className="flex items-center gap-1 text-[9px] text-muted-foreground/55"><span className="h-1 w-1 rounded-full bg-st-present/75" />Estable</span>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground/55"><span className="h-1 w-1 rounded-full bg-st-present/75" />Estable</span>
               )}
             </button>
         </div>

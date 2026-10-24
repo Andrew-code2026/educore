@@ -172,17 +172,17 @@ export function StudentSummaryPopover({
                   {sName}
                 </h4>
                 {risk.riskLevel === "ALTO" && (
-                  <Badge variant="destructive" className="h-3.5 px-1 text-[8px] font-bold">
+                  <Badge variant="destructive" className="h-3.5 px-1 text-xs font-bold">
                     Requiere atención
                   </Badge>
                 )}
                 {risk.riskLevel === "MEDIO" && (
-                  <Badge className="h-3.5 px-1 text-[8px] font-bold bg-amber-500 hover:bg-amber-600 text-white">
+                  <Badge className="h-3.5 px-1 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white">
                     Requiere atención
                   </Badge>
                 )}
               </div>
-              <p className="truncate text-[10px] text-slate-400 font-medium">
+              <p className="truncate text-xs text-slate-400 font-medium">
                 ID · {studentId} {courseName ? `· ${courseName}` : ""}
                 {relativeRank && (
                   <span className="ml-1.5 font-bold text-indigo-600 dark:text-indigo-400">
@@ -206,7 +206,7 @@ export function StudentSummaryPopover({
         <div className="relative mb-2.5 grid grid-cols-2 gap-2">
           {/* Definitiva actual */}
           <div className="rounded-xl border border-slate-100/90 bg-slate-50/60 p-2 dark:border-slate-800 dark:bg-slate-850/50">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Definitiva
             </p>
             <div className="mt-0.5 flex items-baseline gap-1.5 flex-wrap">
@@ -215,14 +215,14 @@ export function StudentSummaryPopover({
               </span>
               {average !== null && (
                 <span
-                  className={`rounded px-1 py-0.2 text-[9px] font-bold leading-none ${tone.badgeColor}`}
+                  className={`rounded px-1 py-0.2 text-xs font-bold leading-none ${tone.badgeColor}`}
                 >
                   {tone.label}
                 </span>
               )}
               {deltaVsGroup !== null && (
                 <span
-                  className={`rounded px-1 py-0.2 text-[9px] font-bold leading-none ${
+                  className={`rounded px-1 py-0.2 text-xs font-bold leading-none ${
                     deltaVsGroup > 0
                       ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
                       : deltaVsGroup < 0
@@ -241,24 +241,24 @@ export function StudentSummaryPopover({
           <div className="rounded-xl border border-slate-100/90 bg-slate-50/60 p-2 dark:border-slate-800 dark:bg-slate-850/50">
             {projection.hasPending && projection.projectedDefinitiva !== null ? (
               <>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
                   <Sparkles className="h-2.5 w-2.5" /> Proyección
                 </p>
                 <div className="mt-0.5 flex items-baseline gap-1.5">
                   <span className="text-xl font-extrabold tracking-tight text-indigo-600 dark:text-indigo-400">
                     {numberValue(projection.projectedDefinitiva)}
                   </span>
-                  <span className="text-[9px] text-slate-400 font-medium">estimada</span>
+                  <span className="text-xs text-slate-400 font-medium">estimada</span>
                 </div>
               </>
             ) : (
               <>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Evaluaciones
                 </p>
                 <p className="mt-0.5 text-xs font-bold text-slate-700 dark:text-slate-200">
                   {validGrades.length} / {rawValues.length}{" "}
-                  <span className="text-[10px] font-normal text-slate-400">
+                  <span className="text-xs font-normal text-slate-400">
                     {pendingCount === 0 ? "Completas" : "calificadas"}
                   </span>
                 </p>
@@ -269,7 +269,7 @@ export function StudentSummaryPopover({
 
         {/* Sección Inteligente: "¿Qué necesito para aprobar?" */}
         {neededToPass.hasPending && (
-          <div className={`relative mb-2.5 p-2 rounded-xl border text-[11px] flex items-center justify-between gap-1.5 ${
+          <div className={`relative mb-2.5 p-2 rounded-xl border text-xs flex items-center justify-between gap-1.5 ${
             neededToPass.isGuaranteed
               ? "border-emerald-200 bg-emerald-50/70 text-emerald-900 dark:border-emerald-800/60 dark:bg-emerald-950/30 dark:text-emerald-200"
               : neededToPass.isImpossible
@@ -296,7 +296,7 @@ export function StudentSummaryPopover({
 
         {/* Lista condensada de calificaciones */}
         <div className="relative mb-2.5">
-          <div className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+          <div className="mb-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-400">
             <span>Notas del periodo</span>
             <span>{subjectName ?? "Materia"}</span>
           </div>
@@ -313,15 +313,15 @@ export function StudentSummaryPopover({
                 >
                   <div className="min-w-0 pr-2">
                     <p
-                      className="truncate text-[11px] font-medium text-slate-700 dark:text-slate-300"
+                      className="truncate text-xs font-medium text-slate-700 dark:text-slate-300"
                       title={v.assessment.title}
                     >
                       {v.assessment.title}
                     </p>
-                    <p className="text-[9px] text-slate-400">Peso {v.assessment.weight}%</p>
+                    <p className="text-xs text-slate-400">Peso {v.assessment.weight}%</p>
                   </div>
                   {isPending ? (
-                    <span className="text-[10px] italic font-semibold text-slate-400">
+                    <span className="text-xs italic font-semibold text-slate-400">
                       Pendiente
                     </span>
                   ) : (
@@ -333,7 +333,7 @@ export function StudentSummaryPopover({
               );
             })}
             {!rawValues.length && (
-              <p className="py-2 text-center text-[11px] text-slate-400 italic">
+              <p className="py-2 text-center text-xs text-slate-400 italic">
                 Sin evaluaciones aún
               </p>
             )}
@@ -342,7 +342,7 @@ export function StudentSummaryPopover({
 
         {/* Píldoras de destacados: Máximo, Mínimo, Aprobadas, Calificadas y Pendientes */}
         {rawValues.length > 0 && (
-          <div className="relative mb-2.5 rounded-xl bg-slate-50/80 p-2 text-[10px] text-slate-600 dark:bg-slate-800/50 dark:text-slate-300">
+          <div className="relative mb-2.5 rounded-xl bg-slate-50/80 p-2 text-xs text-slate-600 dark:bg-slate-800/50 dark:text-slate-300">
             <div className="flex items-center justify-between gap-1.5 pb-1.5 border-b border-slate-200/60 dark:border-slate-700/60">
               <span className="flex items-center gap-1" title="Mejor nota obtenida">
                 <Award className="h-3 w-3 text-emerald-500" />

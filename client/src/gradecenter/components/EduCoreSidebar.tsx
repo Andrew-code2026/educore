@@ -89,7 +89,7 @@ function SidebarContent({ collapsed, onToggle, section, onNavigate, onUnavailabl
           onClick={onToggle}
           aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
           className={cn(
-            "flex items-center rounded-xl border border-white/8 bg-white/4 text-[11px] text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground",
+            "flex items-center rounded-xl border border-white/8 bg-white/4 text-xs text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground",
             collapsed ? "size-9 justify-center" : "w-full gap-2 px-2.5 py-2",
           )}
         >
@@ -107,7 +107,7 @@ function SidebarBrand() {
       <GradeCenterMark className="size-9 shrink-0" />
       <div className="min-w-0">
         <div className="font-display text-[13px] font-semibold tracking-tight text-foreground">EduCore</div>
-        <div className="mt-0.5 truncate text-[9px] tracking-[0.13em] text-muted-foreground uppercase">Workspace académico</div>
+        <div className="mt-0.5 truncate text-xs tracking-[0.13em] text-muted-foreground uppercase">Workspace académico</div>
       </div>
     </div>
   );
@@ -116,7 +116,7 @@ function SidebarBrand() {
 function SidebarNav({ collapsed, section, onNavigate, onUnavailable }: { collapsed: boolean; section: NavDestination; onNavigate: (destination: NavDestination) => void; onUnavailable: (label: string) => void }) {
   return (
     <nav className={cn("space-y-1 py-4", collapsed ? "px-2" : "px-3")}>
-      <div className={cn("gc-label mb-2 text-[9px]", collapsed ? "text-center" : "px-2")}>{collapsed ? "·" : "Navegación"}</div>
+      <div className={cn("gc-label mb-2 text-xs", collapsed ? "text-center" : "px-2")}>{collapsed ? "·" : "Navegación"}</div>
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         const active = item.destination === "home";
@@ -136,7 +136,7 @@ function SidebarNav({ collapsed, section, onNavigate, onUnavailable }: { collaps
             )}
           >
             <Icon className={cn("size-4 shrink-0", active && "text-[var(--gc-cobalt)]")} />
-            {!collapsed && <span className="text-[11px] font-medium">{item.label}</span>}
+            {!collapsed && <span className="text-xs font-medium">{item.label}</span>}
             {!collapsed && active && <span className="ml-auto size-1.5 rounded-full bg-[var(--gc-cobalt)] shadow-[0_0_10px_var(--gc-cobalt)]" />}
           </button>
         );
@@ -152,7 +152,7 @@ function SidebarNav({ collapsed, section, onNavigate, onUnavailable }: { collaps
         )}
       >
         <Settings2 className="size-4 shrink-0" />
-        {!collapsed && <span className="text-[11px] font-medium">Configuración</span>}
+        {!collapsed && <span className="text-xs font-medium">Configuración</span>}
       </button>
     </nav>
   );

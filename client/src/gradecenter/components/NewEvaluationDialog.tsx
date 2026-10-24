@@ -66,7 +66,7 @@ export function NewEvaluationDialog({ open, onOpenChange }: { open: boolean; onO
             </div>
             <div>
               <DialogTitle className="text-base">Nueva evaluación</DialogTitle>
-              <DialogDescription className="mt-1 text-[11px]">Añádela a {dataset.course} · {dataset.subject} sin reconstruir la planilla ni modificar notas existentes.</DialogDescription>
+              <DialogDescription className="mt-1 text-xs">Añádela a {dataset.course} · {dataset.subject} sin reconstruir la planilla ni modificar notas existentes.</DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -74,12 +74,12 @@ export function NewEvaluationDialog({ open, onOpenChange }: { open: boolean; onO
         <div className="mt-1 space-y-4">
           <div className="grid gap-3 sm:grid-cols-[1.35fr_.65fr]">
             <label className="block">
-              <span className="gc-label mb-1.5 block text-[9px]">NOMBRE <span className="text-[var(--gc-bajo)]">*</span></span>
+              <span className="gc-label mb-1.5 block text-xs">NOMBRE <span className="text-[var(--gc-bajo)]">*</span></span>
               <input autoFocus value={name} maxLength={80} onChange={(event) => { setName(event.target.value); setError(null); }} placeholder="Ej. Taller de laboratorio" aria-label="Nombre de la evaluación" className="gc-input w-full rounded-2xl px-3 py-2.5 text-[12px] outline-none" />
-              <span className="mt-1 block text-[9px] text-muted-foreground">Obligatorio · hasta 80 caracteres</span>
+              <span className="mt-1 block text-xs text-muted-foreground">Obligatorio · hasta 80 caracteres</span>
             </label>
             <label className="block">
-              <span className="gc-label mb-1.5 block text-[9px]">TIPO</span>
+              <span className="gc-label mb-1.5 block text-xs">TIPO</span>
               <select value={type} onChange={(event) => setType(event.target.value as EvaluationTypeId)} aria-label="Tipo de evaluación" className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 text-[12px] outline-none focus:border-[var(--gc-cobalt)]/60">
                 {TYPE_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
               </select>
@@ -88,46 +88,46 @@ export function NewEvaluationDialog({ open, onOpenChange }: { open: boolean; onO
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
-              <span className="gc-label mb-1.5 block text-[9px]">PONDERACIÓN (%) <span className="text-[var(--gc-bajo)]">*</span></span>
+              <span className="gc-label mb-1.5 block text-xs">PONDERACIÓN (%) <span className="text-[var(--gc-bajo)]">*</span></span>
               <div className={cn("flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3", error?.includes("ponder") && "border-[var(--gc-bajo)]/60")}>
                 <Percent className="size-3.5 text-muted-foreground" />
                 <input value={weight} onChange={(event) => { setWeight(event.target.value.replace(/[^0-9.,]/g, "")); setError(null); }} inputMode="decimal" placeholder="Ej. 10" aria-label="Ponderación de la evaluación" className="gc-num min-w-0 flex-1 bg-transparent py-2.5 text-[12px] outline-none" />
-                <span className="text-[10px] text-muted-foreground">{remaining}% libre</span>
+                <span className="text-xs text-muted-foreground">{remaining}% libre</span>
               </div>
-              <span className="mt-1 block text-[9px] text-muted-foreground">Se suma al total del periodo; nunca se redistribuyen otros pesos.</span>
+              <span className="mt-1 block text-xs text-muted-foreground">Se suma al total del periodo; nunca se redistribuyen otros pesos.</span>
             </label>
             <label className="block">
-              <span className="gc-label mb-1.5 block text-[9px]">FECHA <span className="text-muted-foreground">(opcional)</span></span>
-              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3"><CalendarDays className="size-3.5 text-muted-foreground" /><input type="date" value={date} onChange={(event) => setDate(event.target.value)} aria-label="Fecha de la evaluación" className="min-w-0 flex-1 bg-transparent py-2.5 text-[11px] outline-none" /></div>
+              <span className="gc-label mb-1.5 block text-xs">FECHA <span className="text-muted-foreground">(opcional)</span></span>
+              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3"><CalendarDays className="size-3.5 text-muted-foreground" /><input type="date" value={date} onChange={(event) => setDate(event.target.value)} aria-label="Fecha de la evaluación" className="min-w-0 flex-1 bg-transparent py-2.5 text-xs outline-none" /></div>
             </label>
           </div>
 
           <label className="block">
-            <span className="gc-label mb-1.5 block text-[9px]">DESCRIPCIÓN O INSTRUCCIONES <span className="text-muted-foreground">(opcional)</span></span>
-            <textarea value={description} maxLength={500} onChange={(event) => setDescription(event.target.value)} rows={3} placeholder="Qué deben entregar o demostrar los estudiantes…" aria-label="Descripción de la evaluación" className="w-full resize-none rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 text-[11px] outline-none focus:border-[var(--gc-cobalt)]/60" />
+            <span className="gc-label mb-1.5 block text-xs">DESCRIPCIÓN O INSTRUCCIONES <span className="text-muted-foreground">(opcional)</span></span>
+            <textarea value={description} maxLength={500} onChange={(event) => setDescription(event.target.value)} rows={3} placeholder="Qué deben entregar o demostrar los estudiantes…" aria-label="Descripción de la evaluación" className="w-full resize-none rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 text-xs outline-none focus:border-[var(--gc-cobalt)]/60" />
           </label>
 
           <div>
-            <span className="gc-label mb-1.5 block text-[9px]">ESTADO INICIAL</span>
+            <span className="gc-label mb-1.5 block text-xs">ESTADO INICIAL</span>
             <div className="grid gap-2 sm:grid-cols-2">
               {(["active", "preparing"] as EvaluationStatus[]).map((item) => (
                 <button key={item} type="button" onClick={() => setStatus(item)} className={cn("rounded-2xl border p-3 text-left transition-all", status === item ? "border-[var(--gc-cobalt)]/70 bg-[var(--gc-cobalt)]/10" : "border-white/8 bg-white/3 hover:bg-white/6")}>
-                  <div className="text-[11px] font-semibold">{item === "active" ? "Activa para cálculo" : "En preparación"}</div>
-                  <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{item === "active" ? "Aparece en promedios y permite registrar notas inmediatamente." : "Aparece en la matriz, pero queda identificada como pendiente de configuración."}</div>
+                  <div className="text-xs font-semibold">{item === "active" ? "Activa para cálculo" : "En preparación"}</div>
+                  <div className="mt-1 text-xs leading-relaxed text-muted-foreground">{item === "active" ? "Aparece en promedios y permite registrar notas inmediatamente." : "Aparece en la matriz, pero queda identificada como pendiente de configuración."}</div>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-2xl border border-[var(--gc-cobalt)]/20 bg-[var(--gc-cobalt)]/7 px-3 py-2.5 text-[10px]">
+          <div className="flex items-center justify-between rounded-2xl border border-[var(--gc-cobalt)]/20 bg-[var(--gc-cobalt)]/7 px-3 py-2.5 text-xs">
             <span><span className="font-semibold">Al guardar:</span> se añadirá una columna con calificaciones pendientes.</span>
             <span className="gc-num rounded-full bg-[var(--gc-cobalt)]/18 px-2 py-1 text-[var(--gc-cobalt)]">{previewStatus}</span>
           </div>
-          {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-[var(--gc-bajo)]/30 bg-[var(--gc-bajo)]/8 px-3 py-2 text-[10px] text-[var(--gc-bajo)]"><AlertTriangle className="mt-0.5 size-3 shrink-0" />{error}</div>}
+          {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-[var(--gc-bajo)]/30 bg-[var(--gc-bajo)]/8 px-3 py-2 text-xs text-[var(--gc-bajo)]"><AlertTriangle className="mt-0.5 size-3 shrink-0" />{error}</div>}
 
           <div className="flex justify-end gap-2 border-t border-white/8 pt-3">
-            <button type="button" onClick={close} className="rounded-xl border border-white/10 px-3 py-2 text-[11px] text-muted-foreground hover:bg-white/8">Cancelar</button>
-            <button type="button" onClick={submit} className="flex items-center gap-1.5 rounded-xl bg-[var(--gc-cobalt)]/25 px-3.5 py-2 text-[11px] font-semibold hover:bg-[var(--gc-cobalt)]/35"><Save className="size-3.5" />Crear evaluación</button>
+            <button type="button" onClick={close} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-muted-foreground hover:bg-white/8">Cancelar</button>
+            <button type="button" onClick={submit} className="flex items-center gap-1.5 rounded-xl bg-[var(--gc-cobalt)]/25 px-3.5 py-2 text-xs font-semibold hover:bg-[var(--gc-cobalt)]/35"><Save className="size-3.5" />Crear evaluación</button>
           </div>
         </div>
       </DialogContent>

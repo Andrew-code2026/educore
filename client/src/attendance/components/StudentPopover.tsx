@@ -35,7 +35,7 @@ interface StudentPopoverProps {
 function Metric({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
     <div className="min-w-0 rounded-lg bg-surface-2 px-1.5 py-1.5">
-      <p className="truncate text-[9px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+      <p className="truncate text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
         {label}
       </p>
       <p className={cn("font-display tabular mt-1 text-[13px] font-semibold leading-none", tone)}>{value}</p>
@@ -63,7 +63,7 @@ function ActionButton({
       aria-label={title}
       onClick={onClick}
       disabled={disabled}
-      className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border border-hairline bg-surface-1 px-1.5 text-[10px] font-medium text-foreground/80 transition-colors hover:border-brand/25 hover:bg-brand-soft hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+      className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border border-hairline bg-surface-1 px-1.5 text-xs font-medium text-foreground/80 transition-colors hover:border-brand/25 hover:bg-brand-soft hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
     >
       {icon}
       <span className="truncate">{children}</span>
@@ -101,10 +101,10 @@ export const StudentPopover = memo(function StudentPopover({
         <Avatar name={student.fullName} initials={student.initials} size="md" />
         <div className="min-w-0 flex-1">
           <p className="font-display truncate text-[13px] font-semibold leading-tight tracking-[-0.02em]">{student.fullName}</p>
-          <p className="mt-1 truncate text-[10px] text-muted-foreground">
+          <p className="mt-1 truncate text-xs text-muted-foreground">
             {student.group} · {courseSubject}
           </p>
-          <p className="tabular mt-1 text-[9px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+          <p className="tabular mt-1 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
             {stats.recorded === 0 ? "Sin registros históricos" : `${stats.present + stats.late} de ${stats.recorded} jornadas asistidas`}
           </p>
         </div>
@@ -112,7 +112,7 @@ export const StudentPopover = memo(function StudentPopover({
           <p className="font-display tabular text-[18px] font-bold leading-none text-brand">
             {stats.attendanceRate === null ? "—" : `${Math.round(stats.attendanceRate)}%`}
           </p>
-          <span className={cn("mt-1 inline-flex items-center gap-0.5 text-[9px] font-semibold", trendTone)}>
+          <span className={cn("mt-1 inline-flex items-center gap-0.5 text-xs font-semibold", trendTone)}>
             <TrendIcon className="h-3 w-3" aria-hidden="true" />{trendLabel}
           </span>
         </div>
@@ -121,27 +121,27 @@ export const StudentPopover = memo(function StudentPopover({
       <div className="mt-2 flex min-w-0 items-center gap-1.5 rounded-lg border border-hairline bg-surface-2 px-2 py-1.5">
         <span
           className={cn(
-            "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold",
+            "shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold",
             flag ? SEVERITY_CLASS[flag.severity] : "bg-st-present/10 text-st-present",
           )}
         >
           {flag?.label ?? "Sin señales"}
         </span>
         {attentionText ? (
-          <span className="min-w-0 truncate text-[10px] text-muted-foreground" title={attentionText}>
+          <span className="min-w-0 truncate text-xs text-muted-foreground" title={attentionText}>
             {attentionText}
           </span>
         ) : (
-          <span className="min-w-0 truncate text-[10px] text-muted-foreground">Sin alertas activas</span>
+          <span className="min-w-0 truncate text-xs text-muted-foreground">Sin alertas activas</span>
         )}
       </div>
 
       <section className="mt-2.5" aria-label="Estado de asistencia de hoy">
         <div className="mb-1 flex items-center justify-between gap-2">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             Estado de hoy
           </p>
-          <span className="text-[9px] font-medium text-muted-foreground">
+          <span className="text-xs font-medium text-muted-foreground">
             Actual: {STATUS_CONTROL_LABELS[status]}
           </span>
         </div>
@@ -158,7 +158,7 @@ export const StudentPopover = memo(function StudentPopover({
                 aria-label={STATUS_CONTROL_LABELS[control]}
                 title={STATUS_CONTROL_LABELS[control]}
                 className={cn(
-                  "flex h-7 flex-1 items-center justify-center rounded-[8px] text-[10px] font-semibold",
+                  "flex h-7 flex-1 items-center justify-center rounded-[8px] text-xs font-semibold",
                   "transition-colors duration-150",
                   active
                     ? STATUS_CHIP[control]
@@ -180,7 +180,7 @@ export const StudentPopover = memo(function StudentPopover({
       </div>
 
       <div className="mt-2.5 flex items-center gap-2" aria-label={`Últimas ${stats.recent.length} jornadas de asistencia`}>
-        <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Últimas {stats.recent.length}
         </span>
         <div className="flex min-w-0 flex-1 items-center gap-[3px]">

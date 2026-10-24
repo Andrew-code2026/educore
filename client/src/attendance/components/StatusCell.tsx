@@ -42,7 +42,7 @@ export function StatusCell({ status, active, onSelect, tabIndex = -1, onFocus }:
       title={`${meta.label} · tecla ${meta.key}`}
       onClick={onSelect}
       className={cn(
-        "relative grid h-7 w-[30px] place-items-center rounded-[9px] text-[11px] font-semibold",
+        "relative grid h-7 w-[30px] place-items-center rounded-[9px] text-xs font-semibold",
         "transition-colors duration-150 ease-out",
         active && "chrona-pate-active",
         active ? STATUS_CELL_ACTIVE[status] : STATUS_CELL_IDLE,

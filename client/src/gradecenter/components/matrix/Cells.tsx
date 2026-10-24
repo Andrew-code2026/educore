@@ -30,9 +30,9 @@ export function StudentHeaderCell({ width, headerHeight }: { width: number; head
             onChange={selectAllVisible}
             className="size-3 accent-[var(--gc-cobalt)]"
           />
-          <span className="gc-label text-[9px]">Estudiante</span>
+          <span className="gc-label text-xs">Estudiante</span>
         </label>
-        <span className="gc-num text-[9px] text-muted-foreground/70">Definitiva →</span>
+        <span className="gc-num text-xs text-muted-foreground/70">Definitiva →</span>
       </div>
       <span
         className="gc-resizer"
@@ -83,15 +83,15 @@ export function StudentCell({
             className="size-3 shrink-0 accent-[var(--gc-cobalt)]"
           />
           <button type="button" onClick={() => selectStudent(metrics.student.id)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
-            <span className={cn("relative flex shrink-0 items-center justify-center rounded-lg border font-semibold", compact ? "size-6 text-[10px]" : "size-7 text-[11px]")} style={{ borderColor: levelTint(levelId, 0.4), backgroundColor: levelTint(levelId, 0.16), color: metrics.level ? LEVELS[metrics.level].color : "var(--muted-foreground)" }}>
+            <span className={cn("relative flex shrink-0 items-center justify-center rounded-lg border font-semibold", compact ? "size-6 text-xs" : "size-7 text-xs")} style={{ borderColor: levelTint(levelId, 0.4), backgroundColor: levelTint(levelId, 0.16), color: metrics.level ? LEVELS[metrics.level].color : "var(--muted-foreground)" }}>
               {initials(metrics.student)}
             </span>
             <span className="min-w-0 flex-1">
-              <span className={cn("block truncate font-medium text-foreground/90", compact ? "text-[11.5px]" : "text-[12.5px]")}>{studentDisplayName(metrics.student, nameWidth)}</span>
+              <span className={cn("block truncate font-medium text-foreground/90", compact ? "text-xs" : "text-[12.5px]")}>{studentDisplayName(metrics.student, nameWidth)}</span>
               {!compact && <span className="mt-0.5 flex items-center gap-1.5">
-                <span className="gc-num text-[9.5px] text-muted-foreground/80">{metrics.student.code}</span>
-                {metrics.pendingCount > 0 && <span className="gc-num flex items-center gap-0.5 text-[9.5px] text-[var(--gc-bajo)]"><Clock className="size-2.5" />{metrics.pendingCount}</span>}
-                {metrics.attention && <span className="flex items-center gap-0.5 text-[9.5px] text-[var(--gc-bajo)]"><AlertTriangle className="size-2.5" /></span>}
+                <span className="gc-num text-xs text-muted-foreground/80">{metrics.student.code}</span>
+                {metrics.pendingCount > 0 && <span className="gc-num flex items-center gap-0.5 text-xs text-[var(--gc-bajo)]"><Clock className="size-2.5" />{metrics.pendingCount}</span>}
+                {metrics.attention && <span className="flex items-center gap-0.5 text-xs text-[var(--gc-bajo)]"><AlertTriangle className="size-2.5" /></span>}
                 {metrics.complete && !metrics.attention && <CheckCircle2 className="size-2.5 text-[var(--gc-alto)]/70" />}
               </span>}
             </span>
@@ -114,8 +114,8 @@ export function DefinitivaHeaderCell({ width, headerHeight }: { width: number; h
       style={{ width, minWidth: width, maxWidth: width, height: headerHeight }}
     >
       <div className="flex h-full flex-col justify-center px-3">
-        <span className="gc-label text-[9px] text-foreground/80">Definitiva</span>
-        <span className="text-[9px] text-muted-foreground/70">Ponderada del periodo</span>
+        <span className="gc-label text-xs text-foreground/80">Definitiva</span>
+        <span className="text-xs text-muted-foreground/70">Ponderada del periodo</span>
       </div>
       <span
         className="gc-resizer"
@@ -153,21 +153,21 @@ export function DefinitivaCell({
         <span className="gc-num text-base font-semibold" style={{ color: level ? LEVELS[level].color : undefined }}>
           {formatGrade(metrics.definitiva)}
         </span>
-        <span className="text-[11px] font-medium">{level ? LEVELS[level].label : "Sin evaluar"}</span>
+        <span className="text-xs font-medium">{level ? LEVELS[level].label : "Sin evaluar"}</span>
       </div>
-      <div className="text-[10px] opacity-85">
+      <div className="text-xs opacity-85">
         {metrics.evaluatedPct}% evaluado · {metrics.gradedCount} de {metrics.outcomes.length}{" "}
         {pluralize(metrics.outcomes.length, "evaluación", "evaluaciones")}
       </div>
       {metrics.pendingCount > 0 && (
-        <div className="text-[10px] text-[var(--gc-bajo)]">
+        <div className="text-xs text-[var(--gc-bajo)]">
           {metrics.pendingCount} {pluralize(metrics.pendingCount, "pendiente", "pendientes")}
         </div>
       )}
       {metrics.provisional && (
-        <div className="text-[10px] opacity-80">Definitiva provisional: falta calificar más evaluaciones</div>
+        <div className="text-xs opacity-80">Definitiva provisional: falta calificar más evaluaciones</div>
       )}
-      <div className="text-[10px] opacity-70">{LEVELS[level ?? "basico"].range} · escala institucional</div>
+      <div className="text-xs opacity-70">{LEVELS[level ?? "basico"].range} · escala institucional</div>
     </div>
   );
 
@@ -199,7 +199,7 @@ export function DefinitivaCell({
                 {formatGrade(metrics.definitiva)}
               </span>
               {!compact && (
-                <span className="truncate text-[10px] font-medium text-foreground/70">
+                <span className="truncate text-xs font-medium text-foreground/70">
                   {level ? LEVELS[level].short : "—"}
                 </span>
               )}
@@ -217,12 +217,12 @@ export function DefinitivaCell({
                     }}
                   />
                 </span>
-                <span className="gc-num text-[9px] text-muted-foreground">{metrics.evaluatedPct}%</span>
+                <span className="gc-num text-xs text-muted-foreground">{metrics.evaluatedPct}%</span>
               </span>
             ) : (
               <span className="mt-0.5 flex items-center gap-1">
                 <LevelDot level={level} className="size-1.5" />
-                <span className="gc-num text-[9px] text-muted-foreground">{metrics.evaluatedPct}%</span>
+                <span className="gc-num text-xs text-muted-foreground">{metrics.evaluatedPct}%</span>
               </span>
             )}
             </button>

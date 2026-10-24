@@ -225,7 +225,7 @@ export const NewAssessmentSheet: React.FC<NewAssessmentSheetProps> = ({
                 <span>Nueva evaluación</span>
                 <Badge
                   variant="outline"
-                  className="text-[10px] font-bold uppercase tracking-wider text-[var(--edc-primary)] border-[var(--edc-primary)]/30 bg-[var(--edc-secondary)]/20"
+                  className="text-xs font-bold uppercase tracking-wider text-[var(--edc-primary)] border-[var(--edc-primary)]/30 bg-[var(--edc-secondary)]/20"
                 >
                   2.0
                 </Badge>
@@ -280,7 +280,7 @@ export const NewAssessmentSheet: React.FC<NewAssessmentSheetProps> = ({
                   Nombre <span className="text-rose-500">*</span>
                 </label>
                 {title.length > 0 && title.length < 3 && (
-                  <span className="text-[11px] text-rose-500 font-medium">Mínimo 3 caracteres</span>
+                  <span className="text-xs text-rose-500 font-medium">Mínimo 3 caracteres</span>
                 )}
               </div>
               <Input
@@ -293,7 +293,7 @@ export const NewAssessmentSheet: React.FC<NewAssessmentSheetProps> = ({
                 className="h-10 rounded-xl bg-white dark:bg-slate-900 text-xs border-slate-200 dark:border-slate-700 focus-visible:ring-[var(--edc-primary)]"
               />
               {title.trim().length === 0 && (
-                <p className="text-[11px] text-slate-400">
+                <p className="text-xs text-slate-400">
                   Agrega un nombre para identificar esta evaluación en el Grade Center.
                 </p>
               )}
@@ -308,7 +308,7 @@ export const NewAssessmentSheet: React.FC<NewAssessmentSheetProps> = ({
                 >
                   Peso porcentual <span className="text-rose-500">*</span>
                 </label>
-                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                   {weightTotal}% usado ·{" "}
                   <span className={remainingWeight === 0 ? "text-amber-600 font-bold" : "text-emerald-600 font-bold"}>
                     {remainingWeight}% disponible
@@ -353,7 +353,7 @@ export const NewAssessmentSheet: React.FC<NewAssessmentSheetProps> = ({
                       />
                     )}
                   </div>
-                  <p className="text-[10px] text-slate-400 truncate">
+                  <p className="text-xs text-slate-400 truncate">
                     {isWeightValid
                       ? `Total resultante: ${weightTotal + parsedWeight}%`
                       : remainingWeight > 0
@@ -381,7 +381,7 @@ export const NewAssessmentSheet: React.FC<NewAssessmentSheetProps> = ({
                   </span>
                 </div>
               ) : isWeightValid ? (
-                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3 inline shrink-0" />
                   <span>
                     💡 Te quedarán {remainingWeight - parsedWeight}% disponibles tras esta evaluación.
@@ -400,7 +400,7 @@ export const NewAssessmentSheet: React.FC<NewAssessmentSheetProps> = ({
                   <CalendarIcon className="h-3.5 w-3.5 text-slate-400" />
                   <span>Fecha de aplicación</span>
                 </label>
-                <span className="text-[11px] text-slate-400 capitalize">
+                <span className="text-xs text-slate-400 capitalize">
                   {formatDateSpanish(date)}
                 </span>
               </div>
@@ -444,7 +444,7 @@ export const NewAssessmentSheet: React.FC<NewAssessmentSheetProps> = ({
                     >
                       Descripción o instrucciones
                     </label>
-                    <span className="text-[10px] text-slate-400">{description.length}/1000</span>
+                    <span className="text-xs text-slate-400">{description.length}/1000</span>
                   </div>
                   <Textarea
                     id="new-assessment-description"
@@ -461,9 +461,9 @@ export const NewAssessmentSheet: React.FC<NewAssessmentSheetProps> = ({
 
             {/* 6. Resumen en Tiempo Real ("Así quedará") */}
             <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/40 p-3.5 space-y-2">
-              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400">
                 <span>Así quedará</span>
-                <span className="text-[9px] font-semibold text-slate-400 bg-slate-200/60 dark:bg-slate-800 px-1.5 py-0.5 rounded-sm">
+                <span className="text-xs font-semibold text-slate-400 bg-slate-200/60 dark:bg-slate-800 px-1.5 py-0.5 rounded-sm">
                   BORRADOR
                 </span>
               </div>
@@ -473,7 +473,7 @@ export const NewAssessmentSheet: React.FC<NewAssessmentSheetProps> = ({
                   <p className="text-xs font-extrabold text-slate-800 dark:text-white truncate">
                     {title.trim() || "Nueva evaluación"} · {selectedOption.label} · {isWeightNumber ? parsedWeight : 0}%
                   </p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
                     <span>📅 {formatDateSpanish(date) || "Hoy"}</span>
                     <span>· Escala máx: {maxValue}</span>
                   </p>
