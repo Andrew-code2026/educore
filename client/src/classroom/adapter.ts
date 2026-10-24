@@ -124,6 +124,11 @@ function formatDueFull(dateValue: string | Date | null | undefined): string {
   return `${shortDate} · ${hours}:${minutes}`;
 }
 
+/** Id estable de un curso del snapshot; compartido con la portada para enlazar tarjetas y vistas. */
+export function courseKey(course: { id?: number | string | null; name: string }): string {
+  return String(course.id ?? `course-${course.name}`);
+}
+
 export function adaptEduCoreCourses(data: any, academic?: any): CourseSummary[] {
   const rawCourses = data?.courses ?? academic?.courses ?? [];
   const assignments = data?.assignments ?? [];
@@ -142,7 +147,7 @@ export function adaptEduCoreCourses(data: any, academic?: any): CourseSummary[] 
         const tones = ['science', 'biology', 'chemistry'];
         const tone = tones[index % tones.length];
         return {
-          id: `course-${name}`,
+          id: courseKey({ name }),
           code: `${name}-2026`,
           name: `Curso ${name}`,
           students: 32,
@@ -169,7 +174,7 @@ export function adaptEduCoreCourses(data: any, academic?: any): CourseSummary[] 
     const tone = tones[index % tones.length];
 
     return {
-      id: String(c.id ?? `course-${courseName}`),
+      id: courseKey(c),
       code: c.code ?? `${courseName}-2026`,
       name: courseName.startsWith('Curso') ? courseName : `Curso ${courseName}`,
       students: c.studentCount ?? 32,
