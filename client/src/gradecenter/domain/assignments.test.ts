@@ -63,7 +63,7 @@ describe("modelo de asignaciones", () => {
       activeDataset,
       [
         { courseId: 1, courseName: "10-1", subjectId: 2, subjectName: "Biología", academicYear: "2026", periodId: 2, periodName: "Periodo 2", periodClosed: false, students: 28, evaluations: 0, graded: 0, total: 0 },
-        { courseId: 3, courseName: "11-2", subjectId: 1, subjectName: "Matemáticas", academicYear: "2026", periodId: 2, periodName: "Periodo 2", periodClosed: false, students: 2, evaluations: 2, graded: 1, total: 4 },
+        { courseId: 3, courseName: "11-2", subjectId: 1, subjectName: "Matemáticas", academicYear: "2026", periodId: 2, periodName: "Periodo 2", periodClosed: false, students: 2, evaluations: 2, graded: 1, total: 4, average: 4.2, lastActivityAt: null, periodEndsAt: "2026-10-29T00:00:00Z" },
       ],
     );
 
@@ -77,6 +77,7 @@ describe("modelo de asignaciones", () => {
       totalCells: 0,
       pendingCells: 0,
       progressPct: 0,
+      average: null,
     });
 
     expect(assignments[1].courseId).toBe(3);
@@ -88,7 +89,9 @@ describe("modelo de asignaciones", () => {
       totalCells: 4,
       pendingCells: 3,
       progressPct: 25,
+      average: 4.5,
     });
+    expect(assignments[1].periodEndsAt).toEqual(new Date("2026-10-29T00:00:00Z"));
     expect(computeDatasetMetrics(assignments[0].dataset).progressPct).toBeGreaterThanOrEqual(0);
   });
 });

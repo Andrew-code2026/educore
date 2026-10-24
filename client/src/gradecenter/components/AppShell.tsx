@@ -117,7 +117,7 @@ export function AppShell({
   useEffect(() => {
     if (!shellContext) return;
     const role = shellContext.activeRole;
-    const title = role === "student" ? "Mis Calificaciones" : role === "guardian" ? "Rendimiento" : "Calificaciones";
+    const title = role === "student" ? "Mis Calificaciones" : role === "guardian" ? "Rendimiento" : "Grade Center";
 
     if (isLanding) {
       const count = availableAssignments?.length ?? 0;
@@ -242,6 +242,7 @@ export function AppShell({
         "gc-workspace-root relative flex h-full w-full flex-col overflow-hidden transition-[padding] duration-300",
         !embedded && "lg:pl-[var(--gc-sidebar-width)]",
       )}
+      data-screen={screen}
       style={!embedded ? ({ "--gc-sidebar-width": sidebarCollapsed ? "72px" : "250px" } as CSSProperties) : undefined}
     >
       {!embedded && (

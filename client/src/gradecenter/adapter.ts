@@ -148,6 +148,12 @@ export function adaptEduCoreContextToDataset(context: any, user?: any): Dataset 
   };
 }
 
+function toDate(value: Date | string | null | undefined): Date | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export interface RawAssignmentSummary {
   courseId: number;
   courseName: string;
@@ -161,6 +167,9 @@ export interface RawAssignmentSummary {
   evaluations: number;
   graded: number;
   total: number;
+  average?: number | null;
+  lastActivityAt?: Date | string | null;
+  periodEndsAt?: Date | string | null;
 }
 
 /**
@@ -183,6 +192,10 @@ export function getAssignmentsFromContext(
         currentDataset.key !== "gradecenter-empty";
 
       const id = `assignment-${item.courseId}-${item.subjectId}`;
+      const timeline = {
+        lastActivityAt: toDate(item.lastActivityAt),
+        periodEndsAt: toDate(item.periodEndsAt),
+      };
 
       if (isCurrent) {
         return {
@@ -195,6 +208,7 @@ export function getAssignmentsFromContext(
           access: item.periodClosed ? "read" : "owner",
           status: item.periodClosed ? "closed" : "available",
           metrics: computeDatasetMetrics(currentDataset),
+          ...timeline,
         };
       }
 
@@ -233,7 +247,9 @@ export function getAssignmentsFromContext(
           totalCells,
           pendingCells,
           progressPct,
+          average: item.average ?? null,
         },
+        ...timeline,
       };
     });
   }
@@ -298,6 +314,7 @@ export function getAssignmentsFromContext(
           totalCells: 0,
           pendingCells: 0,
           progressPct: 0,
+          average: null,
         },
       });
     }
