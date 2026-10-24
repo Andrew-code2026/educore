@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Activity, ArrowLeft, ChevronDown, GraduationCap, HelpCircle, Maximize2, Menu, Minimize2, Search, Sparkles } from "lucide-react";
+import { Activity, ArrowLeft, ChevronDown, GraduationCap, HelpCircle, Maximize2, Minimize2, Search, Sparkles } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -51,22 +51,20 @@ export function TopRail({
         focus ? "h-11 py-1" : "h-13 py-1.5",
       )}
     >
-      
-
       <button
         type="button"
         onClick={handleBack}
-        className="group flex items-center gap-2 rounded-xl border border-white/8 bg-white/4 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-white/15 hover:bg-white/8 hover:text-foreground active:scale-95 shrink-0"
-        title="Volver"
-        aria-label="Volver"
+        className="group flex shrink-0 items-center gap-2 rounded-xl border border-white/8 bg-white/4 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-white/15 hover:bg-white/8 hover:text-foreground active:scale-95"
+        title="Volver a mis planillas"
+        aria-label="Volver a mis planillas"
       >
         <ArrowLeft className="size-4 shrink-0 transition-transform group-hover:-translate-x-0.5" />
-        <span>Volver</span>
+        <span>Mis planillas</span>
       </button>
 
       <div className="hidden h-7 w-px shrink-0 bg-white/10 md:block" />
 
-      {/* Grupo y experimentación con la cantidad de evaluaciones */}
+      {/* Selector rápido de grupo */}
       <div className="hidden shrink-0 md:block">
         <Popover>
           <PopoverTrigger asChild>
@@ -118,12 +116,13 @@ export function TopRail({
 
             {availableAssignments && availableAssignments.length > 1 ? (
               <div className="mt-3 border-t border-white/8 pt-2">
-                <div className="text-xs font-medium text-muted-foreground mb-1.5">
-                  Planillas asignadas:
+                <div className="mb-1.5 text-xs font-medium text-muted-foreground">
+                  Cambiar de planilla:
                 </div>
-                <div className="max-h-40 overflow-y-auto space-y-1">
+                <div className="max-h-40 space-y-1 overflow-y-auto">
                   {availableAssignments.map((a) => {
                     const isCurrent = a.id === dataset.key || a.sourceDatasetKey === dataset.key;
+                    const studentTotal = a.metrics?.studentsCount ?? a.dataset.students.length;
                     return (
                       <button
                         key={a.id}
@@ -134,17 +133,19 @@ export function TopRail({
                           }
                         }}
                         className={cn(
-                          "w-full text-left rounded-lg px-2 py-1.5 text-xs transition-colors flex items-center justify-between",
+                          "flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs transition-colors",
                           isCurrent
-                            ? "bg-[var(--gc-cobalt)]/20 text-white font-medium border border-[var(--gc-cobalt)]/30"
-                            : "hover:bg-white/8 text-muted-foreground hover:text-foreground"
+                            ? "border border-[var(--gc-cobalt)]/30 bg-[var(--gc-cobalt)]/20 font-medium text-white"
+                            : "text-muted-foreground hover:bg-white/8 hover:text-foreground",
                         )}
                       >
                         <div className="min-w-0 pr-2">
                           <div className="truncate font-medium">{a.dataset.course} · {a.dataset.subject}</div>
-                          <div className="text-xs opacity-70 truncate">{a.dataset.period}</div>
+                          <div className="truncate text-xs opacity-70">{a.dataset.period}</div>
                         </div>
-                        <span className="gc-num text-xs shrink-0 opacity-80">{a.dataset.students.length || ""}</span>
+                        <span className="gc-num shrink-0 text-xs opacity-80">
+                          {studentTotal > 0 ? `${studentTotal} est.` : ""}
+                        </span>
                       </button>
                     );
                   })}
@@ -160,9 +161,9 @@ export function TopRail({
               <button
                 type="button"
                 onClick={onOpenLanding}
-                className="mt-3 w-full flex items-center justify-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-white/8 hover:text-foreground transition-colors"
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
               >
-                Mis planillas
+                Ver todas mis planillas
               </button>
             )}
 
@@ -181,8 +182,8 @@ export function TopRail({
               </div>
             </details>
           </PopoverContent>
-          </Popover>
-        </div>
+        </Popover>
+      </div>
 
       {/* Búsqueda */}
       <div className={cn("relative min-w-[200px] flex-1", focus ? "max-w-[280px]" : "max-w-[540px] lg:max-w-[640px] xl:max-w-[760px]")}>
@@ -205,7 +206,7 @@ export function TopRail({
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <SyncStatus />
 
-                <Tooltip>
+        <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
@@ -234,7 +235,7 @@ export function TopRail({
               className={cn(
                 "flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition-all",
                 focus
-                  ? "border-[var(--gc-cobalt)]/60 bg-[var(--gc-cobalt)]/20 text-foreground font-semibold shadow-xs"
+                  ? "border-[var(--gc-cobalt)]/60 bg-[var(--gc-cobalt)]/20 font-semibold text-foreground shadow-xs"
                   : "border-white/8 bg-white/4 text-muted-foreground hover:bg-white/8 hover:text-foreground",
               )}
             >
@@ -260,8 +261,6 @@ export function TopRail({
           </TooltipTrigger>
           <TooltipContent side="bottom">Atajos de teclado</TooltipContent>
         </Tooltip>
-
-        
       </div>
     </div>
   );
