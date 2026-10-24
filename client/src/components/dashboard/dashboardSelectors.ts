@@ -180,6 +180,12 @@ export function getHighlightedAction(
  * Construye los ítems de atención prioritaria solo cuando existen alertas reales,
  * enriqueciendo el contexto con los nombres coherentes de cursos o estudiantes.
  */
+/** "11-1, 11-2 y 11-3" */
+function joinWithY(values: string[]): string {
+  if (values.length <= 1) return values.join("");
+  return `${values.slice(0, -1).join(", ")} y ${values[values.length - 1]}`;
+}
+
 export function calculatePriorityItems(
   todayAttendanceLabel: string,
   pendingCount: number,
@@ -196,15 +202,16 @@ export function calculatePriorityItems(
   const items: TeacherPriorityItem[] = [];
 
   if (todayAttendanceLabel !== "Al día") {
+    const pendingCourses = options?.pendingCourses ?? [];
     const coursesDetail =
-      options?.pendingCourses && options.pendingCourses.length > 0
-        ? `Pendiente hoy en ${options.pendingCourses.join(", ")}.`
-        : "Registro pendiente en tus cursos asignados.";
+      pendingCourses.length > 0
+        ? `${joinWithY(pendingCourses)} · sin registrar`
+        : "Registro pendiente en tus cursos asignados";
 
     items.push({
       id: "attendance",
       severity: "medium",
-      title: "Asistencia de hoy no completada",
+      title: "Registrar asistencia de hoy",
       context: coursesDetail,
       actionLabel: "Tomar lista",
       onAction: options?.onTakeAttendance ?? (() => {}),
@@ -219,20 +226,14 @@ export function calculatePriorityItems(
         t.subject.toLowerCase() === teacherSubject.toLowerCase()
     );
     const topTask = matchingTask ?? options?.gradingQueue?.[0];
-    const taskDetail = matchingTask
-      ? `${matchingTask.title} (${matchingTask.course} · ${matchingTask.subject})`
-      : topTask
-        ? `Entregas recibidas en ${topTask.course} · ${teacherSubject}`
-        : "Revisa los envíos recibidos para mantener las notas al día.";
+    const taskDetail = topTask
+      ? `${topTask.subject || teacherSubject} ${topTask.course}`
+      : "Revisa los envíos recibidos";
 
     items.push({
       id: "pending",
       severity: "high",
-      title: `${pendingCount} ${
-        pendingCount === 1
-          ? "entrega pendiente de calificación"
-          : "entregas pendientes de calificación"
-      }`,
+      title: `Calificar ${pendingCount} ${pendingCount === 1 ? "entrega" : "entregas"}`,
       context: taskDetail,
       count: pendingCount,
       actionLabel: "Calificar",
@@ -241,23 +242,25 @@ export function calculatePriorityItems(
   }
 
   if (studentsAtRiskCount > 0) {
-    const topRiskNames = (options?.studentsAtRisk || [])
+    const atRisk = options?.studentsAtRisk || [];
+    const single = studentsAtRiskCount === 1 ? atRisk[0] : undefined;
+    const topRiskNames = atRisk
       .slice(0, 2)
       .map((s) => `${s.name} (${s.avg.toFixed(1)})`)
       .join(", ");
     const extraCount = Math.max(0, studentsAtRiskCount - 2);
-    const riskContext = topRiskNames
-      ? `${topRiskNames}${extraCount > 0 ? ` y ${extraCount} más` : ""} con promedio < 3.0.`
-      : "Promedio inferior a 3.0 en el periodo actual.";
+    const riskContext = single
+      ? `Promedio ${single.avg.toFixed(1)}, por debajo de 3.0`
+      : topRiskNames
+        ? `${topRiskNames}${extraCount > 0 ? ` y ${extraCount} más` : ""}, por debajo de 3.0`
+        : "Promedio por debajo de 3.0 en el periodo actual";
 
     items.push({
       id: "risk",
       severity: "high",
-      title: `${studentsAtRiskCount} ${
-        studentsAtRiskCount === 1
-          ? "estudiante requiere seguimiento"
-          : "estudiantes requieren seguimiento"
-      }`,
+      title: single
+        ? `Seguimiento a ${single.name}`
+        : `Seguimiento a ${studentsAtRiskCount} ${studentsAtRiskCount === 1 ? "estudiante" : "estudiantes"}`,
       context: riskContext,
       count: studentsAtRiskCount,
       actionLabel: "Ver notas",

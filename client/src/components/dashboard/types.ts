@@ -21,7 +21,18 @@ export interface TeacherAgendaItem {
   dayOffset?: number;
   tag?: string;
   tagTone?: "neutral" | "info" | "warning" | "danger" | "success";
+  /** Fecha del evento (vista "Próximos"). */
+  date?: Date | string | null;
+  /** Resalta el evento en la agenda (p. ej. cierre de notas). */
+  highlight?: boolean;
   onClick?: () => void;
+}
+
+export interface TeacherNextClassItem {
+  title: string;
+  course: string;
+  room?: string;
+  timeRange: string;
 }
 
 export interface TeacherPriorityItem {

@@ -1,20 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  Bell,
-  ChevronRight,
-  Menu,
-  ChevronDown,
-  BookOpen,
-  ShieldAlert,
-  UserCheck,
-  Users,
-  Sun,
-  Moon,
-} from "lucide-react";
+import { Menu } from "lucide-react";
 import { toast } from "sonner";
 import type { EduRole, Section } from "./shell.types";
 import { useShellContext } from "./ShellContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { ThemeSwitch } from "./ThemeSwitch";
 
 interface EduCoreHeaderProps {
   role: EduRole;
@@ -25,43 +15,28 @@ interface EduCoreHeaderProps {
   user?: any;
 }
 
-const ROLE_PROFILES: Record<
-  EduRole,
-  { name: string; roleLabel: string; badge: string; avatar: string; icon: typeof BookOpen }
-> = {
-  teacher: {
-    name: "Prof. Juan Diego Loaiza",
-    roleLabel: "Docente",
-    badge: "Docente Titular",
-    avatar:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=240&q=80",
-    icon: BookOpen,
-  },
-  admin: {
-    name: "Dra. Carolina Restrepo",
-    roleLabel: "Rectoría",
-    badge: "Rectoría / Admin",
-    avatar:
-      "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=240&q=80",
-    icon: ShieldAlert,
-  },
-  student: {
-    name: "Sofía Martínez Cadavid",
-    roleLabel: "Estudiante",
-    badge: "Estudiante 11-2",
-    avatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80",
-    icon: UserCheck,
-  },
-  guardian: {
-    name: "Fernando Martínez",
-    roleLabel: "Acudiente",
-    badge: "Acudiente / Familia",
-    avatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=240&q=80",
-    icon: Users,
-  },
+const ROLE_PROFILES: Record<EduRole, { name: string; roleLabel: string; menuLabel: string; initials: string }> = {
+  teacher: { name: "Prof. Juan Diego Loaiza", roleLabel: "Docente", menuLabel: "Docente", initials: "JD" },
+  admin: { name: "Dra. Carolina Restrepo", roleLabel: "Rectoría", menuLabel: "Rectoría / Coordinación", initials: "CR" },
+  student: { name: "Sofía Martínez Cadavid", roleLabel: "Estudiante", menuLabel: "Estudiante", initials: "SM" },
+  guardian: { name: "Fernando Martínez", roleLabel: "Acudiente", menuLabel: "Acudiente", initials: "FM" },
 };
+
+const initialsOf = (name: string) =>
+  name
+    .replace(/^Prof\.\s*/, "")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(part => part[0])
+    .join("")
+    .toUpperCase();
+
+const ChevronDown = () => (
+  <svg className="edc-pill__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+);
 
 export function EduCoreHeader({
   role,
@@ -69,38 +44,29 @@ export function EduCoreHeader({
   notificationCount = 0,
   user,
 }: EduCoreHeaderProps) {
-  const { moduleContext, setMobileOpen, isFocusMode } = useShellContext();
+  const { moduleContext, setMobileOpen } = useShellContext();
   const { theme, toggleTheme } = useTheme();
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
   const roleMenuRef = useRef<HTMLDivElement>(null);
 
-  // Subtle elevation on scroll without changing height (Zero CLS layout stability)
+  // Cerrar el menú de experiencia al hacer clic fuera o con Escape
   useEffect(() => {
-    const handleScroll = (event?: Event) => {
-      const target = event?.target as HTMLElement | null;
-      const scrollPos =
-        target?.scrollTop ??
-        document.getElementById("educore-main-content")?.scrollTop ??
-        window.scrollY;
-      const scrolled = scrollPos > 8;
-      setIsScrolled((prev) => (prev !== scrolled ? scrolled : prev));
-    };
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true, capture: true });
-    return () => window.removeEventListener("scroll", handleScroll, { capture: true });
-  }, []);
-
-  // Close role popover when clicking outside
-  useEffect(() => {
+    if (!roleMenuOpen) return;
     const handleClickOutside = (event: MouseEvent) => {
       if (roleMenuRef.current && !roleMenuRef.current.contains(event.target as Node)) {
         setRoleMenuOpen(false);
       }
     };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setRoleMenuOpen(false);
+    };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [roleMenuOpen]);
 
   const handleNotificationClick = () => {
     if (notificationCount > 0) {
@@ -111,128 +77,58 @@ export function EduCoreHeader({
   };
 
   const activeProfile = ROLE_PROFILES[role] || ROLE_PROFILES.teacher;
-  const hasHierarchicalBreadcrumbs =
-    Boolean(moduleContext?.breadcrumbs && moduleContext.breadcrumbs.length > 1);
+  const avatarInitials = role === "teacher" && user?.name ? initialsOf(user.name) : activeProfile.initials;
 
   return (
-    <header
-      className={`sticky top-0 z-30 flex h-[58px] shrink-0 items-center justify-between border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#111927]/95 px-4 backdrop-blur-md transition-shadow duration-200 sm:px-6 lg:px-8 ${
-        isScrolled
-          ? "shadow-[0_4px_16px_rgba(15,23,42,0.05)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)]"
-          : "shadow-[0_1px_3px_rgba(15,23,42,0.02)]"
-      } ${isFocusMode ? "hidden" : ""}`}
-    >
-      {/* Lado Izquierdo: Menú móvil + Barra de Contexto Dinámica */}
-      <div className="flex items-center gap-3 overflow-hidden">
-        {/* Botón menú móvil */}
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Abrir menú móvil"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100 lg:hidden cursor-pointer"
-        >
-          <Menu className="h-5 w-5" />
+    <header className="edc-topbar edc-chrome">
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Abrir menú"
+        className="edc-round-btn edc-menu-btn"
+      >
+        <Menu aria-hidden="true" />
+      </button>
+
+      <h1 className="edc-topbar__title">{moduleContext?.title ?? "EduCore"}</h1>
+      <div className="edc-topbar__spacer" />
+
+      {moduleContext?.actions && <div className="edc-topbar__module">{moduleContext.actions}</div>}
+
+      <div className="edc-topbar__actions">
+        <button type="button" className="edc-pill edc-pill--year">
+          <span className="edc-pill__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect width="18" height="18" x="3" y="4" rx="2" />
+              <path d="M16 2v4" />
+              <path d="M8 2v4" />
+              <path d="M3 10h18" />
+            </svg>
+          </span>
+          <span>Año {new Date().getFullYear()}</span>
+          <ChevronDown />
         </button>
 
-        {/* Migas de Pan y Contexto */}
-        <div className="flex min-w-0 flex-col justify-center">
-          {/* Breadcrumbs sutiles (solo cuando hay jerarquía > 1 nivel para evitar 'Inicio / Inicio') */}
-          {hasHierarchicalBreadcrumbs && moduleContext?.breadcrumbs && (
-            <div className="hidden items-center gap-1 text-xs text-slate-400 dark:text-slate-500 sm:flex">
-              {moduleContext.breadcrumbs.map((crumb, idx) => (
-                <React.Fragment key={crumb.label + idx}>
-                  {idx > 0 && <ChevronRight className="h-3 w-3 text-slate-300 dark:text-slate-600" />}
-                  <span
-                    className={
-                      crumb.isCurrent
-                        ? "font-semibold text-slate-700 dark:text-slate-200"
-                        : "hover:text-slate-600 dark:hover:text-slate-300 transition"
-                    }
-                  >
-                    {crumb.label}
-                  </span>
-                </React.Fragment>
-              ))}
-            </div>
-          )}
-
-          {/* Título y Context Pills */}
-          <div className="flex items-center gap-2 overflow-hidden">
-            <h1 className="truncate text-base font-bold text-slate-900 dark:text-slate-100 sm:text-lg">
-              {moduleContext?.title ?? "EduCore"}
-            </h1>
-
-            {/* Context Pills */}
-            {moduleContext?.contextPills && moduleContext.contextPills.length > 0 && (
-              <div className="hidden items-center gap-1.5 md:flex">
-                {moduleContext.contextPills.map((pill, idx) => (
-                  <span
-                    key={pill.label + idx}
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition ${
-                      pill.tone === "primary"
-                        ? "bg-[var(--edc-secondary)] text-[var(--edc-primary)] font-semibold dark:bg-blue-950/60 dark:text-blue-300"
-                        : pill.tone === "emerald"
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/50"
-                        : pill.tone === "amber"
-                        ? "bg-amber-50 text-amber-800 border border-amber-200/90 font-semibold dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/50"
-                        : pill.tone === "violet"
-                        ? "bg-violet-50 text-violet-700 border border-violet-100 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-900/50"
-                        : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                    }`}
-                  >
-                    {pill.tone === "amber" && (
-                      <span className="mr-1.5 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-amber-400/40 animate-pulse shrink-0" />
-                    )}
-                    {pill.label}
-                    {pill.detail && (
-                      <span className="ml-1 text-xs opacity-75">· {pill.detail}</span>
-                    )}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Lado Derecho: Acciones Contextuales + Tema + Notificaciones + Switcher Rol */}
-      <div className="flex items-center gap-2 sm:gap-3">
-        {/* Acciones del módulo activo */}
-        {moduleContext?.actions && (
-          <div className="flex items-center gap-1.5">{moduleContext.actions}</div>
-        )}
-
-        {/* Selector de Tema (Modo Claro / Oscuro) */}
         {toggleTheme && (
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label="Cambiar tema claro / oscuro"
-            title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-            className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100 cursor-pointer"
-          >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
+          <div className="edc-theme-slot">
+            <ThemeSwitch checked={theme === "dark"} onChange={toggleTheme} />
+          </div>
         )}
 
-        {/* Campana de Notificaciones con Badge Real */}
         <button
           type="button"
           onClick={handleNotificationClick}
-          aria-label="Notificaciones"
-          className="relative flex h-8 w-8 items-center justify-center rounded-xl text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100 cursor-pointer"
+          aria-label={notificationCount > 0 ? `Notificaciones, ${notificationCount} sin leer` : "Notificaciones"}
+          className="edc-round-btn"
         >
-          <Bell className="h-4 w-4" />
-          {notificationCount > 0 && (
-            <span className="absolute right-1 top-1 flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--edc-primary)] opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--edc-primary)]" />
-            </span>
-          )}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+          </svg>
+          {notificationCount > 0 && <span className="edc-round-btn__count">{notificationCount}</span>}
         </button>
 
-        {/* Selector de Rol Enriquecido (Manus 2.0 Style) + Select Accesible */}
-        <div ref={roleMenuRef} className="relative hidden items-center sm:flex">
+        <div ref={roleMenuRef} className="edc-profile">
           {/* Select accesible nativo (para automatización y lectores de pantalla) */}
           <select
             value={role}
@@ -246,72 +142,43 @@ export function EduCoreHeader({
             <option value="guardian">Vista Acudiente</option>
           </select>
 
-          {/* Botón interactivo con avatar y badge institucional */}
           <button
             type="button"
-            onClick={() => setRoleMenuOpen((open) => !open)}
+            onClick={() => setRoleMenuOpen(open => !open)}
             aria-expanded={roleMenuOpen}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#162032] px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-2xs transition hover:border-blue-200 dark:hover:border-blue-900/60 hover:bg-blue-50/40 dark:hover:bg-blue-950/20 cursor-pointer"
+            aria-haspopup="menu"
+            className="edc-pill edc-pill--profile"
           >
-            <img
-              src={activeProfile.avatar}
-              alt={activeProfile.name}
-              className="h-6 w-6 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700"
-            />
-            <span className="hidden md:inline text-slate-800 dark:text-slate-200">{activeProfile.roleLabel}</span>
-            <ChevronDown
-              className={`h-3.5 w-3.5 text-slate-400 transition-transform ${
-                roleMenuOpen ? "rotate-180" : ""
-              }`}
-            />
+            <span className="edc-pill__avatar">{avatarInitials}</span>
+            <span className="edc-pill__label">{activeProfile.roleLabel}</span>
+            <ChevronDown />
           </button>
 
-          {/* Popover enriquecido */}
           {roleMenuOpen && (
-            <div className="absolute right-0 top-11 z-[90] w-64 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#162032] p-2 shadow-[0_18px_50px_rgba(15,23,42,0.16)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.5)] animate-in fade-in zoom-in-95 duration-150">
-              <p className="px-2 pb-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
-                Cambiar experiencia
-              </p>
-              {(["teacher", "admin", "student", "guardian"] as EduRole[]).map((opt) => {
+            <div className="edc-profile-menu" role="menu">
+              <div className="edc-profile-menu__label">Cambiar experiencia</div>
+              {(["teacher", "admin", "student", "guardian"] as EduRole[]).map(opt => {
                 const meta = ROLE_PROFILES[opt];
                 const isSelected = role === opt;
-
+                const subtitle = opt === "teacher" && user?.name ? (user.name.startsWith("Prof.") ? user.name : `Prof. ${user.name}`) : meta.name;
                 return (
                   <button
                     key={opt}
                     type="button"
+                    role="menuitemradio"
+                    aria-checked={isSelected}
                     onClick={() => {
                       onRoleChange(opt);
                       setRoleMenuOpen(false);
                     }}
-                    className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors cursor-pointer ${
-                      isSelected
-                        ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
-                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
-                    }`}
+                    className="edc-profile-menu__item"
                   >
-                    <img
-                      src={meta.avatar}
-                      alt={meta.name}
-                      className="h-7 w-7 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700 shrink-0"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <span className="block text-xs font-bold leading-tight">
-                        {opt === "admin"
-                          ? "Rectoría / Coordinación"
-                          : opt === "teacher"
-                          ? "Docente"
-                          : opt === "student"
-                          ? "Estudiante"
-                          : "Acudiente"}
-                      </span>
-                      <span className="block truncate text-xs text-slate-400 dark:text-slate-500">
-                        {opt === "teacher" && user?.name ? (user.name.startsWith("Prof.") ? user.name : `Prof. ${user.name}`) : meta.name}
-                      </span>
-                    </div>
-                    {isSelected && (
-                      <span className="h-2 w-2 rounded-full bg-blue-600 shrink-0" />
-                    )}
+                    <span className="edc-profile-menu__avatar">{initialsOf(subtitle)}</span>
+                    <span className="edc-profile-menu__text">
+                      <span className="edc-profile-menu__name">{meta.menuLabel}</span>
+                      <span className="edc-profile-menu__sub">{subtitle}</span>
+                    </span>
+                    {isSelected && <span className="edc-profile-menu__dot" />}
                   </button>
                 );
               })}
