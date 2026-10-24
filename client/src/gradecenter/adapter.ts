@@ -1,7 +1,7 @@
 import type { Dataset, Evaluation, EvaluationTypeId, GradeCommentMap, GradeMap, Student } from "./types";
 import { gradeKey } from "./types";
 import { createEmptyDataset } from "./data/emptyDataset";
-import type { GradebookAssignment } from "./domain/assignments";
+import { computeDatasetMetrics, type GradebookAssignment } from "./domain/assignments";
 
 /**
  * Adaptador de datos reales de EduCore Main para el módulo Grade Center Next.
@@ -148,11 +148,96 @@ export function adaptEduCoreContextToDataset(context: any, user?: any): Dataset 
   };
 }
 
+export interface RawAssignmentSummary {
+  courseId: number;
+  courseName: string;
+  subjectId: number;
+  subjectName: string;
+  academicYear: string;
+  periodId: number | null;
+  periodName: string | null;
+  periodClosed: boolean;
+  students: number;
+  evaluations: number;
+  graded: number;
+  total: number;
+}
+
 /**
  * Genera la lista de asignaciones para la pantalla "Mis planillas" (LandingView)
- * a partir de los cursos y materias autorizados del docente.
+ * a partir del resumen real por (curso × materia) del backend o del contexto actual.
  */
-export function getAssignmentsFromContext(context: any, currentDataset: Dataset): GradebookAssignment[] {
+export function getAssignmentsFromContext(
+  context: any,
+  currentDataset: Dataset,
+  summaries?: RawAssignmentSummary[],
+): GradebookAssignment[] {
+  const currentCourseId = context?.selected?.course?.id;
+  const currentSubjectId = context?.selected?.subject?.id;
+
+  if (summaries && summaries.length > 0) {
+    return summaries.map((item) => {
+      const isCurrent =
+        item.courseId === currentCourseId &&
+        item.subjectId === currentSubjectId &&
+        currentDataset.key !== "gradecenter-empty";
+
+      const id = `assignment-${item.courseId}-${item.subjectId}`;
+
+      if (isCurrent) {
+        return {
+          id,
+          sourceDatasetKey: currentDataset.key,
+          courseId: item.courseId,
+          subjectId: item.subjectId,
+          periodId: item.periodId,
+          dataset: currentDataset,
+          access: item.periodClosed ? "read" : "owner",
+          status: item.periodClosed ? "closed" : "available",
+          metrics: computeDatasetMetrics(currentDataset),
+        };
+      }
+
+      const totalCells = Math.max(0, item.total);
+      const gradedCells = Math.min(totalCells, Math.max(0, item.graded));
+      const pendingCells = Math.max(0, totalCells - gradedCells);
+      const progressPct = totalCells > 0 ? Math.min(100, Math.max(0, Math.round((gradedCells / totalCells) * 100))) : 0;
+
+      return {
+        id,
+        sourceDatasetKey: id,
+        courseId: item.courseId,
+        subjectId: item.subjectId,
+        periodId: item.periodId,
+        dataset: {
+          key: id,
+          academicYear: item.academicYear,
+          course: item.courseName,
+          subject: item.subjectName,
+          group: item.courseName,
+          period: item.periodName || context?.selected?.period?.name || "Periodo 1",
+          evaluationCount: item.evaluations,
+          teacher: currentDataset.teacher,
+          dba: [],
+          students: [],
+          evaluations: [],
+          grades: {},
+          comments: {},
+        },
+        access: item.periodClosed ? "read" : "owner",
+        status: item.periodClosed ? "closed" : "available",
+        metrics: {
+          studentsCount: item.students,
+          evaluationsCount: item.evaluations,
+          gradedCells,
+          totalCells,
+          pendingCells,
+          progressPct,
+        },
+      };
+    });
+  }
+
   if (!context || !context.courses || context.courses.length === 0) {
     return currentDataset.key === "gradecenter-empty" ? [] : [
       {
@@ -161,12 +246,11 @@ export function getAssignmentsFromContext(context: any, currentDataset: Dataset)
         dataset: currentDataset,
         access: "owner",
         status: "available",
+        metrics: computeDatasetMetrics(currentDataset),
       },
     ];
   }
 
-  const currentCourseId = context.selected?.course?.id;
-  const currentSubjectId = context.selected?.subject?.id;
   const assignments: GradebookAssignment[] = [];
 
   for (const c of context.courses) {
@@ -175,18 +259,21 @@ export function getAssignmentsFromContext(context: any, currentDataset: Dataset)
       assignments.push({
         id: `course-${c.id}`,
         sourceDatasetKey: currentDataset.key,
+        courseId: c.id,
+        subjectId: currentSubjectId,
         dataset: currentDataset,
         access: "owner",
         status: "available",
+        metrics: computeDatasetMetrics(currentDataset),
       });
     } else {
-      // Planilla asignada adicional disponible
       const subjectName = context.subjects?.[0]?.name || "Matemáticas";
       const year = String(c.year || new Date().getFullYear());
       const periodName = context.selected?.period?.name || "Periodo 1";
       assignments.push({
         id: `course-${c.id}`,
         sourceDatasetKey: `course-${c.id}`,
+        courseId: c.id,
         dataset: {
           key: `course-${c.id}`,
           academicYear: year,
@@ -204,6 +291,14 @@ export function getAssignmentsFromContext(context: any, currentDataset: Dataset)
         },
         access: "owner",
         status: "available",
+        metrics: {
+          studentsCount: Number(c.studentsCount ?? 0),
+          evaluationsCount: 0,
+          gradedCells: 0,
+          totalCells: 0,
+          pendingCells: 0,
+          progressPct: 0,
+        },
       });
     }
   }

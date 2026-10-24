@@ -67,6 +67,7 @@ import {
   deleteGradeCenterAssessment,
   generateGradeCenterReportCards,
   getGradeCenterContext,
+  listGradeCenterAssignments,
   saveAcademicObservation,
   saveGradeCenterGrades,
   updateGradeCenterAssessment,
@@ -320,6 +321,11 @@ export const appRouter = router({
       const actor = await resolveActor(ctx, input.role);
       if (!hasPermission(actor.roleKey, "grades.view") && !hasPermission(actor.roleKey, "courses.view")) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes acceso a las calificaciones." });
       return getGradeCenterContext(actor, input);
+    }),
+    assignments: publicProcedure.input(z.object({ role: roleSchema })).query(async ({ input, ctx }) => {
+      const actor = await resolveActor(ctx, input.role);
+      if (!hasPermission(actor.roleKey, "grades.view") && !hasPermission(actor.roleKey, "courses.view")) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes acceso a las calificaciones." });
+      return listGradeCenterAssignments(actor);
     }),
     createAssessment: publicProcedure.input(z.object({ role: roleSchema, academicYearId: z.number().int(), academicPeriodId: z.number().int(), courseId: z.number().int(), subjectId: z.number().int(), title: z.string().min(3).max(180), description: z.string().max(1000).optional(), assessmentType: z.enum(["QUIZ", "TALLER", "EXAMEN", "PROYECTO", "ACTIVIDAD", "PARTICIPACION", "RECUPERACION", "OTRO"]), date: z.coerce.date(), maxValue: z.number().positive().max(100), weight: z.number().min(0).max(100), status: z.enum(["DRAFT", "PUBLISHED", "CLOSED"]).default("DRAFT") })).mutation(async ({ input, ctx }) => {
       const actor = await requireAcademicActor(ctx, input.role, "grades.update", true);

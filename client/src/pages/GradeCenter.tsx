@@ -16,7 +16,7 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
   const [subjectId, setSubjectId] = React.useState<number | undefined>();
   const [periodId, setPeriodId] = React.useState<number | undefined>();
 
-  // Mecanismo de reversibilidad instantánea hacia el módulo legacy
+  // Mecanismo de reversibilidad hacia el módulo legacy en caso de contingencia
   const [useLegacy, setUseLegacy] = React.useState<boolean>(() => {
     try {
       return localStorage.getItem("educore_gc_version") === "legacy";
@@ -33,8 +33,20 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
   }, []);
 
   // Consulta de datos reales del backend de EduCore
+  // placeholderData conserva el último contexto válido al cambiar de salón/materia
+  // evitando que se desmonte AppShell y se reinicie la vista de "/grades".
   const contextQuery = trpc.gradeCenter.context.useQuery(
     { role, courseId, subjectId, academicPeriodId: periodId },
+    {
+      staleTime: 10_000,
+      retry: 1,
+      placeholderData: (previousData) => previousData,
+    }
+  );
+
+  // Catálogo real de asignaciones con métricas individuales por curso y materia
+  const assignmentsQuery = trpc.gradeCenter.assignments.useQuery(
+    { role },
     { staleTime: 10_000, retry: 1 }
   );
 
@@ -42,13 +54,6 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     if (document.documentElement) document.documentElement.scrollTop = 0;
     if (document.body) document.body.scrollTop = 0;
-  }, []);
-
-  const handleSelectAssignment = React.useCallback((id: string) => {
-    const numericCourseId = Number(id.replace(/^course-/, ""));
-    if (Number.isFinite(numericCourseId) && numericCourseId > 0) {
-      setCourseId(numericCourseId);
-    }
   }, []);
 
   const utils = trpc.useUtils();
@@ -74,8 +79,42 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
   }, [contextQuery.data, user]);
 
   const availableAssignments = React.useMemo(() => {
-    return getAssignmentsFromContext(contextQuery.data, dataset);
-  }, [contextQuery.data, dataset]);
+    return getAssignmentsFromContext(contextQuery.data, dataset, assignmentsQuery.data);
+  }, [contextQuery.data, dataset, assignmentsQuery.data]);
+
+  const handleSelectAssignment = React.useCallback(
+    (id: string) => {
+      const matched = availableAssignments.find(
+        (item) => item.id === id || item.sourceDatasetKey === id
+      );
+      if (matched?.courseId) {
+        setCourseId(matched.courseId);
+        setSubjectId(matched.subjectId);
+        if (matched.periodId) {
+          setPeriodId(matched.periodId);
+        } else {
+          setPeriodId(undefined);
+        }
+        return;
+      }
+
+      const pairMatch = /^assignment-(\d+)-(\d+)$/.exec(id);
+      if (pairMatch) {
+        setCourseId(Number(pairMatch[1]));
+        setSubjectId(Number(pairMatch[2]));
+        setPeriodId(undefined);
+        return;
+      }
+
+      const numericCourseId = Number(id.replace(/^course-/, ""));
+      if (Number.isFinite(numericCourseId) && numericCourseId > 0) {
+        setCourseId(numericCourseId);
+        setSubjectId(undefined);
+        setPeriodId(undefined);
+      }
+    },
+    [availableAssignments]
+  );
 
   const persistence = React.useMemo(() => {
     if (readOnly) return undefined;
@@ -186,7 +225,7 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
             className="flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-100 transition-colors hover:bg-amber-500/30"
           >
             <RotateCcw className="size-3.5" />
-            Volver a Grade Center Next
+            Volver a Grade Center
           </button>
         </div>
         <div className="flex-1 min-h-0 overflow-auto">
@@ -196,7 +235,7 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
     );
   }
 
-  // Estado de carga con estética Liquid Glass
+  // Estado de carga inicial
   if (!contextQuery.data && contextQuery.isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center p-6">
@@ -204,9 +243,9 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
           <div className="mb-4 flex size-12 items-center justify-center rounded-2xl border border-[var(--gc-cobalt)]/30 bg-[var(--gc-cobalt)]/15 text-[var(--gc-cobalt)]">
             <Loader2 className="size-6 animate-spin" />
           </div>
-          <h2 className="text-base font-semibold text-foreground">Cargando Grade Center</h2>
-          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-            Consultando calificaciones y asignaciones académicas autorizadas desde EduCore...
+          <h2 className="text-base font-semibold text-foreground">Cargando planillas de calificación</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+            Consultando tus cursos y materias asignados…
           </p>
         </div>
       </div>
@@ -214,7 +253,7 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
   }
 
   // Estado de error sin sustitución silenciosa de datos
-  if (contextQuery.isError) {
+  if (contextQuery.isError && !contextQuery.data) {
     return (
       <div className="flex h-full w-full items-center justify-center p-6">
         <div className="glass-strong flex w-full max-w-md flex-col items-center rounded-3xl border border-[var(--gc-bajo)]/30 p-8 text-center shadow-2xl">
@@ -222,23 +261,16 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
             <AlertTriangle className="size-6" />
           </div>
           <h2 className="text-base font-semibold text-foreground">No se pudieron cargar las calificaciones</h2>
-          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-            {contextQuery.error?.message || "Ocurrió un error al obtener la matriz académica de calificaciones."}
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+            {contextQuery.error?.message || "Ocurrió un error al obtener la planilla de calificaciones."}
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
             <button
               type="button"
               onClick={() => contextQuery.refetch()}
-              className="rounded-xl bg-[var(--gc-cobalt)] px-4 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+              className="rounded-xl bg-[var(--gc-cobalt)] px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
             >
               Reintentar
-            </button>
-            <button
-              type="button"
-              onClick={() => toggleLegacy(true)}
-              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
-            >
-              Abrir versión anterior
             </button>
           </div>
         </div>
@@ -254,25 +286,15 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
           <div className="mb-4 flex size-12 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-muted-foreground">
             <ClipboardList className="size-6" />
           </div>
-          <h2 className="text-base font-semibold text-foreground">Sin asignaciones académicas</h2>
-          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-            No tienes salones o materias asignados actualmente en este periodo con permisos de calificación.
+          <h2 className="text-base font-semibold text-foreground">Sin planillas asignadas</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+            No tienes salones o materias asignados actualmente en este periodo escolar.
           </p>
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={() => toggleLegacy(true)}
-              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
-            >
-              Probar versión anterior
-            </button>
-          </div>
         </div>
       </div>
     );
   }
 
-  // Render principal de Grade Center Next con persistencia real (Iteración 3)
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden">
       <GradeCenterProvider
@@ -282,23 +304,17 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
         availableAssignments={availableAssignments}
         onSelectAssignment={handleSelectAssignment}
         persistence={persistence}
-        onDataSaved={() => utils.gradeCenter.context.invalidate()}
+        onDataSaved={() => {
+          utils.gradeCenter.context.invalidate();
+          utils.gradeCenter.assignments.invalidate();
+        }}
       >
-        <AppShell embedded={true} onBack={onBack} />
+        <AppShell
+          embedded={true}
+          onBack={onBack}
+          isSwitchingAssignment={contextQuery.isFetching}
+        />
       </GradeCenterProvider>
-
-      {/* Botón discreto de contingencia en la esquina inferior para cambiar al módulo anterior */}
-      <div className="pointer-events-none fixed bottom-2 right-2 z-30">
-        <button
-          type="button"
-          onClick={() => toggleLegacy(true)}
-          title="Cambiar temporalmente al Grade Center anterior"
-          className="pointer-events-auto flex items-center gap-1 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-xs text-muted-foreground backdrop-blur-md transition-colors hover:bg-white/10 hover:text-foreground"
-        >
-          <History className="size-2.5" />
-          Versión anterior
-        </button>
-      </div>
     </div>
   );
 }

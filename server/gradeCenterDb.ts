@@ -160,6 +160,109 @@ export async function getGradeCenterContext(actor: GradeCenterActor, input: Grad
   return { courses: courseRows, subjects: subjectRows, periods, assessments: assessmentsRows, students: people, rows, stats: { average, max: recorded.length ? Math.max(...recorded.map(item => item.value)) : null, min: recorded.length ? Math.min(...recorded.map(item => item.value)) : null, assessments: assessmentsRows.length, students: rows.length, graded: recorded.length, total: assessmentsRows.length * rows.length, completion: assessmentsRows.length && rows.length ? Math.round((recorded.length / (assessmentsRows.length * rows.length)) * 100) : 0, weightTotal, remainingWeight, weightStatus }, distribution, insights, observations, scale, selected: { course, subject, period, academicYearId: valid.academicYearId }, reportCards };
 }
 
+export type GradeCenterAssignmentSummary = {
+  courseId: number;
+  courseName: string;
+  subjectId: number;
+  subjectName: string;
+  academicYear: string;
+  periodId: number | null;
+  periodName: string | null;
+  periodClosed: boolean;
+  students: number;
+  evaluations: number;
+  graded: number;
+  total: number;
+};
+
+const isActivePeriod = (status: string) => status === "Activo" || status === "ACTIVE";
+const isClosedPeriod = (status: string) => status === "Cerrado" || status === "CLOSED";
+
+/**
+ * Lista las planillas (curso × materia) a las que el actor tiene acceso, con el
+ * progreso de calificación real de cada una en su periodo activo.
+ *
+ * Usa las mismas reglas de autorización y de selección de periodo que
+ * `getGradeCenterContext`, pero en consultas agregadas para no cargar la matriz
+ * completa de cada planilla.
+ */
+export async function listGradeCenterAssignments(actor: GradeCenterActor): Promise<GradeCenterAssignmentSummary[]> {
+  const db = await getDb();
+  if (!db) return [];
+  await ensureGradeCenterSeeded(actor.schoolId);
+  const courseIds = await visibleCourseIds(actor);
+  if (!courseIds.length) return [];
+
+  const courseRows = await db.select().from(courses).where(and(eq(courses.schoolId, actor.schoolId), inArray(courses.id, courseIds))).orderBy(courses.name);
+  let pairs = await db.select({ courseId: courseSubjects.courseId, subjectId: courseSubjects.subjectId }).from(courseSubjects).where(and(eq(courseSubjects.schoolId, actor.schoolId), inArray(courseSubjects.courseId, courseIds), eq(courseSubjects.status, "ACTIVE")));
+  if (actor.roleKey === "TEACHER") {
+    const own = await db.select({ courseId: teacherAssignments.courseId, subjectId: teacherAssignments.subjectId }).from(teacherAssignments).where(and(eq(teacherAssignments.schoolId, actor.schoolId), eq(teacherAssignments.teacherUserId, actor.userId), eq(teacherAssignments.status, "ACTIVE")));
+    const allowed = new Set(own.map(row => `${row.courseId}:${row.subjectId}`));
+    pairs = pairs.filter(pair => allowed.has(`${pair.courseId}:${pair.subjectId}`));
+  }
+  if (!pairs.length) return [];
+
+  const subjectIds = Array.from(new Set(pairs.map(pair => pair.subjectId)));
+  const subjectRows = await db.select({ id: subjects.id, name: subjects.name }).from(subjects).where(and(eq(subjects.schoolId, actor.schoolId), inArray(subjects.id, subjectIds)));
+  const subjectById = new Map(subjectRows.map(row => [row.id, row]));
+
+  // Periodo de trabajo por año académico: el activo o, en su defecto, el primero.
+  const yearIds = Array.from(new Set(courseRows.map(row => row.academicYearId).filter((id): id is number => id !== null)));
+  const periodRows = yearIds.length ? await db.select().from(academicPeriods).where(and(eq(academicPeriods.schoolId, actor.schoolId), inArray(academicPeriods.academicYearId, yearIds))).orderBy(academicPeriods.orderIndex) : [];
+  const periodByYear = new Map<number, (typeof periodRows)[number]>();
+  for (const yearId of yearIds) {
+    const ofYear = periodRows.filter(row => row.academicYearId === yearId);
+    const chosen = ofYear.find(row => isActivePeriod(row.status)) ?? ofYear[0];
+    if (chosen) periodByYear.set(yearId, chosen);
+  }
+  const periodIds = Array.from(periodByYear.values()).map(row => row.id);
+
+  const enrollmentRows = await db.select({ courseId: studentEnrollments.courseId, academicYearId: studentEnrollments.academicYearId, studentUserId: studentEnrollments.studentUserId }).from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, actor.schoolId), inArray(studentEnrollments.courseId, courseIds), eq(studentEnrollments.enrollmentStatus, "ACTIVE")));
+  let visibleStudentIds: Set<number> | null = null;
+  if (actor.roleKey === "STUDENT") visibleStudentIds = new Set([actor.userId]);
+  if (actor.roleKey === "GUARDIAN") {
+    const linked = await db.select({ studentUserId: guardianStudentRelationships.studentUserId }).from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, actor.schoolId), eq(guardianStudentRelationships.guardianUserId, actor.userId)));
+    visibleStudentIds = new Set(linked.map(row => row.studentUserId));
+  }
+
+  const assessmentRows = periodIds.length ? await db.select({ id: assessments.id, courseId: assessments.courseId, subjectId: assessments.subjectId, academicPeriodId: assessments.academicPeriodId }).from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), inArray(assessments.courseId, courseIds), inArray(assessments.academicPeriodId, periodIds), ne(assessments.status, "DELETED"))) : [];
+  const gradeRows = assessmentRows.length ? await db.select({ assessmentId: assessmentGrades.assessmentId, studentId: assessmentGrades.studentId, value: assessmentGrades.value }).from(assessmentGrades).where(and(eq(assessmentGrades.schoolId, actor.schoolId), inArray(assessmentGrades.assessmentId, assessmentRows.map(row => row.id)))) : [];
+
+  const courseById = new Map(courseRows.map(row => [row.id, row]));
+  const summaries: GradeCenterAssignmentSummary[] = [];
+  for (const pair of pairs) {
+    const course = courseById.get(pair.courseId);
+    const subject = subjectById.get(pair.subjectId);
+    if (!course || !subject) continue;
+    const period = course.academicYearId !== null ? periodByYear.get(course.academicYearId) : undefined;
+    const studentIds = new Set(
+      enrollmentRows
+        .filter(row => row.courseId === course.id && row.academicYearId === course.academicYearId && (!visibleStudentIds || visibleStudentIds.has(row.studentUserId)))
+        .map(row => row.studentUserId),
+    );
+    const evaluationIds = new Set(
+      period ? assessmentRows.filter(row => row.courseId === course.id && row.subjectId === subject.id && row.academicPeriodId === period.id).map(row => row.id) : [],
+    );
+    const graded = gradeRows.filter(row => evaluationIds.has(row.assessmentId) && studentIds.has(row.studentId) && row.value !== null).length;
+    summaries.push({
+      courseId: course.id,
+      courseName: course.name,
+      subjectId: subject.id,
+      subjectName: subject.name,
+      academicYear: String(course.year),
+      periodId: period?.id ?? null,
+      periodName: period?.name ?? null,
+      periodClosed: period ? isClosedPeriod(period.status) : false,
+      students: studentIds.size,
+      evaluations: evaluationIds.size,
+      graded,
+      total: studentIds.size * evaluationIds.size,
+    });
+  }
+
+  return summaries.sort((a, b) => a.courseName.localeCompare(b.courseName, "es", { numeric: true }) || a.subjectName.localeCompare(b.subjectName, "es"));
+}
+
 export async function ensureGradeScale(schoolId: number) {
   const db = await getDb();
   if (!db) return null;

@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGradeCenter } from "../state/GradeCenterContext";
 import { TopRail } from "./TopRail";
@@ -58,9 +59,34 @@ function ViewRouter() {
   );
 }
 
-export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBack?: () => void } = {}) {
+export function AppShell({
+  embedded = true,
+  onBack,
+  isSwitchingAssignment = false,
+}: {
+  embedded?: boolean;
+  onBack?: () => void;
+  isSwitchingAssignment?: boolean;
+} = {}) {
   const shellContext = useOptionalShellContext();
-  const { preferences, setFocusMode, setFilters, setView, setActiveCell, setAnalysisOpen, students, analytics, copySelection, readPaste, undo, redo, clearSelectedGrades, pastePreview, applyPastePreview, cancelPastePreview } = useGradeCenter();
+  const {
+    dataset,
+    availableAssignments,
+    preferences,
+    setFocusMode,
+    setView,
+    setActiveCell,
+     students,
+    analytics,
+    copySelection,
+    readPaste,
+    undo,
+    redo,
+    clearSelectedGrades,
+    pastePreview,
+    applyPastePreview,
+    cancelPastePreview,
+  } = useGradeCenter();
   const [helpOpen, setHelpOpen] = useState(false);
   const [screen, setScreen] = useState<"landing" | "workspace">("landing");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -75,15 +101,53 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
   // Sincronizar el modo enfoque con el shell global de EduCore para colapsar el sidebar exterior
   useEffect(() => {
     if (shellContext) {
-      shellContext.setIsFocusMode(focus);
+      shellContext.setIsFocusMode(!isLanding && focus);
     }
-  }, [focus, shellContext]);
+  }, [focus, isLanding, shellContext]);
 
   useEffect(() => {
     return () => {
       shellContext?.setIsFocusMode(false);
     };
   }, [shellContext]);
+
+  // Sincronizar las píldoras contextuales del encabezado institucional con el estado real:
+  // En la pantalla de selección de planillas no se muestra un salón fijo engañoso;
+  // al entrar a una planilla se muestra el curso, materia y periodo reales.
+  useEffect(() => {
+    if (!shellContext) return;
+    const role = shellContext.activeRole;
+    const title = role === "student" ? "Mis Calificaciones" : role === "guardian" ? "Rendimiento" : "Calificaciones";
+
+    if (isLanding) {
+      const count = availableAssignments?.length ?? 0;
+      shellContext.setModuleContext({
+        title,
+        subtitle: "Selección de planilla académica",
+        breadcrumbs: [
+          { label: "Académico" },
+          { label: title, isCurrent: true },
+        ],
+        contextPills: count > 0
+          ? [{ label: `${count} ${count === 1 ? "planilla asignada" : "planillas asignadas"}`, tone: "primary" }]
+          : [],
+      });
+    } else {
+      shellContext.setModuleContext({
+        title,
+        subtitle: `${dataset.course} · ${dataset.subject}`,
+        breadcrumbs: [
+          { label: "Académico" },
+          { label: "Mis planillas" },
+          { label: `${dataset.course} · ${dataset.subject}`, isCurrent: true },
+        ],
+        contextPills: [
+          { label: `${dataset.course} · ${dataset.subject}`, tone: "primary" },
+          { label: dataset.period, tone: "default" },
+        ],
+      });
+    }
+  }, [shellContext, isLanding, dataset.course, dataset.subject, dataset.period, availableAssignments?.length]);
 
   const openMatrix = (view: ViewId = "standard") => {
     setScreen("workspace");
@@ -147,7 +211,7 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
         const key = event.key.toLowerCase();
         if (key === "c") { event.preventDefault(); void copySelection(); return; }
         if (key === "v") {
-          if (isGridCell) return; // La celda captura el evento paste con el texto nativo del portapapeles.
+          if (isGridCell) return;
           event.preventDefault(); void readPaste(); return;
         }
         if (key === "z") { event.preventDefault(); event.shiftKey ? redo() : undo(); return; }
@@ -161,7 +225,6 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
       }
       if (event.key === "Escape" && focus) {
         const active = document.activeElement as HTMLElement | null;
-        // Esc dentro de una celda o del editor no debe cerrar el modo enfoque.
         if (active && (active.tagName === "INPUT" || active.getAttribute("role") === "gridcell")) return;
         setFocusMode(false);
       }
@@ -171,7 +234,7 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [focus, setFocusMode, copySelection, readPaste, undo, redo, clearSelectedGrades]);
+  }, [focus, setFocusMode, copySelection, readPaste, undo, redo, clearSelectedGrades, pastePreview, cancelPastePreview]);
 
   return (
     <div
@@ -215,15 +278,21 @@ export function AppShell({ embedded = true, onBack }: { embedded?: boolean; onBa
 
       <main className="relative flex min-h-0 flex-1 flex-col">
         {screen === "landing" ? (
-          <LandingView
-            onOpenMatrix={openMatrix}
-            onOpenAnalysis={() => {
-              openMatrix("standard");
-              setAnalysisOpen(true);
-            }}
-          />
+          <LandingView onOpenMatrix={openMatrix} />
         ) : (
-          <ViewRouter />
+          <>
+            {isSwitchingAssignment && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="pointer-events-none absolute top-3 right-4 z-30 inline-flex items-center gap-2 rounded-xl border border-[var(--gc-cobalt)]/35 bg-[var(--card)]/95 px-3.5 py-2 text-xs font-medium text-foreground shadow-lg backdrop-blur-md"
+              >
+                <Loader2 className="size-3.5 animate-spin text-[var(--gc-cobalt)]" />
+                <span>Abriendo planilla…</span>
+              </div>
+            )}
+            <ViewRouter />
+          </>
         )}
         {!isLanding && <ContextPanel />}
       </main>
