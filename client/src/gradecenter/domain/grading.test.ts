@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateDefinitive, normalizeGrade } from "./grading";
+import { calculateDefinitive, normalizeGrade, parseGradeInput } from "./grading";
 import type { Evaluation } from "../types";
 
 const evaluations: Evaluation[] = [
@@ -14,6 +14,17 @@ describe("contrato de calificación", () => {
     expect(normalizeGrade(6)).toBe(5);
     expect(normalizeGrade(4.26)).toBe(4.3);
     expect(normalizeGrade(null)).toBeNull();
+  });
+
+  it("interpreta la entrada del docente sin recortar valores inválidos", () => {
+    expect(parseGradeInput("")).toEqual({ ok: true, value: null });
+    expect(parseGradeInput("4,26")).toEqual({ ok: true, value: 4.3 });
+    expect(parseGradeInput("45")).toEqual({ ok: true, value: 4.5 });
+    expect(parseGradeInput("5")).toEqual({ ok: true, value: 5 });
+    expect(parseGradeInput("0")).toEqual({ ok: true, value: 0 });
+    expect(parseGradeInput("7").ok).toBe(false);
+    expect(parseGradeInput("55").ok).toBe(false);
+    expect(parseGradeInput("4.5.1").ok).toBe(false);
   });
 
   it("renormaliza sobre el peso evaluado y marca provisionalidad con evidencia insuficiente", () => {

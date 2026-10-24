@@ -1,331 +1,172 @@
-import { useState } from "react";
-import { CalendarDays, LayoutList, Grid3x3 } from "lucide-react";
+import { ChevronRight, ClipboardPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useGradeCenter } from "../../state/GradeCenterContext";
 import { TYPE_META } from "../../data/curriculum";
-import { LEVELS, levelFromScore, levelTint } from "../../domain/scale";
-import { formatGrade, formatShortDate, studentDisplayName } from "../../lib/format";
-import { LevelBadge, MicroBars } from "../insights/primitives";
-import { ScaleLegend } from "./MatrixViews";
-
-type Mode = "comparison" | "heatmap";
+import { LEVELS } from "../../domain/scale";
+import type { EvaluationMetric } from "../../domain/metrics";
+import { gradeKey } from "../../types";
+import { formatGrade, formatShortDate } from "../../lib/format";
+import { useGradeCenterDialogs } from "../dialogs/DialogsProvider";
+import { LEVEL_SEGMENTS, LevelLegend, LevelStack } from "../insights/LevelStack";
 
 /**
- * Vista Evaluaciones.
- *
- * Prioriza la comparación entre actividades. La tabla compara evaluaciones
- * entre sí y el mapa transpuesto muestra la misma información al revés:
- * evaluaciones en las filas, estudiantes en las columnas.
+ * Vista Evaluaciones: una fila por evaluación con lo que se compara entre
+ * ellas (ponderación, promedio y cómo le fue al grupo). Cada fila lleva a la
+ * planilla en esa columna, empezando por el primer estudiante pendiente.
  */
 export function EvaluationsView() {
-  const { analytics, dataset, selectEvaluation, jumpToCell, selectStudent } = useGradeCenter();
-  const [mode, setMode] = useState<Mode>("comparison");
-  const group = analytics.group;
+  const { analytics, dataset, students, readOnly, jumpToCell } = useGradeCenter();
+  const dialogs = useGradeCenterDialogs();
+  const metrics = dataset.evaluations
+    .map((evaluation) => analytics.byEvaluation.get(evaluation.id))
+    .filter((metric): metric is EvaluationMetric => Boolean(metric));
+
+  const open = (metric: EvaluationMetric) => {
+    // Se respeta el orden visible de la planilla (búsqueda, filtros y orden actuales).
+    const visible = students.map((item) => item.student);
+    const ordered = visible.length > 0 ? visible : dataset.students;
+    const firstPending = ordered.find((student) => dataset.grades[gradeKey(student.id, metric.evaluation.id)] == null);
+    const target = firstPending ?? ordered[0];
+    if (target) jumpToCell(target.id, metric.evaluation.id);
+  };
+
+  if (metrics.length === 0) {
+    return (
+      <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+        <div className="max-w-sm text-center">
+          <div className="text-base font-semibold">Aún no hay evaluaciones</div>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Cuando crees evaluaciones podrás compararlas aquí.
+          </p>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={dialogs.openNewEvaluation}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[var(--gc-cobalt)] px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--gc-cobalt)]/90"
+            >
+              <ClipboardPlus className="size-4" aria-hidden />
+              Nueva evaluación
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/6 px-3 py-2">
-        <div className="flex items-center gap-0.5 rounded-xl border border-white/8 bg-white/4 p-0.5">
-          <ModeButton
-            active={mode === "comparison"}
-            onClick={() => setMode("comparison")}
-            icon={<LayoutList className="size-3.5" />}
-            label="Comparación"
-          />
-          <ModeButton
-            active={mode === "heatmap"}
-            onClick={() => setMode("heatmap")}
-            icon={<Grid3x3 className="size-3.5" />}
-            label="Mapa transpuesto"
-          />
+    <div className="gc-scroll min-h-0 flex-1 overflow-y-auto">
+      <div className="mx-auto w-full max-w-5xl px-5 py-5">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+          <h2 className="text-base font-semibold">
+            {metrics.length} {metrics.length === 1 ? "evaluación" : "evaluaciones"}
+          </h2>
+          <LevelLegend restLabel="Pendiente" />
         </div>
-        <span className="text-xs text-muted-foreground">
-          {mode === "comparison"
-            ? "Cada fila es una evaluación del periodo, con su peso, avance y promedio."
-            : "Las mismas notas al revés: evaluaciones por fila, estudiantes por columna."}
-        </span>
-      </div>
 
-      <div className="gc-scroll min-h-0 flex-1 overflow-auto p-3">
-        {mode === "comparison" ? (
-          <div className="space-y-3">
-            <div className="glass overflow-hidden rounded-2xl">
-              <table className="w-full border-separate border-spacing-0 text-left">
-                <thead>
-                  <tr className="text-xs tracking-wide text-muted-foreground uppercase">
-                    <Th className="w-12">Código</Th>
-                    <Th>Evaluación</Th>
-                    <Th className="w-20">Fecha</Th>
-                    <Th className="w-14 text-right">Peso</Th>
-                    <Th className="w-56">Promedio</Th>
-                    <Th className="w-24 text-right">Avance</Th>
-                    <Th className="w-20 text-right">Pend.</Th>
-                    <Th className="w-28">Nivel</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {group.evaluations.map((metric) => {
-                    const level = metric.level;
-                    return (
-                      <tr
-                        key={metric.evaluation.id}
-                        onClick={() => selectEvaluation(metric.evaluation.id)}
-                        className="group cursor-pointer transition-colors hover:bg-white/6"
-                      >
-                        <Td>
-                          <span className="gc-num text-xs font-semibold text-[var(--gc-cobalt)]">
-                            {metric.evaluation.code}
-                          </span>
-                        </Td>
-                        <Td>
-                          <div className="min-w-0">
-                            <div className="truncate text-[12px] font-medium">
-                              {metric.evaluation.name}
-                            </div>
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <span>{TYPE_META[metric.evaluation.type].label}</span>
-                              <span className="opacity-40">·</span>
-                              <span className="gc-num">{metric.evaluation.period}</span>
-                            </div>
-                          </div>
-                        </Td>
-                        <Td>
-                          <span className="gc-num flex items-center gap-1 text-xs text-muted-foreground">
-                            <CalendarDays className="size-3" />
-                            {formatShortDate(metric.evaluation.date)}
-                          </span>
-                        </Td>
-                        <Td className="text-right">
-                          <span className="gc-num text-xs">{metric.evaluation.weight}%</span>
-                        </Td>
-                        <Td>
-                          <div className="flex items-center gap-2">
-                            <span className="relative h-2 flex-1 overflow-hidden rounded-full bg-white/6">
-                              <span
-                                className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500"
-                                style={{
-                                  width: `${metric.avg != null ? ((metric.avg - 1) / 4) * 100 : 0}%`,
-                                  background: level ? levelTint(level, 0.85) : "transparent",
-                                }}
-                              />
-                            </span>
-                            <span className="gc-num w-8 shrink-0 text-right text-[12px] font-semibold">
-                              {formatGrade(metric.avg)}
-                            </span>
-                          </div>
-                        </Td>
-                        <Td className="text-right">
-                          <span className="gc-num text-xs text-muted-foreground">
-                            {metric.evaluatedPct}%
-                          </span>
-                        </Td>
-                        <Td className="text-right">
-                          <span
-                            className="gc-num text-xs"
-                            style={{ color: metric.pending > 0 ? "var(--gc-bajo)" : "var(--muted-foreground)" }}
-                          >
-                            {metric.pending}
-                          </span>
-                        </Td>
-                        <Td>
-                          <LevelBadge level={level} size="xs" />
-                        </Td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {group.evaluations.map((metric) => (
-                <button
-                  key={metric.evaluation.id}
-                  type="button"
-                  onClick={() => selectEvaluation(metric.evaluation.id)}
-                  className="glass-soft rounded-2xl p-3 text-left transition-colors hover:bg-white/8"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="gc-num text-xs font-semibold text-[var(--gc-cobalt)]">
-                      {metric.evaluation.code}
-                    </span>
-                    <LevelBadge level={metric.level} score={metric.avg} size="xs" />
-                  </div>
-                  <div className="mt-1 truncate text-xs font-medium">{metric.evaluation.name}</div>
-                  <MicroBars
-                    className="mt-2"
-                    values={dataset.students.map(
-                      (student) => analytics.byStudent.get(student.id)?.grades[metric.evaluation.order] ?? null,
-                    )}
-                  />
-                  <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Peso {metric.evaluation.weight}%</span>
-                    <span className="gc-num">{metric.evaluatedPct}% evaluado</span>
-                  </div>
-                </button>
+        <div className="overflow-hidden rounded-2xl border border-[var(--gc-hair)] bg-[var(--gc-ink)]">
+          <table className="w-full border-collapse text-left">
+            <thead className="bg-[var(--gc-abyss)] text-xs text-muted-foreground">
+              <tr>
+                <th scope="col" className="px-4 py-2.5 font-medium">Evaluación</th>
+                <th scope="col" className="w-28 px-4 py-2.5 text-right font-medium">Ponderación</th>
+                <th scope="col" className="w-28 px-4 py-2.5 text-right font-medium">Promedio</th>
+                <th scope="col" className="w-[34%] px-4 py-2.5 font-medium">Resultados del grupo</th>
+                <th scope="col" className="w-10 px-2 py-2.5">
+                  <span className="sr-only">Abrir en la planilla</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {metrics.map((metric) => (
+                <EvaluationRow key={metric.evaluation.id} metric={metric} total={dataset.students.length} onOpen={() => open(metric)} />
               ))}
-            </div>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-            <ScaleLegend className="glass-soft rounded-2xl p-2.5" />
-          </div>
+function EvaluationRow({ metric, total, onOpen }: { metric: EvaluationMetric; total: number; onOpen: () => void }) {
+  const { evaluation, level } = metric;
+  const preparing = evaluation.status === "preparing";
+  const actionLabel = metric.pending > 0 ? `Calificar ${evaluation.name}` : `Ver ${evaluation.name} en la planilla`;
+
+  return (
+    <tr
+      onClick={onOpen}
+      className="group cursor-pointer border-t border-[var(--gc-hair)] transition-colors hover:bg-foreground/[0.03]"
+    >
+      <td className="px-4 py-3">
+        <div className="text-sm font-medium">{evaluation.name}</div>
+        <div className="text-xs text-muted-foreground">
+          {evaluation.code} · {TYPE_META[evaluation.type].short}
+          {evaluation.date ? ` · ${formatShortDate(evaluation.date)}` : ""}
+          {preparing && " · En preparación"}
+        </div>
+      </td>
+      <td className="px-4 py-3 text-right">
+        <span className={cn("gc-num text-sm", preparing && "text-muted-foreground")}>
+          {preparing ? "No cuenta" : `${evaluation.weight}%`}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-right">
+        {metric.avg == null ? (
+          <span className="text-sm text-muted-foreground">—</span>
         ) : (
-          <Heatmap />
+          <>
+            <div className="gc-num text-sm font-semibold" style={{ color: level ? LEVELS[level].color : undefined }}>
+              {formatGrade(metric.avg)}
+            </div>
+            <div className="text-xs text-muted-foreground">{level ? LEVELS[level].short : ""}</div>
+          </>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        <ResultsBar metric={metric} total={total} />
+      </td>
+      <td className="px-2 py-3 text-right">
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen();
+          }}
+          aria-label={actionLabel}
+          title={metric.pending > 0 ? "Calificar en la planilla" : "Ver en la planilla"}
+          className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors group-hover:text-foreground hover:bg-foreground/6 focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none"
+        >
+          <ChevronRight className="size-4" aria-hidden />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+/** Una sola barra: cuántos estudiantes cayeron en cada nivel y cuántos faltan por calificar. */
+function ResultsBar({ metric, total }: { metric: EvaluationMetric; total: number }) {
+  const summary = LEVEL_SEGMENTS.filter((level) => metric.distribution[level] > 0)
+    .map((level) => `${metric.distribution[level]} ${LEVELS[level].short}`)
+    .join(", ");
+
+  return (
+    <div>
+      <LevelStack
+        counts={metric.distribution}
+        total={total}
+        label={`${metric.gradedCount} de ${total} calificados${summary ? `: ${summary}` : ""}`}
+      />
+      <div className="mt-1.5 flex justify-between text-xs text-muted-foreground">
+        <span>
+          <span className="gc-num">{metric.gradedCount}</span> de <span className="gc-num">{total}</span> calificados
+        </span>
+        {metric.pending > 0 && (
+          <span>
+            <span className="gc-num">{metric.pending}</span> {metric.pending === 1 ? "pendiente" : "pendientes"}
+          </span>
         )}
       </div>
     </div>
   );
-}
-
-/** Mapa transpuesto: filas = evaluaciones, columnas = estudiantes. */
-function Heatmap() {
-  const { dataset, analytics, selectEvaluation, jumpToCell, selectStudent } = useGradeCenter();
-
-  return (
-    <div className="space-y-3">
-      <div className="glass gc-scroll overflow-auto rounded-2xl">
-        <table className="border-separate border-spacing-0">
-          <thead>
-            <tr>
-              <th className="gc-solid-deep sticky top-0 left-0 z-30 border-b border-white/8 px-3 py-2 text-left">
-                <span className="gc-label text-xs">Evaluación</span>
-              </th>
-              {dataset.students.map((student) => (
-                <th
-                  key={student.id}
-                  className="gc-solid-deep sticky top-0 z-20 border-b border-white/8 px-0.5 py-2 align-bottom"
-                >
-                  <span
-                    className="mx-auto block w-[13px] truncate text-xs text-muted-foreground"
-                    style={{ writingMode: "vertical-rl", height: 74 }}
-                    title={student.fullName}
-                  >
-                    {studentDisplayName(student, 16)}
-                  </span>
-                </th>
-              ))}
-              <th className="gc-solid-deep sticky top-0 right-0 z-30 border-b border-white/8 px-2 py-2 text-right">
-                <span className="gc-label text-xs">Prom.</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {dataset.evaluations.map((evaluation) => {
-              const metric = analytics.byEvaluation.get(evaluation.id)!;
-              return (
-                <tr key={evaluation.id} className="group">
-                  <th
-                    className="gc-solid sticky left-0 z-20 border-b border-white/6 px-3 py-0.5 text-left font-normal"
-                    style={{ height: 24 }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => selectEvaluation(evaluation.id)}
-                      className="flex min-w-[188px] items-center gap-2 rounded-lg px-1 py-0.5 transition-colors hover:bg-white/8"
-                    >
-                      <span className="gc-num w-7 shrink-0 text-xs font-semibold text-[var(--gc-cobalt)]">
-                        {evaluation.code}
-                      </span>
-                      <span className="w-11 shrink-0 truncate text-xs">{evaluation.shortName}</span>
-                      <span className="gc-num w-8 shrink-0 text-xs text-muted-foreground">
-                        {evaluation.weight}%
-                      </span>
-                    </button>
-                  </th>
-
-                  {dataset.students.map((student) => {
-                    const grade = analytics.byStudent.get(student.id)?.grades[evaluation.order] ?? null;
-                    const level = levelFromScore(grade);
-                    return (
-                      <td key={student.id} className="border-b border-white/6 p-[2px]">
-                        <Tooltip key={student.id} label={`${student.fullName} · ${evaluation.code}`} grade={grade}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              selectStudent(student.id);
-                              jumpToCell(student.id, evaluation.id);
-                            }}
-                            className="mx-auto block size-[13px] rounded-[3px] transition-transform hover:scale-[1.35]"
-                            style={{
-                              backgroundColor: level
-                                ? levelTint(level, 0.85)
-                                : "oklch(1 0 0 / 7%)",
-                              boxShadow:
-                                grade == null ? "inset 0 0 0 1px oklch(1 0 0 / 10%)" : undefined,
-                            }}
-                          />
-                        </Tooltip>
-                      </td>
-                    );
-                  })}
-
-                  <td className="gc-solid sticky right-0 z-20 border-b border-white/6 px-2 text-right">
-                    <span
-                      className="gc-num text-xs font-semibold"
-                      style={{ color: metric.level ? LEVELS[metric.level].color : undefined }}
-                    >
-                      {formatGrade(metric.avg)}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <ScaleLegend className="glass-soft rounded-2xl p-2.5" />
-    </div>
-  );
-}
-
-function Tooltip({
-  children,
-  label,
-  grade,
-}: {
-  children: React.ReactNode;
-  label: string;
-  grade: number | null;
-}) {
-  return (
-    <span
-      className="block"
-      title={`${label} — ${grade == null ? "pendiente" : formatGrade(grade)}`}
-    >
-      {children}
-    </span>
-  );
-}
-
-function ModeButton({
-  active,
-  onClick,
-  icon,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all",
-        active ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-
-function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <th className={cn("border-b border-white/8 px-3 py-2 font-medium", className)}>{children}</th>;
-}
-
-function Td({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <td className={cn("border-b border-white/6 px-3 py-1.5", className)}>{children}</td>;
 }

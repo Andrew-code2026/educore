@@ -1,156 +1,181 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Info } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ClipboardPlus, FilterX } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useGradeCenter } from "../../state/GradeCenterContext";
+import { useGradeCenter, useGradeCenterActions, useGradeCenterGrid } from "../../state/GradeCenterContext";
 import { ROW_HEIGHT } from "../../state/preferences";
+import { EMPTY_FILTERS, hasActiveFilters } from "../../domain/selectors";
 import { DefinitivaCell, DefinitivaHeaderCell, StudentCell, StudentHeaderCell } from "./Cells";
 import { EvaluationHeader } from "./EvaluationHeader";
 import { GradeCell } from "./GradeCell";
-import type { Density } from "../../types";
+import { useGradeCenterDialogs } from "../dialogs/DialogsProvider";
+import type { Density, Evaluation, GradeValue } from "../../types";
 import type { StudentMetrics } from "../../domain/metrics";
 
-const HEADER_HEIGHT: Record<Density, number> = { compact: 48, standard: 64, cozy: 76 };
+const HEADER_HEIGHT: Record<Density, number> = { compact: 44, standard: 62, cozy: 70 };
+
+type EditorTarget = { studentId: string; evaluationId: string } | null;
 
 /**
  * La matriz es el centro absoluto de la experiencia.
  *
  * Un solo contenedor de scroll gobierna los dos ejes: el estudiante queda fijo
  * a la izquierda, la definitiva fija a la derecha y los encabezados fijos
- * arriba, mientras las evaluaciones se desplazan horizontalmente.
+ * arriba. Filas y celdas están memorizadas y reciben solo valores primitivos:
+ * navegar con el teclado repinta dos celdas, no la planilla entera.
  */
-export function MatrixCanvas({
-  densityOverride,
-  className,
-}: {
-  densityOverride?: Density;
-  className?: string;
-}) {
+export function MatrixCanvas({ densityOverride, className }: { densityOverride?: Density; className?: string }) {
   const {
     dataset,
     students,
     evaluations,
     preferences,
     analytics,
-    activeCell,
-    columnWidth,
-    setAnalysisOpen,
     selectedStudentId,
     selectedEvaluationId,
+    selectedRows,
+    readOnly,
+    columnWidth,
   } = useGradeCenter();
+  const { activeCell, editing, selectedCells, pulse } = useGradeCenterGrid();
+  const filtersActive = hasActiveFilters(preferences.filters);
+  const actions = useGradeCenterActions();
 
   const density: Density = densityOverride ?? preferences.density;
   const rowHeight = ROW_HEIGHT[density];
   const headerHeight = HEADER_HEIGHT[density];
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scrolledX, setScrolledX] = useState(false);
-  const [scrolledY, setScrolledY] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scrolled, setScrolled] = useState({ x: false, y: false });
   const [containerWidth, setContainerWidth] = useState(0);
+  const [editor, setEditor] = useState<EditorTarget>(null);
+
+  /* Medición del contenedor para repartir el espacio libre ------------- */
+
   const observerRef = useRef<ResizeObserver | null>(null);
-
-  // Al montar o cambiar de salón/curso, la planilla SIEMPRE arranca desde arriba a la izquierda
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    container.scrollTop = 0;
-    container.scrollLeft = 0;
-    setScrolledX(false);
-    setScrolledY(false);
-  }, [dataset?.key]);
-
-  // Medimos el contenedor para repartir el espacio libre entre las evaluaciones
-  // cuando el grupo tiene pocas columnas.
   const attachContainer = useCallback((node: HTMLDivElement | null) => {
     observerRef.current?.disconnect();
+    observerRef.current = null;
     containerRef.current = node;
     if (!node) return;
-    node.scrollTop = 0;
-    node.scrollLeft = 0;
-    setScrolledX(false);
-    setScrolledY(false);
-    setContainerWidth(node.clientWidth);
-    const observer = new ResizeObserver(() => setContainerWidth(node.clientWidth));
+    // Mientras la planilla está oculta (otra vista activa) mide 0: se ignora para no
+    // recalcular todas las columnas al volver.
+    const measure = () => {
+      if (node.clientWidth > 0) setContainerWidth(node.clientWidth);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(node);
     observerRef.current = observer;
   }, []);
+
+  // Al cambiar de planilla, se arranca siempre arriba a la izquierda.
+  useEffect(() => {
+    const node = containerRef.current;
+    if (node) {
+      node.scrollTop = 0;
+      node.scrollLeft = 0;
+    }
+    setEditor(null);
+  }, [dataset.key]);
 
   const studentWidth = preferences.studentColWidth;
   const definitivaWidth = preferences.definitivaColWidth;
   const baseEvaluationWidths = useMemo(
     () => evaluations.map((evaluation) => columnWidth(evaluation.id)),
-    [evaluations, columnWidth, preferences.columnWidths, preferences.density],
+    [evaluations, columnWidth],
   );
-
-  const baseTotal =
-    studentWidth + definitivaWidth + baseEvaluationWidths.reduce((acc, value) => acc + value, 0);
+  const baseTotal = studentWidth + definitivaWidth + baseEvaluationWidths.reduce((acc, value) => acc + value, 0);
   const spare = Math.max(0, containerWidth - baseTotal - 1);
-  const bonus = evaluations.length > 0 ? Math.min(180, spare / evaluations.length) : 0;
-  const evaluationWidths = baseEvaluationWidths.map((value) => value + bonus);
-  const totalWidth =
-    studentWidth + definitivaWidth + evaluationWidths.reduce((acc, value) => acc + value, 0);
+  const bonus = evaluations.length > 0 ? Math.min(160, spare / evaluations.length) : 0;
+  const evaluationWidths = useMemo(
+    () => baseEvaluationWidths.map((value) => Math.floor(value + bonus)),
+    [baseEvaluationWidths, bonus],
+  );
+  const totalWidth = studentWidth + definitivaWidth + evaluationWidths.reduce((acc, value) => acc + value, 0);
 
-  /* ------------------------------------------------------------------ */
-  /* Sombras de sincronía con el scroll                                  */
-  /* ------------------------------------------------------------------ */
-
-  const handleScroll = useCallback(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    setScrolledX(container.scrollLeft > 2);
-    setScrolledY(container.scrollTop > 2);
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const { scrollLeft, scrollTop } = event.currentTarget;
+    const x = scrollLeft > 2;
+    const y = scrollTop > 2;
+    setScrolled((current) => (current.x === x && current.y === y ? current : { x, y }));
   }, []);
 
-  /* ------------------------------------------------------------------ */
-  /* La celda activa siempre queda a la vista                            */
-  /* ------------------------------------------------------------------ */
+  /* La celda activa siempre queda a la vista --------------------------- */
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-
-    if (activeCell.row === 0 && activeCell.col === 0) {
-      container.scrollTop = 0;
-      container.scrollLeft = 0;
-      handleScroll();
-      return;
-    }
-
-    const active = document.activeElement as HTMLElement | null;
-    const insideContainer = active ? container.contains(active) : false;
-    if (active && !insideContainer && active !== document.body) return;
-    if (active?.tagName === "INPUT") return;
-
-    const cell = container.querySelector<HTMLElement>(
-      `[data-cell="${activeCell.row}:${activeCell.col}"]`,
-    );
+    const cell = container.querySelector<HTMLElement>(`[data-cell="${activeCell.row}:${activeCell.col}"]`);
     if (!cell) return;
-
-    if (active !== cell) cell.focus({ preventScroll: true });
 
     const containerRect = container.getBoundingClientRect();
     const cellRect = cell.getBoundingClientRect();
-    const leftPad = studentWidth + 12;
-    const rightPad = definitivaWidth + 12;
-    const topPad = headerHeight + 8;
-
+    const leftEdge = containerRect.left + studentWidth;
+    const rightEdge = containerRect.right - definitivaWidth;
+    const topEdge = containerRect.top + headerHeight;
     let dx = 0;
     let dy = 0;
-    if (cellRect.left < containerRect.left + leftPad) dx = cellRect.left - (containerRect.left + leftPad);
-    else if (cellRect.right > containerRect.right - rightPad)
-      dx = cellRect.right - (containerRect.right - rightPad);
-    if (cellRect.top < containerRect.top + topPad) dy = cellRect.top - (containerRect.top + topPad);
-    else if (cellRect.bottom > containerRect.bottom - 10)
-      dy = cellRect.bottom - (containerRect.bottom - 10);
+    if (cellRect.left < leftEdge) dx = cellRect.left - leftEdge;
+    else if (cellRect.right > rightEdge) dx = cellRect.right - rightEdge;
+    if (cellRect.top < topEdge) dy = cellRect.top - topEdge;
+    else if (cellRect.bottom > containerRect.bottom) dy = cellRect.bottom - containerRect.bottom;
+    if (dx !== 0 || dy !== 0) container.scrollBy({ left: dx, top: dy });
 
-    if (dx !== 0 || dy !== 0) {
-      container.scrollBy({ left: dx, top: dy, behavior: "auto" });
-      handleScroll();
+    // El foco sigue a la celda activa, salvo que el docente esté escribiendo
+    // en otro lugar (editor flotante, buscador, un diálogo…).
+    const focused = document.activeElement as HTMLElement | null;
+    const focusIsFree = !focused || focused === document.body || container.contains(focused);
+    if (focusIsFree && focused !== cell && focused?.tagName !== "INPUT") cell.focus({ preventScroll: true });
+  }, [activeCell, studentWidth, definitivaWidth, headerHeight]);
+
+  /* Editor flotante: uno solo para toda la matriz ----------------------- */
+
+  const layoutRef = useRef({ students, evaluations });
+  layoutRef.current = { students, evaluations };
+
+  const openEditor = useCallback((studentId: string, evaluationId: string) => setEditor({ studentId, evaluationId }), []);
+  const closeEditor = useCallback(() => setEditor(null), []);
+  const moveEditor = useCallback(
+    (row: number, col: number, deltaRow: number, deltaCol: number) => {
+      const { students: rows, evaluations: cols } = layoutRef.current;
+      const nextRow = row + deltaRow;
+      const nextCol = col + deltaCol;
+      if (nextRow < 0 || nextRow >= rows.length || nextCol < 0 || nextCol >= cols.length) {
+        setEditor(null);
+        actions.focusCell(row, col);
+        return;
+      }
+      setEditor({ studentId: rows[nextRow].student.id, evaluationId: cols[nextCol].id });
+      actions.focusCell(nextRow, nextCol);
+    },
+    [actions],
+  );
+
+  /* Selección agrupada por fila (valores primitivos para la memorización) */
+
+  const selectedRowSet = useMemo(() => new Set(selectedRows), [selectedRows]);
+  const selectedByStudent = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const key of selectedCells) {
+      const [studentId, evaluationId] = key.split("::");
+      map.set(studentId, `${map.get(studentId) ?? ""}|${evaluationId}`);
     }
-  }, [activeCell, studentWidth, definitivaWidth, headerHeight, students.length, evaluations.length, handleScroll]);
+    return map;
+  }, [selectedCells]);
 
-  /* ------------------------------------------------------------------ */
+  const pulseTarget = useMemo(() => {
+    if (!pulse) return null;
+    const [studentId, evaluationId] = pulse.key.split("::");
+    return { studentId, evaluationId, at: pulse.at };
+  }, [pulse]);
 
   if (evaluations.length === 0 || students.length === 0) {
-    return <EmptyMatrix students={students} hasStudents={students.length > 0} onOpenAnalysis={() => setAnalysisOpen(true)} />;
+    return (
+      <EmptyMatrix
+        reason={students.length === 0 && filtersActive ? "filtered" : evaluations.length === 0 ? "no-evaluations" : "no-students"}
+        readOnly={readOnly}
+        hiddenEvaluations={preferences.hiddenEvaluations.length > 0 && dataset.evaluations.length > 0}
+      />
+    );
   }
 
   return (
@@ -158,123 +183,229 @@ export function MatrixCanvas({
       <div
         ref={attachContainer}
         onScroll={handleScroll}
-        className="gc-scroll relative min-h-0 flex-1 overflow-auto overscroll-contain"
+        className="gc-scroll gc-matrix relative min-h-0 flex-1 overflow-auto overscroll-contain"
+        data-scrolled-x={scrolled.x || undefined}
+        data-scrolled-y={scrolled.y || undefined}
+        data-selecting={selectedRows.length > 0 || undefined}
       >
-      <table
-        role="grid"
-        aria-label="Matriz de calificaciones del grupo"
-        aria-rowcount={students.length + 1}
-        aria-colcount={evaluations.length + 2}
-        className="border-separate border-spacing-0"
-        style={{ width: totalWidth, minWidth: totalWidth, tableLayout: "fixed" }}
-      >
-        <colgroup>
-          <col style={{ width: studentWidth }} />
-          {evaluations.map((evaluation, index) => (
-            <col
-              key={evaluation.id}
-              style={{ width: evaluationWidths[index] ?? columnWidth(evaluation.id) }}
-            />
-          ))}
-          <col style={{ width: definitivaWidth }} />
-        </colgroup>
-
-        <thead>
-          <tr>
-            <StudentHeaderCell width={studentWidth} headerHeight={headerHeight} />
+        <table
+          role="grid"
+          aria-label="Planilla de calificaciones"
+          aria-rowcount={students.length + 1}
+          aria-colcount={evaluations.length + 2}
+          aria-readonly={readOnly || undefined}
+          className="border-separate border-spacing-0"
+          style={{ width: totalWidth, minWidth: totalWidth, tableLayout: "fixed" }}
+        >
+          <colgroup>
+            <col style={{ width: studentWidth }} />
             {evaluations.map((evaluation, index) => (
-              <EvaluationHeader
-                key={evaluation.id}
-                evaluation={evaluation}
-                metric={analytics.byEvaluation.get(evaluation.id)!}
-                width={evaluationWidths[index] ?? columnWidth(evaluation.id)}
-                baseWidth={baseEvaluationWidths[index] ?? columnWidth(evaluation.id)}
-                density={density}
-                isSelected={selectedEvaluationId === evaluation.id}
-                headerHeight={headerHeight}
-              />
+              <col key={evaluation.id} style={{ width: evaluationWidths[index] }} />
             ))}
-            <DefinitivaHeaderCell width={definitivaWidth} headerHeight={headerHeight} />
-          </tr>
-        </thead>
+            <col style={{ width: definitivaWidth }} />
+          </colgroup>
 
-        <tbody>
-          {students.map((metrics, rowIndex) => (
-            <tr key={metrics.student.id} className="group/row">
-              <StudentCell
-                metrics={metrics}
+          <thead>
+            <tr>
+              <StudentHeaderCell
                 width={studentWidth}
-                height={rowHeight}
-                density={density}
-                isSelected={selectedStudentId === metrics.student.id}
+                headerHeight={headerHeight}
+                visibleCount={students.length}
+                selectedCount={selectedRows.length}
               />
-              {evaluations.map((evaluation, colIndex) => (
-                <GradeCell
+              {evaluations.map((evaluation, index) => (
+                <EvaluationHeader
                   key={evaluation.id}
-                  metrics={metrics}
                   evaluation={evaluation}
-                  evaluationMetric={analytics.byEvaluation.get(evaluation.id)!}
-                  rowIndex={rowIndex}
-                  colIndex={colIndex}
-                  height={rowHeight}
-                  compact={density === "compact"}
+                  metric={analytics.byEvaluation.get(evaluation.id)!}
+                  width={evaluationWidths[index]}
+                  baseWidth={baseEvaluationWidths[index]}
+                  density={density}
+                  isSelected={selectedEvaluationId === evaluation.id}
+                  headerHeight={headerHeight}
+                  readOnly={readOnly}
                 />
               ))}
-              <DefinitivaCell metrics={metrics} width={definitivaWidth} height={rowHeight} density={density} />
+              <DefinitivaHeaderCell width={definitivaWidth} headerHeight={headerHeight} />
             </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
+          </thead>
 
-      {/* Sombras que aparecen solo cuando hay contenido desplazado */}
-      <div
-        className={cn(
-          "pointer-events-none absolute top-0 bottom-0 left-0 w-px transition-opacity duration-200",
-          scrolledX ? "opacity-100 gc-shadow-x" : "opacity-0",
-        )}
-        style={{ width: studentWidth }}
-      />
-      <div
-        className={cn(
-          "pointer-events-none absolute top-0 right-0 bottom-0 transition-opacity duration-200",
-          scrolledX ? "opacity-100 gc-shadow-xr" : "opacity-0",
-        )}
-        style={{ width: definitivaWidth }}
-      />
-      {scrolledY && (
-        <div
-          className="pointer-events-none absolute top-0 left-0 h-px"
-          style={{ width: studentWidth, boxShadow: "0 12px 18px -14px oklch(0 0 0 / 90%)" }}
-        />
-      )}
+          <tbody>
+            {students.map((metrics, rowIndex) => {
+              const studentId = metrics.student.id;
+              const isActiveRow = activeCell.row === rowIndex;
+              return (
+                <MatrixRow
+                  key={studentId}
+                  metrics={metrics}
+                  rowIndex={rowIndex}
+                  evaluations={evaluations}
+                  activeCol={isActiveRow ? activeCell.col : -1}
+                  editing={isActiveRow && editing}
+                  editorEvaluationId={editor?.studentId === studentId ? editor.evaluationId : null}
+                  rowSelected={selectedRowSet.has(studentId)}
+                  selectedEvaluations={selectedByStudent.get(studentId) ?? ""}
+                  pulseEvaluationId={pulseTarget?.studentId === studentId ? pulseTarget.evaluationId : null}
+                  pulseAt={pulseTarget?.studentId === studentId ? pulseTarget.at : 0}
+                  isStudentSelected={selectedStudentId === studentId}
+                  rowHeight={rowHeight}
+                  studentWidth={studentWidth}
+                  definitivaWidth={definitivaWidth}
+                  density={density}
+                  quickEdit={preferences.quickEdit}
+                  readOnly={readOnly}
+                  onOpenEditor={openEditor}
+                  onCloseEditor={closeEditor}
+                  onMoveEditor={moveEditor}
+                />
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
-function EmptyMatrix({ students, hasStudents, onOpenAnalysis }: { students: StudentMetrics[]; hasStudents: boolean; onOpenAnalysis: () => void }) {
+interface MatrixRowProps {
+  metrics: StudentMetrics;
+  rowIndex: number;
+  evaluations: Evaluation[];
+  activeCol: number;
+  editing: boolean;
+  editorEvaluationId: string | null;
+  rowSelected: boolean;
+  selectedEvaluations: string;
+  pulseEvaluationId: string | null;
+  pulseAt: number;
+  isStudentSelected: boolean;
+  rowHeight: number;
+  studentWidth: number;
+  definitivaWidth: number;
+  density: Density;
+  quickEdit: boolean;
+  readOnly: boolean;
+  onOpenEditor: (studentId: string, evaluationId: string) => void;
+  onCloseEditor: () => void;
+  onMoveEditor: (row: number, col: number, deltaRow: number, deltaCol: number) => void;
+}
+
+const MatrixRow = memo(function MatrixRow({
+  metrics,
+  rowIndex,
+  evaluations,
+  activeCol,
+  editing,
+  editorEvaluationId,
+  rowSelected,
+  selectedEvaluations,
+  pulseEvaluationId,
+  pulseAt,
+  isStudentSelected,
+  rowHeight,
+  studentWidth,
+  definitivaWidth,
+  density,
+  quickEdit,
+  readOnly,
+  onOpenEditor,
+  onCloseEditor,
+  onMoveEditor,
+}: MatrixRowProps) {
+  const grades = useMemo(() => {
+    const map = new Map<string, GradeValue>();
+    for (const outcome of metrics.outcomes) map.set(outcome.evaluation.id, outcome.grade);
+    return map;
+  }, [metrics]);
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--gc-cobalt)]/20 bg-[var(--gc-cobalt)]/7 p-4">
-        <div className="flex items-start gap-3 text-left">
-          <div className="glass flex size-10 shrink-0 items-center justify-center rounded-2xl"><Info className="size-5 text-[var(--gc-cobalt)]" /></div>
-          <div>
-            <div className="text-sm font-semibold">{hasStudents ? "Planilla lista para comenzar" : "Ningún estudiante coincide con los filtros"}</div>
-            <p className="mt-1 max-w-xl text-xs text-muted-foreground">{hasStudents ? "La lista de estudiantes está lista. Crea la primera evaluación para comenzar a registrar calificaciones." : "Quita algún filtro activo para volver a ver el grupo completo. Los filtros están siempre visibles en la barra superior."}</p>
-          </div>
-        </div>
-        <button type="button" onClick={onOpenAnalysis} className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/10">Ver el análisis del grupo</button>
+    <tr className={cn("gc-row", activeCol >= 0 && "gc-row-active", rowSelected && "gc-row-selected")}>
+      <StudentCell
+        metrics={metrics}
+        width={studentWidth}
+        height={rowHeight}
+        density={density}
+        rowSelected={rowSelected}
+        isSelected={isStudentSelected}
+      />
+      {evaluations.map((evaluation, colIndex) => (
+        <GradeCell
+          key={evaluation.id}
+          student={metrics.student}
+          evaluation={evaluation}
+          grade={grades.get(evaluation.id) ?? null}
+          rowIndex={rowIndex}
+          colIndex={colIndex}
+          height={rowHeight}
+          compact={density === "compact"}
+          isActive={activeCol === colIndex}
+          isEditing={activeCol === colIndex && editing}
+          isSelected={rowSelected || selectedEvaluations.includes(`|${evaluation.id}`)}
+          pulseAt={pulseEvaluationId === evaluation.id ? pulseAt : 0}
+          editorOpen={editorEvaluationId === evaluation.id}
+          quickEdit={quickEdit}
+          readOnly={readOnly}
+          onOpenEditor={onOpenEditor}
+          onCloseEditor={onCloseEditor}
+          onMoveEditor={onMoveEditor}
+        />
+      ))}
+      <DefinitivaCell metrics={metrics} width={definitivaWidth} height={rowHeight} density={density} />
+    </tr>
+  );
+});
+
+function EmptyMatrix({
+  reason,
+  readOnly,
+  hiddenEvaluations,
+}: {
+  reason: "filtered" | "no-evaluations" | "no-students";
+  readOnly: boolean;
+  hiddenEvaluations: boolean;
+}) {
+  const { setFilters, showAllEvaluations } = useGradeCenter();
+  const dialogs = useGradeCenterDialogs();
+
+  const content =
+    reason === "filtered"
+      ? {
+          title: "Ningún estudiante coincide",
+          body: "Ajusta la búsqueda o quita los filtros para volver a ver el grupo completo.",
+          action: { label: "Quitar filtros", icon: <FilterX className="size-4" />, run: () => setFilters(EMPTY_FILTERS) },
+        }
+      : reason === "no-evaluations" && hiddenEvaluations
+        ? {
+            title: "Todas las columnas están ocultas",
+            body: "Vuelve a mostrar las evaluaciones para seguir calificando.",
+            action: { label: "Mostrar evaluaciones", icon: null, run: showAllEvaluations },
+          }
+        : reason === "no-evaluations"
+          ? {
+              title: "Aún no hay evaluaciones",
+              body: "Crea la primera evaluación para empezar a registrar calificaciones.",
+              action: readOnly
+                ? null
+                : { label: "Nueva evaluación", icon: <ClipboardPlus className="size-4" />, run: dialogs.openNewEvaluation },
+            }
+          : { title: "Esta planilla no tiene estudiantes", body: "Cuando el grupo tenga estudiantes matriculados aparecerán aquí.", action: null };
+
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+      <div className="max-w-sm text-center">
+        <div className="text-base font-semibold">{content.title}</div>
+        <p className="mt-1.5 text-sm text-muted-foreground">{content.body}</p>
+        {content.action && (
+          <button
+            type="button"
+            onClick={content.action.run}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[var(--gc-cobalt)] px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--gc-cobalt)]/90"
+          >
+            {content.action.icon}
+            {content.action.label}
+          </button>
+        )}
       </div>
-      {hasStudents && (
-        <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {students.map((metrics, index) => (
-            <div key={metrics.student.id} className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/3 px-3 py-2.5 text-left">
-              <span className="gc-num flex size-6 shrink-0 items-center justify-center rounded-lg bg-[var(--gc-cobalt)]/12 text-xs text-[var(--gc-cobalt)]">{index + 1}</span>
-              <span className="min-w-0"><span className="block truncate text-xs font-medium">{metrics.student.fullName}</span><span className="gc-num mt-0.5 block text-xs text-muted-foreground">{metrics.student.code}</span></span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

@@ -27,6 +27,8 @@
   /* Superficies nocturnas */
   --gc-abyss: oklch(0.145 0.022 266);
   --gc-ink: oklch(0.185 0.024 266);
+  /* Barras de herramientas de la planilla */
+  --gc-chrome: oklch(0.205 0.024 266);
   --gc-hair: oklch(1 0 0 / 9%);
   --gc-surface: oklch(0.205 0.023 266 / 76%);
   --gc-surface-soft: oklch(1 0 0 / 4%);
@@ -34,30 +36,37 @@
   --gc-border: oklch(1 0 0 / 10%);
   --gc-muted: oklch(0.735 0.02 265);
 
-  /* Escala institucional 0.0–5.0 */
-  --gc-bajo: oklch(0.79 0.152 72);
-  --gc-basico: oklch(0.78 0.115 231);
-  --gc-alto: oklch(0.8 0.145 158);
-  --gc-superior: oklch(0.735 0.142 296);
+  /* Escala institucional 0.0–5.0: semáforo progresivo (rojo → ámbar → verde → violeta).
+     Ningún nivel usa el azul de marca: el cobalto queda reservado para la interacción
+     (foco, selección, acciones), así el color de una nota nunca se confunde con un control. */
+  --gc-bajo: oklch(0.72 0.16 25);
+  --gc-basico: oklch(0.82 0.13 78);
+  --gc-alto: oklch(0.78 0.15 155);
+  --gc-superior: oklch(0.75 0.14 305);
 }
 
 .light,
 html.light {
   --radius: 0.9rem;
   --gc-cobalt: oklch(0.52 0.19 266);
-  --gc-abyss: oklch(0.925 0.024 266);
-  --gc-ink: oklch(0.968 0.018 266);
-  --gc-hair: oklch(0.24 0.04 266 / 16%);
+  /* Superficies neutras (croma mínimo): el color lo ponen las notas, no el fondo. */
+  /* Tres niveles con contraste suficiente para leerse como capas distintas:
+     barras (blanco) → encabezado de la tabla (gris frío) → celdas (blanco). */
+  --gc-abyss: oklch(0.945 0.012 266);
+  --gc-ink: oklch(0.995 0.002 266);
+  --gc-chrome: oklch(1 0 0);
+  --gc-hair: oklch(0.24 0.02 266 / 14%);
   --gc-surface: oklch(0.94 0.035 266 / 92%);
   --gc-surface-soft: oklch(0.91 0.03 266 / 78%);
   --gc-surface-hover: oklch(0.87 0.055 266 / 84%);
   --gc-border: oklch(0.38 0.065 266 / 28%);
   --gc-muted: oklch(0.4 0.04 266);
 
-  --gc-bajo: oklch(0.48 0.16 68);
-  --gc-basico: oklch(0.43 0.14 231);
-  --gc-alto: oklch(0.44 0.15 158);
-  --gc-superior: oklch(0.47 0.15 296);
+  /* Misma escala que en oscuro, con luminosidad suficiente para texto (≥ 4.5:1). */
+  --gc-bajo: oklch(0.53 0.19 27);
+  --gc-basico: oklch(0.56 0.13 65);
+  --gc-alto: oklch(0.5 0.13 155);
+  --gc-superior: oklch(0.5 0.17 305);
 }
 
 /* ==========================================================================
@@ -68,6 +77,7 @@ html.light {
 .dark .gc-workspace-root,
 .dark [data-radix-popper-content-wrapper],
 .dark [data-slot="dialog-content"],
+.dark [data-slot="alert-dialog-content"],
 .dark [data-slot="tooltip-content"] {
   --background: oklch(0.155 0.021 266);
   --foreground: oklch(0.955 0.005 265);
@@ -105,11 +115,13 @@ html.light [data-radix-popper-content-wrapper],
 .light [data-radix-popper-content-wrapper],
 html.light [data-slot="dialog-content"],
 .light [data-slot="dialog-content"],
+html.light [data-slot="alert-dialog-content"],
+.light [data-slot="alert-dialog-content"],
 html.light [data-slot="tooltip-content"],
 .light [data-slot="tooltip-content"] {
-  --background: oklch(0.945 0.018 266);
+  --background: oklch(0.975 0.004 266);
   --foreground: oklch(0.205 0.03 266);
-  --card: oklch(0.972 0.015 266);
+  --card: oklch(0.995 0.002 266);
   --card-foreground: oklch(0.205 0.03 266);
   --popover: oklch(0.978 0.014 266);
   --popover-foreground: oklch(0.205 0.03 266);
@@ -144,6 +156,7 @@ html.light [data-slot="tooltip-content"],
 .gc-workspace-root,
 [data-radix-popper-content-wrapper],
 [data-slot="dialog-content"],
+[data-slot="alert-dialog-content"],
 [data-slot="tooltip-content"] {
   font-family: var(--font-sans, 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
   font-feature-settings: "cv02", "cv03", "cv04", "ss01";
@@ -226,6 +239,12 @@ html.light [data-slot="tooltip-content"],
     radial-gradient(900px 560px at 92% 4%, oklch(0.6 0.17 300 / 20%), transparent 60%),
     radial-gradient(1200px 760px at 62% 116%, oklch(0.62 0.14 210 / 16%), transparent 64%),
     linear-gradient(180deg, oklch(0.17 0.024 266), oklch(0.135 0.02 266) 58%, oklch(0.12 0.019 266));
+}
+
+/* Dentro de una planilla el fondo es plano: el ambiente decorativo queda para la portada. */
+.gc-workspace-root[data-screen="workspace"]::before,
+.gc-workspace-root[data-screen="workspace"]::after {
+  display: none;
 }
 
 /* Motivo firma: retícula académica de 68px con máscara radial */
@@ -540,23 +559,147 @@ html.light .gc-workspace-root::after,
   }
 }
 
-/* Capas sólidas para celdas sticky de la matriz */
+/* Capas sólidas para celdas sticky de la matriz.
+   Son opacas a propósito: un backdrop-filter en decenas de celdas sticky obliga
+   al navegador a recomponer el desenfoque en cada frame de scroll (lag). */
 .gc-solid {
-  background-color: color-mix(in oklab, var(--gc-ink) 93%, transparent);
-  backdrop-filter: blur(22px) saturate(150%);
-  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  background-color: var(--gc-ink);
 }
 
 .gc-solid-deep {
-  background-color: color-mix(in oklab, var(--gc-abyss) 95%, transparent);
-  backdrop-filter: blur(26px) saturate(150%);
-  -webkit-backdrop-filter: blur(26px) saturate(150%);
+  background-color: var(--gc-abyss);
 }
 
 .gc-solid-soft {
   background-color: color-mix(in oklab, var(--gc-ink) 72%, transparent);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+/* ==========================================================================
+   Matriz de calificaciones
+   ========================================================================== */
+
+.gc-matrix {
+  contain: layout paint;
+  background-color: var(--gc-ink);
+}
+
+.gc-matrix tbody td,
+.gc-matrix tbody th {
+  border-bottom: 1px solid oklch(1 0 0 / 6%);
+}
+
+/* Barras superiores: superficie propia, separada del fondo y de la tabla */
+.gc-chrome {
+  background-color: var(--gc-chrome);
+  border-bottom: 1px solid var(--gc-hair);
+}
+
+/* El encabezado se separa del cuerpo con un borde más marcado que las filas */
+.gc-matrix thead th {
+  border-bottom: 1px solid var(--gc-hair);
+}
+
+/* La regla global `tbody tr:hover` de la app no aplica aquí: la fila tiene su propio hover. */
+.gc-matrix tbody tr:hover {
+  background: transparent;
+}
+
+/* Fila: hover y fila activa sin JavaScript */
+.gc-matrix .gc-row:hover > td:not(.gc-solid) {
+  background-color: oklch(1 0 0 / 3%);
+}
+.gc-matrix .gc-row:hover > .gc-solid,
+.gc-matrix .gc-row-active > .gc-solid,
+.gc-solid-selected {
+  background-color: color-mix(in oklab, var(--gc-cobalt) 9%, var(--gc-ink));
+}
+.gc-matrix .gc-row-selected > .gc-solid {
+  background-color: color-mix(in oklab, var(--gc-cobalt) 14%, var(--gc-ink));
+}
+
+/* Casilla de selección: visible al pasar, con foco o cuando ya hay selección */
+.gc-matrix .gc-row-check {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.gc-matrix .gc-row:hover .gc-row-check,
+.gc-matrix thead:hover .gc-row-check,
+.gc-matrix .gc-row-check:checked,
+.gc-matrix .gc-row-check:indeterminate,
+.gc-matrix .gc-row-check:focus-visible,
+.gc-matrix[data-selecting] .gc-row-check {
+  opacity: 1;
+}
+@media (hover: none) {
+  .gc-matrix .gc-row-check {
+    opacity: 1;
+  }
+}
+
+/* Celda de nota */
+.gc-cell {
+  transition: background-color 120ms ease;
+}
+.gc-cell:hover {
+  background-color: oklch(1 0 0 / 5%);
+}
+.gc-cell-selected {
+  background-color: color-mix(in oklab, var(--gc-cobalt) 12%, transparent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--gc-cobalt) 45%, transparent);
+}
+.gc-cell-active,
+.gc-cell:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--gc-cobalt);
+  z-index: 1;
+}
+
+/* Capa oculta que conserva su render (la planilla mientras se ve otra vista).
+   display:none o visibility obligan a recalcular estilos de toda la tabla al volver. */
+.gc-layer-hidden {
+  visibility: hidden;
+}
+@supports (content-visibility: hidden) {
+  .gc-layer-hidden {
+    visibility: visible;
+    content-visibility: hidden;
+  }
+}
+
+/* Encabezado de evaluación seleccionado */
+.gc-head-selected > button {
+  box-shadow: inset 0 -2px 0 var(--gc-cobalt);
+  background-color: color-mix(in oklab, var(--gc-cobalt) 8%, transparent);
+}
+
+/* Sombras de las columnas fijas, solo cuando hay contenido desplazado */
+.gc-matrix[data-scrolled-x] tr > :first-child {
+  box-shadow: 10px 0 14px -12px oklch(0 0 0 / 55%);
+}
+.gc-matrix[data-scrolled-x] tr > :last-child {
+  box-shadow: -10px 0 14px -12px oklch(0 0 0 / 55%);
+}
+.gc-matrix[data-scrolled-y] thead th {
+  box-shadow: 0 10px 14px -12px oklch(0 0 0 / 55%);
+}
+
+.light .gc-matrix tbody td,
+.light .gc-matrix tbody th {
+  border-bottom-color: oklch(0.22 0.025 266 / 8%);
+}
+.light .gc-matrix .gc-row:hover > td:not(.gc-solid),
+.light .gc-cell:hover {
+  background-color: oklch(0.22 0.025 266 / 3.5%);
+}
+.light .gc-matrix[data-scrolled-x] tr > :first-child {
+  box-shadow: 10px 0 14px -12px oklch(0.28 0.04 266 / 30%);
+}
+.light .gc-matrix[data-scrolled-x] tr > :last-child {
+  box-shadow: -10px 0 14px -12px oklch(0.28 0.04 266 / 30%);
+}
+.light .gc-matrix[data-scrolled-y] thead th {
+  box-shadow: 0 10px 14px -12px oklch(0.28 0.04 266 / 30%);
 }
 
 .gc-hair-v {
@@ -582,6 +725,10 @@ html.light .gc-workspace-root::after,
   cursor: col-resize;
   z-index: 14;
   touch-action: none;
+}
+.gc-resizer-left {
+  right: auto;
+  left: -5px;
 }
 .gc-resizer::after {
   content: "";
@@ -642,13 +789,14 @@ html.light .gc-workspace-root::after,
    ========================================================================== */
 
 /* Los botones y chips que usan blanco translúcido en dark conservan contraste en light */
-html.light [class*="border-white/"],
-.light [class*="border-white/"] {
+/* Solo la clase base (no sus variantes hover:/focus:), o todo hover se vuelve fondo fijo. */
+html.light :is([class^="border-white/"], [class*=" border-white/"]),
+.light :is([class^="border-white/"], [class*=" border-white/"]) {
   border-color: oklch(0.22 0.025 266 / 13%);
 }
 
-html.light [class*="bg-white/"],
-.light [class*="bg-white/"] {
+html.light :is([class^="bg-white/"], [class*=" bg-white/"]),
+.light :is([class^="bg-white/"], [class*=" bg-white/"]) {
   background-color: oklch(0.22 0.025 266 / 5%);
 }
 
@@ -692,14 +840,11 @@ html.light .glass-soft,
 
 html.light .gc-solid,
 .light .gc-solid {
-  background-color: color-mix(in oklab, var(--gc-ink) 94%, transparent);
-  box-shadow: inset 0 1px 0 oklch(1 0 0 / 38%);
+  background-color: var(--gc-ink);
 }
-
 html.light .gc-solid-deep,
 .light .gc-solid-deep {
-  background-color: color-mix(in oklab, var(--gc-abyss) 97%, transparent);
-  box-shadow: inset 0 1px 0 oklch(1 0 0 / 38%);
+  background-color: var(--gc-abyss);
 }
 
 html.light .gc-solid-soft,
