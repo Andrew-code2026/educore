@@ -378,22 +378,6 @@ html.light .gc-workspace-root::after,
   padding: 0.35rem;
 }
 
-.gc-landing-hero {
-  border: 1px solid color-mix(in oklab, var(--gc-cobalt) 34%, transparent);
-  background:
-    radial-gradient(420px 190px at 88% -20%, color-mix(in oklab, var(--gc-superior) 22%, transparent), transparent 72%),
-    linear-gradient(128deg, color-mix(in oklab, var(--gc-cobalt) 24%, var(--card)), color-mix(in oklab, var(--card) 82%, transparent) 58%, color-mix(in oklab, var(--gc-superior) 10%, var(--card)));
-  box-shadow: 0 28px 70px -42px color-mix(in oklab, var(--gc-cobalt) 70%, transparent), inset 0 1px 0 color-mix(in oklab, white 18%, transparent);
-}
-
-.gc-planilla-card {
-  border: 1px solid color-mix(in oklab, var(--gc-cobalt) 24%, var(--gc-border));
-  background:
-    radial-gradient(360px 160px at 100% 0%, color-mix(in oklab, var(--gc-cobalt) 12%, transparent), transparent 72%),
-    var(--gc-surface);
-  box-shadow: 0 22px 50px -34px color-mix(in oklab, var(--gc-cobalt) 50%, transparent), inset 0 1px 0 color-mix(in oklab, white 14%, transparent);
-}
-
 .gc-context-card {
   border: 1px solid color-mix(in oklab, var(--gc-superior) 18%, var(--gc-border));
   background: color-mix(in oklab, var(--gc-superior) 6%, var(--gc-surface));

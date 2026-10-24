@@ -11,6 +11,8 @@ export interface AssignmentMetrics {
   totalCells: number;
   pendingCells: number;
   progressPct: number;
+  /** Promedio de las notas registradas (escala 0–5); null si aún no hay notas. */
+  average: number | null;
 }
 
 /** Identidad estable de una planilla asignada a un docente con métricas propias. */
@@ -24,6 +26,8 @@ export interface GradebookAssignment {
   access: AssignmentAccess;
   status: AssignmentStatus;
   metrics?: AssignmentMetrics;
+  lastActivityAt?: Date | null;
+  periodEndsAt?: Date | null;
 }
 
 export function computeDatasetMetrics(dataset: Dataset): AssignmentMetrics {
@@ -32,11 +36,13 @@ export function computeDatasetMetrics(dataset: Dataset): AssignmentMetrics {
   const totalCells = studentsCount * evaluationsCount;
 
   let gradedCells = 0;
+  let gradeSum = 0;
   for (const student of dataset.students) {
     for (const evaluation of dataset.evaluations) {
       const value = dataset.grades[gradeKey(student.id, evaluation.id)];
       if (value !== null && value !== undefined) {
         gradedCells += 1;
+        gradeSum += value;
       }
     }
   }
@@ -52,6 +58,7 @@ export function computeDatasetMetrics(dataset: Dataset): AssignmentMetrics {
     totalCells,
     pendingCells,
     progressPct,
+    average: gradedCells > 0 ? Math.round((gradeSum / gradedCells) * 10) / 10 : null,
   };
 }
 

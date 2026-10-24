@@ -173,7 +173,14 @@ export type GradeCenterAssignmentSummary = {
   evaluations: number;
   graded: number;
   total: number;
+  /** Promedio de las notas registradas, normalizado a la escala 0–5. */
+  average: number | null;
+  /** Última modificación de evaluaciones o notas de la planilla. */
+  lastActivityAt: Date | null;
+  periodEndsAt: Date | null;
 };
+
+const GRADE_SCALE_MAX = 5;
 
 const isActivePeriod = (status: string) => status === "Activo" || status === "ACTIVE";
 const isClosedPeriod = (status: string) => status === "Cerrado" || status === "CLOSED";
@@ -225,8 +232,15 @@ export async function listGradeCenterAssignments(actor: GradeCenterActor): Promi
     visibleStudentIds = new Set(linked.map(row => row.studentUserId));
   }
 
-  const assessmentRows = periodIds.length ? await db.select({ id: assessments.id, courseId: assessments.courseId, subjectId: assessments.subjectId, academicPeriodId: assessments.academicPeriodId }).from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), inArray(assessments.courseId, courseIds), inArray(assessments.academicPeriodId, periodIds), ne(assessments.status, "DELETED"))) : [];
-  const gradeRows = assessmentRows.length ? await db.select({ assessmentId: assessmentGrades.assessmentId, studentId: assessmentGrades.studentId, value: assessmentGrades.value }).from(assessmentGrades).where(and(eq(assessmentGrades.schoolId, actor.schoolId), inArray(assessmentGrades.assessmentId, assessmentRows.map(row => row.id)))) : [];
+  const assessmentRows = periodIds.length ? await db.select({ id: assessments.id, courseId: assessments.courseId, subjectId: assessments.subjectId, academicPeriodId: assessments.academicPeriodId, maxValue: assessments.maxValue, updatedAt: assessments.updatedAt }).from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), inArray(assessments.courseId, courseIds), inArray(assessments.academicPeriodId, periodIds), ne(assessments.status, "DELETED"))) : [];
+  const gradeRows = assessmentRows.length ? await db.select({ assessmentId: assessmentGrades.assessmentId, studentId: assessmentGrades.studentId, value: assessmentGrades.value, updatedAt: assessmentGrades.updatedAt }).from(assessmentGrades).where(and(eq(assessmentGrades.schoolId, actor.schoolId), inArray(assessmentGrades.assessmentId, assessmentRows.map(row => row.id)))) : [];
+
+  const gradesByAssessment = new Map<number, typeof gradeRows>();
+  for (const row of gradeRows) {
+    const bucket = gradesByAssessment.get(row.assessmentId);
+    if (bucket) bucket.push(row);
+    else gradesByAssessment.set(row.assessmentId, [row]);
+  }
 
   const courseById = new Map(courseRows.map(row => [row.id, row]));
   const summaries: GradeCenterAssignmentSummary[] = [];
@@ -240,10 +254,20 @@ export async function listGradeCenterAssignments(actor: GradeCenterActor): Promi
         .filter(row => row.courseId === course.id && row.academicYearId === course.academicYearId && (!visibleStudentIds || visibleStudentIds.has(row.studentUserId)))
         .map(row => row.studentUserId),
     );
-    const evaluationIds = new Set(
-      period ? assessmentRows.filter(row => row.courseId === course.id && row.subjectId === subject.id && row.academicPeriodId === period.id).map(row => row.id) : [],
-    );
-    const graded = gradeRows.filter(row => evaluationIds.has(row.assessmentId) && studentIds.has(row.studentId) && row.value !== null).length;
+    const evaluations = period ? assessmentRows.filter(row => row.courseId === course.id && row.subjectId === subject.id && row.academicPeriodId === period.id) : [];
+    let graded = 0;
+    let normalizedSum = 0;
+    let lastActivity = 0;
+    for (const evaluation of evaluations) {
+      lastActivity = Math.max(lastActivity, evaluation.updatedAt.getTime());
+      const maxValue = evaluation.maxValue || GRADE_SCALE_MAX;
+      for (const grade of gradesByAssessment.get(evaluation.id) ?? []) {
+        if (grade.value === null || !studentIds.has(grade.studentId)) continue;
+        graded += 1;
+        normalizedSum += (grade.value / maxValue) * GRADE_SCALE_MAX;
+        lastActivity = Math.max(lastActivity, grade.updatedAt.getTime());
+      }
+    }
     summaries.push({
       courseId: course.id,
       courseName: course.name,
@@ -254,9 +278,12 @@ export async function listGradeCenterAssignments(actor: GradeCenterActor): Promi
       periodName: period?.name ?? null,
       periodClosed: period ? isClosedPeriod(period.status) : false,
       students: studentIds.size,
-      evaluations: evaluationIds.size,
+      evaluations: evaluations.length,
       graded,
-      total: studentIds.size * evaluationIds.size,
+      total: studentIds.size * evaluations.length,
+      average: graded ? Math.round((normalizedSum / graded) * 10) / 10 : null,
+      lastActivityAt: lastActivity ? new Date(lastActivity) : null,
+      periodEndsAt: period?.endDate ?? null,
     });
   }
 
