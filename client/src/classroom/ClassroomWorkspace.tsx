@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useOptionalShellContext } from '@/components/shell/ShellContext';
 import { trpc } from '@/lib/trpc';
@@ -34,6 +34,8 @@ import { ResourcesView } from './components/ResourcesView';
 import { ActivityDrawer } from './components/ActivityDrawer';
 import { StudentPreviewModal } from './components/StudentPreviewModal';
 import { Icon } from './components/SharedUI';
+import { ClassroomLanding } from './landing/ClassroomLanding';
+import type { PendingReview } from './landing/courses';
 
 import './classroom.css';
 
@@ -134,6 +136,8 @@ export function ClassroomWorkspace({
   // 5. Modales y drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [reviewIndex, setReviewIndex] = useState<number | null>(null);
+  // Entrega elegida desde la portada; se resuelve cuando la actividad y sus entregas están cargadas
+  const [pendingReview, setPendingReview] = useState<PendingReview | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [uploaded, setUploaded] = useState<Upload[]>([]);
   const [deliverySent, setDeliverySent] = useState(false);
@@ -344,6 +348,54 @@ export function ClassroomWorkspace({
     setView('overview');
   };
 
+  // Acciones de la portada docente (callbacks estables para las tarjetas memoizadas)
+  const handleEnterCourse = useCallback(
+    (courseId: string) => {
+      const course = courses.find((c) => c.id === courseId);
+      if (!course) return;
+      setSelectedCourse(course);
+      setView('overview');
+    },
+    [courses]
+  );
+
+  const handleCreateFromLanding = useCallback(
+    (courseId: string) => {
+      const course = courses.find((c) => c.id === courseId);
+      if (!course) return;
+      setSelectedCourse(course);
+      setView('activities');
+      setDraft((d) => ({ ...d, course: course.name, subject: course.subject || d.subject }));
+      setDrawerOpen(true);
+    },
+    [courses]
+  );
+
+  const handleReviewFromLanding = useCallback(
+    (item: PendingReview) => {
+      const course = courses.find((c) => c.id === item.courseId);
+      if (!course) return;
+      setSelectedCourse(course);
+      setReviewIndex(null);
+      setView('submissions');
+      setPendingReview(item);
+    },
+    [courses]
+  );
+
+  useEffect(() => {
+    if (!pendingReview) return;
+    const target = activities.find((a) => a.id === String(pendingReview.assignmentId));
+    if (!target) return;
+    if (selectedActivity.id !== target.id) {
+      setSelectedActivity(target);
+      return;
+    }
+    const index = submissions.findIndex((s) => s.name === pendingReview.studentName);
+    if (index >= 0) setReviewIndex(index);
+    setPendingReview(null);
+  }, [pendingReview, activities, selectedActivity.id, submissions]);
+
   const handleSelectActivity = (activity: Activity) => {
     setSelectedActivity(activity);
     setView('submissions');
@@ -453,15 +505,24 @@ export function ClassroomWorkspace({
   const isDarkMode = theme === 'dark';
   const periodLabel = data?.academicPeriods?.[0]?.name || 'Periodo 2 · 2026';
   const canManage = role === 'teacher' || role === 'admin';
+  const showTeacherLanding = view === 'home' && canManage;
 
   return (
     <div
       className={`classcore-workspace app-frame ${
         isDarkMode ? 'dark-mode' : 'light-mode'
       }`}
+      data-screen={showTeacherLanding ? 'landing' : undefined}
     >
       <div className="main-panel w-full flex-1 flex flex-col h-full min-h-0 overflow-hidden">
-        {view === 'home' ? (
+        {showTeacherLanding ? (
+          <ClassroomLanding
+            data={data}
+            onEnterCourse={handleEnterCourse}
+            onCreateActivity={handleCreateFromLanding}
+            onReview={handleReviewFromLanding}
+          />
+        ) : view === 'home' ? (
           <div className="home-content">
             <ClasscoreHero
               schoolName={data?.school?.name || 'EduCore'}
