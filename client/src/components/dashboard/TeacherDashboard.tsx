@@ -4,9 +4,6 @@ import { TeacherNextClass } from "./TeacherNextClass";
 import { TeacherAgenda } from "./TeacherAgenda";
 import { TeacherCoursesCard } from "./TeacherCoursesCard";
 import { TeacherPrioritySection } from "./TeacherPrioritySection";
-import { TeacherGroupPerformance } from "./TeacherGroupPerformance";
-import { TeacherQuickAnalytics } from "./TeacherQuickAnalytics";
-import { TeacherOperationalDetails } from "./TeacherOperationalDetails";
 import {
   calculatePendingGrades,
   calculateStudentsAtRisk,
@@ -14,13 +11,11 @@ import {
   calculateGradingQueue,
   calculatePriorityItems,
   buildTeacherCourseCards,
-  buildStudentAlerts,
 } from "./dashboardSelectors";
 import type {
   TeacherDashboardProps,
   TeacherAgendaItem,
   TeacherNextClassItem,
-  QuickAnalyticsItem,
 } from "./types";
 import "./teacher-home.css";
 
@@ -69,7 +64,6 @@ export function TeacherDashboard({
   data,
   user,
   setSection,
-  mode = "overview",
 }: TeacherDashboardProps) {
   // 1. Etiquetas contextuales básicas
   const teacherName =
@@ -101,7 +95,6 @@ export function TeacherDashboard({
     [data?.attendance]
   );
   const events: any[] = useMemo(() => data?.events || [], [data?.events]);
-  const students: any[] = useMemo(() => data?.students || [], [data?.students]);
 
   // 3. Cálculos centralizados (Única Fuente de Verdad)
   const pendingGradesCount = useMemo(
@@ -127,14 +120,6 @@ export function TeacherDashboard({
     [assignments, submissions, setSection]
   );
 
-  const studentAlertItems = useMemo(
-    () =>
-      buildStudentAlerts(studentsAtRiskList, students, () =>
-        setSection("grades")
-      ),
-    [studentsAtRiskList, students, setSection]
-  );
-
   const courseCards = useMemo(
     () =>
       buildTeacherCourseCards(
@@ -146,15 +131,6 @@ export function TeacherDashboard({
       ),
     [courses, grades, assignments, submissions, setSection]
   );
-
-  const overallAverage = useMemo(() => {
-    const validGrades = grades.filter(
-      (g: any) => typeof g.value === "number" && g.value > 0
-    );
-    if (validGrades.length === 0) return "3.90";
-    const sum = validGrades.reduce((acc: number, g: any) => acc + g.value, 0);
-    return (sum / validGrades.length).toFixed(2);
-  }, [grades]);
 
   // 4. Agenda del día y próximos eventos
   const { todayAgendaItems, upcomingAgendaItems } = useMemo(() => {
@@ -255,74 +231,39 @@ export function TeacherDashboard({
     ]
   );
 
-  // 7. Analítica (exclusiva para la vista Análisis & Alertas)
-  const quickAnalyticsItems: QuickAnalyticsItem[] = useMemo(
-    () => [
-      { label: "Taller celular y mitosis", value: 76, color: "bg-blue-500" },
-      { label: "Informe de laboratorio", value: 84, color: "bg-indigo-500" },
-      { label: "Quiz de genética", value: 62, color: "bg-amber-500" },
-      {
-        label: "Evaluación de ecosistemas",
-        value: 91,
-        color: "bg-emerald-500",
-      },
-    ],
-    []
-  );
-
   return (
-    <div className={mode === "analytics" ? "teacher-dashboard space-y-3.5 pb-4" : undefined}>
-      {mode === "analytics" ? (
-        <div className="space-y-4">
-          <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <TeacherGroupPerformance
-              period1Average={3.42}
-              period2Average={Number(overallAverage)}
-            />
-            <TeacherQuickAnalytics items={quickAnalyticsItems} />
-          </section>
-          <TeacherOperationalDetails
-            gradingItems={gradingQueueItems}
-            studentsAtRisk={studentAlertItems}
-            onViewAllClassroom={() => setSection("classroom")}
-            onViewAllGrades={() => setSection("grades")}
-          />
-        </div>
-      ) : (
-        <div className="edc-home">
-          <TeacherHero
-            teacherName={greetingName(teacherName)}
-            activePeriodName={activePeriodName}
-          />
+    <div className="edc-home">
+      <TeacherHero
+        teacherName={greetingName(teacherName)}
+        activePeriodName={activePeriodName}
+      />
 
-          <div className="edc-home__grid">
-            <div className="edc-home__primary">
-              <div className="edc-home__top">
-                {nextClass && (
-                  <TeacherNextClass
-                    item={nextClass}
-                    onOpen={() => setSection("classroom")}
-                  />
-                )}
-                <TeacherCoursesCard
-                  courses={courseCards}
-                  closingLabel={closingLabel}
-                  onViewAll={() => setSection("grades")}
-                />
-              </div>
-
-              <TeacherPrioritySection items={priorityItems} />
-            </div>
-
-            <TeacherAgenda
-              todayItems={todayAgendaItems}
-              upcomingItems={upcomingAgendaItems}
-              onOpenCalendar={() => setSection("calendar")}
-              onNewActivity={() => setSection("classroom")}
+      <div className="edc-home__grid">
+        <div className="edc-home__primary">
+          <div className="edc-home__top">
+            {nextClass && (
+              <TeacherNextClass
+                item={nextClass}
+                onOpen={() => setSection("classroom")}
+              />
+            )}
+            <TeacherCoursesCard
+              courses={courseCards}
+              closingLabel={closingLabel}
+              onViewAll={() => setSection("grades")}
             />
           </div>
+
+          <TeacherPrioritySection items={priorityItems} />
         </div>
-      )}
+
+        <TeacherAgenda
+          todayItems={todayAgendaItems}
+          upcomingItems={upcomingAgendaItems}
+          onOpenCalendar={() => setSection("calendar")}
+          onNewActivity={() => setSection("classroom")}
+        />
+      </div>
     </div>
   );
 }

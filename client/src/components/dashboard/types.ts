@@ -87,16 +87,8 @@ export interface TeacherCourseCardItem {
   onClick?: () => void;
 }
 
-export interface QuickAnalyticsItem {
-  label: string;
-  value: number;
-  color?: string;
-  onClick?: () => void;
-}
-
 export interface TeacherDashboardProps {
   data: any;
   user?: any;
   setSection: (section: Section) => void;
-  mode?: "overview" | "analytics";
 }

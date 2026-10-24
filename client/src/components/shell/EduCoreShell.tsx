@@ -48,7 +48,8 @@ function ShellInner({
     if (mainContent) mainContent.scrollTop = 0;
   }, [section]);
 
-  const isFullBleed = section === "grades" || section === "attendance" || section === "classroom";
+  const isFullBleed =
+    section === "grades" || section === "attendance" || section === "classroom" || section === "analytics";
 
   return (
     <div

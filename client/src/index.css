@@ -183,32 +183,6 @@
   tr { transition: background-color 180ms var(--ease-out); }
   tbody tr:hover { background: color-mix(in srgb, var(--edc-secondary) 34%, transparent); }
 
-  .teacher-dashboard {
-    --teacher-ease: cubic-bezier(0.23, 1, 0.32, 1);
-    --radius: 0.625rem;
-    --radius-sm: 6px;
-    --radius-md: 8px;
-    --radius-lg: 10px;
-    --radius-xl: 12px;
-    --radius-2xl: 16px;
-  }
-
-  .teacher-dashboard .group,
-  .teacher-dashboard button {
-    transition-timing-function: var(--teacher-ease);
-  }
-
-  .teacher-dashboard .rounded-2xl.border.bg-white:not(.grade-center-toolbar):not(.grade-center-container),
-  .teacher-dashboard .rounded-2xl.border.border-slate-200\/80:not(.grade-center-toolbar):not(.grade-center-container) {
-    transition: transform 220ms var(--teacher-ease), box-shadow 220ms var(--teacher-ease), border-color 220ms ease;
-  }
-
-  .teacher-dashboard .rounded-2xl.border.bg-white:not(.grade-center-toolbar):not(.grade-center-container):hover,
-  .teacher-dashboard .rounded-2xl.border.border-slate-200\/80:not(.grade-center-toolbar):not(.grade-center-container):hover {
-    border-color: rgba(147, 197, 253, 0.62);
-    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.07);
-  }
-
   /* Stabilize Grade Center toolbar and table interactive controls */
   .grade-center-toolbar button,
   .grade-center-toolbar button:hover,
