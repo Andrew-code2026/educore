@@ -56,6 +56,7 @@ import {
   type Section,
   ROLE_LABELS,
   ROLE_GREETINGS,
+  useSectionRoute,
 } from "@/components/shell";
 
 const roleLabels: Record<EduRole, string> = ROLE_LABELS;
@@ -460,7 +461,7 @@ export default function Home() {
   const [demoMode, setDemoMode] = useState(false);
   const [role, setRole] = useState<EduRole>(() => (localStorage.getItem("educore-demo-role") as EduRole) || "admin");
   const [selectedStudentId, setSelectedStudentId] = useState<number | undefined>();
-  const [section, setSection] = useState<Section>("overview");
+  const [section, setSection] = useSectionRoute();
   const effectiveRole = role;
   const snapshotInput = useMemo(() => ({ role: effectiveRole, selectedStudentId: effectiveRole === "guardian" ? selectedStudentId : undefined }), [effectiveRole, selectedStudentId]);
   const { data, isLoading, refetch } = trpc.educore.snapshot.useQuery(snapshotInput, { enabled: !loading });
