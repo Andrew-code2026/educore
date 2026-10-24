@@ -39,7 +39,7 @@ export function EvaluationsView() {
             label="Mapa transpuesto"
           />
         </div>
-        <span className="text-[10.5px] text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           {mode === "comparison"
             ? "Cada fila es una evaluación del periodo, con su peso, avance y promedio."
             : "Las mismas notas al revés: evaluaciones por fila, estudiantes por columna."}
@@ -52,7 +52,7 @@ export function EvaluationsView() {
             <div className="glass overflow-hidden rounded-2xl">
               <table className="w-full border-separate border-spacing-0 text-left">
                 <thead>
-                  <tr className="text-[9.5px] tracking-wide text-muted-foreground uppercase">
+                  <tr className="text-xs tracking-wide text-muted-foreground uppercase">
                     <Th className="w-12">Código</Th>
                     <Th>Evaluación</Th>
                     <Th className="w-20">Fecha</Th>
@@ -73,7 +73,7 @@ export function EvaluationsView() {
                         className="group cursor-pointer transition-colors hover:bg-white/6"
                       >
                         <Td>
-                          <span className="gc-num text-[11px] font-semibold text-[var(--gc-cobalt)]">
+                          <span className="gc-num text-xs font-semibold text-[var(--gc-cobalt)]">
                             {metric.evaluation.code}
                           </span>
                         </Td>
@@ -82,7 +82,7 @@ export function EvaluationsView() {
                             <div className="truncate text-[12px] font-medium">
                               {metric.evaluation.name}
                             </div>
-                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <span>{TYPE_META[metric.evaluation.type].label}</span>
                               <span className="opacity-40">·</span>
                               <span className="gc-num">{metric.evaluation.period}</span>
@@ -90,13 +90,13 @@ export function EvaluationsView() {
                           </div>
                         </Td>
                         <Td>
-                          <span className="gc-num flex items-center gap-1 text-[10.5px] text-muted-foreground">
+                          <span className="gc-num flex items-center gap-1 text-xs text-muted-foreground">
                             <CalendarDays className="size-3" />
                             {formatShortDate(metric.evaluation.date)}
                           </span>
                         </Td>
                         <Td className="text-right">
-                          <span className="gc-num text-[11px]">{metric.evaluation.weight}%</span>
+                          <span className="gc-num text-xs">{metric.evaluation.weight}%</span>
                         </Td>
                         <Td>
                           <div className="flex items-center gap-2">
@@ -115,13 +115,13 @@ export function EvaluationsView() {
                           </div>
                         </Td>
                         <Td className="text-right">
-                          <span className="gc-num text-[11px] text-muted-foreground">
+                          <span className="gc-num text-xs text-muted-foreground">
                             {metric.evaluatedPct}%
                           </span>
                         </Td>
                         <Td className="text-right">
                           <span
-                            className="gc-num text-[11px]"
+                            className="gc-num text-xs"
                             style={{ color: metric.pending > 0 ? "var(--gc-bajo)" : "var(--muted-foreground)" }}
                           >
                             {metric.pending}
@@ -146,19 +146,19 @@ export function EvaluationsView() {
                   className="glass-soft rounded-2xl p-3 text-left transition-colors hover:bg-white/8"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="gc-num text-[10px] font-semibold text-[var(--gc-cobalt)]">
+                    <span className="gc-num text-xs font-semibold text-[var(--gc-cobalt)]">
                       {metric.evaluation.code}
                     </span>
                     <LevelBadge level={metric.level} score={metric.avg} size="xs" />
                   </div>
-                  <div className="mt-1 truncate text-[11.5px] font-medium">{metric.evaluation.name}</div>
+                  <div className="mt-1 truncate text-xs font-medium">{metric.evaluation.name}</div>
                   <MicroBars
                     className="mt-2"
                     values={dataset.students.map(
                       (student) => analytics.byStudent.get(student.id)?.grades[metric.evaluation.order] ?? null,
                     )}
                   />
-                  <div className="mt-1.5 flex items-center justify-between text-[9.5px] text-muted-foreground">
+                  <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
                     <span>Peso {metric.evaluation.weight}%</span>
                     <span className="gc-num">{metric.evaluatedPct}% evaluado</span>
                   </div>
@@ -187,7 +187,7 @@ function Heatmap() {
           <thead>
             <tr>
               <th className="gc-solid-deep sticky top-0 left-0 z-30 border-b border-white/8 px-3 py-2 text-left">
-                <span className="gc-label text-[9px]">Evaluación</span>
+                <span className="gc-label text-xs">Evaluación</span>
               </th>
               {dataset.students.map((student) => (
                 <th
@@ -195,7 +195,7 @@ function Heatmap() {
                   className="gc-solid-deep sticky top-0 z-20 border-b border-white/8 px-0.5 py-2 align-bottom"
                 >
                   <span
-                    className="mx-auto block w-[13px] truncate text-[9px] text-muted-foreground"
+                    className="mx-auto block w-[13px] truncate text-xs text-muted-foreground"
                     style={{ writingMode: "vertical-rl", height: 74 }}
                     title={student.fullName}
                   >
@@ -204,7 +204,7 @@ function Heatmap() {
                 </th>
               ))}
               <th className="gc-solid-deep sticky top-0 right-0 z-30 border-b border-white/8 px-2 py-2 text-right">
-                <span className="gc-label text-[9px]">Prom.</span>
+                <span className="gc-label text-xs">Prom.</span>
               </th>
             </tr>
           </thead>
@@ -222,11 +222,11 @@ function Heatmap() {
                       onClick={() => selectEvaluation(evaluation.id)}
                       className="flex min-w-[188px] items-center gap-2 rounded-lg px-1 py-0.5 transition-colors hover:bg-white/8"
                     >
-                      <span className="gc-num w-7 shrink-0 text-[9.5px] font-semibold text-[var(--gc-cobalt)]">
+                      <span className="gc-num w-7 shrink-0 text-xs font-semibold text-[var(--gc-cobalt)]">
                         {evaluation.code}
                       </span>
-                      <span className="w-11 shrink-0 truncate text-[10.5px]">{evaluation.shortName}</span>
-                      <span className="gc-num w-8 shrink-0 text-[9px] text-muted-foreground">
+                      <span className="w-11 shrink-0 truncate text-xs">{evaluation.shortName}</span>
+                      <span className="gc-num w-8 shrink-0 text-xs text-muted-foreground">
                         {evaluation.weight}%
                       </span>
                     </button>
@@ -260,7 +260,7 @@ function Heatmap() {
 
                   <td className="gc-solid sticky right-0 z-20 border-b border-white/6 px-2 text-right">
                     <span
-                      className="gc-num text-[10.5px] font-semibold"
+                      className="gc-num text-xs font-semibold"
                       style={{ color: metric.level ? LEVELS[metric.level].color : undefined }}
                     >
                       {formatGrade(metric.avg)}
@@ -312,7 +312,7 @@ function ModeButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all",
+        "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all",
         active ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground",
       )}
     >

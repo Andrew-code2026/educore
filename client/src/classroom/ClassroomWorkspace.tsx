@@ -464,7 +464,7 @@ export function ClassroomWorkspace({
         {view === 'home' ? (
           <div className="home-content">
             <ClasscoreHero
-              schoolName={data?.school?.name || 'Gimnasio Moderno del Valle'}
+              schoolName={data?.school?.name || 'EduCore'}
               academicPeriodName={periodLabel}
               coursesCount={courses.length}
               reviewCount={courseStats.review}

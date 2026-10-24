@@ -284,7 +284,7 @@ export function GradeCell({
             <span
               className={cn(
                 "gc-num relative select-none font-medium text-[var(--gc-bajo)] transition-opacity",
-                compact ? "text-[11px]" : "text-[13px]",
+                compact ? "text-xs" : "text-[13px]",
               )}
             >
               —

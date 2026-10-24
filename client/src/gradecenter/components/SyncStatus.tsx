@@ -34,7 +34,7 @@ export function SyncStatus() {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="group flex items-center gap-2 rounded-full border border-[var(--gc-cobalt)]/30 bg-[var(--gc-cobalt)]/10 px-2.5 py-1.5 text-[11px] font-medium text-[var(--gc-cobalt)] transition-all hover:bg-[var(--gc-cobalt)]/15"
+            className="group flex items-center gap-2 rounded-full border border-[var(--gc-cobalt)]/30 bg-[var(--gc-cobalt)]/10 px-2.5 py-1.5 text-xs font-medium text-[var(--gc-cobalt)] transition-all hover:bg-[var(--gc-cobalt)]/15"
             aria-live="polite"
           >
             <span className="relative flex size-2 items-center justify-center">
@@ -52,13 +52,13 @@ export function SyncStatus() {
             </div>
             <div className="min-w-0">
               <div className="text-sm font-semibold">Modo lectura (EduCore)</div>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                 {readOnlyReason || "Los datos académicos se consultan en tiempo real desde el backend de EduCore con diseño 1:1 de Manus. La edición está protegida."}
               </p>
             </div>
           </div>
 
-          <div className="mt-4 space-y-2 rounded-xl border border-white/8 bg-white/3 p-3 text-[11px]">
+          <div className="mt-4 space-y-2 rounded-xl border border-white/8 bg-white/3 p-3 text-xs">
             <Row label="Origen" value="EduCore Main (tRPC)" />
             <Row label="Estado" value="Lectura autorizada" />
             <Row label="Diseño" value="Fiel 1:1 Manus Next" />
@@ -78,7 +78,7 @@ export function SyncStatus() {
         <button
           type="button"
           className={cn(
-            "group flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-[11px] font-medium transition-all",
+            "group flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-xs font-medium transition-all",
             isError
               ? "border-[color-mix(in_oklab,var(--gc-bajo)_45%,transparent)] bg-[color-mix(in_oklab,var(--gc-bajo)_14%,transparent)] text-[var(--gc-bajo)]"
               : "border-white/8 bg-white/4 text-muted-foreground hover:bg-white/8 hover:text-foreground",
@@ -109,7 +109,7 @@ export function SyncStatus() {
               onKeyDown={(event) => {
                 if (event.key === "Enter") retrySync();
               }}
-              className="ml-0.5 rounded-full border border-current/40 px-1.5 py-px text-[10px] font-semibold hover:bg-current/10"
+              className="ml-0.5 rounded-full border border-current/40 px-1.5 py-px text-xs font-semibold hover:bg-current/10"
             >
               Reintentar
             </span>
@@ -130,7 +130,7 @@ export function SyncStatus() {
           </div>
           <div className="min-w-0">
             <div className="text-sm font-semibold">{SYNC_LABEL[sync.status]}</div>
-            <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
               {isError
                 ? `${sync.pending} cambio${sync.pending === 1 ? "" : "s"} pendiente${sync.pending === 1 ? "" : "s"}. ${sync.lastError ?? "Reintenta para sincronizar con el servidor."}`
                 : sync.status === "pending"
@@ -142,7 +142,7 @@ export function SyncStatus() {
           </div>
         </div>
 
-        <div className="mt-4 space-y-2 rounded-xl border border-white/8 bg-white/3 p-3 text-[11px]">
+        <div className="mt-4 space-y-2 rounded-xl border border-white/8 bg-white/3 p-3 text-xs">
           <Row label="Última sincronización" value={describeSyncAge(sync.lastSyncedAt, now)} />
           <Row label="Cambios en cola" value={String(sync.pending)} />
           <Row label="Destino" value="Servidor EduCore (tRPC)" />

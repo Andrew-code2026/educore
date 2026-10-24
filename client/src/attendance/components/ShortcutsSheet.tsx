@@ -50,7 +50,7 @@ export function ShortcutsSheet({ open, onOpenChange }: ShortcutsSheetProps) {
         <div className="mt-1 space-y-3">
           {GROUPS.map(group => (
             <div key={group.title}>
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.13em] text-muted-foreground/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.13em] text-muted-foreground/80">
                 {group.title}
               </p>
               <div className="mt-1.5 space-y-0.5">

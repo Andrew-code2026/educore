@@ -18,7 +18,7 @@ export function CompactView() {
   const { dataset } = useGradeCenter();
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/6 px-3 py-1.5 text-[10.5px] text-muted-foreground">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-white/6 px-3 py-1.5 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <MoveHorizontal className="size-3" />
           Densidad compacta: {dataset.evaluations.length} evaluaciones caben en mucho menos espacio.
@@ -36,13 +36,13 @@ export function ScaleLegend({ className }: { className?: string }) {
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="gc-label text-[9px]">Escala institucional</span>
+        <span className="gc-label text-xs">Escala institucional</span>
         {LEVEL_ORDER.slice()
           .reverse()
           .map((level) => (
             <Tooltip key={level}>
               <TooltipTrigger asChild>
-                <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <span
                     className="size-2 rounded-full"
                     style={{
@@ -55,10 +55,10 @@ export function ScaleLegend({ className }: { className?: string }) {
                 </span>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-56">
-                <div className="text-[11px] font-semibold">
+                <div className="text-xs font-semibold">
                   {LEVELS[level].label} · {LEVELS[level].range}
                 </div>
-                <p className="mt-0.5 text-[10px] opacity-85">{LEVELS[level].description}</p>
+                <p className="mt-0.5 text-xs opacity-85">{LEVELS[level].description}</p>
               </TooltipContent>
             </Tooltip>
           ))}
@@ -69,7 +69,7 @@ export function ScaleLegend({ className }: { className?: string }) {
 
 export function MatrixHints() {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
       <span className="flex items-center gap-1.5">
         <Keyboard className="size-3" />
         Escribe la nota,{" "}

@@ -131,12 +131,13 @@ export async function ensureEduCoreSeeded() {
   if (!db) return null;
   let school = (await db.select().from(schools).where(eq(schools.id, DEMO_SCHOOL_ID)).limit(1))[0];
   if (!school) {
-    school = (await db.select().from(schools).where(eq(schools.name, "Gimnasio Moderno del Valle")).limit(1))[0];
+    school = (await db.select().from(schools).limit(1))[0];
   }
   if (!school) {
     await db.insert(schools).values({
       id: DEMO_SCHOOL_ID,
-      name: "Gimnasio Moderno del Valle",
+      name: "Colegio EduCore",
+      shortName: "EduCore",
       city: "Bogotá, Colombia",
       academicYear: "2026",
       tagline: "Menos administración. Más educación.",
@@ -145,12 +146,14 @@ export async function ensureEduCoreSeeded() {
       logoUrl: null,
     });
     school = (await db.select().from(schools).where(eq(schools.id, DEMO_SCHOOL_ID)).limit(1))[0];
-  } else if (school.name !== "Gimnasio Moderno del Valle") {
+  } else if (school.name === "Gimnasio Moderno del Valle" || school.shortName === "Gimnasio Moderno") {
     await db.update(schools).set({
-      name: "Gimnasio Moderno del Valle",
+      name: "Colegio EduCore",
+      shortName: "EduCore",
       tagline: "Menos administración. Más educación.",
     }).where(eq(schools.id, school.id));
-    school.name = "Gimnasio Moderno del Valle";
+    school.name = "Colegio EduCore";
+    school.shortName = "EduCore";
   }
   if (!school) return null;
   const schoolId = school.id;

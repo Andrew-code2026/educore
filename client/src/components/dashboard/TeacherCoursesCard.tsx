@@ -16,13 +16,13 @@ export function TeacherCoursesCard({ courses, onViewAll }: TeacherCoursesCardPro
       <div className="mb-3 flex items-center justify-between">
         <div>
           <h2 className="text-sm font-bold text-slate-800">Mis cursos</h2>
-          <p className="text-[10px] text-slate-400">Progreso y estado de tus grupos</p>
+          <p className="text-xs text-slate-400">Progreso y estado de tus grupos</p>
         </div>
         {onViewAll && (
           <button
             type="button"
             onClick={onViewAll}
-            className="text-[10px] font-bold text-blue-700 hover:text-blue-800 flex items-center gap-1 transition-colors"
+            className="text-xs font-bold text-blue-700 hover:text-blue-800 flex items-center gap-1 transition-colors"
           >
             <span>Ver todos</span>
             <ArrowRight className="inline h-3 w-3" />
@@ -42,10 +42,10 @@ export function TeacherCoursesCard({ courses, onViewAll }: TeacherCoursesCardPro
               <BookOpen className="h-4 w-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[10px] font-bold text-slate-700">
+              <span className="block truncate text-xs font-bold text-slate-700">
                 {course.name}
               </span>
-              <span className="mt-0.5 block truncate text-[9px] text-slate-400">
+              <span className="mt-0.5 block truncate text-xs text-slate-400">
                 {course.studentCount} estudiantes · Prom. {course.averageGrade.toFixed(1)} · {course.pendingCount} pendientes
               </span>
               <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-slate-200">
@@ -55,7 +55,7 @@ export function TeacherCoursesCard({ courses, onViewAll }: TeacherCoursesCardPro
                 />
               </span>
             </span>
-            <span className="text-[10px] font-extrabold text-slate-600 shrink-0">
+            <span className="text-xs font-extrabold text-slate-600 shrink-0">
               {course.progress}%
             </span>
             <ArrowRight className="h-3 w-3 text-slate-300 transition-transform group-hover:translate-x-0.5 shrink-0" />

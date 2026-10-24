@@ -250,7 +250,7 @@ function AssessmentStatisticsPopoverContent({
             >
               {assessment.title}
             </h4>
-            <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 flex-wrap">
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
               <span className="font-semibold text-[var(--edc-primary)]">
                 {assessment.weight}%
               </span>
@@ -291,7 +291,7 @@ function AssessmentStatisticsPopoverContent({
       {isEditing ? (
         <div className="relative space-y-2.5 animate-in fade-in duration-150">
           <div>
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Nombre de la Evaluación
             </label>
             <Input
@@ -306,10 +306,10 @@ function AssessmentStatisticsPopoverContent({
           <div className="grid grid-cols-2 gap-2">
             <div>
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Peso (%)
                 </label>
-                <span className="text-[9px] text-slate-400">Máx: {maxAllowedWeight}%</span>
+                <span className="text-xs text-slate-400">Máx: {maxAllowedWeight}%</span>
               </div>
               <Input
                 type="number"
@@ -322,7 +322,7 @@ function AssessmentStatisticsPopoverContent({
             </div>
 
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Fecha
               </label>
               <Input
@@ -335,7 +335,7 @@ function AssessmentStatisticsPopoverContent({
           </div>
 
           <div>
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Descripción / Criterio (Opcional)
             </label>
             <Input
@@ -352,7 +352,7 @@ function AssessmentStatisticsPopoverContent({
               <p className="font-bold text-rose-800 dark:text-rose-200">
                 ¿Eliminar evaluación?
               </p>
-              <p className="text-[11px] text-rose-600 dark:text-rose-300 mt-0.5">
+              <p className="text-xs text-rose-600 dark:text-rose-300 mt-0.5">
                 Se liberará el {assessment.weight}% de ponderación. Las notas registradas quedarán ocultas del cómputo.
               </p>
               <div className="flex items-center justify-end gap-1.5 mt-2.5">
@@ -362,7 +362,7 @@ function AssessmentStatisticsPopoverContent({
                   size="sm"
                   onClick={() => setShowDeleteConfirm(false)}
                   disabled={isDeleting}
-                  className="h-7 text-[11px] px-2 rounded-lg"
+                  className="h-7 text-xs px-2 rounded-lg"
                 >
                   Cancelar
                 </Button>
@@ -371,7 +371,7 @@ function AssessmentStatisticsPopoverContent({
                   size="sm"
                   onClick={handleDelete}
                   disabled={isDeleting}
-                  className="h-7 text-[11px] px-2.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                  className="h-7 text-xs px-2.5 rounded-lg bg-rose-600 text-white hover:bg-rose-700"
                 >
                   {isDeleting ? (
                     <>
@@ -435,7 +435,7 @@ function AssessmentStatisticsPopoverContent({
           <div className="grid grid-cols-3 gap-1.5">
             {/* Promedio */}
             <div className="rounded-xl border border-slate-100/90 bg-slate-50/60 p-2 text-center dark:border-slate-800 dark:bg-slate-850/50">
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Promedio
               </span>
               <p className={`mt-0.5 text-base font-extrabold tracking-tight ${avgTone.textColor}`}>
@@ -445,7 +445,7 @@ function AssessmentStatisticsPopoverContent({
 
             {/* Mediana */}
             <div className="rounded-xl border border-slate-100/90 bg-slate-50/60 p-2 text-center dark:border-slate-800 dark:bg-slate-850/50">
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Mediana
               </span>
               <p className="mt-0.5 text-base font-extrabold tracking-tight text-slate-800 dark:text-slate-100">
@@ -455,7 +455,7 @@ function AssessmentStatisticsPopoverContent({
 
             {/* Desv. Estándar */}
             <div className="rounded-xl border border-slate-100/90 bg-slate-50/60 p-2 text-center dark:border-slate-800 dark:bg-slate-850/50">
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400" title="Desviación Estándar (dispersión)">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400" title="Desviación Estándar (dispersión)">
                 Desv. Est.
               </span>
               <p className="mt-0.5 text-base font-extrabold tracking-tight text-slate-700 dark:text-slate-300">
@@ -467,7 +467,7 @@ function AssessmentStatisticsPopoverContent({
           {/* Barra de progreso de avance y aprobación */}
           <div className="rounded-xl border border-slate-100/80 bg-slate-50/50 p-2 text-xs space-y-1.5 dark:border-slate-800 dark:bg-slate-850/40">
             {/* Calificados vs Pendientes */}
-            <div className="flex items-center justify-between text-[11px]">
+            <div className="flex items-center justify-between text-xs">
               <span className="text-slate-500 font-medium">Progreso de calificación:</span>
               <span className="font-bold text-slate-700 dark:text-slate-200">
                 {stats.evaluatedCount} de {rows.length} ({rows.length > 0 ? Math.round((stats.evaluatedCount / rows.length) * 100) : 0}%)
@@ -475,7 +475,7 @@ function AssessmentStatisticsPopoverContent({
             </div>
 
             {/* Tasa de Aprobación */}
-            <div className="flex items-center justify-between text-[11px]">
+            <div className="flex items-center justify-between text-xs">
               <span className="text-slate-500 font-medium">Tasa de aprobación:</span>
               <span className="font-bold text-emerald-600 dark:text-emerald-400">
                 {stats.passingPercentage}% ({stats.passingCount}/{stats.evaluatedCount})
@@ -523,7 +523,7 @@ function AssessmentStatisticsPopoverContent({
             <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800 animate-in fade-in duration-150">
               {/* Rango Real Mínimo - Máximo */}
               {stats.evaluatedCount > 0 && (
-                <div className="flex items-center justify-between rounded-xl bg-slate-50/70 px-2.5 py-1.5 text-[11px] text-slate-600 dark:bg-slate-800/40 dark:text-slate-300">
+                <div className="flex items-center justify-between rounded-xl bg-slate-50/70 px-2.5 py-1.5 text-xs text-slate-600 dark:bg-slate-800/40 dark:text-slate-300">
                   <span className="font-semibold text-slate-500">Rango registrado:</span>
                   <div className="flex items-center gap-1.5 font-bold">
                     <span className="text-rose-600 dark:text-rose-400">Mín: {numberValue(stats.minGrade)}</span>
@@ -535,7 +535,7 @@ function AssessmentStatisticsPopoverContent({
 
               {/* Mini Distribución */}
               <div className="rounded-xl border border-slate-100/80 bg-slate-50/40 p-2 dark:border-slate-800 dark:bg-slate-850/40">
-                <div className="mb-1.5 flex items-center justify-between text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                <div className="mb-1.5 flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-300">
                   <span className="flex items-center gap-1">
                     <Activity className="h-3 w-3 text-indigo-500" /> Distribución
                   </span>
@@ -564,10 +564,10 @@ function AssessmentStatisticsPopoverContent({
               </div>
 
               {/* Interpretación Pedagógica */}
-              <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-2 text-[11px] dark:border-indigo-900/40 dark:bg-indigo-950/20">
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-2 text-xs dark:border-indigo-900/40 dark:bg-indigo-950/20">
                 <div className="flex items-start gap-1.5 text-indigo-950 dark:text-indigo-200">
                   <Sparkles className="h-3.5 w-3.5 shrink-0 text-indigo-600 dark:text-indigo-400 mt-0.5" />
-                  <p className="leading-snug text-[10px]">
+                  <p className="leading-snug text-xs">
                     {stats.interpretation}
                   </p>
                 </div>

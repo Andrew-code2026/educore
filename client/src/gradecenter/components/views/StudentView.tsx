@@ -53,8 +53,8 @@ export function StudentView() {
       <aside className="flex max-h-[38%] min-h-0 w-full shrink-0 flex-col border-b border-white/8 lg:max-h-none lg:w-[300px] lg:border-r lg:border-b-0">
         <div className="shrink-0 border-b border-white/8 px-3 py-2">
           <div className="flex items-center justify-between">
-            <span className="gc-label text-[9px]">Grupo</span>
-            <span className="gc-num text-[10px] text-muted-foreground">
+            <span className="gc-label text-xs">Grupo</span>
+            <span className="gc-num text-xs text-muted-foreground">
               {students.length} de {analytics.students.length}
             </span>
           </div>
@@ -65,7 +65,7 @@ export function StudentView() {
               onChange={(event) => setFilters({ ...preferences.filters, query: event.target.value })}
               placeholder="Buscar en el grupo…"
               aria-label="Buscar estudiante"
-              className="w-full rounded-xl border border-white/8 bg-white/4 py-1.5 pr-2.5 pl-8 text-[11.5px] outline-none placeholder:text-muted-foreground/70 focus:border-[var(--gc-cobalt)]/60"
+              className="w-full rounded-xl border border-white/8 bg-white/4 py-1.5 pr-2.5 pl-8 text-xs outline-none placeholder:text-muted-foreground/70 focus:border-[var(--gc-cobalt)]/60"
             />
           </div>
           <div className="mt-2 flex flex-wrap gap-1">
@@ -90,7 +90,7 @@ export function StudentView() {
                 )}
               >
                 <span
-                  className="flex size-7 shrink-0 items-center justify-center rounded-lg border text-[10px] font-semibold"
+                  className="flex size-7 shrink-0 items-center justify-center rounded-lg border text-xs font-semibold"
                   style={{
                     borderColor: level ? `${LEVELS[level].color}66` : "oklch(1 0 0 / 12%)",
                     backgroundColor: level ? `${LEVELS[level].color}22` : undefined,
@@ -100,13 +100,13 @@ export function StudentView() {
                   {initials(metrics.student)}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[11.5px] font-medium">
+                  <span className="block truncate text-xs font-medium">
                     {studentDisplayName(metrics.student, 22)}
                   </span>
                   <span className="mt-0.5 flex items-center gap-1.5">
-                    <span className="gc-num text-[9.5px] text-muted-foreground">{metrics.student.code}</span>
+                    <span className="gc-num text-xs text-muted-foreground">{metrics.student.code}</span>
                     {metrics.pendingCount > 0 && (
-                      <span className="gc-num flex items-center gap-0.5 text-[9.5px] text-[var(--gc-bajo)]">
+                      <span className="gc-num flex items-center gap-0.5 text-xs text-[var(--gc-bajo)]">
                         <Clock className="size-2.5" />
                         {metrics.pendingCount}
                       </span>
@@ -123,7 +123,7 @@ export function StudentView() {
             );
           })}
           {students.length === 0 && (
-            <div className="px-3 py-6 text-center text-[11px] text-muted-foreground">
+            <div className="px-3 py-6 text-center text-xs text-muted-foreground">
               Sin estudiantes con los filtros activos.
             </div>
           )}
@@ -152,7 +152,7 @@ export function StudentView() {
                 >
                   <ChevronRight className="size-4" />
                 </button>
-                <span className="gc-num ml-1 text-[10.5px] text-muted-foreground">
+                <span className="gc-num ml-1 text-xs text-muted-foreground">
                   {(index >= 0 ? index : 0) + 1} / {students.length}
                 </span>
                 <TrendStrip trend={current.trend} className="ml-2" />
@@ -163,7 +163,7 @@ export function StudentView() {
                     <button
                       type="button"
                       onClick={() => jumpToStudent(current.student.id)}
-                      className="flex items-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
+                      className="flex items-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
                     >
                       <Crosshair className="size-3.5" />
                       Ver en la matriz
@@ -176,7 +176,7 @@ export function StudentView() {
                 <button
                   type="button"
                   onClick={() => setAnalysisOpen(!preferences.analysisOpen)}
-                  className="flex items-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
+                  className="flex items-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
                 >
                   <Users className="size-3.5" />
                   Análisis
@@ -212,7 +212,7 @@ function QuickFilter({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full border px-2 py-0.5 text-[10px] transition-colors",
+        "rounded-full border px-2 py-0.5 text-xs transition-colors",
         active
           ? "border-[var(--gc-cobalt)]/60 bg-[var(--gc-cobalt)]/16 text-foreground"
           : "border-white/10 bg-white/4 text-muted-foreground hover:bg-white/8 hover:text-foreground",

@@ -278,7 +278,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                 <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
                   Bandeja de Justificaciones y Excusas
                 </h2>
-                <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 border border-indigo-200/80">
+                <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700 border border-indigo-200/80">
                   {courseLabel}
                 </span>
               </div>
@@ -405,7 +405,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                           />
                         ) : (
                           <div
-                            className="flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-bold text-slate-800"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-slate-800"
                             style={{ backgroundColor: student?.avatarColor || "#e2e8f0" }}
                           >
                             {student?.name?.charAt(0) || "E"}
@@ -415,41 +415,41 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                           <p className="text-xs font-bold text-slate-900 truncate">
                             {student?.name || j.studentId}
                           </p>
-                          <p className="text-[10px] font-mono text-slate-400">
+                          <p className="text-xs font-mono text-slate-400">
                             {student?.code}
                           </p>
                         </div>
                       </div>
 
                       <span
-                        className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-extrabold border ${statusMeta.badge}`}
+                        className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-extrabold border ${statusMeta.badge}`}
                       >
                         <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dotColor}`} />
                         <span>{statusMeta.label}</span>
                       </span>
                     </div>
 
-                    <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-500">
+                    <div className="mt-2.5 flex items-center justify-between text-xs text-slate-500">
                       <span className="flex items-center gap-1 font-semibold text-slate-700">
                         <Calendar className="h-3 w-3 text-slate-400" />
                         Falta: {j.attendanceDate}
                       </span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-xs text-slate-400">
                         {formatDateTime(j.submittedAt)}
                       </span>
                     </div>
 
                     <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                      <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-medium text-slate-600 truncate max-w-[170px]">
+                      <span className="rounded bg-slate-100 px-1.5 py-0.2 text-xs font-medium text-slate-600 truncate max-w-[170px]">
                         {JUSTIFICATION_REASON_LABELS[j.reasonCategory]}
                       </span>
                       {j.requiresPhysicalSupport && !j.physicalSupportReceivedAt && (
-                        <span className="rounded bg-amber-50 px-1.5 py-0.2 text-[10px] font-bold text-amber-700 border border-amber-200">
+                        <span className="rounded bg-amber-50 px-1.5 py-0.2 text-xs font-bold text-amber-700 border border-amber-200">
                           Físico pend.
                         </span>
                       )}
                       {j.escalatedToCoordination && (
-                        <span className="rounded bg-purple-50 px-1.5 py-0.2 text-[10px] font-bold text-purple-700 border border-purple-200">
+                        <span className="rounded bg-purple-50 px-1.5 py-0.2 text-xs font-bold text-purple-700 border border-purple-200">
                           En coordinación
                         </span>
                       )}
@@ -486,7 +486,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                         {activeStudent?.name || activeJustification.studentId}
                       </h3>
                       <div className="flex items-center gap-2 text-xs text-slate-500 font-medium mt-0.5">
-                        <span className="font-mono text-[11px] text-slate-400">
+                        <span className="font-mono text-xs text-slate-400">
                           {activeStudent?.code}
                         </span>
                         <span>·</span>
@@ -496,7 +496,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                   </div>
 
                   <div className="text-right">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                       Fecha de inasistencia
                     </p>
                     <p className="text-xs font-extrabold text-slate-800 font-mono mt-0.5">
@@ -517,7 +517,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                             Estado: {meta.label}
                           </span>
                         </div>
-                        <span className="text-[10px] font-mono text-slate-400">
+                        <span className="text-xs font-mono text-slate-400">
                           Trámite #{activeJustification.id}
                         </span>
                       </div>
@@ -532,7 +532,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                 <div className="rounded-xl border border-slate-200/90 bg-slate-50/60 p-4 space-y-3">
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                         Motivo declarado
                       </span>
                       <p className="font-extrabold text-slate-800 mt-0.5">
@@ -540,23 +540,23 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                       </p>
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                         Radicado por
                       </span>
                       <p className="font-bold text-slate-800 mt-0.5">
                         {activeJustification.submittedByName}{" "}
-                        <span className="text-[10px] font-semibold text-slate-500 capitalize">
+                        <span className="text-xs font-semibold text-slate-500 capitalize">
                           ({activeJustification.submittedByRole === "guardian" ? "Acudiente" : "Estudiante"})
                         </span>
                       </p>
-                      <p className="text-[10px] text-slate-400">
+                      <p className="text-xs text-slate-400">
                         {formatDateTime(activeJustification.submittedAt)}
                       </p>
                     </div>
                   </div>
 
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                       Descripción de los hechos
                     </span>
                     <p className="mt-1 text-xs text-slate-700 leading-relaxed bg-white rounded-lg p-2.5 border border-slate-200/70">
@@ -573,7 +573,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                       Constancia digital adjunta
                     </span>
                     {activeJustification.digitalEvidenceName && (
-                      <span className="text-[10px] font-mono text-slate-400">
+                      <span className="text-xs font-mono text-slate-400">
                         Archivo verificado
                       </span>
                     )}
@@ -611,11 +611,11 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                       Compromiso de entrega de soporte físico
                     </span>
                     {activeJustification.requiresPhysicalSupport ? (
-                      <span className="rounded-md bg-amber-100 px-1.5 py-0.2 text-[9px] font-bold text-amber-800">
+                      <span className="rounded-md bg-amber-100 px-1.5 py-0.2 text-xs font-bold text-amber-800">
                         Requerido
                       </span>
                     ) : (
-                      <span className="rounded-md bg-slate-100 px-1.5 py-0.2 text-[9px] font-medium text-slate-600">
+                      <span className="rounded-md bg-slate-100 px-1.5 py-0.2 text-xs font-medium text-slate-600">
                         No requerido
                       </span>
                     )}
@@ -629,13 +629,13 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                             <span>Soporte físico recibido en el colegio</span>
                           </div>
-                          <p className="text-[11px] text-emerald-800">
+                          <p className="text-xs text-emerald-800">
                             Recibido por:{" "}
                             <strong>{activeJustification.physicalSupportReceivedByName}</strong> el{" "}
                             {formatDateTime(activeJustification.physicalSupportReceivedAt)}
                           </p>
                           {activeJustification.physicalSupportNotes && (
-                            <p className="text-[11px] text-emerald-700 italic">
+                            <p className="text-xs text-emerald-700 italic">
                               Nota: “{activeJustification.physicalSupportNotes}”
                             </p>
                           )}
@@ -647,7 +647,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                               El acudiente se comprometió a entregar el soporte original en el colegio.
                             </p>
                             {activeJustification.physicalSupportDeadline && (
-                              <p className="text-[11px] font-semibold text-amber-800 mt-0.5">
+                              <p className="text-xs font-semibold text-amber-800 mt-0.5">
                                 Plazo límite institucional:{" "}
                                 {formatDate(activeJustification.physicalSupportDeadline)}
                               </p>
@@ -672,7 +672,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                                 Asentar recepción del documento físico
                               </p>
                               <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase">
+                                <label className="block text-xs font-bold text-slate-500 uppercase">
                                   Funcionario receptor
                                 </label>
                                 <input
@@ -684,7 +684,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                                 />
                               </div>
                               <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase">
+                                <label className="block text-xs font-bold text-slate-500 uppercase">
                                   Observación o sello (opcional)
                                 </label>
                                 <input
@@ -727,7 +727,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                       Derivación a coordinación
                     </span>
                     {activeJustification.escalatedToCoordination && (
-                      <span className="rounded-md bg-purple-100 px-1.5 py-0.2 text-[9px] font-bold text-purple-800">
+                      <span className="rounded-md bg-purple-100 px-1.5 py-0.2 text-xs font-bold text-purple-800">
                         Derivado
                       </span>
                     )}
@@ -739,7 +739,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                         Trámite remitido a Coordinación Académica / Convivencia
                       </p>
                       {activeJustification.coordinationNotes && (
-                        <p className="text-slate-700 text-[11px] italic">
+                        <p className="text-slate-700 text-xs italic">
                           Nota de derivación: “{activeJustification.coordinationNotes}”
                         </p>
                       )}
@@ -763,7 +763,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                           onSubmit={handleConfirmEscalation}
                           className="rounded-lg border border-purple-300 bg-white p-3 space-y-2 text-xs"
                         >
-                          <label className="block text-[10px] font-bold text-purple-900 uppercase">
+                          <label className="block text-xs font-bold text-purple-900 uppercase">
                             Motivo o consulta para coordinación
                           </label>
                           <textarea
@@ -803,7 +803,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                       Resolución del trámite
                     </h4>
                     {activeJustification.resolvedAt && (
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-xs text-slate-400">
                         Resuelto el {formatDateTime(activeJustification.resolvedAt)} por {activeJustification.resolvedByName}
                       </span>
                     )}
@@ -814,7 +814,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                       <div className="flex items-center gap-2">
                         <span className="font-extrabold text-slate-800">Decisión adoptada:</span>
                         <span
-                          className={`rounded px-2 py-0.5 text-[11px] font-bold border ${
+                          className={`rounded px-2 py-0.5 text-xs font-bold border ${
                             JUSTIFICATION_STATUS_META[activeJustification.status].badge
                           }`}
                         >
@@ -822,11 +822,11 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                         </span>
                       </div>
                       {activeJustification.resolutionNotes && (
-                        <p className="text-slate-600 italic text-[11px]">
+                        <p className="text-slate-600 italic text-xs">
                           Nota de resolución: “{activeJustification.resolutionNotes}”
                         </p>
                       )}
-                      <p className="text-[10px] text-slate-400 pt-1">
+                      <p className="text-xs text-slate-400 pt-1">
                         {activeJustification.status === "approved"
                           ? "✓ La inasistencia fue formalmente justificada y actualizada a estado 'Excusa' en la planilla."
                           : "• La inasistencia permanece como falta no justificada en el registro del estudiante."}
@@ -835,7 +835,7 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                   ) : (
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
                           Observación docente / Justificación reglamentaria
                         </label>
                         <textarea
@@ -906,15 +906,15 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                               <p className="font-bold text-slate-800 capitalize">
                                 {ev.eventType.replace(/_/g, " ")}
                               </p>
-                              <span className="text-[10px] text-slate-400">
+                              <span className="text-xs text-slate-400">
                                 {formatDateTime(ev.createdAt)}
                               </span>
                             </div>
-                            <p className="text-[11px] text-slate-500 mt-0.5">
+                            <p className="text-xs text-slate-500 mt-0.5">
                               Por: <strong className="text-slate-700">{ev.actorName}</strong> ({ev.actorRole})
                             </p>
                             {ev.notes && (
-                              <p className="text-[11px] text-slate-600 italic mt-0.5">
+                              <p className="text-xs text-slate-600 italic mt-0.5">
                                 “{ev.notes}”
                               </p>
                             )}
@@ -927,14 +927,14 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between">
                             <p className="font-bold text-slate-800">Radicación inicial</p>
-                            <span className="text-[10px] text-slate-400">
+                            <span className="text-xs text-slate-400">
                               {formatDateTime(activeJustification.submittedAt)}
                             </span>
                           </div>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
+                          <p className="text-xs text-slate-500 mt-0.5">
                             Por: <strong className="text-slate-700">{activeJustification.submittedByName}</strong> ({activeJustification.submittedByRole})
                           </p>
-                          <p className="text-[11px] text-slate-600 italic mt-0.5">
+                          <p className="text-xs text-slate-600 italic mt-0.5">
                             “{activeJustification.description}”
                           </p>
                         </div>
@@ -986,12 +986,12 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                 <p className="font-bold uppercase tracking-wider text-slate-900">
                   INSTITUTO DE SALUD & PRESTADOR MÉDICO
                 </p>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-xs text-slate-500">
                   Constancia Médica de Atención y Reposo
                 </p>
               </div>
 
-              <div className="space-y-1 text-[11px]">
+              <div className="space-y-1 text-xs">
                 <p>
                   <strong>Paciente:</strong> {activeStudent?.name || activeJustification.studentId}
                 </p>
@@ -1006,11 +1006,11 @@ export const JustificationDrawer: React.FC<JustificationDrawerProps> = ({
                 </p>
               </div>
 
-              <div className="rounded bg-white p-3 border border-slate-200/80 text-[11px] leading-relaxed">
+              <div className="rounded bg-white p-3 border border-slate-200/80 text-xs leading-relaxed">
                 “Por medio de la presente se certifica que el paciente asistió a valoración médica y se indica reposo en casa durante la jornada escolar correspondiente a la fecha {activeJustification.attendanceDate}.”
               </div>
 
-              <div className="pt-2 text-right text-[10px] text-slate-400">
+              <div className="pt-2 text-right text-xs text-slate-400">
                 <p>Firma digital y registro médico verificado.</p>
               </div>
             </div>

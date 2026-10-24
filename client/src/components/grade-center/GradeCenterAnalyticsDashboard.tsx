@@ -395,19 +395,19 @@ export function GradeCenterAnalyticsDashboard({
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] font-bold py-0 bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        <Badge variant="outline" className="text-xs font-bold py-0 bg-slate-50 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                           {item.assessmentType}
                         </Badge>
-                        <Badge variant="outline" className="text-[10px] font-semibold py-0 border-indigo-200 text-indigo-700 bg-indigo-50/50 dark:border-indigo-800 dark:text-indigo-300">
+                        <Badge variant="outline" className="text-xs font-semibold py-0 border-indigo-200 text-indigo-700 bg-indigo-50/50 dark:border-indigo-800 dark:text-indigo-300">
                           Peso: {item.weight}%
                         </Badge>
                         {isBest && (
-                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] font-bold py-0 dark:bg-emerald-950 dark:text-emerald-300">
+                          <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-xs font-bold py-0 dark:bg-emerald-950 dark:text-emerald-300">
                             🏆 Mejor evaluación
                           </Badge>
                         )}
                         {isAttention && (
-                          <Badge className="bg-rose-100 text-rose-800 border-rose-200 text-[10px] font-bold py-0 dark:bg-rose-950 dark:text-rose-300">
+                          <Badge className="bg-rose-100 text-rose-800 border-rose-200 text-xs font-bold py-0 dark:bg-rose-950 dark:text-rose-300">
                             ⚠️ Requiere atención
                           </Badge>
                         )}
@@ -428,9 +428,9 @@ export function GradeCenterAnalyticsDashboard({
                           <span className={`text-xl font-black ${tone.textColor}`}>
                             {item.average !== null ? item.average.toFixed(1) : "—"}
                           </span>
-                          <span className="text-[10px] text-slate-400">/ {item.maxValue}</span>
+                          <span className="text-xs text-slate-400">/ {item.maxValue}</span>
                         </div>
-                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                           {item.passingPercentage}% aprobados · {item.evaluatedCount}/{item.evaluatedCount + item.pendingCount}
                         </p>
                       </div>
@@ -452,7 +452,7 @@ export function GradeCenterAnalyticsDashboard({
                   </div>
 
                   {/* Barra de progreso de aprobación */}
-                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3 text-[11px] text-slate-400">
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3 text-xs text-slate-400">
                     <span>Aprobación:</span>
                     <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
                       <div
@@ -516,7 +516,7 @@ export function GradeCenterAnalyticsDashboard({
                       <p className="font-bold text-xs text-slate-800 dark:text-slate-200">
                         {bracket.label}
                       </p>
-                      <p className="text-[11px] text-slate-400 font-medium">
+                      <p className="text-xs text-slate-400 font-medium">
                         Rango: {bracket.rangeLabel}
                       </p>
                     </div>
@@ -533,7 +533,7 @@ export function GradeCenterAnalyticsDashboard({
               ))}
             </div>
 
-            <p className="text-[11px] text-slate-400 leading-snug border-t border-slate-100 dark:border-slate-800 pt-3">
+            <p className="text-xs text-slate-400 leading-snug border-t border-slate-100 dark:border-slate-800 pt-3">
               Calculado sobre los {stats.evaluatedStudentsCount || stats.totalStudents} estudiantes con calificaciones definitivas registradas.
             </p>
           </Card>
@@ -594,7 +594,7 @@ export function GradeCenterAnalyticsDashboard({
                     </span>
                     <span className="text-xs text-slate-400">promedio</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {point.passingPercentage}% superaron la nota mínima
                   </p>
                 </div>
@@ -722,7 +722,7 @@ export function GradeCenterAnalyticsDashboard({
                       <p className="font-bold text-xs text-slate-900 dark:text-white">
                         {st.studentName}
                       </p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                         {st.reason}
                       </p>
                     </div>
@@ -732,9 +732,9 @@ export function GradeCenterAnalyticsDashboard({
                         <span className="font-black text-sm text-slate-900 dark:text-white">
                           {st.currentDefinitiva !== null ? st.currentDefinitiva.toFixed(1) : "—"}
                         </span>
-                        <p className="text-[10px] text-slate-400">Definitiva</p>
+                        <p className="text-xs text-slate-400">Definitiva</p>
                       </div>
-                      <Badge variant="outline" className={`text-[10px] font-bold py-0.5 ${st.risk.badgeClass}`}>
+                      <Badge variant="outline" className={`text-xs font-bold py-0.5 ${st.risk.badgeClass}`}>
                         {st.risk.label}
                       </Badge>
                       <ChevronRight className="h-4 w-4 text-slate-400" />
@@ -770,21 +770,21 @@ export function GradeCenterAnalyticsDashboard({
               className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/50 via-white to-blue-50/30 dark:border-indigo-900/50 dark:from-indigo-950/20 dark:via-slate-900 dark:to-blue-950/10 p-4 space-y-2 shadow-2xs"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+                <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
                   {insight.title}
                 </span>
                 {insight.type === "SUCCESS" ? (
-                  <Badge className="bg-emerald-100 text-emerald-800 text-[10px] py-0">Positivo</Badge>
+                  <Badge className="bg-emerald-100 text-emerald-800 text-xs py-0">Positivo</Badge>
                 ) : insight.type === "WARNING" ? (
-                  <Badge className="bg-amber-100 text-amber-800 text-[10px] py-0">Atención</Badge>
+                  <Badge className="bg-amber-100 text-amber-800 text-xs py-0">Atención</Badge>
                 ) : (
-                  <Badge className="bg-blue-100 text-blue-800 text-[10px] py-0">Observación</Badge>
+                  <Badge className="bg-blue-100 text-blue-800 text-xs py-0">Observación</Badge>
                 )}
               </div>
               <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-relaxed">
                 {insight.observation}
               </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+              <p className="text-xs text-slate-500 dark:text-slate-400 italic">
                 {insight.significance}
               </p>
             </div>

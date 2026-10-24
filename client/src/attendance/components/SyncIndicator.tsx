@@ -46,7 +46,7 @@ export function SyncIndicator({ state, lastSavedAt, onRetry }: SyncIndicatorProp
   return (
     <div
       className={cn(
-        "flex h-7 items-center gap-1.5 rounded-full px-2.5 text-[11.5px] font-medium",
+        "flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium",
         "ring-1 ring-inset transition-colors duration-200",
         state === "error"
           ? "bg-st-absent/10 text-st-absent ring-st-absent/25"
@@ -75,7 +75,7 @@ export function SyncIndicator({ state, lastSavedAt, onRetry }: SyncIndicatorProp
         <button
           type="button"
           onClick={onRetry}
-          className="ml-0.5 rounded-full bg-st-absent/15 px-1.5 py-0.5 text-[10.5px] font-semibold text-st-absent transition-colors hover:bg-st-absent/25"
+          className="ml-0.5 rounded-full bg-st-absent/15 px-1.5 py-0.5 text-xs font-semibold text-st-absent transition-colors hover:bg-st-absent/25"
         >
           Reintentar
         </button>

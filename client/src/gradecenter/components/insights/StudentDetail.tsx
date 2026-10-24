@@ -32,18 +32,18 @@ export function StudentDetail({ metrics, layout = "panel" }: { metrics: StudentM
         </span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14px] font-semibold">{metrics.student.fullName}</div>
-          <div className="gc-num text-[10.5px] text-muted-foreground">
+          <div className="gc-num text-xs text-muted-foreground">
             {metrics.student.code} · {dataset.group}
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
             <LevelBadge level={level} />
             <TrendStrip trend={metrics.trend} />
             {metrics.complete ? (
-              <span className="rounded-full border border-[color-mix(in_oklab,var(--gc-alto)_40%,transparent)] bg-[color-mix(in_oklab,var(--gc-alto)_12%,transparent)] px-2 py-0.5 text-[10px] text-[var(--gc-alto)]">
+              <span className="rounded-full border border-[color-mix(in_oklab,var(--gc-alto)_40%,transparent)] bg-[color-mix(in_oklab,var(--gc-alto)_12%,transparent)] px-2 py-0.5 text-xs text-[var(--gc-alto)]">
                 Sin pendientes
               </span>
             ) : (
-              <span className="rounded-full border border-[color-mix(in_oklab,var(--gc-bajo)_40%,transparent)] bg-[color-mix(in_oklab,var(--gc-bajo)_12%,transparent)] px-2 py-0.5 text-[10px] text-[var(--gc-bajo)]">
+              <span className="rounded-full border border-[color-mix(in_oklab,var(--gc-bajo)_40%,transparent)] bg-[color-mix(in_oklab,var(--gc-bajo)_12%,transparent)] px-2 py-0.5 text-xs text-[var(--gc-bajo)]">
                 {metrics.pendingCount} pendientes
               </span>
             )}
@@ -54,7 +54,7 @@ export function StudentDetail({ metrics, layout = "panel" }: { metrics: StudentM
       <div className="rounded-2xl border border-white/8 bg-white/3 p-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="gc-label text-[9px]">Definitiva del periodo</div>
+            <div className="gc-label text-xs">Definitiva del periodo</div>
             <div className="mt-1 flex items-baseline gap-2">
               <span
                 className="gc-num text-3xl font-semibold"
@@ -66,7 +66,7 @@ export function StudentDetail({ metrics, layout = "panel" }: { metrics: StudentM
                 {formatGrade(metrics.definitiva)}
               </span>
               {groupAverage != null && (
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   grupo <span className="gc-num">{formatGrade(groupAverage)}</span>
                   {metrics.definitiva != null && (
                     <span className="gc-num ml-1">({formatDelta(metrics.definitiva - groupAverage)})</span>
@@ -76,17 +76,17 @@ export function StudentDetail({ metrics, layout = "panel" }: { metrics: StudentM
             </div>
           </div>
           <div className="text-right">
-            <div className="gc-num text-[11px] text-muted-foreground">{metrics.evaluatedPct}% evaluado</div>
-            <div className="gc-num text-[10.5px] text-muted-foreground">
+            <div className="gc-num text-xs text-muted-foreground">{metrics.evaluatedPct}% evaluado</div>
+            <div className="gc-num text-xs text-muted-foreground">
               {metrics.gradedCount} de {metrics.outcomes.length} evaluaciones
             </div>
             {metrics.provisional && (
-              <div className="mt-0.5 text-[10px] text-[var(--gc-bajo)]">Definitiva provisional</div>
+              <div className="mt-0.5 text-xs text-[var(--gc-bajo)]">Definitiva provisional</div>
             )}
           </div>
         </div>
         <LevelBar score={metrics.definitiva} className="mt-3" />
-        <div className="mt-1.5 flex justify-between text-[9px] text-muted-foreground">
+        <div className="mt-1.5 flex justify-between text-xs text-muted-foreground">
           <span className="gc-num">{MIN_GRADE.toFixed(1)}</span>
           <span className="gc-num">{formatGrade(APPROVAL_GRADE)} aprueba</span>
           <span className="gc-num">5.0</span>
@@ -137,7 +137,7 @@ export function StudentDetail({ metrics, layout = "panel" }: { metrics: StudentM
             height={wide ? 88 : 64}
             className="w-full"
           />
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-[9.5px] text-muted-foreground">
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <span
                 className="h-[2px] w-4 rounded-full"
@@ -190,8 +190,8 @@ export function StudentDetail({ metrics, layout = "panel" }: { metrics: StudentM
                             : "var(--muted-foreground)",
                     }}
                   />
-                  <span className="min-w-0 flex-1 truncate text-[11px]">{type.label}</span>
-                  <span className="gc-num shrink-0 text-[10px] text-muted-foreground">
+                  <span className="min-w-0 flex-1 truncate text-xs">{type.label}</span>
+                  <span className="gc-num shrink-0 text-xs text-muted-foreground">
                     {type.count} eval.
                   </span>
                   <ScoreChip score={type.avg} size="sm" />
@@ -223,7 +223,7 @@ export function StudentDetail({ metrics, layout = "panel" }: { metrics: StudentM
         type="button"
         onClick={() => setFilters({ ...preferences.filters, onlyAttention: true })}
         className={cn(
-          "w-full rounded-xl border px-3 py-2 text-left text-[11px] transition-colors",
+          "w-full rounded-xl border px-3 py-2 text-left text-xs transition-colors",
           metrics.attention
             ? "border-[color-mix(in_oklab,var(--gc-bajo)_45%,transparent)] bg-[color-mix(in_oklab,var(--gc-bajo)_12%,transparent)]"
             : "border-white/8 bg-white/3 hover:bg-white/6",
@@ -235,7 +235,7 @@ export function StudentDetail({ metrics, layout = "panel" }: { metrics: StudentM
             ? `Requiere atención: por debajo de ${formatGrade(APPROVAL_GRADE)}`
             : "Sobre el umbral institucional de aprobación"}
         </span>
-        <span className="mt-0.5 block text-[10px] text-muted-foreground">
+        <span className="mt-0.5 block text-xs text-muted-foreground">
           {metrics.attention
             ? "Ver todos los estudiantes que requieren acompañamiento"
             : "Comparar con quienes sí requieren atención"}
@@ -261,18 +261,18 @@ function OutcomeRow({
       onClick={() => onJump(studentId, outcome.evaluation.id)}
       className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/6"
     >
-      <span className="gc-num w-7 shrink-0 text-[10px] text-muted-foreground">
+      <span className="gc-num w-7 shrink-0 text-xs text-muted-foreground">
         {outcome.evaluation.code}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[11px]">{outcome.evaluation.name}</span>
-        <span className="gc-num block text-[9px] text-muted-foreground">
+        <span className="block truncate text-xs">{outcome.evaluation.name}</span>
+        <span className="gc-num block text-xs text-muted-foreground">
           {outcome.evaluation.weight}% · {TYPE_META[outcome.evaluation.type].label}
         </span>
       </span>
       {outcome.delta != null && (
         <span
-          className="gc-num shrink-0 text-[9.5px]"
+          className="gc-num shrink-0 text-xs"
           style={{
             color:
               outcome.delta > 0.05
@@ -286,7 +286,7 @@ function OutcomeRow({
         </span>
       )}
       {outcome.grade == null ? (
-        <span className="gc-num flex shrink-0 items-center gap-1 text-[10px] text-[var(--gc-bajo)]">
+        <span className="gc-num flex shrink-0 items-center gap-1 text-xs text-[var(--gc-bajo)]">
           <Clock className="size-3" /> pend.
         </span>
       ) : (
@@ -308,22 +308,22 @@ function DbaRow({ outcome }: { outcome: DbaOutcome }) {
       <TooltipTrigger asChild>
         <div className="rounded-xl border border-white/8 bg-white/3 px-2.5 py-2">
           <div className="flex items-center gap-2">
-            <span className="gc-num shrink-0 text-[10px] font-semibold text-[var(--gc-cobalt)]">
+            <span className="gc-num shrink-0 text-xs font-semibold text-[var(--gc-cobalt)]">
               {outcome.code}
             </span>
-            <span className="min-w-0 flex-1 truncate text-[11px] font-medium">{outcome.title}</span>
+            <span className="min-w-0 flex-1 truncate text-xs font-medium">{outcome.title}</span>
             <ScoreChip score={outcome.avg} size="sm" />
           </div>
           <div className="mt-1.5 flex items-center gap-2">
             <LevelBar score={outcome.avg} showTicks={false} className="flex-1" />
             <span
-              className="shrink-0 text-[9.5px]"
+              className="shrink-0 text-xs"
               style={{ color: level ? LEVELS[level].color : undefined }}
             >
               {level ? LEVELS[level].short : "Sin evidencia"}
             </span>
           </div>
-          <div className="mt-1 flex items-center gap-1 truncate text-[9.5px] text-muted-foreground">
+          <div className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground">
             <BookOpenCheck className="size-2.5 shrink-0" />
             Evidencias:{" "}
             {outcome.evaluations
@@ -334,10 +334,10 @@ function DbaRow({ outcome }: { outcome: DbaOutcome }) {
         </div>
       </TooltipTrigger>
       <TooltipContent side="left" className="max-w-64">
-        <div className="text-[11px] font-semibold">
+        <div className="text-xs font-semibold">
           {outcome.code} · {outcome.title}
         </div>
-        <p className="mt-1 text-[10px] opacity-85">{outcome.statement}</p>
+        <p className="mt-1 text-xs opacity-85">{outcome.statement}</p>
       </TooltipContent>
     </Tooltip>
   );

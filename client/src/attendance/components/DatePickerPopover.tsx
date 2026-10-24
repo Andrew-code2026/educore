@@ -105,7 +105,7 @@ export function DatePickerPopover({ date, onChange, classDays, todayIso }: DateP
 
         <div className="mt-2 grid grid-cols-7 gap-y-1 text-center">
           {WEEKDAY_INITIALS.map((initial, index) => (
-            <span key={`${initial}-${index}`} className="text-[10px] font-medium text-muted-foreground/70">
+            <span key={`${initial}-${index}`} className="text-xs font-medium text-muted-foreground/70">
               {initial}
             </span>
           ))}
@@ -116,7 +116,7 @@ export function DatePickerPopover({ date, onChange, classDays, todayIso }: DateP
                 type="button"
                 onClick={() => select(cell.iso)}
                 className={cn(
-                  "relative mx-auto grid h-7 w-7 place-items-center rounded-lg text-[11.5px] tabular transition-colors duration-120",
+                  "relative mx-auto grid h-7 w-7 place-items-center rounded-lg text-xs tabular transition-colors duration-120",
                   cell.iso === date
                     ? "bg-brand text-brand-foreground font-semibold"
                     : cell.isClassDay
@@ -143,7 +143,7 @@ export function DatePickerPopover({ date, onChange, classDays, todayIso }: DateP
           <button
             type="button"
             onClick={() => select(todayIso)}
-            className="flex-1 rounded-lg bg-foreground/[0.04] px-2 py-1.5 text-[11.5px] font-medium transition-colors hover:bg-foreground/[0.08]"
+            className="flex-1 rounded-lg bg-foreground/[0.04] px-2 py-1.5 text-xs font-medium transition-colors hover:bg-foreground/[0.08]"
           >
             Hoy
           </button>
@@ -154,7 +154,7 @@ export function DatePickerPopover({ date, onChange, classDays, todayIso }: DateP
               previous.setDate(previous.getDate() - 1);
               select(toISODate(previous));
             }}
-            className="flex-1 rounded-lg bg-foreground/[0.04] px-2 py-1.5 text-[11.5px] font-medium transition-colors hover:bg-foreground/[0.08]"
+            className="flex-1 rounded-lg bg-foreground/[0.04] px-2 py-1.5 text-xs font-medium transition-colors hover:bg-foreground/[0.08]"
           >
             Día anterior
           </button>
@@ -178,7 +178,7 @@ export function ClassStateChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
         active
           ? "bg-brand-soft text-brand ring-brand/25"
           : "bg-foreground/[0.035] text-muted-foreground ring-hairline",

@@ -35,11 +35,12 @@ export function TeacherDashboard({
   data,
   user,
   setSection,
+  mode = "overview",
 }: TeacherDashboardProps) {
   // Tab state for modular navigation (Overview vs Analytics).
   // Grade Center is NOT a local tab: it navigates to the global "grades" section
   // so the sidebar stays in sync and there is a single Grade Center instance.
-  const [activeTab, setActiveTab] = useState<"overview" | "analytics">("overview");
+
 
   // 1. Basic contextual labels
   const teacherName =
@@ -47,7 +48,7 @@ export function TeacherDashboard({
     (data?.teachers && data.teachers[0]?.name) ||
     "Juan Diego Loaiza";
 
-  const schoolName = data?.school?.name || "Gimnasio Moderno del Valle";
+  const schoolName = data?.school?.name || "EduCore";
 
   const activePeriod = (data?.academicPeriods || []).find(
     (p: any) => p.status === "Activo"
@@ -175,12 +176,6 @@ export function TeacherDashboard({
     ]
   );
 
-  // 5. Dynamic Hero summary text matching screenshot
-  const heroSummaryText = useMemo(() => {
-    const activeAssessmentsCount = assignments.length > 0 ? assignments.length : 4;
-    const atRiskCount = studentsAtRiskList.length > 0 ? Math.max(studentsAtRiskList.length, 5) : 5;
-    return `Aquí tienes el pulso de tu jornada: <strong className="text-[#29488b]">${activeAssessmentsCount} evaluaciones activas</strong>, ${pendingGradesCount} calificaciones pendientes y ${atRiskCount} estudiantes en seguimiento.`;
-  }, [assignments.length, pendingGradesCount, studentsAtRiskList.length]);
 
   // 6. Agenda items (Today vs Upcoming) with rich classes matching screenshot
   const { todayAgendaItems, upcomingAgendaItems } = useMemo(() => {
@@ -378,59 +373,17 @@ export function TeacherDashboard({
 
   return (
     <div className="teacher-dashboard space-y-4 pb-6">
-      {/* 1. Sub-Tabs Bar (Manus 2.0 exact navigation) */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-1">
-        <div className="flex items-center gap-2 sm:gap-4">
-          <button
-            type="button"
-            onClick={() => setActiveTab("overview")}
-            className={`pb-3 text-sm font-semibold transition-all relative ${
-              activeTab === "overview"
-                ? "text-blue-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-blue-600 font-bold"
-                : "text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            Visión General & Clases
-          </button>
-          <button
-            type="button"
-            onClick={() => setSection("grades")}
-            className="pb-3 text-sm font-semibold transition-all relative flex items-center gap-1.5 text-slate-500 hover:text-slate-900"
-          >
-            <span>Grade Center 2.0</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-blue-100 text-blue-700 font-bold">
-              35
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("analytics")}
-            className={`pb-3 text-sm font-semibold transition-all relative ${
-              activeTab === "analytics"
-                ? "text-blue-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-blue-600 font-bold"
-                : "text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            Análisis & Alertas
-          </button>
-        </div>
-
-        <div className="text-xs text-slate-400 hidden sm:block">
-          Periodo Académico 2 · 2026
-        </div>
-      </div>
-
-      {activeTab === "analytics" ? (
+      {mode === "analytics" ? (
         <div className="space-y-4">
           <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
             <TeacherGroupPerformance
               period1Average={3.42}
               period2Average={Number(overallAverage)}
-              onViewAnalysis={() => setActiveTab("analytics")}
+              onViewAnalysis={() => setSection("analytics")}
             />
             <TeacherQuickAnalytics
               items={quickAnalyticsItems}
-              onViewAnalytics={() => setActiveTab("analytics")}
+              onViewAnalytics={() => setSection("analytics")}
             />
           </section>
           <TeacherOperationalDetails
@@ -448,7 +401,7 @@ export function TeacherDashboard({
             teacherName={teacherName}
             schoolName={schoolName}
             activePeriodName={activePeriodName}
-            summaryText={heroSummaryText}
+
             pendingGradesCount={pendingGradesCount}
             onOpenGradeCenter={() => setSection("grades")}
             onOpenCalendar={() => setSection("calendar")}
@@ -493,12 +446,12 @@ export function TeacherDashboard({
             <TeacherGroupPerformance
               period1Average={3.42}
               period2Average={3.88}
-              onViewAnalysis={() => setActiveTab("analytics")}
+              onViewAnalysis={() => setSection("analytics")}
             />
 
             <TeacherQuickAnalytics
               items={quickAnalyticsItems}
-              onViewAnalytics={() => setActiveTab("analytics")}
+              onViewAnalytics={() => setSection("analytics")}
             />
           </section>
         </div>

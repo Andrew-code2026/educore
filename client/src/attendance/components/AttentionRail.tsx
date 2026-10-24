@@ -26,13 +26,13 @@ export function AttentionRail({ flags, studentsById, onSelect, activeStudentId }
           aria-label={`Atención docente: ${count} ${count === 1 ? "estudiante" : "estudiantes"}`}
           title={`Atención docente: ${count} ${count === 1 ? "estudiante" : "estudiantes"}`}
           className={cn(
-            "chrona-attention-trigger flex h-8 shrink-0 items-center gap-1.5 rounded-[10px] px-2.5 text-[10.5px] font-semibold transition-all",
+            "chrona-attention-trigger flex h-8 shrink-0 items-center gap-1.5 rounded-[10px] px-2.5 text-xs font-semibold transition-all",
             count > 0 ? "chrona-attention-hot" : "chrona-attention-clear",
           )}
         >
           <Signal className="h-3.5 w-3.5" aria-hidden="true" />
           <span className="chrona-attention-label hidden sm:inline">Atención docente</span>
-          <span className="tabular grid min-w-[17px] place-items-center rounded-full px-1 py-px text-[10px] font-bold">
+          <span className="tabular grid min-w-[17px] place-items-center rounded-full px-1 py-px text-xs font-bold">
             {count}
           </span>
         </button>
@@ -44,7 +44,7 @@ export function AttentionRail({ flags, studentsById, onSelect, activeStudentId }
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[12.5px] font-semibold">Atención docente</p>
-            <p className="tabular text-[10px] text-muted-foreground">
+            <p className="tabular text-xs text-muted-foreground">
               {count === 0 ? "Sin casos pendientes" : `${count} casos ordenados por prioridad`}
             </p>
           </div>
@@ -53,7 +53,7 @@ export function AttentionRail({ flags, studentsById, onSelect, activeStudentId }
 
         <div className="max-h-[min(390px,55vh)] overflow-y-auto scroll-thin py-1">
           {count === 0 ? (
-            <p className="px-3 py-6 text-center text-[11px] text-muted-foreground">
+            <p className="px-3 py-6 text-center text-xs text-muted-foreground">
               Los patrones de atención se evalúan con el histórico de asistencia existente.
             </p>
           ) : (
@@ -77,18 +77,18 @@ export function AttentionRail({ flags, studentsById, onSelect, activeStudentId }
                       active ? "bg-brand-soft ring-1 ring-inset ring-brand/25" : "hover:bg-foreground/[0.05]",
                     )}
                   >
-                    <span className="tabular w-5 shrink-0 text-right text-[9.5px] text-muted-foreground/65">
+                    <span className="tabular w-5 shrink-0 text-right text-xs text-muted-foreground/65">
                       {String(index + 1).padStart(2, "0")}
                     </span>
                     <Avatar name={student.fullName} initials={student.initials} size="sm" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[11.5px] font-semibold">{student.fullName}</span>
-                      <span className={cn("mt-0.5 inline-flex max-w-full items-center gap-1 rounded-full px-1.5 py-0.5 text-[9.5px] font-medium", SEVERITY_CLASS[flag.severity])}>
+                      <span className="block truncate text-xs font-semibold">{student.fullName}</span>
+                      <span className={cn("mt-0.5 inline-flex max-w-full items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-medium", SEVERITY_CLASS[flag.severity])}>
                         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", SEVERITY_DOT[flag.severity])} />
                         <span className="truncate">{flag.label}</span>
                       </span>
                     </span>
-                    <span className="hidden max-w-[92px] truncate text-[9.5px] text-muted-foreground md:block">{flag.detail}</span>
+                    <span className="hidden max-w-[92px] truncate text-xs text-muted-foreground md:block">{flag.detail}</span>
                     <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/45 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                   </motion.button>
                 );
@@ -98,10 +98,10 @@ export function AttentionRail({ flags, studentsById, onSelect, activeStudentId }
         </div>
 
         <footer className="border-t border-hairline px-2 pt-2">
-          <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">Patrones activos</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">Patrones activos</p>
           <div className="mt-1 flex flex-wrap gap-1">
             {ATTENTION_RULE_LABELS.map(label => (
-              <span key={label} className="rounded-full bg-foreground/[0.04] px-1.5 py-0.5 text-[9px] text-muted-foreground">{label}</span>
+              <span key={label} className="rounded-full bg-foreground/[0.04] px-1.5 py-0.5 text-xs text-muted-foreground">{label}</span>
             ))}
           </div>
         </footer>

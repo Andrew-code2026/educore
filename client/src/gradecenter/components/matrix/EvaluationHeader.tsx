@@ -89,16 +89,16 @@ export function EvaluationHeader({
                 <span className="pointer-events-none absolute -right-5 -top-7 size-16 rounded-full bg-[var(--gc-cobalt)]/10 blur-xl transition-transform duration-300 group-hover/head:scale-150" />
                 <div className="relative flex w-full items-start justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
-                    <span className="gc-num flex size-7 shrink-0 items-center justify-center rounded-lg border border-[var(--gc-cobalt)]/25 bg-[var(--gc-cobalt)]/12 text-[9px] font-bold text-[var(--gc-cobalt)]">{evaluation.code}</span>
+                    <span className="gc-num flex size-7 shrink-0 items-center justify-center rounded-lg border border-[var(--gc-cobalt)]/25 bg-[var(--gc-cobalt)]/12 text-xs font-bold text-[var(--gc-cobalt)]">{evaluation.code}</span>
                     <div className="min-w-0">
-                      <div className="truncate text-[10.5px] font-semibold leading-tight text-foreground">{name}</div>
-                      <div className="mt-0.5 truncate text-[8.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{type.short}{isPreparing ? " · Prep." : ""}</div>
+                      <div className="truncate text-xs font-semibold leading-tight text-foreground">{name}</div>
+                      <div className="mt-0.5 truncate text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">{type.short}{isPreparing ? " · Prep." : ""}</div>
                     </div>
                   </div>
-                  <span className="gc-num shrink-0 rounded-lg border border-[var(--gc-cobalt)]/25 bg-[var(--gc-cobalt)]/12 px-1.5 py-1 text-[10px] font-bold text-[var(--gc-cobalt)]">{evaluation.weight}%</span>
+                  <span className="gc-num shrink-0 rounded-lg border border-[var(--gc-cobalt)]/25 bg-[var(--gc-cobalt)]/12 px-1.5 py-1 text-xs font-bold text-[var(--gc-cobalt)]">{evaluation.weight}%</span>
                 </div>
                 {!tight && (
-                  <div className="flex w-full items-center gap-1.5 text-[9px] text-muted-foreground">
+                  <div className="flex w-full items-center gap-1.5 text-xs text-muted-foreground">
                     <span className="gc-num font-medium">Prom. <span className="font-bold text-foreground">{formatGrade(metric.avg)}</span></span>
                     {!narrow && <><span className="opacity-40">·</span><span className="gc-num">{metric.evaluatedPct}% avance</span></>}
                     {!narrow && <span className="ml-auto gc-num">{metric.pending} pend.</span>}
@@ -119,17 +119,17 @@ export function EvaluationHeader({
           <TooltipContent side="bottom" align="center" className="max-w-72">
             <div className="space-y-1">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[11px] font-semibold">
+                <span className="text-xs font-semibold">
                   {evaluation.code} · {evaluation.name}
                 </span>
-                <span className="gc-num text-[11px] font-semibold text-[var(--gc-cobalt)]">
+                <span className="gc-num text-xs font-semibold text-[var(--gc-cobalt)]">
                   {evaluation.weight}%
                 </span>
               </div>
-              <div className="text-[10px] opacity-80">
+              <div className="text-xs opacity-80">
                 {type.label} · {formatLongDate(evaluation.date)} · {evaluation.period}
               </div>
-              <div className="flex items-center gap-3 text-[10px] opacity-90">
+              <div className="flex items-center gap-3 text-xs opacity-90">
                 <span className="gc-num">Promedio {formatGrade(metric.avg)}</span>
                 <span className="gc-num">{metric.evaluatedPct}% evaluado</span>
                 <span className="gc-num">
@@ -144,20 +144,20 @@ export function EvaluationHeader({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="gc-num text-[11px] font-semibold text-[var(--gc-cobalt)]">
+                <span className="gc-num text-xs font-semibold text-[var(--gc-cobalt)]">
                   {evaluation.code}
                 </span>
-                <span className="gc-num rounded-full border border-white/10 bg-white/5 px-1.5 py-px text-[10px]">
+                <span className="gc-num rounded-full border border-white/10 bg-white/5 px-1.5 py-px text-xs">
                   {evaluation.weight}%
                 </span>
-                {isPreparing && <span className="rounded-full border border-[var(--gc-basico)]/30 bg-[var(--gc-basico)]/10 px-1.5 py-px text-[9px] text-[var(--gc-basico)]">En preparación</span>}
+                {isPreparing && <span className="rounded-full border border-[var(--gc-basico)]/30 bg-[var(--gc-basico)]/10 px-1.5 py-px text-xs text-[var(--gc-basico)]">En preparación</span>}
               </div>
               <div className="mt-1 text-sm font-semibold">{evaluation.name}</div>
             </div>
             <LevelBadge level={metric.level} score={metric.avg} />
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
             <InfoRow icon={<Layers className="size-3" />} label="Tipo" value={type.label} />
             <InfoRow
               icon={<CalendarDays className="size-3" />}
@@ -181,7 +181,7 @@ export function EvaluationHeader({
               {evaluation.dbaIds.map((id) => (
                 <span
                   key={id}
-                  className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-muted-foreground"
+                  className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-muted-foreground"
                 >
                   {id.replace("dba-", "DBA ")}
                 </span>
@@ -199,7 +199,7 @@ export function EvaluationHeader({
                   evaluationState: "pending",
                 })
               }
-              className="flex-1 rounded-xl border border-white/10 bg-white/4 px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
+              className="flex-1 rounded-xl border border-white/10 bg-white/4 px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
             >
               Ver pendientes ({metric.pending})
             </button>
@@ -212,19 +212,19 @@ export function EvaluationHeader({
                   evaluationState: "graded",
                 })
               }
-              className="flex-1 rounded-xl border border-white/10 bg-white/4 px-2 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
+              className="flex-1 rounded-xl border border-white/10 bg-white/4 px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
             >
               Ver calificados
             </button>
           </div>
           {pendingStudents > 0 && (
-            <div className="mt-2 text-center text-[10px] text-muted-foreground">
+            <div className="mt-2 text-center text-xs text-muted-foreground">
               {pendingStudents} estudiantes del grupo tienen evaluaciones pendientes
             </div>
           )}
 
           <div className="mt-3 grid grid-cols-[1fr_auto] gap-2 border-t border-white/8 pt-3">
-            <button type="button" onClick={() => { setPopoverOpen(false); setEditOpen(true); }} className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--gc-cobalt)]/35 bg-[var(--gc-cobalt)]/12 px-2 py-2 text-[10px] font-semibold text-foreground transition-colors hover:bg-[var(--gc-cobalt)]/20"><Pencil className="size-3" />Editar evaluación</button>
+            <button type="button" onClick={() => { setPopoverOpen(false); setEditOpen(true); }} className="flex items-center justify-center gap-1.5 rounded-xl border border-[var(--gc-cobalt)]/35 bg-[var(--gc-cobalt)]/12 px-2 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-[var(--gc-cobalt)]/20"><Pencil className="size-3" />Editar evaluación</button>
             <button
               type="button"
               aria-label={`Eliminar ${evaluation.code}`}
@@ -250,7 +250,7 @@ export function EvaluationHeader({
           <button
             type="button"
             onClick={() => { setPopoverOpen(false); setBulkOpen(true); }}
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[var(--gc-cobalt)]/35 bg-[var(--gc-cobalt)]/10 px-2 py-1.5 text-[10px] font-semibold text-foreground hover:bg-[var(--gc-cobalt)]/18"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[var(--gc-cobalt)]/35 bg-[var(--gc-cobalt)]/10 px-2 py-1.5 text-xs font-semibold text-foreground hover:bg-[var(--gc-cobalt)]/18"
           >
             <Pencil className="size-3" /> Calificar esta evaluación a muchos estudiantes
           </button>
@@ -275,11 +275,11 @@ export function EvaluationHeader({
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="rounded-xl border border-white/8 bg-white/3 px-2.5 py-1.5">
-      <div className="flex items-center gap-1 text-[9px] tracking-wide text-muted-foreground uppercase">
+      <div className="flex items-center gap-1 text-xs tracking-wide text-muted-foreground uppercase">
         {icon}
         {label}
       </div>
-      <div className="mt-0.5 truncate text-[11px] font-medium">{value}</div>
+      <div className="mt-0.5 truncate text-xs font-medium">{value}</div>
     </div>
   );
 }

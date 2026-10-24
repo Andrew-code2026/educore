@@ -3,16 +3,18 @@ import {
   Bell,
   ChevronRight,
   Menu,
-  Search,
   ChevronDown,
   BookOpen,
   ShieldAlert,
   UserCheck,
   Users,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { EduRole, Section } from "./shell.types";
 import { useShellContext } from "./ShellContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface EduCoreHeaderProps {
   role: EduRole;
@@ -69,20 +71,26 @@ export function EduCoreHeader({
   notificationCount = 0,
   user,
 }: EduCoreHeaderProps) {
-  const { moduleContext, setMobileOpen } = useShellContext();
+  const { moduleContext, setMobileOpen, isFocusMode } = useShellContext();
+  const { theme, toggleTheme } = useTheme();
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const roleMenuRef = useRef<HTMLDivElement>(null);
 
   // Subtle elevation on scroll without changing height (Zero CLS layout stability)
   useEffect(() => {
-    const handleScroll = () => {
-      const scrolled = window.scrollY > 8;
+    const handleScroll = (event?: Event) => {
+      const target = event?.target as HTMLElement | null;
+      const scrollPos =
+        target?.scrollTop ??
+        document.getElementById("educore-main-content")?.scrollTop ??
+        window.scrollY;
+      const scrolled = scrollPos > 8;
       setIsScrolled((prev) => (prev !== scrolled ? scrolled : prev));
     };
     handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true, capture: true });
+    return () => window.removeEventListener("scroll", handleScroll, { capture: true });
   }, []);
 
   // Close role popover when clicking outside
@@ -96,10 +104,6 @@ export function EduCoreHeader({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSearchClick = () => {
-    toast.info("Búsqueda institucional: Usa ⌘K para buscar estudiantes, cursos o acciones.");
-  };
-
   const handleNotificationClick = () => {
     if (notificationCount > 0) {
       toast.info(`Tienes ${notificationCount} aviso${notificationCount === 1 ? "" : "s"} sin leer en Comunicaciones.`);
@@ -109,15 +113,14 @@ export function EduCoreHeader({
   };
 
   const activeProfile = ROLE_PROFILES[role] || ROLE_PROFILES.teacher;
-  const ActiveRoleIcon = activeProfile.icon;
 
   return (
     <header
-      className={`sticky top-0 z-30 flex h-[58px] items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-md transition-shadow duration-200 sm:px-6 lg:px-8 ${
+      className={`sticky top-0 z-30 flex h-[58px] shrink-0 items-center justify-between border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-[#111927]/95 px-4 backdrop-blur-md transition-shadow duration-200 sm:px-6 lg:px-8 ${
         isScrolled
-          ? "shadow-[0_4px_16px_rgba(15,23,42,0.05)]"
+          ? "shadow-[0_4px_16px_rgba(15,23,42,0.05)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)]"
           : "shadow-[0_1px_3px_rgba(15,23,42,0.02)]"
-      }`}
+      } ${isFocusMode ? "hidden" : ""}`}
     >
       {/* Lado Izquierdo: Menú móvil + Barra de Contexto Dinámica */}
       <div className="flex items-center gap-3 overflow-hidden">
@@ -126,7 +129,7 @@ export function EduCoreHeader({
           type="button"
           onClick={() => setMobileOpen(true)}
           aria-label="Abrir menú móvil"
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 lg:hidden cursor-pointer"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100 lg:hidden cursor-pointer"
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -135,15 +138,15 @@ export function EduCoreHeader({
         <div className="flex min-w-0 flex-col justify-center">
           {/* Breadcrumbs sutiles */}
           {moduleContext?.breadcrumbs && moduleContext.breadcrumbs.length > 0 && (
-            <div className="hidden items-center gap-1 text-[11px] text-slate-400 sm:flex">
+            <div className="hidden items-center gap-1 text-xs text-slate-400 dark:text-slate-500 sm:flex">
               {moduleContext.breadcrumbs.map((crumb, idx) => (
                 <React.Fragment key={crumb.label + idx}>
-                  {idx > 0 && <ChevronRight className="h-3 w-3 text-slate-300" />}
+                  {idx > 0 && <ChevronRight className="h-3 w-3 text-slate-300 dark:text-slate-600" />}
                   <span
                     className={
                       crumb.isCurrent
-                        ? "font-semibold text-slate-700"
-                        : "hover:text-slate-600 transition"
+                        ? "font-semibold text-slate-700 dark:text-slate-200"
+                        : "hover:text-slate-600 dark:hover:text-slate-300 transition"
                     }
                   >
                     {crumb.label}
@@ -155,7 +158,7 @@ export function EduCoreHeader({
 
           {/* Título y Context Pills */}
           <div className="flex items-center gap-2 overflow-hidden">
-            <h1 className="truncate text-base font-bold text-slate-900 sm:text-lg">
+            <h1 className="truncate text-base font-bold text-slate-900 dark:text-slate-100 sm:text-lg">
               {moduleContext?.title ?? "EduCore"}
             </h1>
 
@@ -165,16 +168,16 @@ export function EduCoreHeader({
                 {moduleContext.contextPills.map((pill, idx) => (
                   <span
                     key={pill.label + idx}
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium transition ${
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium transition ${
                       pill.tone === "primary"
-                        ? "bg-[var(--edc-secondary)] text-[var(--edc-primary)] font-semibold"
+                        ? "bg-[var(--edc-secondary)] text-[var(--edc-primary)] font-semibold dark:bg-blue-950/60 dark:text-blue-300"
                         : pill.tone === "emerald"
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/50"
                         : pill.tone === "amber"
-                        ? "bg-amber-50 text-amber-800 border border-amber-200/90 font-semibold"
+                        ? "bg-amber-50 text-amber-800 border border-amber-200/90 font-semibold dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/50"
                         : pill.tone === "violet"
-                        ? "bg-violet-50 text-violet-700 border border-violet-100"
-                        : "bg-slate-100 text-slate-600"
+                        ? "bg-violet-50 text-violet-700 border border-violet-100 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-900/50"
+                        : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                     }`}
                   >
                     {pill.tone === "amber" && (
@@ -182,7 +185,7 @@ export function EduCoreHeader({
                     )}
                     {pill.label}
                     {pill.detail && (
-                      <span className="ml-1 text-[10px] opacity-75">· {pill.detail}</span>
+                      <span className="ml-1 text-xs opacity-75">· {pill.detail}</span>
                     )}
                   </span>
                 ))}
@@ -192,34 +195,32 @@ export function EduCoreHeader({
         </div>
       </div>
 
-      {/* Lado Derecho: Acciones Contextuales + Búsqueda + IA + Notificaciones + Switcher Rol */}
+      {/* Lado Derecho: Acciones Contextuales + Tema + Notificaciones + Switcher Rol */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Acciones del módulo activo */}
         {moduleContext?.actions && (
           <div className="flex items-center gap-1.5">{moduleContext.actions}</div>
         )}
 
-        {/* Buscador visual con atajo ⌘ K */}
-        <button
-          type="button"
-          onClick={handleSearchClick}
-          aria-label="Buscar en EduCore"
-          className="hidden items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-1.5 text-xs text-slate-500 transition hover:border-blue-200 hover:bg-white sm:flex cursor-pointer"
-        >
-          <Search className="h-3.5 w-3.5 text-slate-400" />
-          <span className="hidden xl:inline">Buscar estudiantes, cursos o acciones...</span>
-          <span className="xl:hidden">Buscar</span>
-          <kbd className="ml-1.5 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-400 shadow-2xs">
-            ⌘K
-          </kbd>
-        </button>
+        {/* Selector de Tema (Modo Claro / Oscuro) */}
+        {toggleTheme && (
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label="Cambiar tema claro / oscuro"
+            title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+            className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100 cursor-pointer"
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+        )}
 
         {/* Campana de Notificaciones con Badge Real */}
         <button
           type="button"
           onClick={handleNotificationClick}
           aria-label="Notificaciones"
-          className="relative flex h-8 w-8 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 cursor-pointer"
+          className="relative flex h-8 w-8 items-center justify-center rounded-xl text-slate-500 dark:text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-100 cursor-pointer"
         >
           <Bell className="h-4 w-4" />
           {notificationCount > 0 && (
@@ -250,14 +251,14 @@ export function EduCoreHeader({
             type="button"
             onClick={() => setRoleMenuOpen((open) => !open)}
             aria-expanded={roleMenuOpen}
-            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs transition hover:border-blue-200 hover:bg-blue-50/40 cursor-pointer"
+            className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#162032] px-2.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 shadow-2xs transition hover:border-blue-200 dark:hover:border-blue-900/60 hover:bg-blue-50/40 dark:hover:bg-blue-950/20 cursor-pointer"
           >
             <img
               src={activeProfile.avatar}
               alt={activeProfile.name}
-              className="h-6 w-6 rounded-full object-cover ring-1 ring-slate-200"
+              className="h-6 w-6 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700"
             />
-            <span className="hidden md:inline text-slate-800">{activeProfile.roleLabel}</span>
+            <span className="hidden md:inline text-slate-800 dark:text-slate-200">{activeProfile.roleLabel}</span>
             <ChevronDown
               className={`h-3.5 w-3.5 text-slate-400 transition-transform ${
                 roleMenuOpen ? "rotate-180" : ""
@@ -267,13 +268,12 @@ export function EduCoreHeader({
 
           {/* Popover enriquecido */}
           {roleMenuOpen && (
-            <div className="absolute right-0 top-11 z-[90] w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_18px_50px_rgba(15,23,42,0.16)] animate-in fade-in zoom-in-95 duration-150">
-              <p className="px-2 pb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+            <div className="absolute right-0 top-11 z-[90] w-64 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#162032] p-2 shadow-[0_18px_50px_rgba(15,23,42,0.16)] dark:shadow-[0_18px_50px_rgba(0,0,0,0.5)] animate-in fade-in zoom-in-95 duration-150">
+              <p className="px-2 pb-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
                 Cambiar experiencia
               </p>
               {(["teacher", "admin", "student", "guardian"] as EduRole[]).map((opt) => {
                 const meta = ROLE_PROFILES[opt];
-                const Icon = meta.icon;
                 const isSelected = role === opt;
 
                 return (
@@ -286,14 +286,14 @@ export function EduCoreHeader({
                     }}
                     className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors cursor-pointer ${
                       isSelected
-                        ? "bg-blue-50 text-blue-700"
-                        : "text-slate-600 hover:bg-slate-50"
+                        ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300"
+                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                     }`}
                   >
                     <img
                       src={meta.avatar}
                       alt={meta.name}
-                      className="h-7 w-7 rounded-full object-cover ring-1 ring-slate-200 shrink-0"
+                      className="h-7 w-7 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700 shrink-0"
                     />
                     <div className="min-w-0 flex-1">
                       <span className="block text-xs font-bold leading-tight">
@@ -305,7 +305,7 @@ export function EduCoreHeader({
                           ? "Estudiante"
                           : "Acudiente"}
                       </span>
-                      <span className="block truncate text-[10px] text-slate-400">
+                      <span className="block truncate text-xs text-slate-400 dark:text-slate-500">
                         {opt === "teacher" && user?.name ? (user.name.startsWith("Prof.") ? user.name : `Prof. ${user.name}`) : meta.name}
                       </span>
                     </div>

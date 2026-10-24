@@ -61,7 +61,7 @@ export function ShortcutHelp({ open, onOpenChange }: { open: boolean; onOpenChan
         <div className="mt-2 grid gap-4 md:grid-cols-3">
           {GROUPS.map((group) => (
             <div key={group.title} className="rounded-2xl border border-white/8 bg-white/3 p-3">
-              <div className="gc-label mb-2 text-[9px]">{group.title}</div>
+              <div className="gc-label mb-2 text-xs">{group.title}</div>
               <ul className="space-y-2">
                 {group.items.map((item) => (
                   <li key={item.label} className="flex items-start gap-2">
@@ -69,13 +69,13 @@ export function ShortcutHelp({ open, onOpenChange }: { open: boolean; onOpenChan
                       {item.keys.map((key) => (
                         <kbd
                           key={key}
-                          className="gc-num rounded-md border border-white/12 bg-white/6 px-1.5 py-0.5 text-[10px] font-medium text-foreground/90"
+                          className="gc-num rounded-md border border-white/12 bg-white/6 px-1.5 py-0.5 text-xs font-medium text-foreground/90"
                         >
                           {key}
                         </kbd>
                       ))}
                     </span>
-                    <span className="text-[11px] leading-snug text-muted-foreground">{item.label}</span>
+                    <span className="text-xs leading-snug text-muted-foreground">{item.label}</span>
                   </li>
                 ))}
               </ul>

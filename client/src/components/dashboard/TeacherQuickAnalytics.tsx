@@ -20,14 +20,14 @@ export function TeacherQuickAnalytics({
           </span>
           <div>
             <h2 className="text-sm font-bold text-indigo-950">Analítica rápida</h2>
-            <p className="text-[10px] text-indigo-700/60">Aprobación por evaluación</p>
+            <p className="text-xs text-indigo-700/60">Aprobación por evaluación</p>
           </div>
         </div>
         {onViewAnalytics && (
           <button
             type="button"
             onClick={onViewAnalytics}
-            className="text-[10px] font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 transition-colors"
+            className="text-xs font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 transition-colors"
           >
             <span>Ver más</span>
             <ArrowRight className="inline h-3 w-3" />
@@ -43,7 +43,7 @@ export function TeacherQuickAnalytics({
             onClick={bar.onClick || onViewAnalytics}
             className="group w-full text-left transition"
           >
-            <div className="mb-1 flex justify-between text-[9px] font-semibold text-slate-500">
+            <div className="mb-1 flex justify-between text-xs font-semibold text-slate-500">
               <span className="truncate">{bar.label}</span>
               <span className="text-slate-700 font-bold">{bar.value}%</span>
             </div>

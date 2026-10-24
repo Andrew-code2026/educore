@@ -100,7 +100,7 @@ export const invitations = mysqlTable("invitations", {
 export const schools = mysqlTable("schools", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 180 }).notNull(),
-  shortName: varchar("shortName", { length: 80 }).notNull().default("Gimnasio Moderno"),
+  shortName: varchar("shortName", { length: 80 }).notNull().default("EduCore"),
   city: varchar("city", { length: 80 }).notNull(),
   department: varchar("department", { length: 100 }).notNull().default("Valle del Cauca"),
   country: varchar("country", { length: 80 }).notNull().default("Colombia"),

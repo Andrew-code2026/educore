@@ -936,7 +936,7 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
       <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--edc-primary)]">
+            <span className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--edc-primary)]">
               Grade Center
             </span>
             <span className="text-slate-300 dark:text-slate-700">·</span>
@@ -1016,7 +1016,7 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
             <span className="font-extrabold text-slate-900 dark:text-white">
               {courseSummary.average !== null ? courseSummary.average.toFixed(2) : "—"}
             </span>
-            <span className="text-[10px] text-slate-400">/ 5.0</span>
+            <span className="text-xs text-slate-400">/ 5.0</span>
           </div>
 
           <span className="hidden sm:inline text-slate-200 dark:text-slate-700">·</span>
@@ -1027,7 +1027,7 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
             <span className="font-extrabold text-emerald-600 dark:text-emerald-400">
               {courseSummary.passingRate}%
             </span>
-            <span className="text-[10px] text-slate-400">
+            <span className="text-xs text-slate-400">
               ({courseSummary.passingCount}/{courseSummary.totalStudents})
             </span>
           </div>
@@ -1037,12 +1037,12 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
           {/* Ponderación Curricular del Periodo */}
           <div title={`Ponderación curricular: Suma de los porcentajes asignados a las ${context.assessments?.length ?? 0} evaluaciones del periodo.`}>
             {weightTotal >= 100 ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
                 ✓ Ponderación: 100% configurado
               </span>
             ) : (
               <span
-                className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
                 title="Para que el cálculo de la definitiva sea completo, la suma de las evaluaciones debe alcanzar el 100%."
               >
                 ⚠ Ponderación: {weightTotal}% configurado · {100 - weightTotal}% restante
@@ -1053,12 +1053,12 @@ export function GradeCenterPage({ role }: GradeCenterProps) {
           <span className="hidden md:inline text-slate-200 dark:text-slate-700">·</span>
 
           {/* Progreso de Calificaciones Diligenciadas */}
-          <div className="hidden md:flex items-center gap-1 text-[11px]" title="Notas diligenciadas sobre el total de casillas del grupo en este periodo">
+          <div className="hidden md:flex items-center gap-1 text-xs" title="Notas diligenciadas sobre el total de casillas del grupo en este periodo">
             <span className="text-slate-400 font-medium">Calificaciones:</span>
             <span className="font-semibold text-slate-700 dark:text-slate-200">
               {courseSummary.gradedTotal}/{courseSummary.totalPossibleGrades}
             </span>
-            <span className="text-[10px] text-slate-400 font-medium">({courseSummary.gradedRate}%)</span>
+            <span className="text-xs text-slate-400 font-medium">({courseSummary.gradedRate}%)</span>
           </div>
         </div>
 

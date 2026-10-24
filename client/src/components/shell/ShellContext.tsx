@@ -187,6 +187,13 @@ export function ShellContextProvider({
           breadcrumbs: [{ label: "Administración" }, { label: "Configuración", isCurrent: true }],
           contextPills: [{ label: schoolName, tone: "primary" }],
         };
+      case "analytics":
+        return {
+          title: "Análisis & Alertas",
+          subtitle: "Rendimiento grupal, alertas tempranas y métricas",
+          breadcrumbs: [{ label: "Seguimiento" }, { label: "Análisis & Alertas", isCurrent: true }],
+          contextPills: [{ label: "Periodo 2 · 2026", tone: "primary" }],
+        };
       default:
         return {
           title: item.label,

@@ -32,14 +32,14 @@ export function TeacherStudentsAtRisk({
               <h3 className="text-sm font-bold text-slate-900">
                 Atención académica
               </h3>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-xs text-slate-400">
                 Estudiantes con promedio &lt; 3.0
               </p>
             </div>
           </div>
 
           {students.length > 0 && (
-            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-800">
+            <span className="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-800">
               {students.length}
             </span>
           )}
@@ -57,7 +57,7 @@ export function TeacherStudentsAtRisk({
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-slate-700 shadow-2xs"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-slate-700 shadow-2xs"
                     style={{ backgroundColor: student.avatarColor ?? "#fee2e2" }}
                   >
                     {initials(student.name)}
@@ -66,14 +66,14 @@ export function TeacherStudentsAtRisk({
                     <p className="truncate text-xs font-semibold text-slate-800 group-hover:text-rose-900">
                       {student.name}
                     </p>
-                    <p className="truncate text-[10px] text-slate-400">
+                    <p className="truncate text-xs text-slate-400">
                       {student.course} {student.subject ? `· ${student.subject}` : ""}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="rounded-md bg-rose-50 border border-rose-200/80 px-1.5 py-0.5 text-[11px] font-bold text-rose-700">
+                  <span className="rounded-md bg-rose-50 border border-rose-200/80 px-1.5 py-0.5 text-xs font-bold text-rose-700">
                     {student.currentGrade.toFixed(1)}
                   </span>
                   <ChevronRight className="h-3.5 w-3.5 text-slate-300 group-hover:text-rose-600" />
@@ -87,7 +87,7 @@ export function TeacherStudentsAtRisk({
             <p className="text-xs font-semibold text-emerald-900">
               Sin alertas de rendimiento
             </p>
-            <p className="text-[11px] text-emerald-700/80 mt-0.5">
+            <p className="text-xs text-emerald-700/80 mt-0.5">
               Todos los estudiantes promedian &ge; 3.0 en tus materias.
             </p>
           </div>

@@ -22,7 +22,7 @@ export function TeacherQuickActions({
         </span>
         <div>
           <h2 className="text-sm font-bold text-slate-800">Acciones rápidas</h2>
-          <p className="text-[10px] text-slate-400">Atajos para tu gestión diaria</p>
+          <p className="text-xs text-slate-400">Atajos para tu gestión diaria</p>
         </div>
       </div>
 
@@ -30,10 +30,10 @@ export function TeacherQuickActions({
         <button
           type="button"
           onClick={highlightedAction.onClick}
-          className="flex w-full items-center justify-between rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 px-3 py-2.5 text-left text-[10px] font-bold text-white shadow-sm transition-all hover:opacity-95 active:scale-[0.99]"
+          className="flex w-full items-center justify-between rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 px-3 py-2.5 text-left text-xs font-bold text-white shadow-sm transition-all hover:opacity-95 active:scale-[0.99]"
         >
           <span>
-            <span className="block text-[8px] uppercase tracking-[0.12em] text-indigo-100 font-semibold">
+            <span className="block text-xs uppercase tracking-[0.12em] text-indigo-100 font-semibold">
               Acción sugerida
             </span>
             {highlightedAction.label}
@@ -55,7 +55,7 @@ export function TeacherQuickActions({
               <span className="rounded-lg bg-white p-1.5 text-indigo-600 shadow-xs">
                 <Icon className="h-3.5 w-3.5" />
               </span>
-              <span className="text-[9px] font-bold text-slate-600 leading-tight">
+              <span className="text-xs font-bold text-slate-600 leading-tight">
                 {action.label}
               </span>
             </button>

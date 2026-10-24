@@ -35,7 +35,7 @@ export function generatePlaceholderPdf(title: string, subtitle: string): Buffer 
 0 -20 Td
 (Detalle: ${safeSubtitle}) Tj
 0 -25 Td
-(Institucion: Colegio Gimnasio Moderno del Valle) Tj
+(Institucion: EduCore) Tj
 0 -20 Td
 (Estado: Soporte digital verificado en el expediente oficial) Tj
 0 -20 Td
@@ -91,7 +91,7 @@ export function generatePlaceholderImage(title: string): Buffer {
   <rect width="1200" height="800" fill="#f8fafc"/>
   <rect x="40" y="40" width="1120" height="720" rx="24" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
   <rect x="40" y="40" width="1120" height="100" rx="24" fill="#1e293b"/>
-  <text x="80" y="100" fill="#ffffff" font-family="sans-serif" font-size="28" font-weight="bold">EduCore · Colegio Gimnasio Moderno del Valle</text>
+  <text x="80" y="100" fill="#ffffff" font-family="sans-serif" font-size="28" font-weight="bold">EduCore · Portal Institucional</text>
   <text x="80" y="200" fill="#0f172a" font-family="sans-serif" font-size="24" font-weight="bold">Soporte Digital de Inasistencia</text>
   <text x="80" y="240" fill="#475569" font-family="sans-serif" font-size="16">${title}</text>
   <rect x="80" y="280" width="1040" height="360" rx="16" fill="#f1f5f9" stroke="#e2e8f0"/>

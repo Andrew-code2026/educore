@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Activity, ArrowLeft, ChevronDown, GraduationCap, HelpCircle, Maximize2, Menu, Minimize2, Moon, Search, Sparkles, Sun } from "lucide-react";
+import { Activity, ArrowLeft, ChevronDown, GraduationCap, HelpCircle, Maximize2, Menu, Minimize2, Search, Sparkles } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useTheme } from "@/contexts/ThemeContext";
 import { SyncStatus } from "./SyncStatus";
 import { useGradeCenter } from "../state/GradeCenterContext";
 
@@ -32,7 +31,6 @@ export function TopRail({
 
   const [searchOpen, setSearchOpen] = useState(false);
   const focus = preferences.focusMode;
-  const { theme, toggleTheme } = useTheme();
 
   const handleBack = () => {
     if (onBack) {
@@ -45,22 +43,15 @@ export function TopRail({
   };
 
   return (
-    <header
+    <div
+      role="toolbar"
+      aria-label="Barra de herramientas de la planilla"
       className={cn(
-        "glass-strong prism-sheen relative z-40 flex shrink-0 items-center gap-3 border-b border-white/8 px-3 transition-[height,padding] duration-300",
-        focus ? "h-12" : "h-15 py-2",
+        "glass-strong prism-sheen relative z-20 flex shrink-0 items-center gap-2.5 border-b border-white/8 px-3 transition-[height,padding] duration-200",
+        focus ? "h-11 py-1" : "h-13 py-1.5",
       )}
     >
-      {!focus && (
-        <button
-          type="button"
-          aria-label="Abrir navegación de EduCore"
-          onClick={onToggleSidebar}
-          className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/4 text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground lg:hidden"
-        >
-          <Menu className="size-4" />
-        </button>
-      )}
+      
 
       <button
         type="button"
@@ -99,10 +90,10 @@ export function TopRail({
                   <span className={cn("truncate font-semibold", focus ? "text-[12px]" : "text-[12.5px]")}>
                     {dataset.course}
                   </span>
-                  <span className="gc-num text-[10px] text-muted-foreground">{students.length} est.</span>
+                  <span className="gc-num text-xs text-muted-foreground">{students.length} est.</span>
                 </span>
                 {!focus && (
-                  <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <span className="truncate">{dataset.subject}</span>
                     <span className="opacity-50">·</span>
                     <span className="gc-num">{dataset.evaluations.length} evaluaciones</span>
@@ -116,18 +107,18 @@ export function TopRail({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[12px] font-semibold">{dataset.course}</div>
-                <div className="mt-0.5 text-[10px] text-muted-foreground">
+                <div className="mt-0.5 text-xs text-muted-foreground">
                   {dataset.subject} · {students.length} estudiantes
                 </div>
               </div>
-              <span className="gc-num rounded-lg bg-[var(--gc-cobalt)]/12 px-1.5 py-1 text-[10px] text-[var(--gc-cobalt)]">
+              <span className="gc-num rounded-lg bg-[var(--gc-cobalt)]/12 px-1.5 py-1 text-xs text-[var(--gc-cobalt)]">
                 {dataset.evaluations.length} eval.
               </span>
             </div>
 
             {availableAssignments && availableAssignments.length > 1 ? (
               <div className="mt-3 border-t border-white/8 pt-2">
-                <div className="text-[10px] font-medium text-muted-foreground mb-1.5">
+                <div className="text-xs font-medium text-muted-foreground mb-1.5">
                   Planillas asignadas:
                 </div>
                 <div className="max-h-40 overflow-y-auto space-y-1">
@@ -143,7 +134,7 @@ export function TopRail({
                           }
                         }}
                         className={cn(
-                          "w-full text-left rounded-lg px-2 py-1.5 text-[11px] transition-colors flex items-center justify-between",
+                          "w-full text-left rounded-lg px-2 py-1.5 text-xs transition-colors flex items-center justify-between",
                           isCurrent
                             ? "bg-[var(--gc-cobalt)]/20 text-white font-medium border border-[var(--gc-cobalt)]/30"
                             : "hover:bg-white/8 text-muted-foreground hover:text-foreground"
@@ -151,16 +142,16 @@ export function TopRail({
                       >
                         <div className="min-w-0 pr-2">
                           <div className="truncate font-medium">{a.dataset.course} · {a.dataset.subject}</div>
-                          <div className="text-[9.5px] opacity-70 truncate">{a.dataset.period}</div>
+                          <div className="text-xs opacity-70 truncate">{a.dataset.period}</div>
                         </div>
-                        <span className="gc-num text-[9.5px] shrink-0 opacity-80">{a.dataset.students.length || ""}</span>
+                        <span className="gc-num text-xs shrink-0 opacity-80">{a.dataset.students.length || ""}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
             ) : (
-              <div className="mt-3 rounded-xl border border-[var(--gc-cobalt)]/20 bg-[var(--gc-cobalt)]/8 px-3 py-2 text-[10px] leading-relaxed text-muted-foreground">
+              <div className="mt-3 rounded-xl border border-[var(--gc-cobalt)]/20 bg-[var(--gc-cobalt)]/8 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
                 Planilla académica activa de EduCore.
               </div>
             )}
@@ -169,22 +160,22 @@ export function TopRail({
               <button
                 type="button"
                 onClick={onOpenLanding}
-                className="mt-3 w-full flex items-center justify-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-white/8 hover:text-foreground transition-colors"
+                className="mt-3 w-full flex items-center justify-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-white/8 hover:text-foreground transition-colors"
               >
                 Mis planillas
               </button>
             )}
 
             <details className="mt-3 border-t border-white/8 pt-2">
-              <summary className="cursor-pointer list-none text-[10px] font-medium text-muted-foreground hover:text-foreground">
+              <summary className="cursor-pointer list-none text-xs font-medium text-muted-foreground hover:text-foreground">
                 Ver estado del grupo
               </summary>
-              <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px]">
+              <div className="mt-2 grid grid-cols-3 gap-1.5 text-xs">
                 <Stat label="Promedio" value={analytics.group.average?.toFixed(1) ?? "—"} />
                 <Stat label="Al día" value={`${analytics.group.completePct}%`} />
                 <Stat label="Pendientes" value={String(analytics.group.totalPending)} />
               </div>
-              <div className="mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Activity className="size-3" />
                 {analytics.group.approvalPct}% de aprobación
               </div>
@@ -214,30 +205,14 @@ export function TopRail({
       <div className="ml-auto flex shrink-0 items-center gap-1.5">
         <SyncStatus />
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={() => toggleTheme?.()}
-              aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-              className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/4 text-muted-foreground transition-all hover:bg-white/8 hover:text-foreground"
-            >
-              {theme === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            {theme === "dark" ? "Activar modo claro" : "Activar modo oscuro"}
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
+                <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
               onClick={() => setAnalysisOpen(!preferences.analysisOpen)}
               aria-pressed={preferences.analysisOpen}
               className={cn(
-                "hidden items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-medium transition-all md:flex",
+                "hidden items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition-all md:flex",
                 preferences.analysisOpen
                   ? "border-[var(--gc-cobalt)]/50 bg-[var(--gc-cobalt)]/16 text-foreground"
                   : "border-white/8 bg-white/4 text-muted-foreground hover:bg-white/8 hover:text-foreground",
@@ -257,7 +232,7 @@ export function TopRail({
               onClick={() => setFocusMode(!focus)}
               aria-pressed={focus}
               className={cn(
-                "flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-medium transition-all",
+                "flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition-all",
                 focus
                   ? "border-[var(--gc-cobalt)]/60 bg-[var(--gc-cobalt)]/20 text-foreground font-semibold shadow-xs"
                   : "border-white/8 bg-white/4 text-muted-foreground hover:bg-white/8 hover:text-foreground",
@@ -286,26 +261,16 @@ export function TopRail({
           <TooltipContent side="bottom">Atajos de teclado</TooltipContent>
         </Tooltip>
 
-        {!focus && (
-          <div className="ml-1 hidden items-center gap-2 rounded-xl border border-white/8 bg-white/4 py-1 pr-2.5 pl-1 md:flex">
-            <span className="flex size-6 items-center justify-center rounded-lg bg-gradient-to-br from-[oklch(0.72_0.15_266)] to-[oklch(0.62_0.17_300)] text-[10px] font-semibold text-white">
-              {dataset.teacher.initials}
-            </span>
-            <span className="hidden leading-tight 2xl:block">
-              <span className="block text-[11px] font-medium">{dataset.teacher.name}</span>
-              <span className="block text-[9.5px] text-muted-foreground">{dataset.teacher.role}</span>
-            </span>
-          </div>
-        )}
+        
       </div>
-    </header>
+    </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-white/8 bg-white/3 px-2 py-1.5">
-      <div className="text-[9px] tracking-wide text-muted-foreground uppercase">{label}</div>
+      <div className="text-xs tracking-wide text-muted-foreground uppercase">{label}</div>
       <div className="gc-num mt-0.5 text-[12px] font-semibold">{value}</div>
     </div>
   );

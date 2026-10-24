@@ -76,7 +76,7 @@ export function DaySummaryRail({ metrics, activeFilter, onFilter }: DaySummaryRa
             </span>
             <span className="chrona-overline">{hasRoster ? "registrados" : "sin lista"}</span>
           </div>
-          <p className={cn("mt-1 truncate text-[10.5px] font-medium", complete ? "text-st-present" : "text-muted-foreground")}>
+          <p className={cn("mt-1 truncate text-xs font-medium", complete ? "text-st-present" : "text-muted-foreground")}>
             {!hasRoster ? "Sin estudiantes asignados" : complete ? "Pase de lista completo" : `Quedan ${metrics.pending} por registrar`}
           </p>
         </div>
@@ -143,8 +143,8 @@ export function DaySummaryRail({ metrics, activeFilter, onFilter }: DaySummaryRa
               ) : segment.key === "rate" ? (
                 <Sparkles className="h-3 w-3 shrink-0 text-[var(--chrona-cyan-strong)]" aria-hidden="true" />
               ) : null}
-              <span className="chrona-metric-label text-[9.5px] font-medium text-muted-foreground">{segment.label}</span>
-              <span className={cn("chrona-metric-value tabular text-[11px] font-bold", segment.key === "pending" && segment.value !== null && segment.value > 0 && "text-foreground")}>
+              <span className="chrona-metric-label text-xs font-medium text-muted-foreground">{segment.label}</span>
+              <span className={cn("chrona-metric-value tabular text-xs font-bold", segment.key === "pending" && segment.value !== null && segment.value > 0 && "text-foreground")}>
                 {segment.value ?? "—"}{segment.key === "rate" && segment.value !== null ? "%" : ""}
               </span>
             </button>

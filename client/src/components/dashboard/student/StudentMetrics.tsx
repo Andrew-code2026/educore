@@ -64,7 +64,7 @@ export function StudentMetrics({ metrics }: StudentMetricsProps) {
           >
             {/* Top row: Label + Icon */}
             <div className="flex items-start justify-between gap-2">
-              <span className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
+              <span className="truncate text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
                 {metric.label}
               </span>
               <div

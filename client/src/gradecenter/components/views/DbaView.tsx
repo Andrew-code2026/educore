@@ -62,7 +62,7 @@ export function DbaView() {
             <div className="text-[15px] font-semibold" style={{ fontFamily: "var(--font-display)" }}>
               Evidencias y logro de DBA
             </div>
-            <div className="text-[11px] text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               {dataset.dba.length} derechos básicos · {dataset.evaluations.length} evaluaciones aportan
               evidencia
             </div>
@@ -86,7 +86,7 @@ export function DbaView() {
                 )}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="gc-num text-[10px] font-semibold text-[var(--gc-cobalt)]">
+                  <span className="gc-num text-xs font-semibold text-[var(--gc-cobalt)]">
                     {item.dba.code}
                   </span>
                   <LevelBadge level={item.level} score={item.avg} size="xs" />
@@ -95,7 +95,7 @@ export function DbaView() {
                 <div className="mt-2">
                   <LevelBar score={item.avg} showTicks={false} />
                 </div>
-                <div className="mt-1.5 flex items-center justify-between text-[9.5px] text-muted-foreground">
+                <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
                   <span className="gc-num">{item.evidenceCount} evaluaciones</span>
                   <span className="gc-num">{item.outcomes.length} estudiantes con evidencia</span>
                 </div>
@@ -109,13 +109,13 @@ export function DbaView() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="gc-num text-[11px] font-semibold text-[var(--gc-cobalt)]">
+                  <span className="gc-num text-xs font-semibold text-[var(--gc-cobalt)]">
                     {current.dba.code}
                   </span>
                   <LevelBadge level={current.level} />
                 </div>
                 <div className="mt-1 text-[15px] font-semibold">{current.dba.title}</div>
-                <p className="mt-1 max-w-3xl text-[11.5px] leading-relaxed text-muted-foreground">
+                <p className="mt-1 max-w-3xl text-xs leading-relaxed text-muted-foreground">
                   {current.dba.statement}
                 </p>
               </div>
@@ -152,11 +152,11 @@ export function DbaView() {
                         className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/3 px-2.5 py-1.5"
                       >
                         <BookOpenCheck className="size-3 shrink-0 text-[var(--gc-cobalt)]" />
-                        <span className="gc-num w-7 shrink-0 text-[10px] text-muted-foreground">
+                        <span className="gc-num w-7 shrink-0 text-xs text-muted-foreground">
                           {evaluation.code}
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-[11px]">{evaluation.name}</span>
-                        <span className="gc-num shrink-0 text-[9.5px] text-muted-foreground">
+                        <span className="min-w-0 flex-1 truncate text-xs">{evaluation.name}</span>
+                        <span className="gc-num shrink-0 text-xs text-muted-foreground">
                           {evaluation.weight}%
                         </span>
                         <ScoreChip score={metric.avg} size="xs" />
@@ -164,7 +164,7 @@ export function DbaView() {
                     );
                   })}
                   {current.evaluations.length === 0 && (
-                    <div className="text-[11px] text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       Ninguna evaluación del periodo aporta evidencia a este DBA.
                     </div>
                   )}
@@ -188,7 +188,7 @@ export function DbaView() {
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/3 px-2 py-1.5">
                             <span
-                              className="flex size-6 shrink-0 items-center justify-center rounded-lg border text-[9.5px] font-semibold"
+                              className="flex size-6 shrink-0 items-center justify-center rounded-lg border text-xs font-semibold"
                               style={{
                                 borderColor: outcome.level
                                   ? levelTint(outcome.level, 0.45)
@@ -200,8 +200,8 @@ export function DbaView() {
                               {initials(student)}
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[11px]">{student.fullName}</span>
-                              <span className="gc-num block text-[9px] text-muted-foreground">
+                              <span className="block truncate text-xs">{student.fullName}</span>
+                              <span className="gc-num block text-xs text-muted-foreground">
                                 {outcome.evaluations
                                   .filter((e) => e.grade != null)
                                   .map((e) => e.evaluation.code)
@@ -209,7 +209,7 @@ export function DbaView() {
                               </span>
                             </span>
                             <span
-                              className="gc-num shrink-0 text-[11.5px] font-semibold"
+                              className="gc-num shrink-0 text-xs font-semibold"
                               style={{ color: outcome.level ? LEVELS[outcome.level].color : undefined }}
                             >
                               {formatGrade(outcome.avg)}
@@ -217,10 +217,10 @@ export function DbaView() {
                           </div>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-64">
-                          <div className="text-[11px] font-semibold">
+                          <div className="text-xs font-semibold">
                             {outcome.code} · {outcome.title}
                           </div>
-                          <p className="mt-1 text-[10px] opacity-85">{outcome.statement}</p>
+                          <p className="mt-1 text-xs opacity-85">{outcome.statement}</p>
                         </TooltipContent>
                       </Tooltip>
                     );

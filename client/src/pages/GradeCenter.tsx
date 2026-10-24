@@ -293,7 +293,7 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
           type="button"
           onClick={() => toggleLegacy(true)}
           title="Cambiar temporalmente al Grade Center anterior"
-          className="pointer-events-auto flex items-center gap-1 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-[9.5px] text-muted-foreground backdrop-blur-md transition-colors hover:bg-white/10 hover:text-foreground"
+          className="pointer-events-auto flex items-center gap-1 rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-xs text-muted-foreground backdrop-blur-md transition-colors hover:bg-white/10 hover:text-foreground"
         >
           <History className="size-2.5" />
           Versión anterior

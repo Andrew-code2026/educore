@@ -71,9 +71,9 @@ export function GroupDetail({ layout = "panel" }: { layout?: "panel" | "wide" })
                 )}
               >
                 <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: LEVELS[level].color }} />
-                <span className="flex-1 text-[11px]">{LEVELS[level].label}</span>
-                <span className="gc-num text-[10px] text-muted-foreground">{LEVELS[level].range}</span>
-                <span className="gc-num w-8 text-right text-[10px] font-medium">
+                <span className="flex-1 text-xs">{LEVELS[level].label}</span>
+                <span className="gc-num text-xs text-muted-foreground">{LEVELS[level].range}</span>
+                <span className="gc-num w-8 text-right text-xs font-medium">
                   {group.distribution[level]}
                 </span>
               </button>
@@ -84,11 +84,11 @@ export function GroupDetail({ layout = "panel" }: { layout?: "panel" | "wide" })
         <Section title="Tendencias del periodo">
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-xl border border-white/8 bg-white/3 p-2.5">
-              <div className="flex items-center gap-1.5 text-[10px] text-[var(--gc-alto)]">
+              <div className="flex items-center gap-1.5 text-xs text-[var(--gc-alto)]">
                 <TrendingUp className="size-3" /> En ascenso
               </div>
               <div className="gc-num mt-1 text-lg font-semibold">{group.improving.length}</div>
-              <div className="mt-1 truncate text-[10px] text-muted-foreground">
+              <div className="mt-1 truncate text-xs text-muted-foreground">
                 {group.improving
                   .slice(0, 2)
                   .map((s) => s.student.firstName)
@@ -96,11 +96,11 @@ export function GroupDetail({ layout = "panel" }: { layout?: "panel" | "wide" })
               </div>
             </div>
             <div className="rounded-xl border border-white/8 bg-white/3 p-2.5">
-              <div className="flex items-center gap-1.5 text-[10px] text-[var(--gc-bajo)]">
+              <div className="flex items-center gap-1.5 text-xs text-[var(--gc-bajo)]">
                 <TrendingDown className="size-3" /> En descenso
               </div>
               <div className="gc-num mt-1 text-lg font-semibold">{group.declining.length}</div>
-              <div className="mt-1 truncate text-[10px] text-muted-foreground">
+              <div className="mt-1 truncate text-xs text-muted-foreground">
                 {group.declining
                   .slice(0, 2)
                   .map((s) => s.student.firstName)
@@ -133,7 +133,7 @@ export function GroupDetail({ layout = "panel" }: { layout?: "panel" | "wide" })
                 onClick={() => selectEvaluation(metric.evaluation.id)}
                 className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-white/6"
               >
-                <span className="gc-num w-7 shrink-0 text-[10px] text-muted-foreground">
+                <span className="gc-num w-7 shrink-0 text-xs text-muted-foreground">
                   {metric.evaluation.code}
                 </span>
                 <span className="relative h-2 flex-1 overflow-hidden rounded-full bg-white/6">
@@ -145,14 +145,14 @@ export function GroupDetail({ layout = "panel" }: { layout?: "panel" | "wide" })
                     }}
                   />
                 </span>
-                <span className="gc-num w-7 shrink-0 text-right text-[11px] font-medium">
+                <span className="gc-num w-7 shrink-0 text-right text-xs font-medium">
                   {formatGrade(metric.avg)}
                 </span>
-                <span className="gc-num w-12 shrink-0 text-right text-[9.5px] text-muted-foreground">
+                <span className="gc-num w-12 shrink-0 text-right text-xs text-muted-foreground">
                   {metric.evaluatedPct}% eval.
                 </span>
                 <span
-                  className="gc-num w-14 shrink-0 text-right text-[9.5px] whitespace-nowrap"
+                  className="gc-num w-14 shrink-0 text-right text-xs whitespace-nowrap"
                   style={{ color: metric.pending > 0 ? "var(--gc-bajo)" : "var(--muted-foreground)" }}
                 >
                   {metric.pending > 0 ? `${metric.pending} pend.` : "al día"}
@@ -162,7 +162,7 @@ export function GroupDetail({ layout = "panel" }: { layout?: "panel" | "wide" })
           })}
         </div>
         {group.hardest && group.easiest && group.hardest.evaluation.id !== group.easiest.evaluation.id && (
-          <div className="mt-3 grid gap-1.5 rounded-xl border border-white/8 bg-white/3 p-2.5 text-[11px] leading-relaxed md:grid-cols-2">
+          <div className="mt-3 grid gap-1.5 rounded-xl border border-white/8 bg-white/3 p-2.5 text-xs leading-relaxed md:grid-cols-2">
             <div className="flex items-center gap-1.5 text-[var(--gc-bajo)]">
               <TrendingDown className="size-3 shrink-0" />
               Más exigente: <span className="font-medium">{group.hardest.evaluation.name}</span>{" "}
@@ -188,7 +188,7 @@ export function GroupDetail({ layout = "panel" }: { layout?: "panel" | "wide" })
                 >
                   <span
                     className={cn(
-                      "gc-num flex size-5 shrink-0 items-center justify-center rounded-lg text-[10px] font-semibold",
+                      "gc-num flex size-5 shrink-0 items-center justify-center rounded-lg text-xs font-semibold",
                       index === 0
                         ? "bg-[var(--gc-superior)]/20 text-[var(--gc-superior)]"
                         : "bg-white/6 text-muted-foreground",
@@ -201,10 +201,10 @@ export function GroupDetail({ layout = "panel" }: { layout?: "panel" | "wide" })
                     onClick={() => selectStudent(metrics.student.id)}
                     className="min-w-0 flex-1 text-left"
                   >
-                    <span className="block truncate text-[11.5px] font-medium">
+                    <span className="block truncate text-xs font-medium">
                       {metrics.student.fullName}
                     </span>
-                    <span className="gc-num block text-[9.5px] text-muted-foreground">
+                    <span className="gc-num block text-xs text-muted-foreground">
                       {metrics.evaluatedPct}% evaluado · {metrics.student.code}
                     </span>
                   </button>
@@ -243,14 +243,14 @@ export function GroupDetail({ layout = "panel" }: { layout?: "panel" | "wide" })
                 className="rounded-2xl border border-white/8 bg-white/3 p-3 text-left transition-colors hover:bg-white/6"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="gc-num text-[10px] font-semibold text-[var(--gc-cobalt)]">
+                  <span className="gc-num text-xs font-semibold text-[var(--gc-cobalt)]">
                     {metric.evaluation.code}
                   </span>
-                  <span className="gc-num text-[10px] text-muted-foreground">
+                  <span className="gc-num text-xs text-muted-foreground">
                     {metric.evaluation.weight}%
                   </span>
                 </div>
-                <div className="mt-1 truncate text-[11.5px] font-medium">{metric.evaluation.name}</div>
+                <div className="mt-1 truncate text-xs font-medium">{metric.evaluation.name}</div>
                 <MicroBars
                   className="mt-2"
                   values={dataset.students.map(
@@ -258,7 +258,7 @@ export function GroupDetail({ layout = "panel" }: { layout?: "panel" | "wide" })
                   )}
                 />
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-[9.5px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {metric.evaluatedPct}% evaluado
                   </span>
                   <LevelBadge level={metric.level} score={metric.avg} size="xs" />
@@ -285,10 +285,10 @@ function TypeRow({
     <div className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/3 px-2.5 py-2">
       <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: tone }} />
       <span className="min-w-0 flex-1">
-        <span className="block text-[9.5px] tracking-wide text-muted-foreground uppercase">{label}</span>
+        <span className="block text-xs tracking-wide text-muted-foreground uppercase">{label}</span>
         <span className="block truncate text-[12px] font-medium">{TYPE_META[type.type].label}</span>
       </span>
-      <span className="gc-num shrink-0 text-[10px] text-muted-foreground">{type.count} est.</span>
+      <span className="gc-num shrink-0 text-xs text-muted-foreground">{type.count} est.</span>
       <ScoreChip score={type.avg} size="sm" />
     </div>
   );
@@ -304,7 +304,7 @@ export function StudentList({
   const { selectStudent, jumpToStudent, analytics } = useGradeCenter();
 
   if (items.length === 0) {
-    return <div className="text-[11px] text-muted-foreground">Sin estudiantes en esta situación.</div>;
+    return <div className="text-xs text-muted-foreground">Sin estudiantes en esta situación.</div>;
   }
 
   return (
@@ -331,8 +331,8 @@ export function StudentList({
               onClick={() => selectStudent(metrics.student.id)}
               className="min-w-0 flex-1 text-left"
             >
-              <span className="block truncate text-[11.5px] font-medium">{metrics.student.fullName}</span>
-              <span className="gc-num block text-[9.5px] text-muted-foreground">
+              <span className="block truncate text-xs font-medium">{metrics.student.fullName}</span>
+              <span className="gc-num block text-xs text-muted-foreground">
                 {metrics.student.code} ·{" "}
                 {showPending ? `${metrics.pendingCount} pendientes` : `${metrics.evaluatedPct}% evaluado`}
               </span>

@@ -70,7 +70,7 @@ export function ControlStrip() {
       <button
         type="button"
         onClick={() => setNewEvaluationOpen(true)}
-        className="flex items-center gap-1.5 rounded-xl border border-[var(--gc-cobalt)]/45 bg-[var(--gc-cobalt)]/18 px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--gc-cobalt)]/28"
+        className="flex items-center gap-1.5 rounded-xl border border-[var(--gc-cobalt)]/45 bg-[var(--gc-cobalt)]/18 px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-[var(--gc-cobalt)]/28"
       >
         <ClipboardPlus className="size-3.5 text-[var(--gc-cobalt)]" />
         <span className="hidden sm:inline">Nueva evaluación</span>
@@ -79,11 +79,11 @@ export function ControlStrip() {
       <button
         type="button"
         onClick={() => setBulkOpen(true)}
-        className="flex items-center gap-1.5 rounded-xl border border-[var(--gc-cobalt)]/35 bg-[var(--gc-cobalt)]/12 px-2.5 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-[var(--gc-cobalt)]/20"
+        className="flex items-center gap-1.5 rounded-xl border border-[var(--gc-cobalt)]/35 bg-[var(--gc-cobalt)]/12 px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-[var(--gc-cobalt)]/20"
       >
         <PenLine className="size-3.5 text-[var(--gc-cobalt)]" />
         <span className="hidden sm:inline">Calificación masiva</span>
-        {selectedRows.length > 0 && <span className="gc-num rounded-full bg-[var(--gc-cobalt)]/25 px-1.5 text-[9px]">{selectedRows.length}</span>}
+        {selectedRows.length > 0 && <span className="gc-num rounded-full bg-[var(--gc-cobalt)]/25 px-1.5 text-xs">{selectedRows.length}</span>}
       </button>
 
       <Tooltip>
@@ -93,7 +93,7 @@ export function ControlStrip() {
             aria-pressed={preferences.quickEdit}
             onClick={() => setQuickEdit(!preferences.quickEdit)}
             className={cn(
-              "flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-semibold transition-colors",
+              "flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-colors",
               preferences.quickEdit
                 ? "border-[var(--gc-cobalt)]/55 bg-[var(--gc-cobalt)]/18 text-foreground"
                 : "border-white/8 bg-white/4 text-muted-foreground hover:bg-white/8 hover:text-foreground",
@@ -119,7 +119,7 @@ export function ControlStrip() {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex items-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
+            className="flex items-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
           >
             <ArrowDownUp className="size-3.5" />
             <span className="hidden md:inline">Ordenar:</span>
@@ -141,13 +141,13 @@ export function ControlStrip() {
             </button>
           ))}
           <div className="mt-1 flex items-center justify-between border-t border-white/8 px-1 pt-2">
-            <span className="text-[10px] text-muted-foreground">Dirección</span>
+            <span className="text-xs text-muted-foreground">Dirección</span>
             <button
               type="button"
               onClick={() =>
                 setSort({ ...preferences.sort, dir: preferences.sort.dir === "asc" ? "desc" : "asc" })
               }
-              className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-medium hover:bg-white/10"
+              className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs font-medium hover:bg-white/10"
             >
               {preferences.sort.dir === "asc" ? "Ascendente ↑" : "Descendente ↓"}
             </button>
@@ -161,7 +161,7 @@ export function ControlStrip() {
           <button
             type="button"
             className={cn(
-              "flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-[11px] font-medium transition-colors",
+              "flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-medium transition-colors",
               hasActiveFilters(filters)
                 ? "border-[var(--gc-cobalt)]/50 bg-[var(--gc-cobalt)]/14 text-foreground"
                 : "border-white/8 bg-white/4 text-muted-foreground hover:bg-white/8 hover:text-foreground",
@@ -170,14 +170,14 @@ export function ControlStrip() {
             <Filter className="size-3.5" />
             <span className="hidden md:inline">Filtros</span>
             {hasActiveFilters(filters) && (
-              <span className="gc-num rounded-full bg-[var(--gc-cobalt)] px-1.5 text-[10px] text-white">
+              <span className="gc-num rounded-full bg-[var(--gc-cobalt)] px-1.5 text-xs text-white">
                 {chips.length}
               </span>
             )}
           </button>
         </PopoverTrigger>
         <PopoverContent align="start" className="glass-strong w-64 rounded-2xl border-white/10 p-2.5">
-          <div className="gc-label mb-2 text-[9px]">Nivel académico</div>
+          <div className="gc-label mb-2 text-xs">Nivel académico</div>
           <div className="grid grid-cols-2 gap-1.5">
             {(["superior", "alto", "basico", "bajo"] as LevelId[]).map((level) => {
               const active = filters.levels.includes(level);
@@ -187,7 +187,7 @@ export function ControlStrip() {
                   type="button"
                   onClick={() => toggleLevel(level)}
                   className={cn(
-                    "flex items-center gap-2 rounded-xl border px-2 py-1.5 text-left text-[11px] transition-all",
+                    "flex items-center gap-2 rounded-xl border px-2 py-1.5 text-left text-xs transition-all",
                     active ? "border-transparent" : "border-white/8 bg-white/4 hover:bg-white/8",
                   )}
                   style={
@@ -205,7 +205,7 @@ export function ControlStrip() {
                   />
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{LEVELS[level].label}</span>
-                    <span className="gc-num block text-[9px] text-muted-foreground">
+                    <span className="gc-num block text-xs text-muted-foreground">
                       {LEVELS[level].range}
                     </span>
                   </span>
@@ -214,7 +214,7 @@ export function ControlStrip() {
             })}
           </div>
 
-          <div className="gc-label mt-3 mb-2 text-[9px]">Situaciones del grupo</div>
+          <div className="gc-label mt-3 mb-2 text-xs">Situaciones del grupo</div>
           <div className="space-y-1">
             <FilterToggle
               icon={<Clock className="size-3.5" />}
@@ -254,7 +254,7 @@ export function ControlStrip() {
                 evaluationState: null,
               })
             }
-            className="mt-3 w-full rounded-xl border border-white/10 bg-white/4 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
+            className="mt-3 w-full rounded-xl border border-white/10 bg-white/4 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-white/8 hover:text-foreground"
           >
             Limpiar todos los filtros
           </button>
@@ -265,7 +265,7 @@ export function ControlStrip() {
       {chips.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
           {chips.map((chip) => (
-            <span key={chip.id} className="gc-chip gc-pop px-2 py-1 text-[10.5px] text-foreground/90">
+            <span key={chip.id} className="gc-chip gc-pop px-2 py-1 text-xs text-foreground/90">
               {chip.label}
               <button
                 type="button"
@@ -290,7 +290,7 @@ export function ControlStrip() {
                 evaluationState: null,
               })
             }
-            className="text-[10.5px] text-muted-foreground underline decoration-dotted transition-colors hover:text-foreground"
+            className="text-xs text-muted-foreground underline decoration-dotted transition-colors hover:text-foreground"
           >
             Limpiar
           </button>
@@ -300,7 +300,7 @@ export function ControlStrip() {
       <div className="flex-1" />
 
       {!focus && (
-        <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <SlidersHorizontal className="size-3" />
           <span className="gc-num">
             <span className="font-semibold text-foreground">{students.length}</span> de{" "}
@@ -325,7 +325,7 @@ export function ControlStrip() {
             <button
               type="button"
               onClick={() => setView("standard")}
-              className="flex items-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-[11px] text-muted-foreground"
+              className="flex items-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-xs text-muted-foreground"
             >
               <Sparkles className="size-3.5" />
               <span className="gc-num">{students.length}</span> estudiantes
@@ -365,14 +365,14 @@ function FilterToggle({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-left text-[11px] transition-all",
+        "flex w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-left text-xs transition-all",
         active ? "border-[var(--gc-cobalt)]/60 bg-[var(--gc-cobalt)]/16" : "border-white/8 bg-white/4 hover:bg-white/8",
       )}
       style={active && tone ? { borderColor: `color-mix(in oklab, ${tone} 55%, transparent)` } : undefined}
     >
       <span style={{ color: tone }}>{icon}</span>
       <span className="flex-1">{label}</span>
-      <span className="gc-num text-[10px] text-muted-foreground">{count}</span>
+      <span className="gc-num text-xs text-muted-foreground">{count}</span>
     </button>
   );
 }
@@ -383,7 +383,7 @@ function WeightStatus({ integrity }: { integrity: { used: number; remaining: num
   const color = exceeded ? "var(--gc-bajo)" : valid ? "var(--gc-alto)" : "var(--gc-basico)";
   const label = exceeded ? "Excedida" : valid ? "Válida" : "Incompleta";
   return (
-    <div className="hidden items-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-[10px] md:flex" title={`Ponderación usada ${integrity.used}%. Restante ${integrity.remaining}%.`}>
+    <div className="hidden items-center gap-1.5 rounded-xl border border-white/8 bg-white/4 px-2.5 py-1.5 text-xs md:flex" title={`Ponderación usada ${integrity.used}%. Restante ${integrity.remaining}%.`}>
       {exceeded ? <AlertTriangle className="size-3" style={{ color }} /> : valid ? <CheckCircle2 className="size-3" style={{ color }} /> : <Clock className="size-3" style={{ color }} />}
       <span className="text-muted-foreground">Peso</span>
       <span className="gc-num font-semibold" style={{ color }}>{integrity.used}%</span>

@@ -86,4 +86,5 @@ export interface TeacherDashboardProps {
   data: any;
   user?: any;
   setSection: (section: Section) => void;
+  mode?: "overview" | "analytics";
 }

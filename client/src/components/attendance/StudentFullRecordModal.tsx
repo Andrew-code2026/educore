@@ -572,10 +572,10 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                 <h1 className="truncate text-base sm:text-lg font-black text-slate-900 tracking-tight">
                   {student.name}
                 </h1>
-                <span className="hidden sm:inline-flex rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+                <span className="hidden sm:inline-flex rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-xs font-bold text-indigo-700">
                   {student.code}
                 </span>
-                <span className="inline-flex rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                <span className="inline-flex rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-xs font-bold text-emerald-700">
                   {student.academicStatus || "Activo"}
                 </span>
               </div>
@@ -601,7 +601,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
               }`}
             >
               <span>{periodStats.attendanceRate}% Asistencia</span>
-              <span className="text-[10px] text-slate-400 font-normal">({periodStats.recordedDays} d)</span>
+              <span className="text-xs text-slate-400 font-normal">({periodStats.recordedDays} d)</span>
             </div>
 
             {/* Controles de anterior y siguiente */}
@@ -616,7 +616,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                 <span className="hidden sm:inline">Anterior</span>
               </button>
 
-              <span className="px-2 text-[11px] font-mono font-bold text-slate-400">
+              <span className="px-2 text-xs font-mono font-bold text-slate-400">
                 {currentIndex + 1}/{totalStudents}
               </span>
 
@@ -682,7 +682,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                 <span>{tab.label}</span>
                 {tab.count !== null && (
                   <span
-                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                    className={`rounded-full px-1.5 py-0.2 text-xs font-bold ${
                       isActive
                         ? "bg-indigo-100 text-indigo-800"
                         : "bg-slate-200 text-slate-600"
@@ -713,30 +713,30 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                     <h2 className="text-xs font-black uppercase tracking-wider text-slate-400">
                       Ficha familiar y personal
                     </h2>
-                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                    <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                       Matrícula activa
                     </span>
                   </div>
 
                   <div className="space-y-3 text-xs">
                     <div>
-                      <span className="text-slate-400 text-[11px] block">Nombre completo</span>
+                      <span className="text-slate-400 text-xs block">Nombre completo</span>
                       <p className="font-bold text-slate-900 text-sm mt-0.5">{student.name}</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <span className="text-slate-400 text-[11px] block">Código ID</span>
+                        <span className="text-slate-400 text-xs block">Código ID</span>
                         <p className="font-mono font-bold text-slate-800 mt-0.5">{student.code}</p>
                       </div>
                       <div>
-                        <span className="text-slate-400 text-[11px] block">Curso</span>
+                        <span className="text-slate-400 text-xs block">Curso</span>
                         <p className="font-bold text-slate-800 mt-0.5">{course.label}</p>
                       </div>
                     </div>
 
                     <div className="pt-2 border-t border-slate-100 space-y-2">
-                      <span className="text-slate-400 text-[11px] block font-bold uppercase tracking-wider">
+                      <span className="text-slate-400 text-xs block font-bold uppercase tracking-wider">
                         Acudiente principal
                       </span>
                       <p className="font-bold text-slate-800">
@@ -764,7 +764,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                     <h2 className="text-xs font-black uppercase tracking-wider text-slate-400">
                       Balance de asistencia ({days.length} sesiones)
                     </h2>
-                    <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                    <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
                       Periodo 2
                     </span>
                   </div>
@@ -823,19 +823,19 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
 
                     <div className="grid grid-cols-4 gap-1 text-center pt-2">
                       <div className="rounded-lg bg-emerald-50/60 p-1.5 border border-emerald-100">
-                        <p className="text-[10px] font-bold text-emerald-800">Presente</p>
+                        <p className="text-xs font-bold text-emerald-800">Presente</p>
                         <p className="text-sm font-black text-emerald-900">{periodStats.presentCount}</p>
                       </div>
                       <div className="rounded-lg bg-rose-50/60 p-1.5 border border-rose-100">
-                        <p className="text-[10px] font-bold text-rose-800">Ausente</p>
+                        <p className="text-xs font-bold text-rose-800">Ausente</p>
                         <p className="text-sm font-black text-rose-900">{periodStats.absentCount}</p>
                       </div>
                       <div className="rounded-lg bg-amber-50/60 p-1.5 border border-amber-100">
-                        <p className="text-[10px] font-bold text-amber-800">Tardanza</p>
+                        <p className="text-xs font-bold text-amber-800">Tardanza</p>
                         <p className="text-sm font-black text-amber-900">{periodStats.lateCount}</p>
                       </div>
                       <div className="rounded-lg bg-blue-50/60 p-1.5 border border-blue-100">
-                        <p className="text-[10px] font-bold text-blue-800">Excusa</p>
+                        <p className="text-xs font-bold text-blue-800">Excusa</p>
                         <p className="text-sm font-black text-blue-900">{periodStats.excusedCount}</p>
                       </div>
                     </div>
@@ -849,7 +849,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                       <h2 className="text-xs font-black uppercase tracking-wider text-slate-400">
                         Diagnóstico pedagógico
                       </h2>
-                      <span className="text-[10px] font-bold text-slate-500">
+                      <span className="text-xs font-bold text-slate-500">
                         Intelligence AI
                       </span>
                     </div>
@@ -886,7 +886,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                         <p className="text-xs font-extrabold text-emerald-900 mt-1">
                           Asistencia regular y al día
                         </p>
-                        <p className="text-[11px] text-emerald-700 leading-relaxed">
+                        <p className="text-xs text-emerald-700 leading-relaxed">
                           Cumplimiento consistente sin patrones negativos ni alertas de deserción escolar.
                         </p>
                       </div>
@@ -942,7 +942,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-slate-900">{day.label}</span>
-                          <span className="text-[10px] font-mono text-slate-500">{day.iso.slice(5)}</span>
+                          <span className="text-xs font-mono text-slate-500">{day.iso.slice(5)}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="inline-flex items-center gap-1 text-xs font-extrabold">
@@ -950,7 +950,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                             {meta.label}
                           </span>
                           {hasJust && (
-                            <span className="rounded bg-blue-100 text-blue-800 px-1 py-0.2 text-[9px] font-bold">
+                            <span className="rounded bg-blue-100 text-blue-800 px-1 py-0.2 text-xs font-bold">
                               Excusa
                             </span>
                           )}
@@ -1002,7 +1002,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                         <span className="text-xs font-extrabold text-slate-700">
                           Semana {wIdx + 1}
                         </span>
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-xs text-slate-400">
                           {week[0]?.label} – {week[week.length - 1]?.label}
                         </span>
                       </div>
@@ -1025,18 +1025,18 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                                   : "border-slate-200"
                               }`}
                             >
-                              <div className="flex items-center justify-between text-[11px] font-bold text-slate-800">
+                              <div className="flex items-center justify-between text-xs font-bold text-slate-800">
                                 <span>{day.label}</span>
                                 <span className={`h-2 w-2 rounded-full ${meta.dotColor}`} />
                               </div>
                               <div className="mt-1.5 flex items-center justify-between">
-                                <span className={`text-[11px] font-extrabold ${meta.tone}`}>
+                                <span className={`text-xs font-extrabold ${meta.tone}`}>
                                   {meta.label}
                                 </span>
                                 {just && (
                                   <span
                                     title={`Excusa ${JUSTIFICATION_STATUS_META[just.status].label}`}
-                                    className="rounded bg-blue-100 text-blue-800 px-1 py-0.2 text-[9px] font-bold"
+                                    className="rounded bg-blue-100 text-blue-800 px-1 py-0.2 text-xs font-bold"
                                   >
                                     Doc
                                   </span>
@@ -1079,7 +1079,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                         >
                           {presencePct}%
                         </p>
-                        <div className="mt-2 space-y-0.5 text-[10px] text-slate-500 text-left">
+                        <div className="mt-2 space-y-0.5 text-xs text-slate-500 text-left">
                           <p>Faltas: <strong className={dow.absent > 0 ? "text-rose-700" : "text-slate-700"}>{dow.absent}</strong></p>
                           <p>Tardanzas: <strong className={dow.late > 0 ? "text-amber-700" : "text-slate-700"}>{dow.late}</strong></p>
                           <p>Excusas: <strong className="text-blue-700">{dow.excused}</strong></p>
@@ -1124,7 +1124,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
 
               <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                  <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-xs">
                     <tr>
                       <th className="px-5 py-3">Fecha y sesión</th>
                       <th className="px-4 py-3">Estado registrado</th>
@@ -1143,7 +1143,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                         <tr key={day.iso} className="hover:bg-slate-50/70 transition">
                           <td className="px-5 py-3 font-semibold text-slate-800">
                             <div>{day.label}</div>
-                            <div className="text-[10px] text-slate-400 font-mono">{day.iso}</div>
+                            <div className="text-xs text-slate-400 font-mono">{day.iso}</div>
                           </td>
 
                           <td className="px-4 py-3">
@@ -1167,13 +1167,13 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                                   setSelectedJustificationId(just.id);
                                   setActiveTab("justifications");
                                 }}
-                                className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-800 hover:underline"
+                                className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-800 hover:underline"
                               >
                                 <FileText className="h-3 w-3 text-blue-600" />
                                 <span>{JUSTIFICATION_STATUS_META[just.status].label} (#{just.id})</span>
                               </button>
                             ) : (
-                              <span className="text-slate-400 text-[11px]">—</span>
+                              <span className="text-slate-400 text-xs">—</span>
                             )}
                           </td>
 
@@ -1191,7 +1191,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                                       toast.success(`Fecha ${day.label} actualizada a ${targetMeta.label}`);
                                     }}
                                     title={`Marcar como ${targetMeta.label}`}
-                                    className={`px-2 py-1 text-[10px] font-bold rounded-md transition ${
+                                    className={`px-2 py-1 text-xs font-bold rounded-md transition ${
                                       isCurrent
                                         ? `${targetMeta.badge} shadow-xs font-black`
                                         : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
@@ -1223,7 +1223,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                   <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
                     Trámites radicados ({studentJustifications.length})
                   </h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Historial de excusas de {student.name}
                   </p>
                 </div>
@@ -1247,14 +1247,14 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                           <span className="text-xs font-black text-slate-900">
                             {just.attendanceDate}
                           </span>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${meta.badge}`}>
+                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${meta.badge}`}>
                             {meta.label}
                           </span>
                         </div>
                         <p className="text-xs text-slate-600 font-medium truncate mt-1">
                           {JUSTIFICATION_REASON_LABELS[just.reasonCategory]}
                         </p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">
+                        <p className="text-xs text-slate-400 mt-0.5">
                           Radicado por: {just.submittedByName} ({just.submittedByRole})
                         </p>
                       </button>
@@ -1309,13 +1309,13 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
 
                     {/* Descripción declarada */}
                     <div className="rounded-xl bg-slate-50 p-3.5 border border-slate-200/80 text-xs space-y-1">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                      <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
                         Declaración del acudiente / solicitante:
                       </span>
                       <p className="text-slate-800 leading-relaxed font-medium">
                         "{currentJustification.description}"
                       </p>
-                      <p className="text-[10px] text-slate-400 pt-1">
+                      <p className="text-xs text-slate-400 pt-1">
                         Radicado el {new Date(currentJustification.submittedAt).toLocaleString("es-CO")} por{" "}
                         {currentJustification.submittedByName} ({currentJustification.submittedByRole})
                       </p>
@@ -1340,7 +1340,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                               >
                                 <ZoomOut className="h-3.5 w-3.5" />
                               </button>
-                              <span className="text-[10px] font-mono text-slate-600 px-1">{zoomLevel}%</span>
+                              <span className="text-xs font-mono text-slate-600 px-1">{zoomLevel}%</span>
                               <button
                                 type="button"
                                 onClick={() => setZoomLevel((z) => Math.min(200, z + 15))}
@@ -1364,7 +1364,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                             <button
                               type="button"
                               onClick={() => setIsExpandedDocPreviewOpen(true)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition shadow-2xs ml-1"
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:text-indigo-600 transition shadow-2xs ml-1"
                               title="Abrir en pantalla completa / visor interactivo"
                             >
                               <Maximize2 className="h-3.5 w-3.5 text-indigo-600" />
@@ -1387,7 +1387,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                                 <h4 className="text-xs font-bold text-slate-900">
                                   No fue posible previsualizar el documento directamente
                                 </h4>
-                                <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                                   El archivo puede tener restricciones del servidor o el navegador impide embeberlo en esta vista.
                                 </p>
                               </div>
@@ -1461,7 +1461,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                                     <h4 className="text-xs font-bold text-slate-900 break-all">
                                       {currentDocInfo.fileName}
                                     </h4>
-                                    <p className="text-[11px] text-slate-500 mt-1">
+                                    <p className="text-xs text-slate-500 mt-1">
                                       {currentDocInfo.isOffice
                                         ? "Documento de Microsoft Office adjuntado"
                                         : "Archivo de soporte digital adjuntado"}
@@ -1506,7 +1506,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                           <span className="text-xs font-black uppercase tracking-wider text-indigo-950">
                             Resolución institucional de la inasistencia
                           </span>
-                          <span className="text-[10px] text-indigo-600 font-medium">
+                          <span className="text-xs text-indigo-600 font-medium">
                             La aprobación justificará automáticamente la falta en la planilla
                           </span>
                         </div>
@@ -1550,13 +1550,13 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                             {JUSTIFICATION_STATUS_META[currentJustification.status].label}
                           </strong>
                           {currentJustification.resolutionNotes && (
-                            <span className="block text-[11px] text-slate-500 mt-0.5">
+                            <span className="block text-xs text-slate-500 mt-0.5">
                               Nota: {currentJustification.resolutionNotes}
                             </span>
                           )}
                         </div>
                         {currentJustification.resolvedByName && (
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-xs text-slate-400">
                             Por {currentJustification.resolvedByName}
                           </span>
                         )}
@@ -1625,7 +1625,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                       {currentCaseNotes.map((note) => (
                         <div key={note.id} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-xs space-y-1">
                           <p className="text-slate-800 leading-relaxed font-medium">{note.note}</p>
-                          <p className="text-[10px] text-slate-400">
+                          <p className="text-xs text-slate-400">
                             {note.authorName} · {new Date(note.createdAt).toLocaleString("es-CO")}
                           </p>
                         </div>
@@ -1723,7 +1723,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                     Casos pedagógicos resueltos y archivados ({resolvedCases.length})
                   </h3>
-                  <span className="text-[11px] text-slate-400">Antecedentes institucionales</span>
+                  <span className="text-xs text-slate-400">Antecedentes institucionales</span>
                 </div>
 
                 <div className="space-y-2">
@@ -1731,11 +1731,11 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                     <div key={c.id} className="rounded-xl border border-slate-100 bg-slate-50/60 p-3.5 text-xs space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="font-extrabold text-slate-900">Caso #{c.id} · {c.reason}</span>
-                        <span className="rounded-md bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[10px] font-bold">
+                        <span className="rounded-md bg-emerald-100 text-emerald-800 px-2 py-0.5 text-xs font-bold">
                           Resuelto el {c.resolvedAt ? new Date(c.resolvedAt).toLocaleDateString("es-CO") : "—"}
                         </span>
                       </div>
-                      <p className="text-slate-500 text-[11px]">
+                      <p className="text-slate-500 text-xs">
                         Asignado a: {c.responsibleName} · Creado el {new Date(c.createdAt).toLocaleDateString("es-CO")}
                       </p>
                     </div>
@@ -1813,7 +1813,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
                       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-1.5 transition hover:border-slate-300">
                         <div className="flex items-center justify-between">
                           <h4 className="text-xs font-extrabold text-slate-900">{item.title}</h4>
-                          <span className="text-[10px] font-mono text-slate-400">
+                          <span className="text-xs font-mono text-slate-400">
                             {new Date(item.timestamp).toLocaleDateString("es-CO", {
                               day: "2-digit",
                               month: "short",
@@ -1824,7 +1824,7 @@ export const StudentFullRecordModal: React.FC<StudentFullRecordModalProps> = ({
 
                         <p className="text-xs text-slate-700 leading-relaxed">{item.description}</p>
 
-                        <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 text-[10px] text-slate-400">
+                        <div className="flex items-center justify-between pt-1.5 border-t border-slate-100 text-xs text-slate-400">
                           <span>
                             {item.actorRole}: <strong className="text-slate-600">{item.actorName}</strong>
                           </span>

@@ -48,14 +48,14 @@ export function TeacherMetricsRow({ metrics }: TeacherMetricsRowProps) {
               </span>
               <ArrowRight className="h-3 w-3 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-600" />
             </div>
-            <p className="mt-3 text-[9px] font-bold uppercase tracking-[0.13em] text-slate-400">
+            <p className="mt-3 text-xs font-bold uppercase tracking-[0.13em] text-slate-400">
               {metric.label}
             </p>
             <p className="mt-1 truncate text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">
               {metric.value}
             </p>
             {metric.detail && (
-              <p className="mt-0.5 truncate text-[9px] text-slate-500">
+              <p className="mt-0.5 truncate text-xs text-slate-500">
                 {metric.detail}
               </p>
             )}

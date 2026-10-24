@@ -57,7 +57,7 @@ export function AttendancePanel(props: AttendancePanelProps) {
       >
         <GraduationCap className="h-7 w-7 text-muted-foreground/70" aria-hidden="true" />
         <p className="text-[13.5px] font-medium">Sin cursos asignados</p>
-        <p className="max-w-[320px] text-[11.5px] text-muted-foreground">
+        <p className="max-w-[320px] text-xs text-muted-foreground">
           Cuando el docente tenga cursos cargados, la jornada de asistencia aparecerá aquí.
         </p>
       </div>
@@ -430,7 +430,7 @@ function AttendanceSessionView({
         </div>
 
         {classState.state === "none" ? (
-          <div className="flex items-center gap-2 rounded-xl bg-foreground/[0.03] px-3 py-1.5 text-[11.5px] text-muted-foreground ring-1 ring-inset ring-hairline">
+          <div className="flex items-center gap-2 rounded-xl bg-foreground/[0.03] px-3 py-1.5 text-xs text-muted-foreground ring-1 ring-inset ring-hairline">
             <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             {course.name} no tiene clase programada este día · {progressMessage(metrics)}. Puedes revisar
             o ajustar registros igualmente.

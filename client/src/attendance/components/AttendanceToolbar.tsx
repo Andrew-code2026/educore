@@ -50,7 +50,7 @@ function ActionButton({
           disabled={disabled}
           aria-label={label}
           className={cn(
-            "chrona-action flex h-8 items-center justify-center gap-1.5 rounded-[10px] px-2.5 text-[10.5px] font-semibold transition-all",
+            "chrona-action flex h-8 items-center justify-center gap-1.5 rounded-[10px] px-2.5 text-xs font-semibold transition-all",
             primary ? "chrona-action-primary" : "chrona-action-secondary",
             disabled && "pointer-events-none opacity-40",
             iconOnly && "w-8 px-0",
@@ -58,10 +58,10 @@ function ActionButton({
         >
           <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {!iconOnly ? <span className={alwaysLabel ? "whitespace-nowrap" : "hidden sm:inline"}>{label}</span> : null}
-          {typeof badge === "number" && badge > 0 ? <span className="tabular rounded-full bg-foreground/[0.08] px-1.5 py-px text-[9px] font-bold">{badge}</span> : null}
+          {typeof badge === "number" && badge > 0 ? <span className="tabular rounded-full bg-foreground/[0.08] px-1.5 py-px text-xs font-bold">{badge}</span> : null}
         </button>
       </TooltipTrigger>
-      <TooltipContent side="bottom" className="text-[10.5px]">{hint}</TooltipContent>
+      <TooltipContent side="bottom" className="text-xs">{hint}</TooltipContent>
     </Tooltip>
   );
 }
@@ -130,7 +130,7 @@ export function AttendanceToolbar({
             onChange={event => onQueryChange(event.target.value)}
             placeholder="Buscar estudiante"
             aria-label="Buscar estudiante"
-            className="min-w-0 flex-1 bg-transparent text-[10.5px] outline-none placeholder:text-muted-foreground/70"
+            className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/70"
           />
           {query ? (
             <button type="button" onClick={() => onQueryChange("")} aria-label="Limpiar búsqueda" className="grid h-4 w-4 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-foreground/[0.1] hover:text-foreground">
@@ -161,7 +161,7 @@ export function AttendanceToolbar({
               title={focusMode ? "Salir de concentración · Esc" : "Enfocar asistencia"}
               onClick={onToggleFocusMode}
               className={cn(
-                "chrona-focus-toggle inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-[10px] px-2.5 text-[10.5px] font-semibold transition-all",
+                "chrona-focus-toggle inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-[10px] px-2.5 text-xs font-semibold transition-all",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--chrona-cyan-strong)] focus-visible:ring-offset-2",
               )}
             >
@@ -169,7 +169,7 @@ export function AttendanceToolbar({
               <span className="hidden sm:inline">{focusMode ? "Salir" : "Enfocar"}</span>
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-[10.5px]">
+          <TooltipContent side="bottom" className="text-xs">
             {focusMode ? "Volver a EduCore · Esc" : "Ampliar la asistencia y apartar la navegación"}
           </TooltipContent>
         </Tooltip>

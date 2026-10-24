@@ -45,7 +45,7 @@ export const AttendanceCourseSelect: React.FC<AttendanceCourseSelectProps> = ({
       <header className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-700">
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-blue-700">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1">
                 <UserCheck className="h-3.5 w-3.5" />
                 Asistencia docente
@@ -75,7 +75,7 @@ export const AttendanceCourseSelect: React.FC<AttendanceCourseSelectProps> = ({
                 <FileCheck2 className="h-4 w-4" />
                 <span>Bandeja de Excusas</span>
                 {pendingJustificationsCount > 0 && (
-                  <span className="rounded-full bg-white/25 px-1.5 py-0.2 text-[10px] font-extrabold text-white">
+                  <span className="rounded-full bg-white/25 px-1.5 py-0.2 text-xs font-extrabold text-white">
                     {pendingJustificationsCount}
                   </span>
                 )}
@@ -108,7 +108,7 @@ export const AttendanceCourseSelect: React.FC<AttendanceCourseSelectProps> = ({
                 <span className="text-xs font-extrabold uppercase tracking-wide text-blue-950">
                   Bandeja de Justificaciones y Excusas
                 </span>
-                <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-2xs">
+                <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-bold text-white shadow-2xs">
                   {pendingJustificationsCount} {pendingJustificationsCount === 1 ? "trámite pendiente" : "trámites pendientes"}
                 </span>
               </div>
@@ -131,35 +131,35 @@ export const AttendanceCourseSelect: React.FC<AttendanceCourseSelectProps> = ({
       {/* Metric Highlights */}
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.035)]">
-          <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">
+          <p className="text-xs font-bold uppercase tracking-[0.13em] text-slate-400">
             Cursos a cargo
           </p>
           <p className="mt-1 text-2xl font-extrabold text-slate-900">{courses.length}</p>
-          <p className="mt-1 text-[10px] text-slate-500">Grupos de la jornada activa</p>
+          <p className="mt-1 text-xs text-slate-500">Grupos de la jornada activa</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.035)]">
-          <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">
+          <p className="text-xs font-bold uppercase tracking-[0.13em] text-slate-400">
             Total estudiantes
           </p>
           <p className="mt-1 text-2xl font-extrabold text-slate-900">{totalStudents}</p>
-          <p className="mt-1 text-[10px] text-slate-500">En listas autorizadas</p>
+          <p className="mt-1 text-xs text-slate-500">En listas autorizadas</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.035)]">
-          <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">
+          <p className="text-xs font-bold uppercase tracking-[0.13em] text-slate-400">
             Asistencia promedio
           </p>
           <p className="mt-1 text-2xl font-extrabold text-emerald-600">94.2%</p>
-          <p className="mt-1 text-[10px] text-slate-500">Promedio acumulado del periodo</p>
+          <p className="mt-1 text-xs text-slate-500">Promedio acumulado del periodo</p>
         </div>
 
         <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_22px_rgba(15,23,42,0.035)]">
-          <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-400">
+          <p className="text-xs font-bold uppercase tracking-[0.13em] text-slate-400">
             Requieren atención
           </p>
           <p className="mt-1 text-2xl font-extrabold text-amber-600">{totalAlerts}</p>
-          <p className="mt-1 text-[10px] text-slate-500">Con 4 o más ausencias</p>
+          <p className="mt-1 text-xs text-slate-500">Con 4 o más ausencias</p>
         </div>
       </section>
 
@@ -183,7 +183,7 @@ export const AttendanceCourseSelect: React.FC<AttendanceCourseSelectProps> = ({
 
               {/* Recommended Badge */}
               {isRecommended && (
-                <span className="absolute right-4 top-4 rounded-full bg-blue-600 px-2.5 py-1 text-[9px] font-bold text-white shadow-xs">
+                <span className="absolute right-4 top-4 rounded-full bg-blue-600 px-2.5 py-1 text-xs font-bold text-white shadow-xs">
                   Siguiente en tu jornada
                 </span>
               )}
@@ -191,7 +191,7 @@ export const AttendanceCourseSelect: React.FC<AttendanceCourseSelectProps> = ({
               {/* Course Title & Icon */}
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">
+                  <p className="text-xs font-bold uppercase tracking-[0.15em] text-slate-400">
                     Curso asignado
                   </p>
                   <h2 className="mt-1 text-xl font-extrabold text-slate-900">
@@ -208,7 +208,7 @@ export const AttendanceCourseSelect: React.FC<AttendanceCourseSelectProps> = ({
               </div>
 
               {/* Key Details Grid */}
-              <div className="mt-5 grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+              <div className="mt-5 grid grid-cols-2 gap-2 text-xs text-slate-600">
                 <span className="rounded-xl bg-slate-50/80 p-2.5">
                   <strong className="block text-sm font-extrabold text-slate-900">
                     {course.students.length}
@@ -224,7 +224,7 @@ export const AttendanceCourseSelect: React.FC<AttendanceCourseSelectProps> = ({
               </div>
 
               {/* Room & Alerts */}
-              <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500">
+              <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
                 <span className="flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5 text-slate-400" />
                   {course.room}

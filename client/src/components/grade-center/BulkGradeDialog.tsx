@@ -162,7 +162,7 @@ export function BulkGradeDialog({
                 <DialogTitle className="text-base font-bold text-slate-900 dark:text-white">
                   Calificación Masiva
                 </DialogTitle>
-                <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
                   Planilla rápida
                 </span>
               </div>
@@ -199,7 +199,7 @@ export function BulkGradeDialog({
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   2. Nota a registrar
                 </label>
-                <span className="text-[11px] font-medium text-slate-400">
+                <span className="text-xs font-medium text-slate-400">
                   Escala: {minVal.toFixed(1)} a {maxVal.toFixed(1)}
                 </span>
               </div>
@@ -216,7 +216,7 @@ export function BulkGradeDialog({
                 </span>
               </div>
               {validationError && (
-                <p className="text-[11px] font-medium text-rose-500 animate-in fade-in flex items-center gap-1 mt-1">
+                <p className="text-xs font-medium text-rose-500 animate-in fade-in flex items-center gap-1 mt-1">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   {validationError}
                 </p>
@@ -249,11 +249,11 @@ export function BulkGradeDialog({
                       <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
                         Todos los estudiantes visibles
                       </p>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                         {rows.length} alumnos
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                       Aplica la nota a la totalidad de alumnos mostrados según los filtros actuales.
                     </p>
                   </div>
@@ -282,11 +282,11 @@ export function BulkGradeDialog({
                       <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
                         Solo seleccionados
                       </p>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                         {selectedStudentIds.length} marcados
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                       {selectedStudentIds.length > 0
                         ? "Aplica la nota exclusivamente a los estudiantes marcados con casilla de verificación."
                         : "Marca estudiantes con checkbox en la planilla para habilitar esta opción."}
@@ -315,12 +315,12 @@ export function BulkGradeDialog({
                         <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
                           Solo celdas vacías
                         </p>
-                        <span className="rounded-full bg-amber-100 px-2 py-0.2 text-[9px] font-extrabold text-amber-800">
+                        <span className="rounded-full bg-amber-100 px-2 py-0.2 text-xs font-extrabold text-amber-800">
                           Protege notas existentes
                         </span>
                       </div>
                     </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                       Califica únicamente a quienes aún no tengan calificación registrada en esta evaluación.
                     </p>
                   </div>
@@ -356,12 +356,12 @@ export function BulkGradeDialog({
                     <strong className="font-semibold">"{activeAssessment?.title}"</strong>.
                   </p>
                   {target === "EMPTY_ONLY" && (
-                    <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
                       <Check className="h-3.5 w-3.5" />
                       Se omitirán los estudiantes que ya cuenten con calificación en esta evaluación.
                     </p>
                   )}
-                  <p className="text-[11px] text-amber-800/80 pt-1">
+                  <p className="text-xs text-amber-800/80 pt-1">
                     Los cambios quedarán como <em>pendientes</em> para que puedas revisarlos y confirmarlos antes de guardar en la planilla.
                   </p>
                 </div>

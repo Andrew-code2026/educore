@@ -377,11 +377,11 @@ function CourseCard({
             >
               <span style={{ width: `${progress}%` }} />
             </div>
-            <span className="tabular shrink-0 text-[9.5px] text-muted-foreground">
+            <span className="tabular shrink-0 text-xs text-muted-foreground">
               {summary.registered}/{summary.students}
             </span>
             <span className={cn(
-              "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[9.5px] font-medium",
+              "inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-medium",
               summary.attentionCount > 0 ? "bg-attention/10 text-attention" : "bg-foreground/[0.04] text-muted-foreground",
             )}>
               {summary.attentionCount > 0 ? <AlertTriangle className="h-2.5 w-2.5" aria-hidden="true" /> : null}
@@ -408,12 +408,12 @@ export function AttendanceCourseSelect({
   if (courses.length === 0) {
     return (
       <MotionConfig reducedMotion="user">
-        <section aria-label="Centro de control de asistencia" className="attendance-course-page flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto scroll-thin px-0.5 pb-4 sm:gap-4 sm:px-1.5 sm:pb-5">
+        <section aria-label="Centro de control de asistencia" className="attendance-course-page flex flex-col gap-3.5 sm:gap-4 w-full">
           <CourseSelectHeader now={now} todayIso={todayIso} context="Esperando los cursos del docente" />
           <div className="attendance-course-empty glass flex min-h-[190px] flex-col items-center justify-center rounded-[17px] px-5 py-8 text-center" role="status">
             <span className="grid h-10 w-10 place-items-center rounded-[12px] bg-foreground/[0.045] text-muted-foreground"><Users className="h-4 w-4" aria-hidden="true" /></span>
             <p className="mt-3 text-[12px] font-semibold">Sin cursos disponibles</p>
-            <p className="mt-1 max-w-[360px] text-[10px] leading-relaxed text-muted-foreground">Los cursos y la agenda aparecerán aquí cuando EduCore cargue la información real del docente.</p>
+            <p className="mt-1 max-w-[360px] text-xs leading-relaxed text-muted-foreground">Los cursos y la agenda aparecerán aquí cuando EduCore cargue la información real del docente.</p>
           </div>
         </section>
       </MotionConfig>
@@ -482,7 +482,7 @@ export function AttendanceCourseSelect({
 
   return (
       <MotionConfig reducedMotion="user">
-        <section aria-label="Centro de control de asistencia" className="attendance-course-page flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto scroll-thin px-0.5 pb-4 sm:gap-4 sm:px-1.5 sm:pb-5">
+        <section aria-label="Centro de control de asistencia" className="attendance-course-page flex flex-col gap-3.5 sm:gap-4 w-full">
         <CourseSelectHeader now={now} todayIso={todayIso} context={context} />
 
         <section aria-label="Resumen ejecutivo de la jornada" className="attendance-course-kpi-grid grid grid-cols-2 gap-2.5 xl:grid-cols-4 sm:gap-3">
@@ -513,10 +513,10 @@ export function AttendanceCourseSelect({
                 <FileClock className="h-4 w-4" aria-hidden="true" />
               </span>
               <div className="min-w-0">
-                <p className="text-[11.5px] font-semibold leading-snug sm:text-[12px]">
+                <p className="text-xs font-semibold leading-snug sm:text-[12px]">
                   {pendingGlobal} justificaciones pendientes de revisión
                 </p>
-                <p className="mt-0.5 text-[9.5px] text-muted-foreground">Bandeja global · solicitudes existentes</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Bandeja global · solicitudes existentes</p>
               </div>
             </div>
             <button
@@ -527,13 +527,13 @@ export function AttendanceCourseSelect({
                 onReviewExcuses?.(reviewCourse.course.id, reviewDate);
               }}
               disabled={!onReviewExcuses || !reviewCourse}
-              className="attendance-excuse-action inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[10px] px-3 text-[10.5px] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50"
+              className="attendance-excuse-action inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[10px] px-3 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50"
             >
               Revisar excusas <ChevronRight className="h-3 w-3" aria-hidden="true" />
             </button>
           </section>
         ) : hasExcuseData ? (
-          <p className="inline-flex min-h-6 items-center gap-1.5 self-start px-1 text-[9.5px] text-muted-foreground/75" role="status">
+          <p className="inline-flex min-h-6 items-center gap-1.5 self-start px-1 text-xs text-muted-foreground/75" role="status">
             <CheckCircle2 className="h-3 w-3 text-st-present" aria-hidden="true" />
             Sin justificaciones pendientes
           </p>
@@ -577,7 +577,7 @@ export function AttendanceCourseSelect({
             </span>
             <div>
               <p className="text-[12px] font-semibold">No hay cursos que coincidan con “{searchQuery.trim()}”</p>
-              <p className="mt-0.5 text-[10px] text-muted-foreground">Prueba con el grupo, la materia o el salón.</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">Prueba con el grupo, la materia o el salón.</p>
             </div>
           </div>
         ) : null}
@@ -614,13 +614,13 @@ export function AttendanceCourseSelect({
                 </span>
                 <div>
                   <p className="text-[12px] font-semibold">Hoy no tienes clases programadas</p>
-                  <p className="mt-0.5 text-[10px] text-muted-foreground">Las próximas sesiones aparecen agrupadas por fecha.</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Las próximas sesiones aparecen agrupadas por fecha.</p>
                 </div>
               </div>
             )}
 
             {filteredTodayCourses.length > 0 && !nextCourseIsToday ? (
-              <p className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground/75">
+              <p className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground/75">
                 <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                 No quedan clases por iniciar hoy
               </p>
@@ -676,14 +676,14 @@ export function AttendanceCourseSelect({
                 </span>
                 <div>
                   <p className="text-[12px] font-semibold">No hay próximas sesiones programadas</p>
-                  <p className="mt-0.5 text-[10px] text-muted-foreground">Aquí se mostrarán las próximas fechas de los cursos recibidos.</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Aquí se mostrarán las próximas fechas de los cursos recibidos.</p>
                 </div>
               </div>
             )}
           </section>
         ) : null}
 
-        <p className="flex items-center gap-1.5 px-1 pb-1 text-[9px] text-muted-foreground/60">
+        <p className="flex items-center gap-1.5 px-1 pb-1 text-xs text-muted-foreground/60">
           <span className="h-1 w-1 rounded-full bg-[var(--chrona-cyan-strong)]" aria-hidden="true" />
           Selecciona un curso para abrir la planilla de asistencia existente.
         </p>
