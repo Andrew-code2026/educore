@@ -131,7 +131,7 @@ export function attentionFlagsFor(
       studentId: student.id,
       kind: "low_attendance",
       label: `Asistencia en ${Math.round(stats.attendanceRate)}%`,
-      detail: `${stats.absent} ausencias acumuladas`,
+      detail: `${stats.absent} ${stats.absent === 1 ? "ausencia acumulada" : "ausencias acumuladas"}`,
       severity: "medium",
       weight: 80 + (ATTENTION_RULES.minAttendanceRate - stats.attendanceRate),
     });

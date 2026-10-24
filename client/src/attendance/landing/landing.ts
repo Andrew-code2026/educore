@@ -31,7 +31,7 @@ export const UPCOMING_DAY_LIMIT = 1;
 const UPCOMING_HORIZON_DAYS = 14;
 
 /** Señales que cuentan como alerta "por inasistencias" (no tardanzas ni excusas). */
-const ABSENCE_ALERTS = new Set<AttentionKind>(["consecutive_absences", "low_attendance"]);
+export const ABSENCE_ALERTS: ReadonlySet<AttentionKind> = new Set<AttentionKind>(["consecutive_absences", "low_attendance"]);
 
 /** Estados de justificación que esperan una decisión del docente. */
 const REVIEWABLE = new Set(["submitted", "in_review", "pending_physical_support"]);

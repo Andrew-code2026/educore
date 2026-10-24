@@ -178,9 +178,12 @@ export type GradeCenterAssignmentSummary = {
   /** Última modificación de evaluaciones o notas de la planilla. */
   lastActivityAt: Date | null;
   periodEndsAt: Date | null;
+  /** Estudiantes con definitiva parcial por debajo de la nota aprobatoria, de menor a mayor. */
+  belowPassing: Array<{ studentId: number; name: string; average: number }>;
 };
 
 const GRADE_SCALE_MAX = 5;
+const PASSING_GRADE = 3;
 
 const isActivePeriod = (status: string) => status === "Activo" || status === "ACTIVE";
 const isClosedPeriod = (status: string) => status === "Cerrado" || status === "CLOSED";
@@ -232,7 +235,7 @@ export async function listGradeCenterAssignments(actor: GradeCenterActor): Promi
     visibleStudentIds = new Set(linked.map(row => row.studentUserId));
   }
 
-  const assessmentRows = periodIds.length ? await db.select({ id: assessments.id, courseId: assessments.courseId, subjectId: assessments.subjectId, academicPeriodId: assessments.academicPeriodId, maxValue: assessments.maxValue, updatedAt: assessments.updatedAt }).from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), inArray(assessments.courseId, courseIds), inArray(assessments.academicPeriodId, periodIds), ne(assessments.status, "DELETED"))) : [];
+  const assessmentRows = periodIds.length ? await db.select({ id: assessments.id, courseId: assessments.courseId, subjectId: assessments.subjectId, academicPeriodId: assessments.academicPeriodId, maxValue: assessments.maxValue, weight: assessments.weight, status: assessments.status, updatedAt: assessments.updatedAt }).from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), inArray(assessments.courseId, courseIds), inArray(assessments.academicPeriodId, periodIds), ne(assessments.status, "DELETED"))) : [];
   const gradeRows = assessmentRows.length ? await db.select({ assessmentId: assessmentGrades.assessmentId, studentId: assessmentGrades.studentId, value: assessmentGrades.value, updatedAt: assessmentGrades.updatedAt }).from(assessmentGrades).where(and(eq(assessmentGrades.schoolId, actor.schoolId), inArray(assessmentGrades.assessmentId, assessmentRows.map(row => row.id)))) : [];
 
   const gradesByAssessment = new Map<number, typeof gradeRows>();
@@ -258,16 +261,28 @@ export async function listGradeCenterAssignments(actor: GradeCenterActor): Promi
     let graded = 0;
     let normalizedSum = 0;
     let lastActivity = 0;
+    // Definitiva parcial por estudiante: misma regla que Grade Center (ponderada, sin borradores)
+    const weighted = new Map<number, { sum: number; weight: number }>();
     for (const evaluation of evaluations) {
       lastActivity = Math.max(lastActivity, evaluation.updatedAt.getTime());
       const maxValue = evaluation.maxValue || GRADE_SCALE_MAX;
+      const countsForDefinitive = evaluation.status !== "DRAFT" && evaluation.weight > 0;
       for (const grade of gradesByAssessment.get(evaluation.id) ?? []) {
         if (grade.value === null || !studentIds.has(grade.studentId)) continue;
+        const normalized = (grade.value / maxValue) * GRADE_SCALE_MAX;
         graded += 1;
-        normalizedSum += (grade.value / maxValue) * GRADE_SCALE_MAX;
+        normalizedSum += normalized;
         lastActivity = Math.max(lastActivity, grade.updatedAt.getTime());
+        if (!countsForDefinitive) continue;
+        const acc = weighted.get(grade.studentId) ?? { sum: 0, weight: 0 };
+        acc.sum += normalized * evaluation.weight;
+        acc.weight += evaluation.weight;
+        weighted.set(grade.studentId, acc);
       }
     }
+    const belowPassing = Array.from(weighted, ([studentId, acc]) => ({ studentId, name: "", average: Math.round((acc.sum / acc.weight) * 10) / 10 }))
+      .filter(row => row.average < PASSING_GRADE)
+      .sort((a, b) => a.average - b.average);
     summaries.push({
       courseId: course.id,
       courseName: course.name,
@@ -284,7 +299,17 @@ export async function listGradeCenterAssignments(actor: GradeCenterActor): Promi
       average: graded ? Math.round((normalizedSum / graded) * 10) / 10 : null,
       lastActivityAt: lastActivity ? new Date(lastActivity) : null,
       periodEndsAt: period?.endDate ?? null,
+      belowPassing,
     });
+  }
+
+  const flaggedIds = Array.from(new Set(summaries.flatMap(summary => summary.belowPassing.map(row => row.studentId))));
+  if (flaggedIds.length) {
+    const nameRows = await db.select({ id: users.id, name: users.name }).from(users).where(and(eq(users.schoolId, actor.schoolId), inArray(users.id, flaggedIds)));
+    const nameById = new Map(nameRows.map(row => [row.id, row.name ?? ""]));
+    for (const summary of summaries) {
+      for (const row of summary.belowPassing) row.name = nameById.get(row.studentId) || `Estudiante #${row.studentId}`;
+    }
   }
 
   return summaries.sort((a, b) => a.courseName.localeCompare(b.courseName, "es", { numeric: true }) || a.subjectName.localeCompare(b.subjectName, "es"));
