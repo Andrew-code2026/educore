@@ -543,6 +543,15 @@ export async function updateSchoolSettings(input: Partial<typeof schools.$inferI
   return (await db.select().from(schools).where(eq(schools.id, targetId)).limit(1))[0];
 }
 
+export async function createSchoolEvent(input: { title: string; type: string; eventDate: Date; location: string | null; audience: string }, targetSchoolId?: number) {
+  const db = await getDb();
+  const school = await ensureEduCoreSeeded();
+  if (!db || !school) return null;
+  const schoolId = targetSchoolId ?? school.id;
+  await db.insert(events).values({ schoolId, ...input });
+  return (await db.select().from(events).where(eq(events.schoolId, schoolId)).orderBy(desc(events.id)).limit(1))[0];
+}
+
 export async function createAcademicPeriod(input: { name: string; startDate: Date; endDate: Date; status: string }, targetSchoolId?: number) {
   const db = await getDb();
   const school = await ensureEduCoreSeeded();

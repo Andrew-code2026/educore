@@ -49,7 +49,11 @@ function ShellInner({
   }, [section]);
 
   const isFullBleed =
-    section === "grades" || section === "attendance" || section === "classroom" || section === "analytics";
+    section === "grades" ||
+    section === "attendance" ||
+    section === "classroom" ||
+    section === "analytics" ||
+    section === "calendar";
 
   return (
     <div
