@@ -71,9 +71,9 @@ export function StudentStatisticsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl rounded-2xl p-0 overflow-hidden border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+      <DialogContent className="max-w-xl w-full rounded-2xl p-0 overflow-hidden border border-slate-200/80 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900 max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3.5rem)] flex flex-col">
         {/* Encabezado */}
-        <DialogHeader className="p-5 pb-4 border-b border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50">
+        <DialogHeader className="p-5 pb-4 border-b border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--edc-primary)]/10 text-[var(--edc-primary)]">
               <BarChart3 className="h-5 w-5" />
@@ -81,7 +81,7 @@ export function StudentStatisticsDialog({
             <div>
               <DialogTitle className="text-base font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                 Rendimiento y Evolución Individual
-                <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider py-0 px-1.5 border-indigo-200 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                <Badge variant="outline" className="text-xs uppercase font-bold tracking-wider py-0 px-1.5 border-indigo-200 bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
                   Estadísticas
                 </Badge>
               </DialogTitle>
@@ -92,25 +92,25 @@ export function StudentStatisticsDialog({
           </div>
         </DialogHeader>
 
-        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+        <div className="p-5 space-y-4 flex-1 min-h-0 overflow-y-auto">
           {/* Métricas Clave: Estudiante vs Grupo */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {/* Promedio Estudiante */}
             <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 dark:border-slate-800/80 dark:bg-slate-850/40">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                 Promedio
               </span>
               <div className="mt-1 flex items-baseline gap-1">
                 <span className={`text-xl font-black tracking-tight ${avgTone.textColor}`}>
                   {numberValue(stats.currentAverage)}
                 </span>
-                <span className="text-[10px] text-slate-400">/ {scale?.maxValue ?? 5}</span>
+                <span className="text-xs text-slate-400">/ {scale?.maxValue ?? 5}</span>
               </div>
             </div>
 
             {/* Comparación vs Grupo */}
             <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 dark:border-slate-800/80 dark:bg-slate-850/40">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
                 Vs Grupo
               </span>
               <div className="mt-1 flex items-baseline gap-1">
@@ -128,7 +128,7 @@ export function StudentStatisticsDialog({
                   <span className="text-xs text-slate-400">N/A</span>
                 )}
                 {stats.groupAverage !== null && (
-                  <span className="text-[10px] text-slate-400 block truncate">
+                  <span className="text-xs text-slate-400 block truncate">
                     (med. {stats.groupAverage.toFixed(1)})
                   </span>
                 )}
@@ -137,7 +137,7 @@ export function StudentStatisticsDialog({
 
             {/* Mejor Calificación */}
             <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 dark:border-slate-800/80 dark:bg-slate-850/40">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                 <Award className="h-3 w-3 text-emerald-500" /> Mejor Nota
               </span>
               <div className="mt-1">
@@ -146,7 +146,7 @@ export function StudentStatisticsDialog({
                     <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
                       {stats.bestAssessment.grade.toFixed(1)}
                     </span>
-                    <p className="text-[9px] text-slate-400 truncate" title={stats.bestAssessment.title}>
+                    <p className="text-xs text-slate-400 truncate" title={stats.bestAssessment.title}>
                       {stats.bestAssessment.title}
                     </p>
                   </div>
@@ -158,7 +158,7 @@ export function StudentStatisticsDialog({
 
             {/* Menor Calificación */}
             <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 dark:border-slate-800/80 dark:bg-slate-850/40">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                 <TrendingDown className="h-3 w-3 text-rose-500" /> Menor Nota
               </span>
               <div className="mt-1">
@@ -167,7 +167,7 @@ export function StudentStatisticsDialog({
                     <span className="text-sm font-black text-rose-600 dark:text-rose-400">
                       {stats.lowestAssessment.grade.toFixed(1)}
                     </span>
-                    <p className="text-[9px] text-slate-400 truncate" title={stats.lowestAssessment.title}>
+                    <p className="text-xs text-slate-400 truncate" title={stats.lowestAssessment.title}>
                       {stats.lowestAssessment.title}
                     </p>
                   </div>
@@ -188,7 +188,7 @@ export function StudentStatisticsDialog({
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
                   {stats.trendLabel}
                 </span>
-                <span className="text-[10px] text-slate-400">
+                <span className="text-xs text-slate-400">
                   {stats.evaluatedCount} de {assessments.length} evaluaciones calificadas ({stats.pendingCount} pendientes)
                 </span>
               </div>
@@ -196,7 +196,7 @@ export function StudentStatisticsDialog({
 
             <Badge
               variant="outline"
-              className={`text-[10px] font-bold py-0.5 px-2 ${
+              className={`text-xs font-bold py-0.5 px-2 ${
                 stats.trend === "ASCENDENTE"
                   ? "border-emerald-200 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300"
                   : stats.trend === "DESCENDENTE"
@@ -210,13 +210,13 @@ export function StudentStatisticsDialog({
 
           {/* Tabla de Evolución Cronológica */}
           <div className="space-y-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
               Evolución Evaluación por Evaluación
             </span>
             <div className="rounded-xl border border-slate-100 bg-white overflow-hidden dark:border-slate-800 dark:bg-slate-850/40">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                  <tr className="border-b border-slate-100 text-xs font-bold uppercase tracking-wider text-slate-400 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                     <th className="py-2 pl-3">Evaluación</th>
                     <th className="py-2 text-center">Peso</th>
                     <th className="py-2 text-center">Nota Estudiante</th>
@@ -239,7 +239,7 @@ export function StudentStatisticsDialog({
                         </td>
                         <td className="py-2.5 text-center">
                           {point.isPending ? (
-                            <span className="text-[10px] italic text-slate-400 font-medium">Pendiente</span>
+                            <span className="text-xs italic text-slate-400 font-medium">Pendiente</span>
                           ) : (
                             <span className={`font-bold ${tone.textColor}`}>
                               {numberValue(point.studentGrade)}
@@ -251,7 +251,7 @@ export function StudentStatisticsDialog({
                         </td>
                         <td className="py-2.5 text-right pr-3">
                           {point.deltaVsGroup !== null ? (
-                            <span className={`text-[11px] font-bold ${
+                            <span className={`text-xs font-bold ${
                               point.deltaVsGroup > 0
                                 ? "text-emerald-600 dark:text-emerald-400"
                                 : point.deltaVsGroup < 0
@@ -274,7 +274,7 @@ export function StudentStatisticsDialog({
         </div>
 
         {/* Footer */}
-        <DialogFooter className="p-3 border-t border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50">
+        <DialogFooter className="p-3 border-t border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-850/50 shrink-0">
           <Button
             type="button"
             variant="default"

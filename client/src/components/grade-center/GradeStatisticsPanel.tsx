@@ -115,11 +115,11 @@ export function GradeStatisticsPanel({
           <div>
             <h3 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
               Estadísticas Avanzadas del Grupo
-              <Badge variant="outline" className="text-[10px] font-bold py-0 border-indigo-200 text-indigo-700 bg-indigo-50/50 dark:border-indigo-800 dark:text-indigo-300">
+              <Badge variant="outline" className="text-xs font-bold py-0 border-indigo-200 text-indigo-700 bg-indigo-50/50 dark:border-indigo-800 dark:text-indigo-300">
                 En tiempo real
               </Badge>
             </h3>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Análisis cuantitativo de desempeño sobre {stats.totalStudents} estudiantes y {assessments.length} evaluaciones.
             </p>
           </div>
@@ -141,53 +141,53 @@ export function GradeStatisticsPanel({
       <div className="my-3.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
         {/* Promedio General */}
         <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 dark:border-slate-800/80 dark:bg-slate-850/40">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
             Promedio Grupo
           </span>
           <div className="mt-1 flex items-baseline gap-1.5">
             <span className={`text-xl font-black tracking-tight ${avgTone.textColor}`}>
               {numberValue(stats.groupAverage)}
             </span>
-            <span className="text-[10px] text-slate-400">/ {scale?.maxValue ?? 5}</span>
+            <span className="text-xs text-slate-400">/ {scale?.maxValue ?? 5}</span>
           </div>
         </div>
 
         {/* Tasa de Aprobación */}
         <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 dark:border-slate-800/80 dark:bg-slate-850/40">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
             Aprobación
           </span>
           <div className="mt-1 flex items-baseline gap-1.5">
             <span className="text-xl font-black tracking-tight text-emerald-600 dark:text-emerald-400">
               {stats.passingPercentage}%
             </span>
-            <span className="text-[10px] text-slate-400">
+            <span className="text-xs text-slate-400">
               ({stats.passingCount}/{stats.totalStudents})
             </span>
           </div>
         </div>
 
-        {/* En Riesgo (Clickable) */}
+        {/* Requiere Atención (Clickable) */}
         <button
           type="button"
           onClick={onOpenRiskModal}
           className="rounded-xl border border-amber-200/70 bg-amber-50/50 p-2.5 text-left transition hover:bg-amber-100/60 dark:border-amber-900/40 dark:bg-amber-950/20 dark:hover:bg-amber-950/40 cursor-pointer"
         >
-          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center justify-between">
-            En Riesgo
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center justify-between">
+            Requiere Atención
             <AlertTriangle className="h-3 w-3 text-amber-500" />
           </span>
           <div className="mt-1 flex items-baseline gap-1.5">
             <span className="text-xl font-black tracking-tight text-amber-700 dark:text-amber-300">
               {stats.totalAtRisk}
             </span>
-            <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80">casos</span>
+            <span className="text-xs text-amber-600/80 dark:text-amber-400/80">casos</span>
           </div>
         </button>
 
         {/* Calificaciones Pendientes */}
         <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-2.5 dark:border-indigo-900/40 dark:bg-indigo-950/20">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center justify-between">
             Pendientes
             <Clock className="h-3 w-3 text-indigo-500" />
           </span>
@@ -195,13 +195,13 @@ export function GradeStatisticsPanel({
             <span className="text-xl font-black tracking-tight text-indigo-700 dark:text-indigo-300">
               {stats.totalPendingCount}
             </span>
-            <span className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80">celdas</span>
+            <span className="text-xs text-indigo-600/80 dark:text-indigo-400/80">celdas</span>
           </div>
         </div>
 
         {/* Rango Min - Max */}
         <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 dark:border-slate-800/80 dark:bg-slate-850/40">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
             Rango (Mín – Máx)
           </span>
           <div className="mt-1 flex items-baseline gap-1.5">
@@ -240,7 +240,7 @@ export function GradeStatisticsPanel({
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                 Distribución de Calificaciones Definitivas
               </span>
-              <span className="text-[11px] text-slate-500">
+              <span className="text-xs text-slate-500">
                 Aprobación mínima institucional: <strong>{stats.passingGrade.toFixed(1)}</strong>
               </span>
             </div>
@@ -256,7 +256,7 @@ export function GradeStatisticsPanel({
                         </span>
                         <Badge
                           variant="secondary"
-                          className={`text-[9px] py-0 px-1.5 font-bold ${
+                          className={`text-xs py-0 px-1.5 font-bold ${
                             bin.isPassing
                               ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
                               : "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
@@ -294,7 +294,7 @@ export function GradeStatisticsPanel({
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
-                  <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:border-slate-800">
+                  <tr className="border-b border-slate-100 text-xs font-bold uppercase tracking-wider text-slate-400 dark:border-slate-800">
                     <th className="pb-2 pl-2">
                       <button
                         type="button"
@@ -373,17 +373,17 @@ export function GradeStatisticsPanel({
                               {item.title}
                             </span>
                             {item.isHighestAverage && (
-                              <Badge className="h-4 px-1 text-[8px] font-bold bg-emerald-500 text-white">
+                              <Badge className="h-4 px-1 text-xs font-bold bg-emerald-500 text-white">
                                 Mejor
                               </Badge>
                             )}
                             {item.isLowestAverage && (
-                              <Badge variant="destructive" className="h-4 px-1 text-[8px] font-bold">
+                              <Badge variant="destructive" className="h-4 px-1 text-xs font-bold">
                                 Menor
                               </Badge>
                             )}
                           </div>
-                          <span className="text-[10px] text-slate-400 capitalize">
+                          <span className="text-xs text-slate-400 capitalize">
                             {item.assessmentType.toLowerCase()}
                           </span>
                         </td>
@@ -398,7 +398,7 @@ export function GradeStatisticsPanel({
                         <td className="py-2.5 text-center font-medium text-slate-600 dark:text-slate-300">
                           {numberValue(item.median)}
                         </td>
-                        <td className="py-2.5 text-center text-[11px] text-slate-600 dark:text-slate-300">
+                        <td className="py-2.5 text-center text-xs text-slate-600 dark:text-slate-300">
                           {numberValue(item.minGrade)} – {numberValue(item.maxGrade)}
                         </td>
                         <td className="py-2.5 text-center">
@@ -408,11 +408,11 @@ export function GradeStatisticsPanel({
                         </td>
                         <td className="py-2.5 text-center">
                           {item.pendingCount > 0 ? (
-                            <Badge variant="outline" className="text-[10px] py-0 border-indigo-200 text-indigo-700 bg-indigo-50/50 dark:border-indigo-800 dark:text-indigo-300">
+                            <Badge variant="outline" className="text-xs py-0 border-indigo-200 text-indigo-700 bg-indigo-50/50 dark:border-indigo-800 dark:text-indigo-300">
                               {item.pendingCount} pend.
                             </Badge>
                           ) : (
-                            <span className="text-[10px] text-emerald-600 font-semibold">Al día</span>
+                            <span className="text-xs text-emerald-600 font-semibold">Al día</span>
                           )}
                         </td>
                         <td className="py-2.5 text-right pr-2">
@@ -421,7 +421,7 @@ export function GradeStatisticsPanel({
                             size="sm"
                             variant="ghost"
                             onClick={() => onSelectAssessment?.(item.assessmentId)}
-                            className="h-6 px-2 text-[10px] text-indigo-600 font-bold hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-slate-800"
+                            className="h-6 px-2 text-xs text-indigo-600 font-bold hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-slate-800"
                           >
                             Ver en tabla
                           </Button>
@@ -448,7 +448,7 @@ export function GradeStatisticsPanel({
                 <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                   Trayectoria General: {stats.performanceEvolution.trendLabel}
                 </h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   {stats.performanceEvolution.firstAssessment && stats.performanceEvolution.latestAssessment ? (
                     <>
                       Inicio: <strong>{stats.performanceEvolution.firstAssessment.title}</strong> ({numberValue(stats.performanceEvolution.firstAssessment.average)}) → Actual: <strong>{stats.performanceEvolution.latestAssessment.title}</strong> ({numberValue(stats.performanceEvolution.latestAssessment.average)})
@@ -473,7 +473,7 @@ export function GradeStatisticsPanel({
 
             <Badge
               variant="outline"
-              className={`text-[10px] font-bold py-0.5 px-2 shrink-0 ${
+              className={`text-xs font-bold py-0.5 px-2 shrink-0 ${
                 stats.performanceEvolution.trend === "ASCENDENTE"
                   ? "border-emerald-200 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300"
                   : stats.performanceEvolution.trend === "DESCENDENTE"
@@ -504,7 +504,7 @@ export function GradeStatisticsPanel({
                     key={point.assessmentId}
                     className="p-3 rounded-xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-800/40"
                   >
-                    <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold uppercase mb-1">
+                    <div className="flex items-center justify-between text-xs text-slate-400 font-semibold uppercase mb-1">
                       <span>Paso {point.index}</span>
                       <span>Peso {point.weight}%</span>
                     </div>
@@ -518,11 +518,11 @@ export function GradeStatisticsPanel({
                         <span className={`text-xl font-black ${tone.textColor}`}>
                           {numberValue(point.groupAverage)}
                         </span>
-                        <span className="text-[10px] text-slate-400">promedio</span>
+                        <span className="text-xs text-slate-400">promedio</span>
                       </div>
 
                       {diff !== null && (
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
                           diff > 0
                             ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
                             : diff < 0
@@ -535,7 +535,7 @@ export function GradeStatisticsPanel({
                       )}
                     </div>
 
-                    <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-500">
+                    <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
                       <span>Aprobación:</span>
                       <strong className="text-emerald-600">{point.passingPercentage}%</strong>
                     </div>
@@ -579,7 +579,7 @@ export function GradeStatisticsPanel({
                         {isAction && <Clock className="h-4 w-4 text-indigo-600 shrink-0" />}
                         <h5 className="text-xs font-bold truncate">{ins.title}</h5>
                       </div>
-                      <p className="text-[11px] opacity-90 leading-relaxed">
+                      <p className="text-xs opacity-90 leading-relaxed">
                         {ins.description}
                       </p>
                     </div>
@@ -592,7 +592,7 @@ export function GradeStatisticsPanel({
                             size="sm"
                             variant="outline"
                             onClick={onOpenRiskModal}
-                            className="h-6 text-[10px] px-2 font-bold border-amber-300 bg-white/80 text-amber-900 hover:bg-amber-100"
+                            className="h-6 text-xs px-2 font-bold border-amber-300 bg-white/80 text-amber-900 hover:bg-amber-100"
                           >
                             Ver casos
                           </Button>
@@ -603,7 +603,7 @@ export function GradeStatisticsPanel({
                             size="sm"
                             variant="outline"
                             onClick={() => onSelectAssessment?.(ins.actionTarget!.assessmentId!)}
-                            className="h-6 text-[10px] px-2 font-bold border-indigo-300 bg-white/80 text-indigo-900 hover:bg-indigo-100"
+                            className="h-6 text-xs px-2 font-bold border-indigo-300 bg-white/80 text-indigo-900 hover:bg-indigo-100"
                           >
                             Ir a evaluación
                           </Button>

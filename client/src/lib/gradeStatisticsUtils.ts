@@ -230,9 +230,9 @@ export function getInstitutionalPassingGrade(scale?: GradeScaleConfig | null): n
   const min = scale?.minValue ?? 0;
   const max = scale?.maxValue ?? 5;
   if (min === 0 && max === 5) {
-    return 3.0;
+    return 3.5;
   }
-  // 60% estándar del rango institucional
+  // 60% estándar del rango institucional si difiere
   const calculated = min + (max - min) * 0.6;
   const decimals = scale?.decimalPlaces ?? 1;
   return Number(calculated.toFixed(decimals));
@@ -364,7 +364,7 @@ export function calculateApprovalRate(
 export function calculateGradeDistribution(
   grades: (number | string | null | undefined)[],
   scale?: GradeScaleConfig | null,
-  numBins = 5
+  numBins?: number
 ): GradeDistributionBin[] {
   const minVal = scale?.minValue ?? 0;
   const maxVal = scale?.maxValue ?? 5;
@@ -374,8 +374,41 @@ export function calculateGradeDistribution(
   const validGrades = sanitizeValues(grades);
   const totalCount = validGrades.length;
 
+  // Si no se especificó numBins (o se especificó 4) y la escala es la estándar de 0 a 5,
+  // usamos exactamente los cuatro rangos institucionales oficiales:
+  // 0.0–3.4: Bajo / Requiere atención / Pierde
+  // 3.5–3.9: Básico
+  // 4.0–4.6: Alto
+  // 4.7–5.0: Superior
+  const isDefaultInstitutional = minVal === 0 && maxVal === 5 && (numBins === undefined || numBins === 4);
+
+  if (isDefaultInstitutional) {
+    const definitions = [
+      { id: "bin-bajo", min: 0.0, max: 3.4, label: "0.0 - 3.4", rangeLabel: "Bajo (0.0 - 3.4)", isPassing: false, filter: (g: number) => g < 3.5 },
+      { id: "bin-basico", min: 3.5, max: 3.9, label: "3.5 - 3.9", rangeLabel: "Básico (3.5 - 3.9)", isPassing: true, filter: (g: number) => g >= 3.5 && g < 4.0 },
+      { id: "bin-alto", min: 4.0, max: 4.6, label: "4.0 - 4.6", rangeLabel: "Alto (4.0 - 4.6)", isPassing: true, filter: (g: number) => g >= 4.0 && g < 4.7 },
+      { id: "bin-superior", min: 4.7, max: 5.0, label: "4.7 - 5.0", rangeLabel: "Superior (4.7 - 5.0)", isPassing: true, filter: (g: number) => g >= 4.7 && g <= 5.0 },
+    ];
+
+    return definitions.map(def => {
+      const count = validGrades.filter(def.filter).length;
+      const percentage = totalCount > 0 ? Math.round((count / totalCount) * 100) : 0;
+      return {
+        id: def.id,
+        min: def.min,
+        max: def.max,
+        label: def.label,
+        rangeLabel: def.rangeLabel,
+        count,
+        percentage,
+        isPassing: def.isPassing,
+      };
+    });
+  }
+
+  // Fallback adaptativo para escalas arbitrarias o cuando numBins se especifica explícitamente != 4
   const range = maxVal - minVal;
-  const binsCount = numBins > 0 && range > 0 ? numBins : 5;
+  const binsCount = numBins && numBins > 0 && range > 0 ? numBins : 4;
   const step = range > 0 ? range / binsCount : 1;
 
   const bins: GradeDistributionBin[] = [];

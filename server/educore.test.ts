@@ -1,18 +1,30 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { appRouter } from "./routers";
-import { ROLE_NAMES } from "./db";
+import { ROLE_NAMES, ensureEduCoreSeeded, ensureIdentitySeeded, getDemoIdentityContext, DEMO_SCHOOL_ID } from "./db";
 import type { TrpcContext } from "./_core/context";
 
-function caller() {
+function caller(user: TrpcContext["user"] = null) {
   const ctx: TrpcContext = {
-    user: null,
+    user,
     req: {} as TrpcContext["req"],
-    res: {} as TrpcContext["res"],
+    res: { clearCookie: () => {} } as unknown as TrpcContext["res"],
   };
   return appRouter.createCaller(ctx);
 }
 
 describe("EduCore role model", () => {
+  let adminUser: any = null;
+  let teacherUser: any = null;
+
+  beforeAll(async () => {
+    await ensureEduCoreSeeded();
+    await ensureIdentitySeeded(DEMO_SCHOOL_ID);
+    const adminCtx = await getDemoIdentityContext("admin", DEMO_SCHOOL_ID);
+    const teacherCtx = await getDemoIdentityContext("teacher", DEMO_SCHOOL_ID);
+    adminUser = adminCtx?.user;
+    teacherUser = teacherCtx?.user;
+  });
+
   it("exposes the four product roles in Spanish", () => {
     expect(ROLE_NAMES).toEqual({
       admin: "Administrador",
@@ -81,5 +93,36 @@ describe("EduCore role model", () => {
       endDate: new Date("2026-06-19T00:00:00Z"),
       status: "Programado",
     })).rejects.toThrow("fecha final");
+  });
+
+  it("blocks non-admin logo uploads", async () => {
+    await expect(caller(teacherUser).educore.uploadSchoolLogo({
+      role: "teacher",
+      fileName: "escudo.png",
+      contentType: "image/png",
+      dataBase64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    })).rejects.toThrow("No tienes permisos");
+  });
+
+  it("rejects unsupported file formats for logo upload", async () => {
+    await expect(caller(adminUser).educore.uploadSchoolLogo({
+      role: "admin",
+      fileName: "malicious.exe",
+      contentType: "application/octet-stream",
+      dataBase64: "data:application/octet-stream;base64,TVqQAAMAAAAEAAAA//8AALgAAAAAAAAAQAAaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEA",
+    })).rejects.toThrow("Formato de imagen no permitido");
+  });
+
+  it("allows admin to upload school logo and saves it", async () => {
+    const result = await caller(adminUser).educore.uploadSchoolLogo({
+      role: "admin",
+      fileName: "escudo_nuevo.png",
+      contentType: "image/png",
+      dataBase64: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    });
+    expect(result).toBeDefined();
+    expect(result.logoUrl).toBeDefined();
+    expect(typeof result.logoUrl).toBe("string");
+    expect(result.logoUrl?.length).toBeGreaterThan(0);
   });
 });

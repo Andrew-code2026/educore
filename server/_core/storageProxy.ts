@@ -1,4 +1,6 @@
 import type { Express } from "express";
+import fs from "node:fs";
+import path from "node:path";
 import { ENV } from "./env";
 
 export function registerStorageProxy(app: Express) {
@@ -9,8 +11,36 @@ export function registerStorageProxy(app: Express) {
       return;
     }
 
+    // 1. Check local file in uploads root
+    const uploadsRoot = path.resolve(process.cwd(), "uploads");
+    const localPath = path.resolve(uploadsRoot, key);
+    if (fs.existsSync(localPath)) {
+      res.sendFile(localPath);
+      return;
+    }
+
+    // Also check with decoded key
+    try {
+      const decodedKey = decodeURIComponent(key);
+      const decodedPath = path.resolve(uploadsRoot, decodedKey);
+      if (fs.existsSync(decodedPath)) {
+        res.sendFile(decodedPath);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Also check in branding subfolder
+    const baseName = path.basename(key);
+    const brandingPath = path.resolve(uploadsRoot, "branding", baseName);
+    if (fs.existsSync(brandingPath)) {
+      res.sendFile(brandingPath);
+      return;
+    }
+
     if (!ENV.forgeApiUrl || !ENV.forgeApiKey) {
-      res.status(500).send("Storage proxy not configured");
+      res.status(404).send("File not found");
       return;
     }
 

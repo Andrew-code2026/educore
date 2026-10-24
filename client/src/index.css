@@ -1,13 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./gradecenter/gradecenter.css";
+@import "./attendance/attendance.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 14px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -27,6 +34,29 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* Navegación lateral (sidebar de escritorio + navegación móvil) */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted-foreground: var(--sidebar-muted-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Escala académica institucional Grade Center */
+  --color-gc-bajo: var(--gc-bajo);
+  --color-gc-basico: var(--gc-basico);
+  --color-gc-alto: var(--gc-alto);
+  --color-gc-superior: var(--gc-superior);
+  --color-gc-cobalt: var(--gc-cobalt);
+  --color-gc-abyss: var(--gc-abyss);
+  --color-gc-ink: var(--gc-ink);
+  --color-gc-hair: var(--gc-hair);
 }
 
 :root {
@@ -62,6 +92,17 @@
   --edc-text: #182131;
   --edc-muted: #7a8798;
   --edc-radius: 12px;
+
+  /* Sidebar: valores claros equivalentes al diseño original (white / slate) */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0f172a;
+  --sidebar-muted-foreground: #94a3b8;
+  --sidebar-primary: #2475cf;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f8fafc;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #86bff2;
 }
 
 .dark {
@@ -80,12 +121,24 @@
   --border: #263a53;
   --input: #2b4360;
   --ring: #64a9e8;
+
+  /* Sidebar nocturna: alineada con la paleta "night" de Grade Center */
+  --sidebar: oklch(0.185 0.024 266);
+  --sidebar-foreground: oklch(0.955 0.005 265);
+  --sidebar-muted-foreground: oklch(0.68 0.02 265);
+  --sidebar-primary: oklch(0.64 0.19 266);
+  --sidebar-primary-foreground: oklch(0.99 0.004 265);
+  --sidebar-accent: oklch(1 0 0 / 6%);
+  --sidebar-accent-foreground: oklch(0.98 0.004 265);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.68 0.17 266);
 }
 
 @layer base {
   * { @apply border-border outline-ring/50; }
-  html { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif; text-rendering: optimizeLegibility; }
-  body { @apply bg-background text-foreground; min-width: 320px; -webkit-font-smoothing: antialiased; }
+  html { font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; text-rendering: optimizeLegibility; height: 100%; overflow: hidden; }
+  body { font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; @apply bg-background text-foreground; min-width: 320px; height: 100%; overflow: hidden; -webkit-font-smoothing: antialiased; }
+  #root { height: 100%; }
   button:not(:disabled), [role="button"]:not([aria-disabled="true"]), [type="button"]:not(:disabled), [type="submit"]:not(:disabled), a[href], select:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled) { @apply cursor-pointer; }
   button, a, input, textarea, select { transition: border-color 180ms var(--ease-out), background-color 180ms var(--ease-out), color 180ms var(--ease-out), box-shadow 180ms var(--ease-out), transform 180ms var(--ease-out), opacity 180ms var(--ease-out); }
   button:active:not(:disabled) { transform: scale(0.98); }
@@ -100,6 +153,22 @@
   .surface-card { border: 1px solid color-mix(in srgb, var(--edc-primary) 8%, #e2e8f0); background: color-mix(in srgb, var(--edc-surface) 96%, transparent); box-shadow: var(--spatial-shadow-soft); }
   .glass-nav { background: color-mix(in srgb, var(--edc-surface) 78%, transparent); border-color: color-mix(in srgb, var(--edc-primary) 12%, #e2e8f0); box-shadow: 0 10px 35px color-mix(in srgb, var(--edc-primary) 7%, transparent), inset 0 1px 0 rgba(255,255,255,0.7); backdrop-filter: blur(22px) saturate(145%); }
   .sidebar-surface { background: color-mix(in srgb, var(--edc-surface) 91%, var(--edc-background)); border-color: color-mix(in srgb, var(--edc-primary) 8%, #e2e8f0); }
+
+  /*
+   * Tokens de estado activo para la navegación (sidebar + nav móvil).
+   * Se declaran sobre el propio contenedor (.edc-nav) y no en :root para que
+   * resuelvan contra los colores institucionales (--edc-*) que EduCoreShell
+   * inyecta inline; en :root se resolverían con los valores por defecto.
+   */
+  .edc-nav {
+    --sidebar-active: var(--edc-secondary);
+    --sidebar-active-foreground: var(--edc-primary);
+  }
+  .dark .edc-nav {
+    --sidebar-active: color-mix(in srgb, var(--edc-primary) 24%, transparent);
+    --sidebar-active-foreground: color-mix(in srgb, var(--edc-primary) 45%, white);
+    color-scheme: dark;
+  }
   .premium-panel { box-shadow: var(--spatial-shadow); }
   .page-shell { background: radial-gradient(circle at 85% 0%, color-mix(in srgb, var(--edc-secondary) 42%, transparent), transparent 28rem), var(--edc-background, var(--background)); }
   .page-transition { animation: spatial-enter 240ms var(--ease-out) both; }
@@ -113,9 +182,43 @@
   input, textarea, select { border-radius: var(--edc-radius); }
   tr { transition: background-color 180ms var(--ease-out); }
   tbody tr:hover { background: color-mix(in srgb, var(--edc-secondary) 34%, transparent); }
+
+  .teacher-dashboard {
+    --teacher-ease: cubic-bezier(0.23, 1, 0.32, 1);
+    --radius: 0.625rem;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 12px;
+    --radius-2xl: 16px;
+  }
+
+  .teacher-dashboard .group,
+  .teacher-dashboard button {
+    transition-timing-function: var(--teacher-ease);
+  }
+
+  .teacher-dashboard .rounded-2xl.border.bg-white:not(.grade-center-toolbar):not(.grade-center-container),
+  .teacher-dashboard .rounded-2xl.border.border-slate-200\/80:not(.grade-center-toolbar):not(.grade-center-container) {
+    transition: transform 220ms var(--teacher-ease), box-shadow 220ms var(--teacher-ease), border-color 220ms ease;
+  }
+
+  .teacher-dashboard .rounded-2xl.border.bg-white:not(.grade-center-toolbar):not(.grade-center-container):hover,
+  .teacher-dashboard .rounded-2xl.border.border-slate-200\/80:not(.grade-center-toolbar):not(.grade-center-container):hover {
+    border-color: rgba(147, 197, 253, 0.62);
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.07);
+  }
+
+  /* Stabilize Grade Center toolbar and table interactive controls */
+  .grade-center-toolbar button,
+  .grade-center-toolbar button:hover,
+  table button,
+  table button:hover {
+    transform: none !important;
+  }
 }
 
-@keyframes spatial-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes spatial-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
 /* Keep existing Tailwind cards visually quiet and consistent without changing their behavior. */
 body [class*="shadow-[0_8px_30px"] { border: 1px solid rgba(226, 232, 240, 0.88); box-shadow: 0 5px 18px rgba(34, 64, 100, 0.045) !important; }
@@ -133,3 +236,149 @@ body [class*="rounded-[28px]"] { border-radius: 24px; }
 }
 @media (min-width: 1024px) { .mobile-bottom-nav { display: none; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
+
+/* ========================================================================= */
+/* FASE 3: Estilos de Impresión A4 para la Ficha Integral del Estudiante     */
+/* ========================================================================= */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm 12mm 12mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Si el expediente está abierto para impresión, ocultar la app principal, drawers y elementos flotantes */
+  body.student-dossier-modal-open #root,
+  body.student-dossier-modal-open aside,
+  body.student-dossier-modal-open [aria-label*="Ficha rápida"],
+  body.student-dossier-modal-open .sonner-toaster,
+  body.student-dossier-modal-open [data-sonner-toaster],
+  body.student-dossier-modal-open .print-hidden {
+    display: none !important;
+  }
+
+  /* Desactivar fijado de posición y fondos opacos en el portal durante la impresión */
+  .student-record-portal-dialog {
+    position: static !important;
+    inset: auto !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  /* Prevención de quiebres indeseados en la impresión */
+  .break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .student-dossier-print-root {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+
+/* =============================================================================
+   SISTEMA DE SCROLLBAR ESTANDARIZADO — EduCore Design System
+   Diseño unificado, discreto y accesible en todos los navegadores y páginas.
+   ============================================================================= */
+
+:root {
+  --scrollbar-width: 8px;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(100, 116, 139, 0.32);
+  --scrollbar-thumb-hover: rgba(71, 85, 105, 0.58);
+}
+
+.dark,
+:root.dark,
+html.dark {
+  --scrollbar-thumb: rgba(148, 163, 184, 0.28);
+  --scrollbar-thumb-hover: rgba(203, 213, 225, 0.55);
+}
+
+/* Regla universal para Firefox y navegadores W3C */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Regla universal para Chrome, Edge, Safari, Opera (WebKit / Chromium) */
+*::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+  height: var(--scrollbar-width);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Utilidad para scrollbar delgado explícito */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+/* Utilidad global para ocultar scrollbars nativas únicamente cuando sea estrictamente necesario */
+.scrollbar-none {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
