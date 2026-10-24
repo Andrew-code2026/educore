@@ -5,7 +5,6 @@ import { useGradeCenter, useGradeCenterActions } from "../state/GradeCenterConte
 import { TopRail } from "./TopRail";
 import { ControlStrip } from "./ControlStrip";
 import { ShortcutHelp } from "./ShortcutHelp";
-import { ContextPanel } from "./insights/ContextPanel";
 import { StandardView } from "./views/MatrixViews";
 import { StudentView } from "./views/StudentView";
 import { EvaluationsView } from "./views/EvaluationsView";
@@ -242,7 +241,6 @@ export function AppShell({
                 </div>
               )}
               <ViewRouter />
-              <ContextPanel />
             </>
           )}
         </main>

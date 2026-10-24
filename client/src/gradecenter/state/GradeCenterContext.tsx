@@ -123,7 +123,6 @@ export type Action =
   | { type: "filters/patch"; patch: Partial<Filters> }
   | { type: "focus"; focusMode: boolean }
   | { type: "quickEdit"; quickEdit: boolean }
-  | { type: "analysis"; open: boolean }
   | { type: "showCodes"; show: boolean }
   | { type: "resetPreferences" }
   | { type: "activeCell"; cell: CellRef }
@@ -273,8 +272,6 @@ export function gradeCenterReducer(state: State, action: Action): State {
     case "quickEdit":
       return { ...state, preferences: { ...state.preferences, quickEdit: action.quickEdit } };
 
-    case "analysis":
-      return { ...state, preferences: { ...state.preferences, analysisOpen: action.open } };
 
     case "showCodes":
       return { ...state, preferences: { ...state.preferences, showCodes: action.show } };
@@ -714,7 +711,6 @@ export interface GradeCenterContextValue {
   patchFilters: (patch: Partial<Filters>) => void;
   setFocusMode: (value: boolean) => void;
   setQuickEdit: (value: boolean) => void;
-  setAnalysisOpen: (value: boolean) => void;
   setShowCodes: (value: boolean) => void;
   resetAllPreferences: () => void;
   setActiveCell: (cell: CellRef) => void;
@@ -768,7 +764,6 @@ const ACTION_KEYS = [
   "setView",
   "setFilters",
   "patchFilters",
-  "setAnalysisOpen",
   "setFocusMode",
   "setActiveCell",
   "setEditing",
@@ -1526,7 +1521,6 @@ export function GradeCenterProvider({
         patchFilters: (patch) => dispatch({ type: "filters/patch", patch }),
         setFocusMode: (focusMode) => dispatch({ type: "focus", focusMode }),
         setQuickEdit: (quickEdit) => dispatch({ type: "quickEdit", quickEdit }),
-        setAnalysisOpen: (analysisOpen) => dispatch({ type: "analysis", open: analysisOpen }),
         setShowCodes: (showCodes) => dispatch({ type: "showCodes", show: showCodes }),
         resetAllPreferences: () => dispatch({ type: "resetPreferences" }),
         setActiveCell: (cell) => dispatch({ type: "activeCell", cell }),

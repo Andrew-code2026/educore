@@ -37,7 +37,6 @@ export const DEFAULT_PREFERENCES: Preferences = {
   sort: { key: "name", dir: "asc" },
   filters: EMPTY_FILTERS,
   focusMode: false,
-  analysisOpen: false,
   showCodes: true,
   quickEdit: false,
 };

@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ChevronDown, HelpCircle, Maximize2, Minimize2, Search, Sparkles, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, HelpCircle, Maximize2, Minimize2, Search, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { SyncStatus } from "./SyncStatus";
@@ -7,10 +7,10 @@ import { formatGrade } from "../lib/format";
 
 /**
  * Barra superior: dónde estoy (volver, planilla actual), buscar y el estado del
- * guardado. Solo tres acciones de sesión: análisis, enfoque y ayuda.
+ * guardado. Dos acciones de sesión: enfoque y ayuda.
  */
 export function TopRail({ onOpenHelp, onBack }: { onOpenHelp: () => void; onBack: () => void }) {
-  const { preferences, setFilters, setFocusMode, setAnalysisOpen } = useGradeCenter();
+  const { preferences, setFilters, setFocusMode } = useGradeCenter();
   const focus = preferences.focusMode;
   const query = preferences.filters.query;
 
@@ -65,21 +65,6 @@ export function TopRail({ onOpenHelp, onBack }: { onOpenHelp: () => void; onBack
 
         <span className="mx-1 hidden h-5 w-px bg-white/10 sm:block" aria-hidden />
 
-        <button
-          type="button"
-          onClick={() => setAnalysisOpen(!preferences.analysisOpen)}
-          aria-pressed={preferences.analysisOpen}
-          title="Análisis del grupo, la evaluación o el estudiante seleccionado"
-          className={cn(
-            "hidden h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm transition-colors md:flex",
-            preferences.analysisOpen
-              ? "bg-[var(--gc-cobalt)]/14 text-foreground"
-              : "text-muted-foreground hover:bg-white/6 hover:text-foreground",
-          )}
-        >
-          <Sparkles className="size-4" aria-hidden />
-          <span className="hidden xl:inline">Análisis</span>
-        </button>
 
         <button
           type="button"
