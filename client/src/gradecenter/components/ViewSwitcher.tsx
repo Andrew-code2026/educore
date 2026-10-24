@@ -70,7 +70,7 @@ export function ViewSwitcher({ className }: { className?: string }) {
             className={cn(
               "flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none",
               active
-                ? "bg-[var(--gc-chrome)] text-foreground shadow-sm ring-1 ring-[var(--gc-hair)]"
+                ? "bg-[var(--gc-ink)] text-foreground shadow-sm ring-1 ring-[var(--gc-hair)]"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >

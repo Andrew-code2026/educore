@@ -46,7 +46,7 @@ export function TopRail({ onOpenHelp, onBack }: { onOpenHelp: () => void; onBack
           }}
           placeholder="Buscar estudiante"
           aria-label="Buscar estudiante por nombre o código"
-          className="h-9 w-full rounded-lg border border-white/8 bg-white/4 pr-8 pl-8 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-[var(--gc-cobalt)]/60 focus:bg-white/6 [&::-webkit-search-cancel-button]:hidden"
+          className="h-9 w-full rounded-lg border border-[var(--gc-hair)] bg-[var(--gc-ink)] pr-8 pl-8 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-[var(--gc-cobalt)]/60 [&::-webkit-search-cancel-button]:hidden"
         />
         {query && (
           <button

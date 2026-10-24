@@ -50,11 +50,12 @@ html.light {
   --radius: 0.9rem;
   --gc-cobalt: oklch(0.52 0.19 266);
   /* Superficies neutras (croma mínimo): el color lo ponen las notas, no el fondo. */
-  /* Tres niveles con contraste suficiente para leerse como capas distintas:
-     barras (blanco) → encabezado de la tabla (gris frío) → celdas (blanco). */
+  /* Tres niveles que se leen como capas distintas:
+     barras (azul grisáceo suave) → encabezado de la tabla (gris frío) → celdas (blanco).
+     Los campos y la pestaña activa van en blanco para destacar sobre las barras. */
   --gc-abyss: oklch(0.945 0.012 266);
   --gc-ink: oklch(0.995 0.002 266);
-  --gc-chrome: oklch(1 0 0);
+  --gc-chrome: oklch(0.962 0.018 262);
   --gc-hair: oklch(0.24 0.02 266 / 14%);
   --gc-surface: oklch(0.94 0.035 266 / 92%);
   --gc-surface-soft: oklch(0.91 0.03 266 / 78%);
