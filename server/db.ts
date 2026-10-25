@@ -61,6 +61,27 @@ import { ENV } from "./_core/env";
 import { DEMO_ROLE_MAP, IDENTITY_ROLES, PERMISSIONS, PERMISSION_METADATA, ROLE_DESCRIPTIONS, ROLE_HIERARCHY, ROLE_LABELS, type DemoRole, type IdentityRole, hasPermission, permissionsForRole } from "./identityModel";
 import { ensureDatabaseRunning } from "./_core/ensureDatabase";
 import { ANNOUNCEMENT_STATUS, isAudienceFor, type AnnouncementReader } from "@shared/communications";
+import {
+  DEMO_ACTIVITIES,
+  DEMO_ANNOUNCEMENTS,
+  DEMO_ATTENDANCE_DAYS,
+  DEMO_COURSES,
+  DEMO_EVENTS,
+  DEMO_JUSTIFICATION,
+  DEMO_OTHER_TEACHER,
+  DEMO_STUDENTS,
+  DEMO_SUBJECT,
+  DEMO_TEACHER,
+  type DemoStudent,
+  demoAttendanceStatus,
+  demoCourseAverage,
+  demoPeriods,
+  demoStudentAverage,
+  demoStudentName,
+  demoStudentsIn,
+  demoSubmissionDaysAgo,
+  lastSchoolDays,
+} from "./demoSeed";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 let _dbInitPromise: Promise<void> | null = null;
@@ -161,146 +182,139 @@ export async function ensureEduCoreSeeded() {
   if (!school) return null;
   const schoolId = school.id;
 
+  const year = Number(school.academicYear) || 2026;
   if ((await db.select({ id: academicPeriods.id }).from(academicPeriods).where(eq(academicPeriods.schoolId, schoolId)).limit(1)).length === 0) {
-    const year = Number(school.academicYear) || 2026;
-    await db.insert(academicPeriods).values([
-      { schoolId, name: "Periodo 1", startDate: new Date(`${year}-01-13T00:00:00Z`), endDate: new Date(`${year}-03-27T23:59:59Z`), status: "Cerrado" },
-      { schoolId, name: "Periodo 2", startDate: new Date(`${year}-04-06T00:00:00Z`), endDate: new Date(`${year}-06-19T23:59:59Z`), status: "Activo" },
-      { schoolId, name: "Periodo 3", startDate: new Date(`${year}-07-06T00:00:00Z`), endDate: new Date(`${year}-09-18T23:59:59Z`), status: "Programado" },
-      { schoolId, name: "Periodo 4", startDate: new Date(`${year}-09-28T00:00:00Z`), endDate: new Date(`${year}-11-27T23:59:59Z`), status: "Programado" },
-    ]);
+    await db.insert(academicPeriods).values(demoPeriods(year).map(period => ({ schoolId, ...period })));
   }
+  const activePeriod = (await db.select().from(academicPeriods).where(and(eq(academicPeriods.schoolId, schoolId), eq(academicPeriods.status, "Activo"))).limit(1))[0];
+  const activePeriodName = activePeriod?.name ?? "Periodo 4";
 
   if ((await db.select({ id: students.id }).from(students).where(eq(students.schoolId, schoolId)).limit(1)).length === 0) {
-    await db.insert(students).values([
-      { schoolId, name: "Sofía Martínez", email: "sofia.demo@educore.co", course: "11-2", gradeLevel: "11", guardianName: "Mariana Martínez", status: "Activo", avatarColor: "#dbeafe" },
-      { schoolId, name: "Carlos Rojas", email: "carlos.demo@educore.co", course: "11-2", gradeLevel: "11", guardianName: "Andrés Rojas", status: "Activo", avatarColor: "#dcfce7" },
-      { schoolId, name: "Laura Gómez", email: "laura.demo@educore.co", course: "11-2", gradeLevel: "11", guardianName: "Paola Gómez", status: "Activo", avatarColor: "#fef3c7" },
-      { schoolId, name: "Daniel Torres", email: "daniel.demo@educore.co", course: "11-1", gradeLevel: "11", guardianName: "Camilo Torres", status: "Activo", avatarColor: "#fce7f3" },
-      { schoolId, name: "Juan Pérez", email: "juan.demo@educore.co", course: "10-1", gradeLevel: "10", guardianName: "Mónica Pérez", status: "Activo", avatarColor: "#ede9fe" },
-      { schoolId, name: "Valentina Ruiz", email: "valentina.demo@educore.co", course: "10-2", gradeLevel: "10", guardianName: "Felipe Ruiz", status: "Activo", avatarColor: "#cffafe" },
-      { schoolId, name: "Mateo Silva", email: "mateo.demo@educore.co", course: "9-1", gradeLevel: "9", guardianName: "Diana Silva", status: "Activo", avatarColor: "#ffedd5" },
-      { schoolId, name: "Isabella Castro", email: "isabella.demo@educore.co", course: "9-2", gradeLevel: "9", guardianName: "Ricardo Castro", status: "Activo", avatarColor: "#f1f5f9" },
-    ]);
+    await db.insert(students).values(DEMO_STUDENTS.map(student => ({ schoolId, name: demoStudentName(student), email: student.email, course: student.course, gradeLevel: "11", guardianName: student.guardianName, status: "Activo", avatarColor: student.avatarColor })));
   }
 
   if ((await db.select({ id: teachers.id }).from(teachers).where(eq(teachers.schoolId, schoolId)).limit(1)).length === 0) {
     await db.insert(teachers).values([
-      { schoolId, name: "Juan Diego Loaiza", email: "juan.loaiza@demo.educore.co", subjectFocus: "Biología" },
-      { schoolId, name: "Andrés Molina", email: "andres.molina@educore.co", subjectFocus: "Lengua Castellana" },
-      { schoolId, name: "Natalia Cárdenas", email: "natalia.cardenas@educore.co", subjectFocus: "Ciencias Naturales" },
-      { schoolId, name: "Santiago Pérez", email: "santiago.perez@educore.co", subjectFocus: "Inglés" },
+      { schoolId, name: DEMO_TEACHER.name, email: DEMO_TEACHER.email, subjectFocus: DEMO_TEACHER.subject },
+      { schoolId, ...DEMO_OTHER_TEACHER },
     ]);
-  } else {
-    const existingTeachers = await db.select().from(teachers).where(eq(teachers.schoolId, schoolId));
-    if (existingTeachers.length > 0 && !existingTeachers.some(t => t.name === "Juan Diego Loaiza")) {
-      await db.update(teachers).set({ name: "Juan Diego Loaiza", email: "juan.loaiza@demo.educore.co", subjectFocus: "Biología" }).where(eq(teachers.id, existingTeachers[0].id));
-    }
   }
 
   if ((await db.select({ id: courses.id }).from(courses).where(eq(courses.schoolId, schoolId)).limit(1)).length === 0) {
-    await db.insert(courses).values([
-      { schoolId, name: "9-1", grade: "9", groupName: "1", year: "2026", teacherName: "Natalia Cárdenas", studentsCount: 28, average: 4.1 },
-      { schoolId, name: "9-2", grade: "9", groupName: "2", year: "2026", teacherName: "Andrés Molina", studentsCount: 29, average: 4.0 },
-      { schoolId, name: "10-1", grade: "10", groupName: "1", year: "2026", teacherName: "Santiago Pérez", studentsCount: 31, average: 3.8 },
-      { schoolId, name: "10-2", grade: "10", groupName: "2", year: "2026", teacherName: "Natalia Cárdenas", studentsCount: 30, average: 4.2 },
-      { schoolId, name: "11-1", grade: "11", groupName: "1", year: "2026", teacherName: "Juan Diego Loaiza", studentsCount: 30, average: 4.0 },
-      { schoolId, name: "11-2", grade: "11", groupName: "2", year: "2026", teacherName: "Juan Diego Loaiza", studentsCount: 32, average: 3.9 },
-    ]);
-  }
-
-  if ((await db.select({ id: subjects.id }).from(subjects).where(eq(subjects.schoolId, schoolId)).limit(1)).length === 0) {
-    await db.insert(subjects).values([
-      { schoolId, name: "Biología", course: "11-2", teacherName: "Juan Diego Loaiza" },
-      { schoolId, name: "Matemáticas", course: "11-2", teacherName: "Laura Gómez" },
-      { schoolId, name: "Física", course: "11-2", teacherName: "Laura Gómez" },
-      { schoolId, name: "Química", course: "11-2", teacherName: "Natalia Cárdenas" },
-      { schoolId, name: "Inglés", course: "11-2", teacherName: "Santiago Pérez" },
-      { schoolId, name: "Lengua Castellana", course: "11-2", teacherName: "Andrés Molina" },
-      { schoolId, name: "Ciencias Sociales", course: "11-1", teacherName: "Andrés Molina" },
-      { schoolId, name: "Filosofía", course: "11-1", teacherName: "Andrés Molina" },
-      { schoolId, name: "Tecnología", course: "10-1", teacherName: "Santiago Pérez" },
-      { schoolId, name: "Educación Física", course: "9-1", teacherName: "Natalia Cárdenas" },
-    ]);
+    await db.insert(courses).values(DEMO_COURSES.map(course => ({ schoolId, name: course.name, grade: course.grade, groupName: course.groupName, year: String(year), teacherName: DEMO_TEACHER.name, studentsCount: demoStudentsIn(course.name).length, average: demoCourseAverage(course.name) })));
   }
 
   if ((await db.select({ id: assignments.id }).from(assignments).where(eq(assignments.schoolId, schoolId)).limit(1)).length === 0) {
-    await db.insert(assignments).values([
-      { schoolId, title: "Taller de derivadas", subject: "Matemáticas", course: "11-2", teacherName: "Laura Gómez", description: "Resuelve los ejercicios 1 al 8 y explica el procedimiento usado en los problemas 5 y 8.", dueAt: d(2, 23), points: 100, status: "Publicado" },
-      { schoolId, title: "Ensayo: ética y tecnología", subject: "Filosofía", course: "11-2", teacherName: "Andrés Molina", description: "Escribe un ensayo argumentativo de 800 palabras con al menos dos fuentes.", dueAt: d(5, 23), points: 100, status: "Publicado" },
-      { schoolId, title: "Laboratorio de movimiento", subject: "Física", course: "11-2", teacherName: "Laura Gómez", description: "Registra las mediciones del laboratorio y entrega el análisis en PDF.", dueAt: d(-2, 23), points: 100, status: "Vencida" },
-      { schoolId, title: "Presentación oral B2", subject: "Inglés", course: "10-1", teacherName: "Santiago Pérez", description: "Prepara una presentación de cinco minutos sobre una innovación colombiana.", dueAt: d(8, 23), points: 80, status: "Publicado" },
-    ]);
+    await db.insert(assignments).values(DEMO_ACTIVITIES.map(activity => ({ schoolId, title: activity.title, subject: DEMO_SUBJECT.name, course: activity.course, teacherName: DEMO_TEACHER.name, description: activity.description, dueAt: d(activity.dueInDays, 23), points: 100, status: activity.status })));
   }
 
+  // Una nota por estudiante: la definitiva parcial ponderada que también calcula el Grade Center
   if ((await db.select({ id: grades.id }).from(grades).where(eq(grades.schoolId, schoolId)).limit(1)).length === 0) {
-    await db.insert(grades).values([
-      { schoolId, studentName: "Sofía Martínez", course: "11-2", subject: "Matemáticas", period: "Periodo 2", value: 4.5 },
-      { schoolId, studentName: "Sofía Martínez", course: "11-2", subject: "Física", period: "Periodo 2", value: 4.2 },
-      { schoolId, studentName: "Sofía Martínez", course: "11-2", subject: "Química", period: "Periodo 2", value: 4.7 },
-      { schoolId, studentName: "Carlos Rojas", course: "11-2", subject: "Matemáticas", period: "Periodo 2", value: 3.8 },
-      { schoolId, studentName: "Carlos Rojas", course: "11-2", subject: "Física", period: "Periodo 2", value: 3.6 },
-      { schoolId, studentName: "Laura Gómez", course: "11-2", subject: "Matemáticas", period: "Periodo 2", value: 4.7 },
-      { schoolId, studentName: "Daniel Torres", course: "11-1", subject: "Matemáticas", period: "Periodo 2", value: 2.9 },
-      { schoolId, studentName: "Juan Pérez", course: "10-1", subject: "Inglés", period: "Periodo 2", value: 4.0 },
-    ]);
-  }
-
-  if ((await db.select({ id: attendance.id }).from(attendance).where(eq(attendance.schoolId, schoolId)).limit(1)).length === 0) {
-    await db.insert(attendance).values([
-      { schoolId, studentName: "Sofía Martínez", course: "11-2", date: d(-1, 7), status: "Presente", note: null },
-      { schoolId, studentName: "Carlos Rojas", course: "11-2", date: d(-1, 7), status: "Presente", note: null },
-      { schoolId, studentName: "Laura Gómez", course: "11-2", date: d(-1, 7), status: "Tardanza", note: "Llegó 8 minutos después del inicio." },
-      { schoolId, studentName: "Daniel Torres", course: "11-1", date: d(-1, 7), status: "Ausente", note: null },
-      { schoolId, studentName: "Juan Pérez", course: "10-1", date: d(-1, 7), status: "Presente", note: null },
-      { schoolId, studentName: "Valentina Ruiz", course: "10-2", date: d(-1, 7), status: "Excusa", note: "Excusa médica registrada." },
-    ]);
+    const gradeRows = DEMO_STUDENTS.flatMap(student => {
+      const value = demoStudentAverage(student);
+      return value === null ? [] : [{ schoolId, studentName: demoStudentName(student), course: student.course, subject: DEMO_SUBJECT.name, period: activePeriodName, value }];
+    });
+    if (gradeRows.length) await db.insert(grades).values(gradeRows);
   }
 
   if ((await db.select({ id: submissions.id }).from(submissions).where(eq(submissions.schoolId, schoolId)).limit(1)).length === 0) {
-    const task = (await db.select().from(assignments).where(and(eq(assignments.schoolId, schoolId), eq(assignments.title, "Taller de derivadas"))).limit(1))[0];
-    if (task) {
-      await db.insert(submissions).values([
-        { schoolId, assignmentId: task.id, studentName: "Sofía Martínez", submittedAt: d(-1, 18), status: "Entregada", fileName: "taller-derivadas-sofia.pdf", comment: "Incluí el procedimiento completo.", grade: null },
-        { schoolId, assignmentId: task.id, studentName: "Carlos Rojas", submittedAt: d(0, 16), status: "Entregada", fileName: "taller-derivadas-carlos.pdf", comment: null, grade: 4.3 },
-      ]);
-    }
+    const activityRows = await db.select().from(assignments).where(eq(assignments.schoolId, schoolId));
+    const submissionRows = DEMO_ACTIVITIES.flatMap(activity => {
+      const task = activityRows.find(row => row.title === activity.title && row.course === activity.course);
+      if (!task) return [];
+      const fileTopic = activity.title.split(":")[0].normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, "-");
+      return demoStudentsIn(activity.course).flatMap(student => {
+        const result = student.results[activity.index];
+        if (result === null) return [];
+        const daysAgo = demoSubmissionDaysAgo(student, activity, result);
+        return [{
+          schoolId,
+          assignmentId: task.id,
+          studentName: demoStudentName(student),
+          submittedAt: d(-daysAgo, daysAgo === 0 ? 6 : 18),
+          status: "Entregada",
+          fileName: `${fileTopic}-${student.code.toLowerCase()}.pdf`,
+          comment: null,
+          grade: typeof result === "number" ? result : null,
+        }];
+      });
+    });
+    if (submissionRows.length) await db.insert(submissions).values(submissionRows);
   }
 
   if ((await db.select({ id: events.id }).from(events).where(eq(events.schoolId, schoolId)).limit(1)).length === 0) {
+    const closingDate = activePeriod?.endDate ? new Date(activePeriod.endDate) : d(30, 17);
+    closingDate.setHours(17, 0, 0, 0);
     await db.insert(events).values([
-      { schoolId, title: "Evaluación de Matemáticas", type: "Examen", eventDate: d(3, 8), location: "Aula 11-2", audience: "11-2" },
-      { schoolId, title: "Reunión de padres de 11°", type: "Reunión", eventDate: d(6, 17), location: "Auditorio principal", audience: "Acudientes" },
-      { schoolId, title: "Feria de ciencia y tecnología", type: "Actividad institucional", eventDate: d(12, 9), location: "Patio central", audience: "Todo el colegio" },
-      { schoolId, title: "Cierre de periodo 2", type: "Institucional", eventDate: d(18, 17), location: "Virtual", audience: "Todo el colegio" },
+      ...DEMO_EVENTS.map(event => ({ schoolId, title: event.title, type: event.type, eventDate: d(event.inDays, event.hour), location: event.location, audience: event.audience })),
+      { schoolId, title: `Cierre del ${activePeriodName}`, type: "Institucional", eventDate: closingDate, location: "Virtual", audience: "Todo el colegio" },
     ]);
   }
 
   if ((await db.select({ id: announcements.id }).from(announcements).where(eq(announcements.schoolId, schoolId)).limit(1)).length === 0) {
-    await db.insert(announcements).values([
-      { schoolId, title: "Actualización del calendario académico", message: "El cierre de periodo 2 se realizará el 23 de septiembre. Consulta las fechas en tu calendario.", audience: "Todo el colegio", status: "Publicado", publishedAt: d(-2, 10) },
-      { schoolId, title: "Reunión de padres de 11°", message: "Invitamos a los acudientes de grado 11 a la reunión del próximo viernes en el auditorio principal.", audience: "Acudientes de 11°", status: "Publicado", publishedAt: d(-4, 8) },
-      { schoolId, title: "Borrador: jornada pedagógica", message: "Estamos preparando una jornada pedagógica para el equipo docente.", audience: "Docentes", status: "Borrador", publishedAt: d(-1, 14) },
-    ]);
+    await db.insert(announcements).values(DEMO_ANNOUNCEMENTS.map(item => ({ schoolId, title: item.title, message: item.message, audience: item.audience, status: item.status, publishedAt: d(-item.daysAgo, 7) })));
   }
 
   if ((await db.select({ id: notifications.id }).from(notifications).where(eq(notifications.schoolId, schoolId)).limit(1)).length === 0) {
+    // Las tres entregas por revisar más recientes y la excusa pendiente
+    const pendingReview = DEMO_ACTIVITIES.flatMap(activity => demoStudentsIn(activity.course)
+      .filter(student => student.results[activity.index] === "R")
+      .map(student => ({ student, activity, daysAgo: demoSubmissionDaysAgo(student, activity, "R") })))
+      .sort((a, b) => a.daysAgo - b.daysAgo)
+      .slice(0, 3);
+    const justified = DEMO_STUDENTS.find(student => student.openId === DEMO_JUSTIFICATION.openId);
     await db.insert(notifications).values([
-      { schoolId, title: "Nueva entrega recibida", detail: "Sofía Martínez entregó Taller de derivadas.", type: "Entrega", read: 0 },
-      { schoolId, title: "Evento próximo", detail: "Evaluación de Matemáticas en 3 días.", type: "Evento", read: 0 },
-      { schoolId, title: "Asistencia pendiente", detail: "Falta registrar la asistencia de 11-2.", type: "Recordatorio", read: 0 },
+      ...pendingReview.map(({ student, activity }) => ({ schoolId, title: "Nueva entrega recibida", detail: `${demoStudentName(student)} (${student.course}) entregó ${activity.title}.`, type: "Entrega", read: 0 })),
+      ...(justified ? [{ schoolId, title: "Justificación pendiente", detail: `${justified.guardianName} radicó una excusa por la inasistencia de ${demoStudentName(justified)} (${justified.course}).`, type: "Recordatorio", read: 0 }] : []),
     ]);
   }
 
-  if ((await db.select({ id: reportCards.id }).from(reportCards).where(eq(reportCards.schoolId, schoolId)).limit(1)).length === 0) {
-    await db.insert(reportCards).values([
-      { schoolId, studentName: "Sofía Martínez", course: "11-2", period: "Periodo 2", average: 4.5, attendancePercent: 96, status: "Listo" },
-      { schoolId, studentName: "Carlos Rojas", course: "11-2", period: "Periodo 2", average: 3.8, attendancePercent: 92, status: "Listo" },
-    ]);
-  }
   await ensureIdentitySeeded(schoolId);
   await ensureAcademicSeeded(schoolId);
+  await ensureDemoAttendanceSeeded(schoolId);
   return school;
+}
+
+/** Historial de asistencia de los últimos días hábiles (hoy queda sin registrar) y la excusa pendiente. */
+async function ensureDemoAttendanceSeeded(schoolId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await ensureAttendanceTables();
+  if ((await db.select({ id: attendanceRecords.id }).from(attendanceRecords).where(eq(attendanceRecords.schoolId, schoolId)).limit(1)).length > 0) return;
+  // Las vistas de asistencia identifican al estudiante por el id del roster legacy
+  const rosterRows = await db.select().from(students).where(eq(students.schoolId, schoolId));
+  const rosterId = (student: DemoStudent) => rosterRows.find(row => row.name === demoStudentName(student) && row.course === student.course)?.id;
+  const days = lastSchoolDays(DEMO_ATTENDANCE_DAYS);
+  const records = DEMO_STUDENTS.flatMap(student => {
+    const id = rosterId(student);
+    if (!id) return [];
+    return days.map((attendanceDate, dayIndex) => ({ schoolId, courseId: student.course, studentId: String(id), attendanceDate, status: demoAttendanceStatus(student, dayIndex), recordedByName: DEMO_TEACHER.name }));
+  });
+  if (records.length) await db.insert(attendanceRecords).values(records);
+
+  const justified = DEMO_STUDENTS.find(student => student.openId === DEMO_JUSTIFICATION.openId);
+  const justifiedId = justified ? rosterId(justified) : undefined;
+  if (!justified || !justifiedId) return;
+  const result = await db.insert(attendanceJustifications).values({
+    schoolId,
+    courseId: justified.course,
+    studentId: String(justifiedId),
+    attendanceDate: days[DEMO_JUSTIFICATION.dayIndex],
+    reasonCategory: DEMO_JUSTIFICATION.reasonCategory,
+    description: DEMO_JUSTIFICATION.description,
+    submittedByRole: "guardian",
+    submittedByName: DEMO_JUSTIFICATION.submittedByName,
+    status: "submitted",
+  });
+  await db.insert(attendanceJustificationEvents).values({
+    schoolId,
+    justificationId: Number(result[0].insertId),
+    eventType: "submitted",
+    toStatus: "submitted",
+    actorRole: "guardian",
+    actorName: DEMO_JUSTIFICATION.submittedByName,
+    notes: "Excusa radicada por el acudiente.",
+  });
 }
 
 async function ensureAcademicSeeded(schoolId: number) {
@@ -313,75 +327,41 @@ async function ensureAcademicSeeded(schoolId: number) {
   for (const period of periodRows) {
     if (!period.academicYearId) await db.update(academicPeriods).set({ academicYearId: year2026.id, orderIndex: Number(period.name.match(/\d+/)?.[0] ?? 1) }).where(eq(academicPeriods.id, period.id));
   }
-  const gradeSeeds = [
-    ["Sexto", "6°", 6], ["Séptimo", "7°", 7], ["Octavo", "8°", 8], ["Noveno", "9°", 9], ["Décimo", "10°", 10], ["Undécimo", "11°", 11],
-  ] as const;
-  const gradeMap = new Map<string, number>();
-  for (const [name, shortName, levelOrder] of gradeSeeds) {
-    const existing = (await db.select().from(gradeLevels).where(and(eq(gradeLevels.schoolId, schoolId), eq(gradeLevels.shortName, shortName))).limit(1))[0];
-    const row = existing ?? (await db.insert(gradeLevels).values({ schoolId, name, shortName, levelOrder, status: "ACTIVE" }).$returningId())[0];
-    if (row) gradeMap.set(String(levelOrder), row.id);
-  }
-  const courseSeeds = [
-    ["6-1", "6", "1", 6, 28], ["6-2", "6", "2", 6, 28], ["7-1", "7", "1", 7, 30], ["8-1", "8", "1", 8, 30],
-    ["9-1", "9", "1", 9, 28], ["9-2", "9", "2", 9, 29], ["10-1", "10", "1", 10, 31], ["10-2", "10", "2", 10, 30], ["11-1", "11", "1", 11, 30], ["11-2", "11", "2", 11, 32],
-  ] as const;
+  const gradeLevel = (await db.select().from(gradeLevels).where(and(eq(gradeLevels.schoolId, schoolId), eq(gradeLevels.shortName, "11°"))).limit(1))[0]
+    ?? (await db.insert(gradeLevels).values({ schoolId, name: "Undécimo", shortName: "11°", levelOrder: 11, status: "ACTIVE" }).$returningId())[0];
   const courseMap = new Map<string, number>();
-  for (const [name, grade, groupName, levelOrder, capacity] of courseSeeds) {
-    let course = (await db.select().from(courses).where(and(eq(courses.schoolId, schoolId), eq(courses.name, name))).limit(1))[0];
+  for (const seed of DEMO_COURSES) {
+    let course = (await db.select().from(courses).where(and(eq(courses.schoolId, schoolId), eq(courses.name, seed.name))).limit(1))[0];
     if (!course) {
-      await db.insert(courses).values({ schoolId, academicYearId: year2026.id, gradeLevelId: gradeMap.get(String(levelOrder)) ?? null, name, code: name, grade, groupName, year: "2026", capacity, status: "ACTIVE", teacherName: "Equipo académico", studentsCount: 0, average: 0 });
-      course = (await db.select().from(courses).where(and(eq(courses.schoolId, schoolId), eq(courses.name, name))).limit(1))[0];
+      await db.insert(courses).values({ schoolId, academicYearId: year2026.id, gradeLevelId: gradeLevel?.id ?? null, name: seed.name, code: seed.name, grade: seed.grade, groupName: seed.groupName, year: "2026", capacity: 30, status: "ACTIVE", teacherName: DEMO_TEACHER.name, studentsCount: demoStudentsIn(seed.name).length, average: demoCourseAverage(seed.name) });
+      course = (await db.select().from(courses).where(and(eq(courses.schoolId, schoolId), eq(courses.name, seed.name))).limit(1))[0];
     } else {
-      await db.update(courses).set({ academicYearId: course.academicYearId ?? year2026.id, gradeLevelId: course.gradeLevelId ?? gradeMap.get(String(levelOrder)) ?? null, code: course.code ?? name, capacity: course.capacity ?? capacity, status: course.status || "ACTIVE" }).where(eq(courses.id, course.id));
+      await db.update(courses).set({ academicYearId: course.academicYearId ?? year2026.id, gradeLevelId: course.gradeLevelId ?? gradeLevel?.id ?? null, code: course.code ?? seed.name, capacity: course.capacity ?? 30, status: course.status || "ACTIVE" }).where(eq(courses.id, course.id));
     }
-    if (course) courseMap.set(name, course.id);
+    if (course) courseMap.set(seed.name, course.id);
   }
-  const subjectSeeds = [
-    ["Biología", "BIO", "Ciencias naturales, ecosistemas y procesos celulares."],
-    ["Matemáticas", "MAT", "Pensamiento numérico, algebraico y variacional."], ["Física", "FIS", "Comprensión de fenómenos y movimiento."], ["Química", "QUI", "Materia, transformaciones y laboratorio."], ["Inglés", "ING", "Comunicación en lengua extranjera."], ["Lengua Castellana", "LEN", "Lectura, escritura y comunicación."], ["Ciencias Sociales", "SOC", "Sociedad, territorio y ciudadanía."], ["Filosofía", "FIL", "Pensamiento crítico y reflexión."], ["Tecnología", "TEC", "Diseño, tecnología y pensamiento computacional."], ["Educación Física", "EDF", "Movimiento, salud y bienestar."],
-  ] as const;
+  let subject = (await db.select().from(subjects).where(and(eq(subjects.schoolId, schoolId), eq(subjects.name, DEMO_SUBJECT.name))).limit(1))[0];
+  if (!subject) {
+    await db.insert(subjects).values({ schoolId, name: DEMO_SUBJECT.name, shortName: DEMO_SUBJECT.code, code: DEMO_SUBJECT.code, description: DEMO_SUBJECT.description, status: "ACTIVE", course: DEMO_COURSES.map(course => course.name).join(", "), teacherName: DEMO_TEACHER.name });
+    subject = (await db.select().from(subjects).where(and(eq(subjects.schoolId, schoolId), eq(subjects.name, DEMO_SUBJECT.name))).limit(1))[0];
+  }
   const subjectMap = new Map<string, number>();
-  for (const [name, code, description] of subjectSeeds) {
-    let subject = (await db.select().from(subjects).where(and(eq(subjects.schoolId, schoolId), eq(subjects.name, name))).limit(1))[0];
-    if (!subject) {
-      await db.insert(subjects).values({ schoolId, name, shortName: name.slice(0, 3).toUpperCase(), code, description, status: "ACTIVE", course: "11-2", teacherName: "Juan Diego Loaiza" });
-      subject = (await db.select().from(subjects).where(and(eq(subjects.schoolId, schoolId), eq(subjects.name, name))).limit(1))[0];
-    } else {
-      await db.update(subjects).set({ code: subject.code ?? code, description: subject.description ?? description, status: subject.status || "ACTIVE" }).where(eq(subjects.id, subject.id));
-    }
-    if (subject) subjectMap.set(name, subject.id);
+  if (subject) subjectMap.set(subject.name, subject.id);
+  const teacherUser = (await db.select({ id: users.id }).from(users).where(eq(users.openId, DEMO_TEACHER.openId)).limit(1))[0];
+  for (const courseId of Array.from(courseMap.values())) {
+    if (!subject) continue;
+    const linked = (await db.select({ id: courseSubjects.id }).from(courseSubjects).where(and(eq(courseSubjects.schoolId, schoolId), eq(courseSubjects.courseId, courseId), eq(courseSubjects.subjectId, subject.id))).limit(1)).length > 0;
+    if (!linked) await db.insert(courseSubjects).values({ schoolId, courseId, subjectId: subject.id, status: "ACTIVE" });
+    if (!teacherUser) continue;
+    const assigned = (await db.select({ id: teacherAssignments.id }).from(teacherAssignments).where(and(eq(teacherAssignments.schoolId, schoolId), eq(teacherAssignments.teacherUserId, teacherUser.id), eq(teacherAssignments.courseId, courseId), eq(teacherAssignments.subjectId, subject.id), eq(teacherAssignments.academicYearId, year2026.id))).limit(1)).length > 0;
+    if (!assigned) await db.insert(teacherAssignments).values({ schoolId, teacherUserId: teacherUser.id, courseId, subjectId: subject.id, academicYearId: year2026.id, isPrimary: 1, status: "ACTIVE" });
   }
-  const standardSubjects = ["Biología", "Matemáticas", "Física", "Química", "Inglés", "Lengua Castellana"];
-  for (const courseSeed of courseSeeds) {
-    const courseName = courseSeed[0];
-    const courseId = courseMap.get(courseName);
-    if (!courseId) continue;
-    for (const subjectName of standardSubjects) {
-      const subjectId = subjectMap.get(subjectName);
-      if (!subjectId) continue;
-      const exists = (await db.select({ id: courseSubjects.id }).from(courseSubjects).where(and(eq(courseSubjects.schoolId, schoolId), eq(courseSubjects.courseId, courseId), eq(courseSubjects.subjectId, subjectId))).limit(1)).length > 0;
-      if (!exists) await db.insert(courseSubjects).values({ schoolId, courseId, subjectId, status: "ACTIVE" });
-    }
-  }
-  const teachersForAcademic = await db.select({ userId: teacherProfiles.userId }).from(teacherProfiles).where(eq(teacherProfiles.schoolId, schoolId)).limit(3);
-  const subjectAssignments = [["11-2", "Biología"], ["11-1", "Biología"], ["10-1", "Biología"], ["11-2", "Matemáticas"], ["9-2", "Física"]] as const;
-  for (const [courseName, subjectName] of subjectAssignments) {
-    const teacherUserId = teachersForAcademic[(courseName === "9-2" && subjectName === "Física") ? 1 : 0]?.userId;
-    const courseId = courseMap.get(courseName);
-    const subjectId = subjectMap.get(subjectName);
-    if (!teacherUserId || !courseId || !subjectId) continue;
-    const exists = (await db.select({ id: teacherAssignments.id }).from(teacherAssignments).where(and(eq(teacherAssignments.schoolId, schoolId), eq(teacherAssignments.teacherUserId, teacherUserId), eq(teacherAssignments.courseId, courseId), eq(teacherAssignments.subjectId, subjectId), eq(teacherAssignments.academicYearId, year2026.id))).limit(1)).length > 0;
-    if (!exists) await db.insert(teacherAssignments).values({ schoolId, teacherUserId, courseId, subjectId, academicYearId: year2026.id, isPrimary: 1, status: "ACTIVE" });
-  }
-  const studentUserRows = await db.select({ userId: studentProfiles.userId }).from(studentProfiles).where(eq(studentProfiles.schoolId, schoolId)).limit(3);
-  const studentCourseNames = ["11-2", "11-2", "11-1"] as const;
-  for (let index = 0; index < studentUserRows.length; index += 1) {
-    const studentUserId = studentUserRows[index]?.userId;
-    const courseId = courseMap.get(studentCourseNames[index] ?? "11-2");
-    if (!studentUserId || !courseId) continue;
-    const exists = (await db.select({ id: studentEnrollments.id }).from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, schoolId), eq(studentEnrollments.studentUserId, studentUserId), eq(studentEnrollments.academicYearId, year2026.id), eq(studentEnrollments.enrollmentStatus, "ACTIVE"))).limit(1)).length > 0;
-    if (!exists) await db.insert(studentEnrollments).values({ schoolId, studentUserId, academicYearId: year2026.id, courseId, enrollmentStatus: "ACTIVE" });
+  for (const student of DEMO_STUDENTS) {
+    const studentUser = (await db.select({ id: users.id }).from(users).where(eq(users.openId, student.openId)).limit(1))[0];
+    const courseId = courseMap.get(student.course);
+    if (!studentUser || !courseId) continue;
+    const exists = (await db.select({ id: studentEnrollments.id }).from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, schoolId), eq(studentEnrollments.studentUserId, studentUser.id), eq(studentEnrollments.academicYearId, year2026.id), eq(studentEnrollments.enrollmentStatus, "ACTIVE"))).limit(1)).length > 0;
+    if (!exists) await db.insert(studentEnrollments).values({ schoolId, studentUserId: studentUser.id, academicYearId: year2026.id, courseId, enrollmentStatus: "ACTIVE" });
   }
   return { year2026, year2025, courseMap, subjectMap };
 }
@@ -499,9 +479,20 @@ export async function getEduCoreSnapshot(
 
   const combinedAttendance = [...realAttendanceRows, ...attendanceRows];
 
-  const scopedCourseNames = isTeacher ? ["11-1", "11-2"] : isStudentOrGuardian ? ["11-2"] : courseRows.map(row => row.name);
+  // El docente ve los cursos y materias de sus asignaciones; estudiante y acudiente, el curso del estudiante
+  let teacherSubjectIds: number[] = [];
+  let scopedCourseNames = courseRows.map(row => row.name);
+  if (isTeacher) {
+    const teacherUserId = actor?.userId ?? (await getDemoIdentityContext("teacher", schoolId))?.user.id;
+    const assignmentLinks = teacherUserId ? await db.select({ courseId: teacherAssignments.courseId, subjectId: teacherAssignments.subjectId }).from(teacherAssignments).where(and(eq(teacherAssignments.schoolId, schoolId), eq(teacherAssignments.teacherUserId, teacherUserId), eq(teacherAssignments.status, "ACTIVE"))) : [];
+    const assignedCourseIds = new Set(assignmentLinks.map(link => link.courseId));
+    teacherSubjectIds = assignmentLinks.map(link => link.subjectId);
+    scopedCourseNames = courseRows.filter(row => assignedCourseIds.has(row.id)).map(row => row.name);
+  } else if (isStudentOrGuardian) {
+    scopedCourseNames = [studentRows.find(row => row.name === targetStudentName)?.course ?? DEMO_COURSES[0].name];
+  }
   const scopedStudents = isStudentOrGuardian ? studentRows.filter(row => row.name === targetStudentName) : isTeacher ? studentRows.filter(row => scopedCourseNames.includes(row.course)) : studentRows;
-  const scopedAssignments = isStudentOrGuardian ? assignmentRows.filter(row => row.course === "11-2") : isTeacher ? assignmentRows.filter(row => row.teacherName === "Juan Diego Loaiza" || row.teacherName === "Laura Gómez" || row.course === "11-2") : assignmentRows;
+  const scopedAssignments = isStudentOrGuardian || isTeacher ? assignmentRows.filter(row => scopedCourseNames.includes(row.course)) : assignmentRows;
   const scopedGrades = isStudentOrGuardian ? gradeRows.filter(row => row.studentName === targetStudentName) : isTeacher ? gradeRows.filter(row => scopedCourseNames.includes(row.course)) : gradeRows;
   const scopedAttendance = isStudentOrGuardian ? combinedAttendance.filter(row => row.studentName.toLowerCase() === targetStudentName.toLowerCase()) : isTeacher ? combinedAttendance.filter(row => scopedCourseNames.includes(row.course)) : combinedAttendance;
   const scopedSubmissions = isStudentOrGuardian ? submissionRows.filter(row => row.studentName === targetStudentName) : isTeacher ? submissionRows.filter(row => scopedCourseNames.includes(assignmentRows.find(a => a.id === row.assignmentId)?.course ?? "")) : submissionRows;
@@ -511,7 +502,7 @@ export async function getEduCoreSnapshot(
     courses: courseRows.filter(row => scopedCourseNames.includes(row.name)),
     students: scopedStudents,
     teachers: teacherRows,
-    subjects: isTeacher ? subjectRows.filter(row => scopedCourseNames.includes(row.course)) : subjectRows,
+    subjects: isTeacher ? subjectRows.filter(row => teacherSubjectIds.includes(row.id)) : subjectRows,
     grades: scopedGrades,
     attendance: scopedAttendance,
     assignments: scopedAssignments,
@@ -707,9 +698,8 @@ export async function ensureIdentitySeeded(schoolId = DEMO_SCHOOL_ID) {
     { openId: "educore-demo-coordinator", firstName: "Carlos", lastName: "Mendoza", name: "Carlos Mendoza", email: "carlos.coordinador@demo.educore.co", roleKey: "COORDINATOR" as IdentityRole, status: "ACTIVE", profile: "none" },
     { openId: "educore-demo-teacher-1", firstName: "Juan Diego", lastName: "Loaiza", name: "Juan Diego Loaiza", email: "juan.loaiza@demo.educore.co", roleKey: "TEACHER" as IdentityRole, status: "ACTIVE", profile: "teacher" },
     { openId: "educore-demo-teacher-2", firstName: "Andrés", lastName: "Molina", name: "Andrés Molina", email: "andres.molina@demo.educore.co", roleKey: "TEACHER" as IdentityRole, status: "ACTIVE", profile: "teacher" },
-    { openId: "educore-demo-student-1", firstName: "Sofía", lastName: "Martínez", name: "Sofía Martínez", email: "sofia.martinez@demo.educore.co", roleKey: "STUDENT" as IdentityRole, status: "ACTIVE", profile: "student" },
-    { openId: "educore-demo-student-2", firstName: "Carlos", lastName: "Rojas", name: "Carlos Rojas", email: "carlos.rojas@demo.educore.co", roleKey: "STUDENT" as IdentityRole, status: "ACTIVE", profile: "student" },
-    { openId: "educore-demo-student-3", firstName: "Daniel", lastName: "Torres", name: "Daniel Torres", email: "daniel.torres@demo.educore.co", roleKey: "STUDENT" as IdentityRole, status: "ACTIVE", profile: "student" },
+    // student-1 debe insertarse primero: es el estudiante que toma el login demo
+    ...[...DEMO_STUDENTS].sort((a, b) => Number(a.openId.split("-").pop()) - Number(b.openId.split("-").pop())).map(student => ({ openId: student.openId, firstName: student.firstName, lastName: student.lastName, name: demoStudentName(student), email: student.email, roleKey: "STUDENT" as IdentityRole, status: "ACTIVE", profile: "student" })),
     { openId: "educore-demo-guardian-1", firstName: "Mariana", lastName: "Martínez", name: "Mariana Martínez", email: "mariana.martinez@demo.educore.co", roleKey: "GUARDIAN" as IdentityRole, status: "ACTIVE", profile: "guardian" },
     { openId: "educore-demo-guardian-2", firstName: "Andrés", lastName: "Rojas", name: "Andrés Rojas", email: "andres.rojas@demo.educore.co", roleKey: "GUARDIAN" as IdentityRole, status: "ACTIVE", profile: "guardian" },
   ];
@@ -728,14 +718,17 @@ export async function ensureIdentitySeeded(schoolId = DEMO_SCHOOL_ID) {
     if (demo.profile === "teacher") {
       const profile = (await db.select().from(teacherProfiles).where(and(eq(teacherProfiles.schoolId, schoolId), eq(teacherProfiles.userId, user.id))).limit(1))[0];
       if (!profile) {
-        await db.insert(teacherProfiles).values({ schoolId, userId: user.id, employeeCode: `DOC-${user.id}`, specialties: "Ciencias Naturales y Biología", subjects: "Biología" });
+        const isMainTeacher = demo.openId === DEMO_TEACHER.openId;
+        await db.insert(teacherProfiles).values({ schoolId, userId: user.id, employeeCode: `DOC-${user.id}`, specialties: isMainTeacher ? "Ciencias Naturales y Biología" : DEMO_OTHER_TEACHER.subjectFocus, subjects: isMainTeacher ? DEMO_TEACHER.subject : DEMO_OTHER_TEACHER.subjectFocus });
       } else if (demo.openId === "educore-demo-teacher-1" && profile.subjects !== "Biología") {
         await db.update(teacherProfiles).set({ specialties: "Ciencias Naturales y Biología", subjects: "Biología" }).where(eq(teacherProfiles.id, profile.id));
       }
     }
     if (demo.profile === "student") {
       const profile = (await db.select().from(studentProfiles).where(and(eq(studentProfiles.schoolId, schoolId), eq(studentProfiles.userId, user.id))).limit(1))[0];
-      if (!profile) await db.insert(studentProfiles).values({ schoolId, userId: user.id, studentCode: `EST-${user.id}`, gradeLevel: "11", course: "11-2", status: demo.status });
+      const seed = DEMO_STUDENTS.find(student => student.openId === demo.openId);
+      if (!profile) await db.insert(studentProfiles).values({ schoolId, userId: user.id, studentCode: seed?.code ?? `EST-${user.id}`, gradeLevel: "11", course: seed?.course ?? "11-2", status: demo.status });
+      else if (seed && (profile.course !== seed.course || profile.studentCode !== seed.code)) await db.update(studentProfiles).set({ course: seed.course, studentCode: seed.code }).where(eq(studentProfiles.id, profile.id));
     }
     if (demo.profile === "guardian") {
       const profile = (await db.select().from(guardianProfiles).where(and(eq(guardianProfiles.schoolId, schoolId), eq(guardianProfiles.userId, user.id))).limit(1))[0];

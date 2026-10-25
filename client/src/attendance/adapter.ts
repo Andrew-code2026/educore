@@ -38,14 +38,6 @@ const COURSE_METADATA: Record<
     classDays: [1, 2, 3, 4, 5],
     color: "from-emerald-600 to-teal-600",
   },
-  "10-1": {
-    subject: "Biología",
-    room: "Laboratorio de Ciencias 204",
-    start: "12:00",
-    end: "13:00",
-    classDays: [1, 2, 3, 4, 5],
-    color: "from-cyan-600 to-blue-600",
-  },
 };
 
 /** Normaliza estados de asistencia de EduCore a los tokens de Manus */
@@ -165,9 +157,6 @@ export function adaptEduCoreDataToManus({
       courseNames.push(c.name);
     }
   });
-  if (courseNames.length === 0) {
-    courseNames.push("11-2", "11-1", "10-1");
-  }
 
   const eduStudentMap = new Map<string, EduAttendanceStudent>();
   const eduCourseMap = new Map<string, EduAttendanceCourse>();
@@ -189,12 +178,7 @@ export function adaptEduCoreDataToManus({
     const courseTodayStatuses: SessionStatuses = {};
     todayStatusesByCourse[courseName] = courseTodayStatuses;
 
-    let matchedStudents = rawStudents.filter((s: any) => s.course === courseName);
-    if (!matchedStudents.length) {
-      if (courseName === "11-1") matchedStudents = rawStudents.slice(0, 18);
-      else if (courseName === "10-1") matchedStudents = rawStudents.slice(8, 24);
-      else matchedStudents = rawStudents;
-    }
+    const matchedStudents = rawStudents.filter((s: any) => s.course === courseName);
 
     const students: Student[] = matchedStudents.map((s: any, sIdx: number) => {
       const studentIdStr = String(s.id);

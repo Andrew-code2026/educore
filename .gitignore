@@ -119,3 +119,4 @@ uploads/
 
 # Scratch files
 scratch_*
+.gstack/
