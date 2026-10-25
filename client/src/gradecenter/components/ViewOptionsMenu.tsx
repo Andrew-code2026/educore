@@ -34,7 +34,7 @@ export function ViewOptionsMenu() {
         <button
           type="button"
           className={cn(
-            "flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-colors",
+            "flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-colors",
             hidden > 0
               ? "bg-[var(--gc-cobalt)]/12 text-foreground"
               : "text-muted-foreground hover:bg-white/6 hover:text-foreground",

@@ -77,20 +77,28 @@ export function MatrixCanvas({ densityOverride, className }: { densityOverride?:
     setEditor(null);
   }, [dataset.key]);
 
+  // Reparto del espacio libre: primero la definitiva (para que el nivel no se
+  // trunque), luego las evaluaciones con un tope, y lo que sobra va a una
+  // columna de relleno antes de la definitiva. Así, con pocas evaluaciones, la
+  // planilla ocupa todo el ancho y la definitiva queda anclada a la derecha.
   const studentWidth = preferences.studentColWidth;
-  const definitivaWidth = preferences.definitivaColWidth;
+  const baseDefinitivaWidth = preferences.definitivaColWidth;
   const baseEvaluationWidths = useMemo(
     () => evaluations.map((evaluation) => columnWidth(evaluation.id)),
     [evaluations, columnWidth],
   );
-  const baseTotal = studentWidth + definitivaWidth + baseEvaluationWidths.reduce((acc, value) => acc + value, 0);
+  const baseTotal = studentWidth + baseDefinitivaWidth + baseEvaluationWidths.reduce((acc, value) => acc + value, 0);
   const spare = Math.max(0, containerWidth - baseTotal - 1);
-  const bonus = evaluations.length > 0 ? Math.min(160, spare / evaluations.length) : 0;
+  const definitivaBonus = Math.floor(Math.min(40, spare));
+  const definitivaWidth = baseDefinitivaWidth + definitivaBonus;
+  const bonus = evaluations.length > 0 ? Math.min(160, (spare - definitivaBonus) / evaluations.length) : 0;
   const evaluationWidths = useMemo(
     () => baseEvaluationWidths.map((value) => Math.floor(value + bonus)),
     [baseEvaluationWidths, bonus],
   );
-  const totalWidth = studentWidth + definitivaWidth + evaluationWidths.reduce((acc, value) => acc + value, 0);
+  const usedWidth = studentWidth + definitivaWidth + evaluationWidths.reduce((acc, value) => acc + value, 0);
+  const fillerWidth = Math.max(0, Math.floor(containerWidth - usedWidth - 1));
+  const totalWidth = usedWidth + fillerWidth;
 
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     const { scrollLeft, scrollTop } = event.currentTarget;
@@ -202,6 +210,7 @@ export function MatrixCanvas({ densityOverride, className }: { densityOverride?:
             {evaluations.map((evaluation, index) => (
               <col key={evaluation.id} style={{ width: evaluationWidths[index] }} />
             ))}
+            {fillerWidth > 0 && <col style={{ width: fillerWidth }} />}
             <col style={{ width: definitivaWidth }} />
           </colgroup>
 
@@ -226,7 +235,8 @@ export function MatrixCanvas({ densityOverride, className }: { densityOverride?:
                   readOnly={readOnly}
                 />
               ))}
-              <DefinitivaHeaderCell width={definitivaWidth} headerHeight={headerHeight} />
+              {fillerWidth > 0 && <FillerHeaderCell width={fillerWidth} headerHeight={headerHeight} readOnly={readOnly} />}
+              <DefinitivaHeaderCell width={definitivaWidth} baseWidth={baseDefinitivaWidth} headerHeight={headerHeight} />
             </tr>
           </thead>
 
@@ -251,6 +261,7 @@ export function MatrixCanvas({ densityOverride, className }: { densityOverride?:
                   rowHeight={rowHeight}
                   studentWidth={studentWidth}
                   definitivaWidth={definitivaWidth}
+                  fillerWidth={fillerWidth}
                   density={density}
                   quickEdit={preferences.quickEdit}
                   readOnly={readOnly}
@@ -282,6 +293,7 @@ interface MatrixRowProps {
   rowHeight: number;
   studentWidth: number;
   definitivaWidth: number;
+  fillerWidth: number;
   density: Density;
   quickEdit: boolean;
   readOnly: boolean;
@@ -305,6 +317,7 @@ const MatrixRow = memo(function MatrixRow({
   rowHeight,
   studentWidth,
   definitivaWidth,
+  fillerWidth,
   density,
   quickEdit,
   readOnly,
@@ -350,10 +363,32 @@ const MatrixRow = memo(function MatrixRow({
           onMoveEditor={onMoveEditor}
         />
       ))}
+      {fillerWidth > 0 && <td aria-hidden className="p-0" style={{ height: rowHeight }} />}
       <DefinitivaCell metrics={metrics} width={definitivaWidth} height={rowHeight} density={density} />
     </tr>
   );
 });
+
+/** Encabezado del espacio sobrante: invita a crear la siguiente evaluación. */
+function FillerHeaderCell({ width, headerHeight, readOnly }: { width: number; headerHeight: number; readOnly: boolean }) {
+  const dialogs = useGradeCenterDialogs();
+  return (
+    <th aria-hidden={readOnly || undefined} className="gc-solid-deep sticky top-0 z-40 p-0" style={{ width, height: headerHeight }}>
+      {!readOnly && width >= 140 && (
+        <div className="flex h-full items-center px-3">
+          <button
+            type="button"
+            onClick={dialogs.openNewEvaluation}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-foreground/20 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-[var(--gc-cobalt)]/60 hover:text-[var(--gc-cobalt)] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none"
+          >
+            <ClipboardPlus className="size-3.5" aria-hidden />
+            Nueva evaluación
+          </button>
+        </div>
+      )}
+    </th>
+  );
+}
 
 function EmptyMatrix({
   reason,
