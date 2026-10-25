@@ -439,7 +439,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
               </span>
               <button
                 type="button"
-                onClick={() => onOpenFullRecord?.("history")}
+                onClick={() => onOpenFullRecord?.("attendance")}
                 className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
               >
                 Ver historial completo ({days.length}) →

@@ -79,4 +79,3 @@ export const SEVERITY_DOT: Record<AttentionFlag["severity"], string> = {
   medium: "bg-st-late",
   low: "bg-st-excuse",
 };
-  // El guion largo identifica el quinto estado cuando aparece como control.

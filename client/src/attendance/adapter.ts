@@ -250,8 +250,9 @@ export function adaptEduCoreDataToManus({
         avatar: s.avatarUrl,
         avatarColor: s.avatarColor || (sIdx % 2 === 0 ? "#dbeafe" : "#fef3c7"),
         email: s.email,
-        guardianName: s.guardianName || "Familia " + lastName,
-        guardianPhone: s.guardianPhone || s.phone || "+57 301 555 0101",
+        // Sin datos reales se deja vacío: el expediente no debe mostrar contactos inventados.
+        guardianName: s.guardianName || undefined,
+        guardianPhone: s.guardianPhone || s.phone || undefined,
         guardianEmail: s.guardianEmail || s.email,
         attendanceRate: rate,
         absencesCount,
@@ -281,7 +282,7 @@ export function adaptEduCoreDataToManus({
       time: `${meta.start} – ${meta.end}`,
       color: meta.color,
       students: students.map((st) => eduStudentMap.get(st.id)!),
-      teacherName: snapshotData?.user?.name || "Juan Diego Loaiza",
+      teacherName: snapshotData?.user?.name || undefined,
     };
     eduCourseMap.set(courseName, eduCourse);
 

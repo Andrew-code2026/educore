@@ -389,11 +389,3 @@ export function classStateFor(course: Course, isoDate: string, now = new Date())
   }
   return { state: "active", label: "Clase activa", hint: `${course.start}–${course.end}` };
 }
-
-/** Mensaje contextual del encabezado según el avance del registro. */
-export function progressMessage(metrics: DayMetrics): string {
-  if (metrics.total === 0) return "Sin estudiantes en este curso";
-  if (metrics.pending === 0) return `${metrics.total} de ${metrics.total} registrados`;
-  if (metrics.pending === metrics.total) return `${metrics.total} estudiantes por registrar`;
-  return `${metrics.total - metrics.pending} de ${metrics.total} registrados · faltan ${metrics.pending}`;
-}
