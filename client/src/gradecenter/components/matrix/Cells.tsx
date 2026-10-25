@@ -166,9 +166,12 @@ export const StudentCell = memo(function StudentCell({
 
 export const DefinitivaHeaderCell = memo(function DefinitivaHeaderCell({
   width,
+  baseWidth = width,
   headerHeight,
 }: {
   width: number;
+  /** Ancho guardado, sin el espacio libre repartido: el arrastre parte de aquí. */
+  baseWidth?: number;
   headerHeight: number;
 }) {
   const { resizeDefinitivaColumn } = useGradeCenterActions();
@@ -188,7 +191,7 @@ export const DefinitivaHeaderCell = memo(function DefinitivaHeaderCell({
         role="separator"
         aria-orientation="vertical"
         aria-label="Ajustar ancho de la definitiva"
-        onPointerDown={createResizeHandler(width, resizeDefinitivaColumn, -1)}
+        onPointerDown={createResizeHandler(baseWidth, resizeDefinitivaColumn, -1)}
       />
     </th>
   );

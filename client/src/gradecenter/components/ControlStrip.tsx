@@ -73,6 +73,10 @@ export function ControlStrip() {
     SORT_OPTIONS.find(option => option.key === preferences.sort.key)?.label ??
     "Nombre";
   const filtered = students.length !== analytics.students.length;
+  const weightLabel =
+    weightIntegrity.status === "exceeded"
+      ? `Ponderación ${weightIntegrity.used}% (supera 100%)`
+      : `Ponderación ${weightIntegrity.used}% · faltan ${weightIntegrity.remaining}%`;
 
   const toggleLevel = (level: LevelId) => {
     const levels = filters.levels.includes(level)
@@ -285,17 +289,21 @@ export function ControlStrip() {
       {weightIntegrity.status !== "valid" && dataset.evaluations.length > 0 && (
         <span
           className={cn(
-            "hidden shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-xs @3xl:flex",
+            // Cede espacio antes que los botones: con poco ancho se resume a "240%".
+            "ml-1 hidden min-w-[30px] items-center gap-1.5 overflow-hidden rounded-lg px-2 py-1 text-xs whitespace-nowrap @3xl:flex",
             weightIntegrity.status === "exceeded"
               ? "bg-[var(--gc-bajo)]/12 text-[var(--gc-bajo)]"
               : "bg-[var(--gc-basico)]/10 text-[var(--gc-basico)]"
           )}
-          title="La suma de ponderaciones de las evaluaciones del periodo debe ser 100%."
+          title={`${weightLabel}. La suma de ponderaciones de las evaluaciones del periodo debe ser 100%.`}
         >
-          <AlertTriangle className="size-3.5" aria-hidden />
-          {weightIntegrity.status === "exceeded"
-            ? `Ponderación ${weightIntegrity.used}% (supera 100%)`
-            : `Ponderación ${weightIntegrity.used}% · faltan ${weightIntegrity.remaining}%`}
+          <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
+          <span className="gc-num min-w-0 truncate @7xl:hidden" aria-hidden>
+            {weightIntegrity.used}%
+          </span>
+          <span className="sr-only @7xl:not-sr-only @7xl:truncate">
+            {weightLabel}
+          </span>
         </span>
       )}
 
