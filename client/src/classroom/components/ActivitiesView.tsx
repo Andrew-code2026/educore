@@ -1,25 +1,37 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
+import { ChevronRight, ClipboardList, FileText, Plus, Search, SearchX } from 'lucide-react';
 import type { Activity } from '../types';
-import { Icon, StatusPill } from './SharedUI';
-
-const FILTERS = ['Todas', 'Activas', 'Por revisar', 'Próximas', 'Cerradas', 'Borradores'];
+import { plural } from '../landing/courses';
+import { describeDue } from '../course/overview';
+import {
+  ACTIVITY_FILTERS,
+  ACTIVITY_SORTS,
+  PHASE_LABEL,
+  countByFilter,
+  pendingOf,
+  phaseOf,
+  selectActivities,
+  type ActivityFilter,
+  type ActivitySort,
+} from '../course/activities';
 
 interface ActivitiesViewProps {
   activities: Activity[];
-  total: number;
-  filter: string;
-  setFilter: (f: string) => void;
+  filter: ActivityFilter;
+  setFilter: (filter: ActivityFilter) => void;
   query: string;
-  setQuery: (q: string) => void;
-  sortBy: string;
-  setSortBy: (s: string) => void;
+  setQuery: (query: string) => void;
+  sortBy: ActivitySort;
+  setSortBy: (sort: ActivitySort) => void;
   selectActivity: (activity: Activity) => void;
-  totalStudents?: number;
+  totalStudents: number;
+  /** Solo para quien puede gestionar el curso. */
+  onNewActivity?: () => void;
 }
 
+/** Actividades del curso: buscar, filtrar por estado y abrir sus entregas. */
 export function ActivitiesView({
   activities,
-  total,
   filter,
   setFilter,
   query,
@@ -27,177 +39,168 @@ export function ActivitiesView({
   sortBy,
   setSortBy,
   selectActivity,
-  totalStudents = 32,
+  totalStudents,
+  onNewActivity,
 }: ActivitiesViewProps) {
-  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
+  // `now` se fija junto con la lista para que orden y fechas relativas coincidan
+  const { visible, counts, now } = useMemo(() => {
+    const at = new Date();
+    return {
+      visible: selectActivities(activities, { filter, query, sort: sortBy }, at),
+      counts: countByFilter(activities),
+      now: at,
+    };
+  }, [activities, filter, query, sortBy]);
 
-  return (
-    <section className="view-section activities-view activity-workspace">
-      <div className="activity-workspace-heading">
-        <div>
-          <span className="eyebrow">WORKSPACE DE ENTREGAS · {total}</span>
-          <h2>Actividades con entrega</h2>
-          <p>Un espacio para crear, publicar, recibir y revisar trabajos digitales.</p>
-        </div>
-        <div className="activity-flow">
-          <span className="flow-step done">
-            <i>1</i>Crear
+  if (activities.length === 0) {
+    return (
+      <div className="ccw ccw-activities">
+        <div className="ccw-surface ccw-empty ccw-empty--page">
+          <span aria-hidden="true" className="ccw-empty__icon">
+            <ClipboardList strokeWidth={1.75} />
           </span>
-          <b>→</b>
-          <span className="flow-step done">
-            <i>2</i>Publicar
-          </span>
-          <b>→</b>
-          <span className="flow-step">
-            <i>3</i>Recibir
-          </span>
-          <b>→</b>
-          <span className="flow-step">
-            <i>4</i>Revisar
-          </span>
+          <h2 className="ccw-empty__title">Este curso aún no tiene actividades</h2>
+          <p className="ccw-empty__note">
+            Crea una actividad con entrega digital para que tus estudiantes suban sus trabajos.
+          </p>
+          {onNewActivity && (
+            <button type="button" className="ccw-btn ccw-btn--primary" onClick={onNewActivity}>
+              <Plus aria-hidden="true" strokeWidth={2.25} />
+              Crear actividad
+            </button>
+          )}
         </div>
       </div>
+    );
+  }
 
-      <div className="activity-controls">
-        <div className="activity-search search-box">
-          <Icon name="search" size={16} />
+  const clearFilters = () => {
+    setFilter('Todas');
+    setQuery('');
+  };
+
+  return (
+    <div className="ccw ccw-activities">
+      <div className="ccw-toolbar">
+        <label className="ccw-search">
+          <Search aria-hidden="true" strokeWidth={2} />
           <input
+            type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar actividad…"
+            placeholder="Buscar actividad"
+            aria-label="Buscar actividad"
           />
-        </div>
+        </label>
 
-        <div className="activity-filter-pills">
-          {FILTERS.map((item) => (
+        <div role="group" aria-label="Filtrar por estado" className="ccw-filters">
+          {ACTIVITY_FILTERS.map((item) => (
             <button
-              type="button"
               key={item}
-              className={filter === item ? 'selected' : ''}
+              type="button"
+              className="ccw-chip"
+              aria-pressed={filter === item}
               onClick={() => setFilter(item)}
             >
               {item}
+              <span className="ccw-chip__count ccw-num">{counts[item]}</span>
             </button>
           ))}
         </div>
 
-        <div className="activity-density" aria-label="Densidad de vista">
-          <button
-            type="button"
-            className={density === 'comfortable' ? 'selected' : ''}
-            onClick={() => setDensity('comfortable')}
-          >
-            <Icon name="layers" size={13} /> Cómoda
-          </button>
-          <button
-            type="button"
-            className={density === 'compact' ? 'selected' : ''}
-            onClick={() => setDensity('compact')}
-          >
-            <Icon name="grid" size={13} /> Compacta
-          </button>
-        </div>
-
-        <label className="activity-sort">
+        <label className="ccw-sort">
           <span>Ordenar</span>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-            <option value="fecha">Fecha límite</option>
-            <option value="pendientes">Pendientes</option>
-            <option value="estado">Estado</option>
-            <option value="nombre">Nombre</option>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as ActivitySort)}>
+            {ACTIVITY_SORTS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </label>
       </div>
 
-      <div
-        className={`activity-object-grid ${
-          density === 'compact' ? 'compact-density' : 'comfortable-density'
-        }`}
-      >
-        {activities.map((activity) => {
-          const pending = Math.max(0, activity.submissions - activity.graded);
-          const progress = totalStudents ? Math.round((activity.submissions / totalStudents) * 100) : 0;
-          const dueTime = activity.dueDate.includes('·')
-            ? activity.dueDate.split('·')[1].trim()
-            : '23:59';
-
-          return (
-            <button
-              type="button"
-              className={`activity-object glass-card ${activity.accent}`}
+      {visible.length > 0 ? (
+        <ul className="ccw-surface ccw-list" aria-label={plural(visible.length, 'actividad', 'actividades')}>
+          {visible.map((activity) => (
+            <ActivityRow
               key={activity.id}
-              onClick={() => selectActivity(activity)}
-            >
-              <div className="activity-object-accent" />
-              <div className="activity-object-top">
-                <span className={`activity-object-icon ${activity.accent}`}>
-                  <Icon name={activity.icon || 'clipboard'} size={21} />
-                </span>
-                <StatusPill status={activity.status} />
-                <span className="object-open">
-                  <Icon name="arrow" size={15} />
-                </span>
-              </div>
+              activity={activity}
+              totalStudents={totalStudents}
+              now={now}
+              onOpen={selectActivity}
+            />
+          ))}
+        </ul>
+      ) : (
+        <div className="ccw-surface ccw-empty">
+          <span aria-hidden="true" className="ccw-empty__icon">
+            <SearchX strokeWidth={1.75} />
+          </span>
+          <p className="ccw-empty__title">Ninguna actividad coincide</p>
+          <p className="ccw-empty__note">Prueba con otro nombre o cambia el filtro de estado.</p>
+          <button type="button" className="ccw-btn ccw-btn--outline" onClick={clearFilters}>
+            Ver todas
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
-              <div className="activity-object-title">
-                <span className="activity-object-type">
-                  {activity.type} · Entrega digital
-                </span>
-                <h3>{activity.name}</h3>
-                <p>{activity.description}</p>
-              </div>
+function ActivityRow({
+  activity,
+  totalStudents,
+  now,
+  onOpen,
+}: {
+  activity: Activity;
+  totalStudents: number;
+  now: Date;
+  onOpen: (activity: Activity) => void;
+}) {
+  const phase = phaseOf(activity);
+  const pending = pendingOf(activity);
+  const dueAt = activity.dueAt ? new Date(activity.dueAt) : null;
+  const due = phase === 'draft' ? 'Sin publicar' : describeDue(dueAt, now) ?? 'Sin fecha límite';
+  const progress =
+    totalStudents > 0 ? Math.min(100, Math.round((activity.submissions / totalStudents) * 100)) : 0;
 
-              <div className="activity-object-meta">
-                <span>
-                  <small>Fecha límite</small>
-                  <strong>{activity.date}</strong>
-                  <em>{dueTime}</em>
-                </span>
-                <span>
-                  <small>Entregas</small>
-                  <strong>
-                    {activity.submissions}
-                    <em> / {totalStudents}</em>
-                  </strong>
-                  <div className="object-progress">
-                    <i style={{ width: `${Math.min(100, progress)}%` }} />
-                  </div>
-                </span>
-                <span className={pending > 0 ? 'needs-review' : ''}>
-                  <small>Por revisar</small>
-                  <strong>{pending}</strong>
-                  <em>{pending > 0 ? 'requieren atención' : 'al día'}</em>
-                </span>
-              </div>
-
-              <div className="activity-object-footer">
-                <span className={activity.affectsGradeCenter ? 'grade-link' : 'no-grade'}>
-                  <Icon name="chart" size={13} />{' '}
-                  {activity.affectsGradeCenter
-                    ? `Grade Center · ${activity.weight ?? 'sin peso'}`
-                    : 'Solo ClassCORE'}
-                </span>
-                <span className="object-formats">
-                  {activity.formats.slice(0, 3).join(' · ')}
-                </span>
-              </div>
-            </button>
-          );
-        })}
-
-        {!activities.length && (
-          <div className="empty-state">
-            <Icon name="search" size={24} />
-            <strong>No encontramos actividades</strong>
-            <p>Prueba con otro filtro o término de búsqueda.</p>
-          </div>
-        )}
-      </div>
-
-      <div className="activity-workspace-footer">
-        Mostrando <b>{activities.length}</b> de {total} actividades con entrega{' '}
-        <span>Selecciona una actividad para abrir sus entregas y revisión</span>
-      </div>
-    </section>
+  return (
+    <li>
+      <button type="button" className="ccw-row ccw-row--link ccw-activity" onClick={() => onOpen(activity)}>
+        <span aria-hidden="true" className="ccw-row__icon">
+          <FileText strokeWidth={1.75} />
+        </span>
+        <span className="ccw-row__body">
+          <span className="ccw-row__title">{activity.name}</span>
+          <span className="ccw-row__detail">
+            {due}
+            {pending > 0 && (
+              <span className="ccw-row__flag"> · {pending} sin calificar</span>
+            )}
+          </span>
+        </span>
+        {/* La columna se conserva vacía en borradores para que las filas sigan alineadas */}
+        <span className="ccw-meter ccw-activity__meter">
+          {phase !== 'draft' && totalStudents > 0 && (
+            <>
+              <span className="ccw-meter__track" aria-hidden="true">
+                <span className="ccw-meter__bar" style={{ width: `${progress}%` }} />
+              </span>
+              <span className="ccw-meter__label ccw-num">
+                {activity.submissions}/{totalStudents}
+                <span className="ccw-sr"> estudiantes entregaron</span>
+              </span>
+            </>
+          )}
+        </span>
+        <span className={`ccw-pill ccw-pill--${phase}`}>
+          <span aria-hidden="true" className="ccw-pill__dot" />
+          {PHASE_LABEL[phase]}
+        </span>
+        <ChevronRight aria-hidden="true" strokeWidth={2} className="ccw-row__chevron" />
+      </button>
+    </li>
   );
 }

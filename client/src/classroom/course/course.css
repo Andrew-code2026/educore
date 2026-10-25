@@ -1,0 +1,1183 @@
+/*
+ * Curso de Classroom — cabecera, navegación y Resumen (diseño "EduCore Docente").
+ * Mismo lenguaje que la portada "Mis cursos" (landing.css): hereda los tokens de
+ * .edc-shell y prefija los selectores con .ccw para ganar a los estilos genéricos
+ * de .classcore-workspace sin recurrir a !important.
+ */
+
+.ccw {
+  --ccw-card-bg: linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, .62));
+  --ccw-card-border: rgba(255, 255, 255, .95);
+  --ccw-card-shadow: 0 1px 2px rgba(24, 53, 90, .04), 0 14px 34px -16px rgba(16, 60, 113, .18);
+  --ccw-row-hover: #FFFFFF;
+  --ccw-group-bg: #111B24;
+  --ccw-group-fg: #FFFFFF;
+  --ccw-icon-bg: #DEEDFE;
+  --ccw-icon-fg: #0C62B5;
+  --ccw-date-bg: rgba(17, 27, 36, .05);
+  --ccw-track: #E6EEF6;
+  --ccw-bar: linear-gradient(180deg, #0080FA, #0C62B5);
+  --ccw-primary: #0377DF;
+  --ccw-primary-hover: #0C62B5;
+  --ccw-outline-bg: #FFFFFF;
+  --ccw-outline-hover: #F5FAFF;
+  --ccw-outline-border: rgba(17, 27, 36, .1);
+  --ccw-count-bg: #DEEDFE;
+  --ccw-count-fg: #045AA5;
+  --ccw-soon: #B4540A;
+  --ccw-empty-border: rgba(17, 27, 36, .12);
+  --ccw-empty-bg: rgba(255, 255, 255, .5);
+  --ccw-tab-active: #11171E;
+  --ccw-field-bg: #FFFFFF;
+  --ccw-field-border: rgba(17, 27, 36, .1);
+  --ccw-chip-active-bg: #111B24;
+  --ccw-chip-active-fg: #FFFFFF;
+  --ccw-chip-count: rgba(17, 27, 36, .06);
+  --ccw-chip-count-active: rgba(255, 255, 255, .16);
+  --ccw-open-bg: #E6F2EA;
+  --ccw-open-fg: #2F7D4F;
+  --ccw-neutral-bg: rgba(17, 27, 36, .06);
+  --ccw-neutral-fg: #3D4650;
+  --ccw-neutral-dot: #79818A;
+  --ccw-avatar-bg: linear-gradient(145deg, #DEEDFE, #BFD8FF);
+  --ccw-avatar-fg: #06498A;
+
+  color: var(--edc-ink);
+  font-family: 'Outfit', system-ui, sans-serif;
+  line-height: normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+.dark .ccw {
+  --ccw-card-bg: linear-gradient(180deg, rgba(27, 38, 51, .92), rgba(22, 32, 44, .78));
+  --ccw-card-border: rgba(255, 255, 255, .06);
+  --ccw-card-shadow: 0 1px 2px rgba(0, 0, 0, .2), 0 14px 34px -16px rgba(0, 0, 0, .55);
+  --ccw-row-hover: rgba(255, 255, 255, .05);
+  --ccw-group-bg: #EEF3F8;
+  --ccw-group-fg: #111B24;
+  --ccw-icon-bg: rgba(3, 119, 223, .2);
+  --ccw-icon-fg: #6FB1FA;
+  --ccw-date-bg: rgba(255, 255, 255, .06);
+  --ccw-track: rgba(255, 255, 255, .08);
+  --ccw-bar: linear-gradient(180deg, #2F8EFC, #0377DF);
+  --ccw-primary: #1A86EA;
+  --ccw-primary-hover: #0377DF;
+  --ccw-outline-bg: rgba(255, 255, 255, .04);
+  --ccw-outline-hover: rgba(255, 255, 255, .08);
+  --ccw-outline-border: rgba(255, 255, 255, .12);
+  --ccw-count-bg: rgba(3, 119, 223, .2);
+  --ccw-count-fg: #A9D0FF;
+  --ccw-soon: #F5B76B;
+  --ccw-empty-border: rgba(255, 255, 255, .12);
+  --ccw-empty-bg: rgba(255, 255, 255, .03);
+  --ccw-tab-active: #EEF3F8;
+  --ccw-field-bg: rgba(255, 255, 255, .04);
+  --ccw-field-border: rgba(255, 255, 255, .12);
+  --ccw-chip-active-bg: #EEF3F8;
+  --ccw-chip-active-fg: #111B24;
+  --ccw-chip-count: rgba(255, 255, 255, .08);
+  --ccw-chip-count-active: rgba(17, 27, 36, .1);
+  --ccw-open-bg: rgba(47, 125, 79, .22);
+  --ccw-open-fg: #7FD3A0;
+  --ccw-neutral-bg: rgba(255, 255, 255, .08);
+  --ccw-neutral-fg: #C3CDD8;
+  --ccw-neutral-dot: #8C98A5;
+  --ccw-avatar-bg: linear-gradient(145deg, rgba(3, 119, 223, .32), rgba(83, 151, 252, .2));
+  --ccw-avatar-fg: #CFE4FF;
+}
+
+.ccw *,
+.ccw *::before,
+.ccw *::after {
+  box-sizing: border-box;
+}
+
+.ccw svg {
+  flex: none;
+}
+
+.ccw h1,
+.ccw h2,
+.ccw p {
+  margin: 0;
+  font-family: inherit;
+}
+
+.ccw .ccw-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.ccw .ccw-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* course.css se carga antes que classroom.css: el prefijo .classcore-workspace desempata */
+.classcore-workspace .ccw button:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+/* ── Lienzo del curso ──────────────────────────────────── */
+
+/* Como en la portada: el curso usa el fondo del shell, sin halos ni retícula de ClassCORE */
+.classcore-workspace.app-frame[data-screen="course"] {
+  background: var(--edc-main-bg);
+}
+
+.classcore-workspace[data-screen="course"]::before,
+.classcore-workspace[data-screen="course"]::after {
+  content: none;
+}
+
+.classcore-workspace[data-screen="course"] .content-area {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  padding: 24px 28px 32px;
+  background: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: var(--edc-scroll) transparent;
+}
+
+/* ── Cabecera ──────────────────────────────────────────── */
+
+.ccw.ccw-head {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 28px 0;
+  border-bottom: 1px solid var(--edc-hair);
+}
+
+.ccw .ccw-head__main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ccw .ccw-icon-btn {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ccw-outline-bg);
+  border: 1px solid var(--ccw-outline-border);
+  color: var(--edc-ink-2);
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.ccw .ccw-icon-btn:hover {
+  background: var(--ccw-outline-hover);
+}
+
+.ccw .ccw-icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ccw .ccw-group {
+  flex: none;
+  min-width: 46px;
+  height: 46px;
+  padding: 0 8px;
+  border-radius: 14px;
+  background: var(--ccw-group-bg);
+  color: var(--ccw-group-fg);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ccw .ccw-identity {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ccw .ccw-title {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -.02em;
+  color: var(--edc-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ccw .ccw-sub {
+  font-size: 13px;
+  color: var(--edc-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ccw .ccw-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: -1px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ccw .ccw-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.ccw .ccw-tab {
+  flex: none;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 42px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--edc-muted);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .15s ease;
+}
+
+.ccw .ccw-tab::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: transparent;
+  transition: background-color .15s ease;
+}
+
+.ccw .ccw-tab:hover {
+  color: var(--edc-ink);
+}
+
+.ccw .ccw-tab[aria-current='page'] {
+  color: var(--ccw-tab-active);
+  font-weight: 600;
+}
+
+.ccw .ccw-tab[aria-current='page']::after {
+  background: var(--ccw-tab-active);
+}
+
+.classcore-workspace .ccw .ccw-tab:focus-visible {
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
+/* ── Botones ───────────────────────────────────────────── */
+
+.ccw .ccw-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px 0 14px;
+  border: 0;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s ease, transform .1s ease;
+}
+
+.ccw .ccw-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.ccw .ccw-btn:active {
+  transform: scale(.97);
+}
+
+.ccw .ccw-btn--primary {
+  background: var(--ccw-primary);
+  color: #FFFFFF;
+}
+
+.ccw .ccw-btn--primary:hover {
+  background: var(--ccw-primary-hover);
+}
+
+.ccw .ccw-btn--outline {
+  background: var(--ccw-outline-bg);
+  border: 1px solid var(--ccw-outline-border);
+  color: var(--edc-ink);
+  font-weight: 500;
+}
+
+.ccw .ccw-btn--outline:hover {
+  background: var(--ccw-outline-hover);
+}
+
+.ccw .ccw-btn--sm {
+  height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.ccw .ccw-btn--sm svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── Resumen ───────────────────────────────────────────── */
+
+.ccw.ccw-overview {
+  max-width: 1400px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  align-items: start;
+  gap: 28px 24px;
+}
+
+.ccw .ccw-section {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ccw .ccw-section__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+}
+
+.ccw .ccw-section__title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--edc-ink);
+}
+
+.ccw .ccw-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--ccw-count-bg);
+  color: var(--ccw-count-fg);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ccw .ccw-surface {
+  border-radius: 24px;
+  background: var(--ccw-card-bg);
+  border: 1px solid var(--ccw-card-border);
+  box-shadow: var(--ccw-card-shadow);
+}
+
+.ccw .ccw-list {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ccw .ccw-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  text-align: left;
+  transition: background-color .15s ease;
+}
+
+.ccw .ccw-row:hover {
+  background: var(--ccw-row-hover);
+}
+
+.ccw .ccw-row--link {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ccw .ccw-row__icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--ccw-icon-bg);
+  color: var(--ccw-icon-fg);
+  display: grid;
+  place-items: center;
+}
+
+.ccw .ccw-row__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ccw .ccw-date {
+  flex: none;
+  width: 44px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--ccw-date-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+.ccw .ccw-date__day {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--edc-ink);
+}
+
+.ccw .ccw-date__month {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--edc-muted);
+}
+
+.ccw .ccw-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ccw .ccw-row__title {
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--edc-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ccw .ccw-row__detail {
+  font-size: 12.5px;
+  color: var(--edc-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ccw .ccw-row__aside {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.ccw .ccw-when {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--edc-blue-link);
+  white-space: nowrap;
+}
+
+.ccw .ccw-when--soon {
+  color: var(--ccw-soon);
+}
+
+.ccw .ccw-meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ccw .ccw-meter__track {
+  width: 64px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--ccw-track);
+  overflow: hidden;
+}
+
+.ccw .ccw-meter__bar {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ccw-bar);
+  transition: width .4s cubic-bezier(.2, 0, 0, 1);
+}
+
+.ccw .ccw-meter__label {
+  min-width: 36px;
+  font-size: 12px;
+  color: var(--edc-muted);
+  text-align: right;
+}
+
+.ccw .ccw-quiet {
+  padding: 20px 22px;
+  font-size: 13.5px;
+  color: var(--edc-muted);
+}
+
+.ccw .ccw-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 24px;
+  text-align: center;
+}
+
+.ccw .ccw-empty--page {
+  grid-column: 1 / -1;
+  padding: 56px 24px;
+  border-style: dashed;
+  border-color: var(--ccw-empty-border);
+  background: var(--ccw-empty-bg);
+  box-shadow: none;
+}
+
+.ccw .ccw-empty__icon {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  background: var(--ccw-icon-bg);
+  color: var(--ccw-icon-fg);
+  display: grid;
+  place-items: center;
+}
+
+.ccw .ccw-empty__icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ccw .ccw-empty__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--edc-ink);
+}
+
+.ccw .ccw-empty__note {
+  max-width: 360px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--edc-muted);
+  text-wrap: pretty;
+}
+
+.ccw .ccw-empty .ccw-btn {
+  margin-top: 8px;
+}
+
+/* ── Actividades ───────────────────────────────────────── */
+
+.ccw.ccw-activities {
+  max-width: 1400px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ccw .ccw-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+.ccw .ccw-search {
+  flex: 1 1 200px;
+  max-width: 300px;
+  min-width: 180px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--ccw-field-bg);
+  border: 1px solid var(--ccw-field-border);
+  color: var(--edc-muted);
+  cursor: text;
+}
+
+.ccw .ccw-search:focus-within {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+}
+
+.ccw .ccw-search svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ccw .ccw-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--edc-ink);
+  font-family: inherit;
+  font-size: 14px;
+  outline: 0;
+  box-shadow: none;
+}
+
+/* El anillo de foco lo pinta el contenedor; se anula el genérico de .classcore-workspace */
+.classcore-workspace .ccw .ccw-search input:focus-visible {
+  outline: 0;
+  box-shadow: none;
+}
+
+.ccw .ccw-search input::placeholder {
+  color: var(--edc-muted-2);
+}
+
+.ccw .ccw-filters {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ccw .ccw-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.ccw .ccw-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 8px 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--ccw-field-border);
+  background: var(--ccw-field-bg);
+  color: var(--edc-ink-2);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s ease, color .15s ease;
+}
+
+.ccw .ccw-chip:hover {
+  background: var(--ccw-outline-hover);
+}
+
+.ccw .ccw-chip[aria-pressed='true'] {
+  background: var(--ccw-chip-active-bg);
+  border-color: var(--ccw-chip-active-bg);
+  color: var(--ccw-chip-active-fg);
+}
+
+.ccw .ccw-chip__count {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: var(--ccw-chip-count);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ccw .ccw-chip[aria-pressed='true'] .ccw-chip__count {
+  background: var(--ccw-chip-count-active);
+}
+
+.ccw .ccw-sort {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--edc-muted);
+  white-space: nowrap;
+}
+
+.ccw .ccw-sort select {
+  height: 36px;
+  padding: 0 32px 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--ccw-field-border);
+  background-color: var(--ccw-field-bg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2379818A' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  color: var(--edc-ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  appearance: none;
+  cursor: pointer;
+}
+
+.classcore-workspace .ccw .ccw-sort select:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.ccw .ccw-activity {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 120px 112px 16px;
+}
+
+.ccw .ccw-row__flag {
+  color: var(--edc-blue-link);
+  font-weight: 600;
+}
+
+.ccw .ccw-row__chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--edc-muted-3);
+}
+
+.ccw .ccw-activity__meter {
+  justify-content: flex-end;
+}
+
+.ccw .ccw-pill {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ccw .ccw-pill__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ccw .ccw-pill--open {
+  background: var(--ccw-open-bg);
+  color: var(--ccw-open-fg);
+}
+
+.ccw .ccw-pill--review {
+  background: var(--ccw-count-bg);
+  color: var(--ccw-count-fg);
+}
+
+.ccw .ccw-pill--closed {
+  background: var(--ccw-neutral-bg);
+  color: var(--ccw-neutral-fg);
+}
+
+.ccw .ccw-pill--closed .ccw-pill__dot {
+  background: var(--ccw-neutral-dot);
+}
+
+.ccw .ccw-pill--draft {
+  background: transparent;
+  border: 1px dashed var(--ccw-empty-border);
+  color: var(--edc-muted);
+}
+
+/* ── Entregas ──────────────────────────────────────────── */
+
+.ccw.ccw-submissions {
+  max-width: 1400px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ccw .ccw-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ccw .ccw-brief {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px 22px;
+}
+
+.ccw .ccw-brief__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px 24px;
+}
+
+.ccw .ccw-brief__copy {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Selector de actividad con peso de título: la actividad es el contexto de toda la pestaña */
+.ccw .ccw-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  align-self: flex-start;
+}
+
+.ccw .ccw-picker select {
+  max-width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 40px 0 12px;
+  margin-left: -12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--edc-ink);
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -.015em;
+  text-overflow: ellipsis;
+  appearance: none;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+.ccw .ccw-picker select:hover {
+  background: var(--ccw-outline-hover);
+  border-color: var(--ccw-field-border);
+}
+
+.ccw .ccw-picker select option {
+  font-size: 14px;
+  font-weight: 500;
+  color: initial;
+}
+
+.classcore-workspace .ccw .ccw-picker select:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.ccw .ccw-picker svg {
+  position: absolute;
+  right: 12px;
+  width: 18px;
+  height: 18px;
+  color: var(--edc-muted);
+  pointer-events: none;
+}
+
+.ccw .ccw-brief__meta {
+  font-size: 13px;
+  color: var(--edc-muted);
+}
+
+.ccw .ccw-brief__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ccw .ccw-brief__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ccw .ccw-brief__progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--edc-muted);
+}
+
+.ccw .ccw-brief__progress-head strong {
+  color: var(--edc-ink);
+  font-weight: 600;
+}
+
+.ccw .ccw-brief__track {
+  display: block;
+  width: 100%;
+  height: 6px;
+}
+
+.ccw .ccw-sub {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 112px 64px 96px;
+}
+
+.ccw .ccw-sub--missing .ccw-row__title {
+  color: var(--edc-ink-3);
+  font-weight: 500;
+}
+
+.ccw .ccw-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--ccw-avatar-bg);
+  color: var(--ccw-avatar-fg);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ccw .ccw-sub--missing .ccw-avatar {
+  background: var(--ccw-neutral-bg);
+  color: var(--edc-muted);
+}
+
+.ccw .ccw-row__late {
+  color: var(--ccw-soon);
+  font-weight: 600;
+}
+
+.ccw .ccw-grade {
+  justify-self: end;
+  font-size: 13px;
+  color: var(--edc-muted-3);
+}
+
+.ccw .ccw-grade b {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--edc-ink);
+}
+
+.ccw .ccw-grade__scale {
+  margin-left: 1px;
+  font-size: 12px;
+  color: var(--edc-muted);
+}
+
+.ccw .ccw-sub__action {
+  justify-self: end;
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  .ccw.ccw-head {
+    padding: 20px 20px 0;
+  }
+
+  .classcore-workspace[data-screen="course"] .content-area {
+    padding: 20px 20px 28px;
+  }
+}
+
+@media (max-width: 639px) {
+  .ccw.ccw-head {
+    gap: 12px;
+    padding: 16px 16px 0;
+  }
+
+  .ccw .ccw-head__main {
+    gap: 10px;
+  }
+
+  .ccw .ccw-group {
+    min-width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    font-size: 13px;
+  }
+
+  .ccw .ccw-title {
+    font-size: 19px;
+  }
+
+  /* El botón conserva el área táctil y deja el texto solo a lectores de pantalla */
+  .ccw .ccw-head__action {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+  }
+
+  .ccw .ccw-head__action span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .ccw .ccw-tabs {
+    gap: 0;
+  }
+
+  .ccw .ccw-tab {
+    padding: 0 8px;
+    font-size: 13.5px;
+  }
+
+  .ccw .ccw-tab::after {
+    left: 8px;
+    right: 8px;
+  }
+
+  /* En pantallas angostas el título y el contexto de la fila se leen completos en vez de truncarse */
+  .ccw .ccw-row__title,
+  .ccw .ccw-row__detail {
+    white-space: normal;
+  }
+
+  .classcore-workspace[data-screen="course"] .content-area {
+    padding: 18px 16px 24px;
+  }
+
+  .ccw .ccw-row {
+    gap: 12px;
+    padding: 12px 10px;
+  }
+
+  .ccw .ccw-meter__track {
+    display: none;
+  }
+
+  .ccw .ccw-search {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+
+  .ccw .ccw-sort {
+    margin-left: 0;
+  }
+
+  /* La fila se reduce a icono, texto, estado y flecha; el avance queda en la vista de entregas */
+  .ccw .ccw-activity {
+    grid-template-columns: 40px minmax(0, 1fr) auto 16px;
+  }
+
+  .ccw .ccw-activity__meter {
+    display: none;
+  }
+
+  .ccw .ccw-brief {
+    padding: 16px;
+  }
+
+  /* El avance de la actividad es la única barra que se conserva en móvil */
+  .ccw .ccw-brief .ccw-brief__track {
+    display: block;
+  }
+
+  .ccw .ccw-picker select {
+    font-size: 18px;
+  }
+
+  .ccw .ccw-brief__actions {
+    width: 100%;
+  }
+
+  .ccw .ccw-brief__actions .ccw-btn--primary {
+    flex: 1 1 100%;
+    order: -1;
+  }
+
+  .ccw .ccw-brief__actions .ccw-btn--outline {
+    flex: 1 1 0;
+  }
+
+  /* Fila compacta: avatar, nombre con estado debajo de la nota y acción */
+  .ccw .ccw-sub {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    row-gap: 8px;
+  }
+
+  .ccw .ccw-sub .ccw-pill {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .ccw .ccw-sub .ccw-grade {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .ccw .ccw-sub .ccw-sub__action {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .ccw .ccw-sub .ccw-sub__action:empty {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ccw .ccw-btn,
+  .ccw .ccw-icon-btn,
+  .ccw .ccw-row,
+  .ccw .ccw-tab,
+  .ccw .ccw-tab::after,
+  .ccw .ccw-chip,
+  .ccw .ccw-picker select,
+  .ccw .ccw-meter__bar {
+    transition: none;
+  }
+}

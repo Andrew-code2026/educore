@@ -9,6 +9,8 @@ export interface Activity {
   type: ActivityType;
   date: string;
   dueDate: string;
+  /** Fecha límite en ISO; base para ordenar y calcular días restantes. */
+  dueAt?: string;
   submissions: number;
   graded: number;
   status: ActivityStatus;
@@ -37,6 +39,8 @@ export interface Student {
   status: SubmissionStatus;
   score?: number;
   time?: string;
+  /** Momento de la entrega en ISO. */
+  submittedAt?: string;
   file?: string;
   fileType?: string;
   fileSize?: string;
@@ -83,8 +87,8 @@ export interface ReviewRecord {
   scoreMode: 'rubric' | 'manual';
   evaluationMode: 'rubric' | 'direct';
   criteria: RubricCriterion[];
+  /** Retroalimentación del docente para el estudiante. */
   feedback: string;
-  comments: string[];
   status: SubmissionStatus;
 }
 
