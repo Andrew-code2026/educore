@@ -1,6 +1,4 @@
-import { motion } from "framer-motion";
 import { BarChart3, GraduationCap, LayoutGrid, Target, User } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useGradeCenter } from "../state/GradeCenterContext";
 import type { ViewId } from "../types";
@@ -8,93 +6,78 @@ import type { ViewId } from "../types";
 interface ViewOption {
   id: ViewId;
   label: string;
-  short: string;
   description: string;
   icon: typeof LayoutGrid;
 }
 
 export const VIEW_OPTIONS: ViewOption[] = [
-  {
-    id: "standard",
-    label: "Estándar",
-    short: "Estándar",
-    description: "Equilibrio entre información y legibilidad.",
-    icon: LayoutGrid,
-  },
-  {
-    id: "student",
-    label: "Estudiante",
-    short: "Estudiante",
-    description: "Información individual y evolución del estudiante.",
-    icon: User,
-  },
-  {
-    id: "evaluations",
-    label: "Evaluaciones",
-    short: "Evaluac.",
-    description: "Comparación entre actividades y evaluaciones.",
-    icon: BarChart3,
-  },
-  {
-    id: "performance",
-    label: "Desempeño",
-    short: "Desemp.",
-    description: "Resultados, niveles y tendencias del grupo.",
-    icon: Target,
-  },
-  {
-    id: "dba",
-    label: "DBA",
-    short: "DBA",
-    description: "Evidencias y logro de los Derechos Básicos de Aprendizaje.",
-    icon: GraduationCap,
-  },
+  { id: "standard", label: "Planilla", description: "Registro de notas por estudiante y evaluación.", icon: LayoutGrid },
+  { id: "student", label: "Estudiante", description: "Información individual y evolución del estudiante.", icon: User },
+  { id: "evaluations", label: "Evaluaciones", description: "Comparación entre actividades y evaluaciones.", icon: BarChart3 },
+  { id: "performance", label: "Desempeño", description: "Resultados, niveles y tendencias del grupo.", icon: Target },
+  { id: "dba", label: "DBA", description: "Evidencias y logro de los Derechos Básicos de Aprendizaje.", icon: GraduationCap },
 ];
 
+/** Pestañas de vista: mismas notas, distintas lecturas. */
 export function ViewSwitcher({ className }: { className?: string }) {
-  const { preferences, setView } = useGradeCenter();
+  const { preferences, setView, dataset } = useGradeCenter();
+  // DBA solo aparece cuando la planilla tiene DBA cargados; hoy no hay dónde crearlos.
+  const hasDba = dataset.dba.length > 0;
+  const options = hasDba ? VIEW_OPTIONS : VIEW_OPTIONS.filter((option) => option.id !== "dba");
+  const current =
+    preferences.view === "compact" || (preferences.view === "dba" && !hasDba) ? "standard" : preferences.view;
+
+  // Patrón de pestañas: flechas para moverse, Inicio/Fin a los extremos.
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const index = options.findIndex((option) => option.id === current);
+    const last = options.length - 1;
+    const next =
+      event.key === "ArrowRight" ? (index + 1) % options.length
+      : event.key === "ArrowLeft" ? (index - 1 + options.length) % options.length
+      : event.key === "Home" ? 0
+      : event.key === "End" ? last
+      : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    // React anula currentTarget al terminar el evento: se guarda antes del frame.
+    const list = event.currentTarget;
+    setView(options[next].id);
+    requestAnimationFrame(() => {
+      list.querySelector<HTMLElement>(`[data-view="${options[next].id}"]`)?.focus();
+    });
+  };
 
   return (
     <div
-      className={cn(
-        "glass relative flex items-center gap-0.5 rounded-2xl p-1",
-        className,
-      )}
       role="tablist"
-      aria-label="Formas de ver los mismos datos"
+      aria-label="Vista de la planilla"
+      onKeyDown={onKeyDown}
+      className={cn("flex shrink-0 items-center gap-0.5 rounded-lg bg-foreground/[0.05] p-0.5", className)}
     >
-      {VIEW_OPTIONS.map((option) => {
-        const active = preferences.view === option.id;
+      {options.map((option) => {
+        const active = current === option.id;
         const Icon = option.icon;
         return (
-          <Tooltip key={option.id}>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setView(option.id)}
-                className={cn(
-                  "relative flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[12px] font-medium transition-colors duration-150",
-                  active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="view-switcher-indicator"
-                    className="absolute inset-0 rounded-xl border border-white/12 bg-white/10 shadow-[inset_0_1px_0_0_oklch(1_0_0/12%),0_10px_24px_-14px_oklch(0_0_0/90%)]"
-                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                  />
-                )}
-                <Icon className="relative size-3.5" />
-                <span className="relative hidden lg:inline">{option.short}</span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-56">
-              <div className="text-xs font-semibold">{option.label}</div>
-              <div className="text-xs opacity-80">{option.description}</div>
-            </TooltipContent>
-          </Tooltip>
+          <button
+            key={option.id}
+            type="button"
+            role="tab"
+            data-view={option.id}
+            aria-selected={active}
+            tabIndex={active ? 0 : -1}
+            title={option.description}
+            onClick={() => setView(option.id)}
+            className={cn(
+              "flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none",
+              active
+                ? "bg-[var(--gc-ink)] text-foreground shadow-sm ring-1 ring-[var(--gc-hair)]"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <Icon className="size-3.5 shrink-0" aria-hidden />
+            <span className={cn(!active && "hidden @5xl:inline")}>{option.label}</span>
+            {!active && <span className="sr-only @5xl:hidden">{option.label}</span>}
+          </button>
         );
       })}
     </div>

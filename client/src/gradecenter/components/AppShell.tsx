@@ -1,119 +1,146 @@
-import { useEffect, useState, type CSSProperties } from "react";
-import { motion } from "framer-motion";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useGradeCenter } from "../state/GradeCenterContext";
+import { useGradeCenter, useGradeCenterActions } from "../state/GradeCenterContext";
 import { TopRail } from "./TopRail";
 import { ControlStrip } from "./ControlStrip";
 import { ShortcutHelp } from "./ShortcutHelp";
-import { ContextPanel } from "./insights/ContextPanel";
-import { CompactView, MatrixHints, ScaleLegend, StandardView } from "./views/MatrixViews";
+import { StandardView } from "./views/MatrixViews";
 import { StudentView } from "./views/StudentView";
 import { EvaluationsView } from "./views/EvaluationsView";
 import { PerformanceView } from "./views/PerformanceView";
 import { DbaView } from "./views/DbaView";
-import { VIEW_OPTIONS } from "./ViewSwitcher";
 import { EduCoreSidebar } from "./EduCoreSidebar";
 import { LandingView } from "./LandingView";
+import { GradeCenterDialogsProvider } from "./dialogs/DialogsProvider";
 import { useOptionalShellContext } from "@/components/shell/ShellContext";
 import type { ViewId } from "../types";
 import { toast } from "sonner";
 
-const DENSITY_LABEL: Record<string, string> = {
-  compact: "Densa",
-  standard: "Estándar",
-  cozy: "Cómoda",
-};
-
+/**
+ * Cambiar de vista es instantáneo: sin animación de entrada (se percibía como
+ * una recarga) y la planilla se mantiene montada, así al volver conserva su
+ * scroll y la celda activa sin reconstruir toda la matriz.
+ */
 function ViewRouter() {
-  const { preferences } = useGradeCenter();
+  const { preferences, dataset } = useGradeCenter();
+  // Una preferencia guardada en "dba" no debe abrir una vista vacía.
+  const raw = preferences.view === "dba" && dataset.dba.length === 0 ? "standard" : preferences.view;
+  const view = raw === "compact" ? "standard" : raw;
 
-  const content = (() => {
-    switch (preferences.view) {
-      case "compact":
-        return <CompactView />;
-      case "student":
-        return <StudentView />;
-      case "evaluations":
-        return <EvaluationsView />;
-      case "performance":
-        return <PerformanceView />;
-      case "dba":
-        return <DbaView />;
-      case "standard":
-      default:
-        return <StandardView />;
-    }
-  })();
+  const onMatrix = view === "standard";
 
+  // Ambas capas ocupan el mismo espacio. La planilla oculta usa `gc-layer-hidden`
+  // (content-visibility): el navegador guarda su render y volver cuesta ~1 ms.
   return (
-    <motion.div
-      key={preferences.view}
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-      className="flex min-h-0 flex-1 flex-col"
-    >
-      {content}
-    </motion.div>
+    <div className="relative min-h-0 flex-1">
+      <div className={cn("absolute inset-0 flex flex-col", !onMatrix && "gc-layer-hidden")} inert={!onMatrix} aria-hidden={!onMatrix || undefined}>
+        <StandardView />
+      </div>
+      {!onMatrix && (
+        <div className="absolute inset-0 flex flex-col">
+          {view === "student" && <StudentView />}
+          {view === "evaluations" && <EvaluationsView />}
+          {view === "performance" && <PerformanceView />}
+          {view === "dba" && <DbaView />}
+        </div>
+      )}
+    </div>
   );
+}
+
+/** Atajos globales de la planilla. Nunca interfieren con campos, diálogos ni popovers. */
+function useWorkspaceShortcuts(enabled: boolean, focus: boolean, onOpenHelp: () => void) {
+  const { setFocusMode, copySelection, readPaste, undo, redo } = useGradeCenterActions();
+
+  useEffect(() => {
+    if (!enabled) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('[role="dialog"], [role="alertdialog"], [role="menu"], [data-radix-popper-content-wrapper]')) return;
+
+      const isFormField =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        Boolean(target?.isContentEditable);
+      if (isFormField) return;
+
+      const inGrid = Boolean(target?.closest('[role="grid"]'));
+      const onPage = !target || target === document.body;
+      const modifier = event.ctrlKey || event.metaKey;
+
+      if (modifier && (inGrid || onPage)) {
+        const key = event.key.toLowerCase();
+        // Si el docente seleccionó texto, se respeta la copia nativa del navegador.
+        if (key === "c" && !window.getSelection()?.toString()) {
+          event.preventDefault();
+          void copySelection();
+        } else if (key === "v" && onPage) {
+          // En una celda el evento nativo `paste` ya abre la vista previa.
+          event.preventDefault();
+          void readPaste();
+        } else if (key === "z") {
+          event.preventDefault();
+          if (event.shiftKey) redo();
+          else undo();
+        } else if (key === "y") {
+          event.preventDefault();
+          redo();
+        }
+        return;
+      }
+
+      if (event.key === "Escape" && focus && !inGrid) {
+        setFocusMode(false);
+        return;
+      }
+      if (event.key === "?") onOpenHelp();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [enabled, focus, setFocusMode, copySelection, readPaste, undo, redo, onOpenHelp]);
 }
 
 export function AppShell({
   embedded = true,
-  onBack,
   isSwitchingAssignment = false,
 }: {
   embedded?: boolean;
+  /** Se conserva por compatibilidad: la salida del módulo la gestiona el shell. */
   onBack?: () => void;
   isSwitchingAssignment?: boolean;
 } = {}) {
   const shellContext = useOptionalShellContext();
-  const {
-    dataset,
-    availableAssignments,
-    preferences,
-    setFocusMode,
-    setView,
-    setActiveCell,
-     students,
-    analytics,
-    copySelection,
-    readPaste,
-    undo,
-    redo,
-    clearSelectedGrades,
-    pastePreview,
-    applyPastePreview,
-    cancelPastePreview,
-  } = useGradeCenter();
+  const { dataset, availableAssignments, preferences } = useGradeCenter();
+  const { setFocusMode, setView, setActiveCell } = useGradeCenterActions();
   const [helpOpen, setHelpOpen] = useState(false);
   const [screen, setScreen] = useState<"landing" | "workspace">("landing");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("educore.gradecenter.sidebar") === "collapsed";
+    try {
+      return window.localStorage.getItem("educore.gradecenter.sidebar") === "collapsed";
+    } catch {
+      return false;
+    }
   });
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const focus = preferences.focusMode;
-  const isMatrixView = preferences.view === "standard" || preferences.view === "compact";
   const isLanding = screen === "landing";
 
-  // Sincronizar el modo enfoque con el shell global de EduCore para colapsar el sidebar exterior
+  const openHelp = useCallback(() => setHelpOpen(true), []);
+  useWorkspaceShortcuts(!isLanding, focus, openHelp);
+
+  // El modo enfoque también colapsa el sidebar exterior de EduCore.
   useEffect(() => {
-    if (shellContext) {
-      shellContext.setIsFocusMode(!isLanding && focus);
-    }
+    shellContext?.setIsFocusMode(!isLanding && focus);
   }, [focus, isLanding, shellContext]);
 
-  useEffect(() => {
-    return () => {
-      shellContext?.setIsFocusMode(false);
-    };
-  }, [shellContext]);
+  useEffect(() => () => shellContext?.setIsFocusMode(false), [shellContext]);
 
-  // Sincronizar las píldoras contextuales del encabezado institucional con el estado real:
-  // En la pantalla de selección de planillas no se muestra un salón fijo engañoso;
-  // al entrar a una planilla se muestra el curso, materia y periodo reales.
+  // Encabezado institucional: en la selección no se fija un salón engañoso;
+  // dentro de una planilla se muestra el curso, materia y periodo reales.
   useEffect(() => {
     if (!shellContext) return;
     const role = shellContext.activeRole;
@@ -124,13 +151,9 @@ export function AppShell({
       shellContext.setModuleContext({
         title,
         subtitle: "Selección de planilla académica",
-        breadcrumbs: [
-          { label: "Académico" },
-          { label: title, isCurrent: true },
-        ],
-        contextPills: count > 0
-          ? [{ label: `${count} ${count === 1 ? "planilla asignada" : "planillas asignadas"}`, tone: "primary" }]
-          : [],
+        breadcrumbs: [{ label: "Académico" }, { label: title, isCurrent: true }],
+        contextPills:
+          count > 0 ? [{ label: `${count} ${count === 1 ? "planilla asignada" : "planillas asignadas"}`, tone: "primary" }] : [],
       });
     } else {
       shellContext.setModuleContext({
@@ -149,92 +172,26 @@ export function AppShell({
     }
   }, [shellContext, isLanding, dataset.course, dataset.subject, dataset.period, availableAssignments?.length]);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("educore.gradecenter.sidebar", sidebarCollapsed ? "collapsed" : "expanded");
+    } catch {
+      /* almacenamiento no disponible */
+    }
+  }, [sidebarCollapsed]);
+
   const openMatrix = (view: ViewId = "standard") => {
     setScreen("workspace");
     setFocusMode(false);
     setView(view);
     setActiveCell({ row: 0, col: 0 });
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    if (document.documentElement) document.documentElement.scrollTop = 0;
-    if (document.body) document.body.scrollTop = 0;
-    const resetScroll = () => {
-      const roots = document.querySelectorAll<HTMLElement>(".gc-workspace-root, .gc-scroll, main, [role='grid']");
-      roots.forEach((el) => {
-        el.scrollTop = 0;
-        el.scrollLeft = 0;
-      });
-    };
-    resetScroll();
-    requestAnimationFrame(resetScroll);
-    setTimeout(resetScroll, 50);
+    window.scrollTo({ top: 0, left: 0 });
   };
 
-  useEffect(() => {
-    if (screen === "workspace") {
-      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-      if (document.documentElement) document.documentElement.scrollTop = 0;
-      if (document.body) document.body.scrollTop = 0;
-      const resetScroll = () => {
-        const roots = document.querySelectorAll<HTMLElement>(".gc-workspace-root, .gc-scroll, main, [role='grid']");
-        roots.forEach((el) => {
-          el.scrollTop = 0;
-          el.scrollLeft = 0;
-        });
-      };
-      resetScroll();
-      requestAnimationFrame(resetScroll);
-      setTimeout(resetScroll, 50);
-      setTimeout(resetScroll, 150);
-    }
-  }, [screen]);
-
-  const handleToggleSidebar = () => {
-    if (embedded && shellContext) {
-      shellContext.setMobileMoreOpen((prev) => !prev);
-    } else {
-      setMobileSidebarOpen((prev) => !prev);
-    }
-  };
-
-  useEffect(() => {
-    window.localStorage.setItem("educore.gradecenter.sidebar", sidebarCollapsed ? "collapsed" : "expanded");
-  }, [sidebarCollapsed]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const isFormField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable;
-      const isGridCell = target?.getAttribute("role") === "gridcell";
-      const modifier = event.ctrlKey || event.metaKey;
-
-      if (modifier && !isFormField) {
-        const key = event.key.toLowerCase();
-        if (key === "c") { event.preventDefault(); void copySelection(); return; }
-        if (key === "v") {
-          if (isGridCell) return;
-          event.preventDefault(); void readPaste(); return;
-        }
-        if (key === "z") { event.preventDefault(); event.shiftKey ? redo() : undo(); return; }
-        if (key === "y") { event.preventDefault(); redo(); return; }
-      }
-      if ((event.key === "Delete" || event.key === "Backspace") && isGridCell) {
-        event.preventDefault(); clearSelectedGrades(); return;
-      }
-      if (event.key === "Escape" && pastePreview) {
-        event.preventDefault(); cancelPastePreview(); return;
-      }
-      if (event.key === "Escape" && focus) {
-        const active = document.activeElement as HTMLElement | null;
-        if (active && (active.tagName === "INPUT" || active.getAttribute("role") === "gridcell")) return;
-        setFocusMode(false);
-      }
-      if (event.key === "?" && !isFormField) {
-        setHelpOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [focus, setFocusMode, copySelection, readPaste, undo, redo, clearSelectedGrades, pastePreview, cancelPastePreview]);
+  const backToLanding = useCallback(() => {
+    setFocusMode(false);
+    setScreen("landing");
+  }, [setFocusMode]);
 
   return (
     <div
@@ -245,107 +202,51 @@ export function AppShell({
       data-screen={screen}
       style={!embedded ? ({ "--gc-sidebar-width": sidebarCollapsed ? "72px" : "250px" } as CSSProperties) : undefined}
     >
-      {!embedded && (
-        <EduCoreSidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed((value) => !value)}
-          mobileOpen={mobileSidebarOpen}
-          onMobileClose={() => setMobileSidebarOpen(false)}
-          section={screen === "landing" ? "home" : preferences.view}
-          onNavigate={(destination) => {
-            setMobileSidebarOpen(false);
-            if (destination === "home") setScreen("landing");
-            else { setScreen("workspace"); setView(destination); }
-          }}
-          onUnavailable={(label) => toast.info(`${label} todavía no está disponible en este prototipo.`)}
-        />
-      )}
-
-      {!isLanding && (
-        <TopRail
-          onOpenHelp={() => setHelpOpen(true)}
-          onToggleSidebar={handleToggleSidebar}
-          onOpenLanding={() => setScreen("landing")}
-          onBack={() => {
-            if (screen === "workspace") {
-              setScreen("landing");
-            } else if (onBack) {
-              onBack();
-            }
-          }}
-        />
-      )}
-      {!isLanding && <ControlStrip />}
-
-      <main className="relative flex min-h-0 flex-1 flex-col">
-        {screen === "landing" ? (
-          <LandingView onOpenMatrix={openMatrix} />
-        ) : (
-          <>
-            {isSwitchingAssignment && (
-              <div
-                role="status"
-                aria-live="polite"
-                className="pointer-events-none absolute top-3 right-4 z-30 inline-flex items-center gap-2 rounded-xl border border-[var(--gc-cobalt)]/35 bg-[var(--card)]/95 px-3.5 py-2 text-xs font-medium text-foreground shadow-lg backdrop-blur-md"
-              >
-                <Loader2 className="size-3.5 animate-spin text-[var(--gc-cobalt)]" />
-                <span>Abriendo planilla…</span>
-              </div>
-            )}
-            <ViewRouter />
-          </>
+      <GradeCenterDialogsProvider>
+        {!embedded && (
+          <EduCoreSidebar
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed((value) => !value)}
+            mobileOpen={mobileSidebarOpen}
+            onMobileClose={() => setMobileSidebarOpen(false)}
+            section={isLanding ? "home" : preferences.view}
+            onNavigate={(destination) => {
+              setMobileSidebarOpen(false);
+              if (destination === "home") setScreen("landing");
+              else {
+                setScreen("workspace");
+                setView(destination);
+              }
+            }}
+            onUnavailable={(label) => toast.info(`${label} todavía no está disponible.`)}
+          />
         )}
-        {!isLanding && <ContextPanel />}
-      </main>
 
-      {/* Barra de estado: leyenda de la escala y pistas de uso */}
-      {!isLanding && (
-        <footer className="glass-soft relative z-20 flex h-8 shrink-0 items-center gap-3 border-t border-white/8 px-3 text-xs">
-          {!focus && (
-            <span className="hidden items-center gap-1.5 text-muted-foreground md:flex">
-              <span className="gc-label text-xs">Vista</span>
-              <span className="text-foreground/90">
-                {VIEW_OPTIONS.find((option) => option.id === preferences.view)?.label}
-              </span>
-              <span className="opacity-40">·</span>
-              <span className="gc-label text-xs">Densidad</span>
-              <span className="text-foreground/90">{DENSITY_LABEL[preferences.density]}</span>
-              <span className="opacity-40">·</span>
-              <span className="gc-num">
-                {students.length} de {analytics.students.length} estudiantes visibles
-              </span>
-            </span>
+        {!isLanding && <TopRail onOpenHelp={openHelp} onBack={backToLanding} />}
+        {!isLanding && !focus && <ControlStrip />}
+
+        <main className="relative flex min-h-0 flex-1 flex-col">
+          {isLanding ? (
+            <LandingView onOpenMatrix={openMatrix} />
+          ) : (
+            <>
+              {isSwitchingAssignment && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="pointer-events-none absolute top-3 right-4 z-30 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[var(--card)] px-3 py-1.5 text-xs font-medium shadow-lg"
+                >
+                  <Loader2 className="size-3.5 animate-spin text-[var(--gc-cobalt)]" />
+                  Abriendo planilla…
+                </div>
+              )}
+              <ViewRouter />
+            </>
           )}
+        </main>
 
-          <div className="flex-1" />
-
-          {isMatrixView ? <MatrixHints /> : <ScaleLegend />}
-        </footer>
-      )}
-
-      {pastePreview && (
-        <div className="pointer-events-none fixed inset-0 z-[90] flex items-end justify-center p-4 sm:items-center">
-          <div className="glass-strong pointer-events-auto w-[min(560px,calc(100vw-2rem))] rounded-2xl border border-white/12 p-4 shadow-2xl">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold">Vista previa de pegado</div>
-                <p className="mt-1 text-xs text-muted-foreground">{pastePreview.rows.length} filas × {Math.max(...pastePreview.rows.map((row) => row.length))} columnas desde Excel o Sheets.</p>
-              </div>
-              <button type="button" onClick={cancelPastePreview} className="rounded-lg px-2 py-1 text-xs text-muted-foreground hover:bg-white/8">Esc</button>
-            </div>
-            <div className="mt-3 max-h-52 overflow-auto rounded-xl border border-white/8 bg-black/10">
-              <table className="w-full border-collapse text-xs"><tbody>{pastePreview.rows.slice(0, 8).map((row, rowIndex) => <tr key={rowIndex}>{row.slice(0, 8).map((value, colIndex) => <td key={colIndex} className="border-b border-r border-white/8 px-2 py-1.5 font-mono">{value || "—"}</td>)}</tr>)}</tbody></table>
-            </div>
-            {pastePreview.error && <div role="alert" className="mt-2 rounded-xl border border-[var(--gc-bajo)]/30 bg-[var(--gc-bajo)]/8 px-3 py-2 text-xs text-[var(--gc-bajo)]">{pastePreview.error}</div>}
-            <div className="mt-3 flex justify-end gap-2">
-              <button type="button" onClick={cancelPastePreview} className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-muted-foreground hover:bg-white/8">Cancelar</button>
-              <button type="button" onClick={applyPastePreview} disabled={Boolean(pastePreview.error)} className="rounded-xl bg-[var(--gc-cobalt)]/25 px-3 py-1.5 text-xs font-semibold hover:bg-[var(--gc-cobalt)]/35 disabled:cursor-not-allowed disabled:opacity-40">Aplicar pegado</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <ShortcutHelp open={helpOpen} onOpenChange={setHelpOpen} />
+        <ShortcutHelp open={helpOpen} onOpenChange={setHelpOpen} />
+      </GradeCenterDialogsProvider>
     </div>
   );
 }

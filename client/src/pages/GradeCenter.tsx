@@ -312,7 +312,7 @@ export function GradeCenterPage({ role, school, onBack }: GradeCenterProps) {
         <AppShell
           embedded={true}
           onBack={onBack}
-          isSwitchingAssignment={contextQuery.isFetching}
+          isSwitchingAssignment={contextQuery.isPlaceholderData}
         />
       </GradeCenterProvider>
     </div>

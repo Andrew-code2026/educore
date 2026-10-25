@@ -10,21 +10,10 @@ import {
   levelTint,
 } from "../../domain/scale";
 import { formatGrade } from "../../lib/format";
-import type { TrendInfo } from "../../domain/metrics";
 
 /* -------------------------------------------------------------------------- */
 /* Nivel                                                                      */
 /* -------------------------------------------------------------------------- */
-
-export function LevelDot({ level, className }: { level: LevelId | null; className?: string }) {
-  if (!level) return <span className={cn("size-2 rounded-full bg-white/20", className)} />;
-  return (
-    <span
-      className={cn("size-2 shrink-0 rounded-full", className)}
-      style={{ backgroundColor: LEVELS[level].color, boxShadow: `0 0 10px ${levelTint(level, 0.7)}` }}
-    />
-  );
-}
 
 export function LevelBadge({
   level,
@@ -210,61 +199,6 @@ export function DistributionBars({
     </div>
   );
 }
-
-/** Barras verticales compactas para comparar evaluaciones. */
-export function MicroBars({
-  values,
-  className,
-  highlightIndex,
-}: {
-  values: (number | null)[];
-  className?: string;
-  highlightIndex?: number;
-}) {
-  return (
-    <div className={cn("flex h-8 items-end gap-[3px]", className)}>
-      {values.map((value, index) => {
-        const level = levelFromScore(value);
-        const height = value == null ? 6 : Math.max(8, ((value - MIN_GRADE) / (MAX_GRADE - MIN_GRADE)) * 100);
-        return (
-          <div
-            key={index}
-            className={cn(
-              "flex-1 rounded-t-[3px] transition-all duration-300",
-              index === highlightIndex && "ring-1 ring-white/40",
-            )}
-            style={{
-              height: `${height}%`,
-              background: level ? levelTint(level, index === highlightIndex ? 1 : 0.62) : "oklch(1 0 0 / 12%)",
-            }}
-            title={value == null ? "Pendiente" : formatGrade(value)}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Tendencia                                                                  */
-/* -------------------------------------------------------------------------- */
-
-export function TrendStrip({ trend, className }: { trend: TrendInfo; className?: string }) {
-  const tone =
-    trend.direction === "up" ? LEVELS.alto.color : trend.direction === "down" ? LEVELS.bajo.color : "var(--muted-foreground)";
-  const arrow = trend.direction === "up" ? "↗" : trend.direction === "down" ? "↘" : "→";
-
-  return (
-    <span className={cn("inline-flex items-center gap-1 text-xs font-medium", className)} style={{ color: tone }}>
-      <span className="text-[13px] leading-none">{arrow}</span>
-      {trend.label}
-    </span>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Métricas                                                                   */
-/* -------------------------------------------------------------------------- */
 
 export function MetricTile({
   label,
