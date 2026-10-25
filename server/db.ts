@@ -22,7 +22,9 @@ import {
   AttendanceJustificationEvent,
   InsertAttendanceJustificationEvent,
   InsertAttendanceRecord,
+  InsertCourseResource,
   auditLogs,
+  courseResources,
   courses,
   courseSubjects,
   enrollmentHistory,
@@ -576,12 +578,25 @@ export async function updateAcademicPeriod(input: { id: number; name: string; st
   return (await db.select().from(academicPeriods).where(and(eq(academicPeriods.id, id), eq(academicPeriods.schoolId, schoolId))).limit(1))[0];
 }
 
-export async function createDemoAssignment(input: { title: string; subject: string; course: string; description: string; dueAt: Date; points: number; teacherName: string }) {
+export async function createDemoAssignment(
+  input: { title: string; subject: string; course: string; description: string; dueAt: Date; points: number; teacherName: string; status?: string },
+  schoolId?: number
+) {
   const db = await getDb();
   const school = await ensureEduCoreSeeded();
   if (!db || !school) return null;
-  await db.insert(assignments).values({ schoolId: school.id, ...input, status: "Publicado" });
-  return (await db.select().from(assignments).where(eq(assignments.schoolId, school.id)).orderBy(desc(assignments.id)).limit(1))[0];
+  const targetSchoolId = schoolId ?? school.id;
+  const [{ id }] = await db.insert(assignments).values({ ...input, schoolId: targetSchoolId, status: input.status ?? "Publicado" }).$returningId();
+  return (await db.select().from(assignments).where(eq(assignments.id, id)).limit(1))[0];
+}
+
+/** Nombre visible de un usuario, o null si no existe (p. ej. actor demo sin cuenta). */
+export async function getUserName(userId: number): Promise<string | null> {
+  if (!userId) return null;
+  const db = await getDb();
+  if (!db) return null;
+  const row = (await db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1))[0];
+  return row?.name?.trim() || null;
 }
 
 export async function createAnnouncement(schoolId: number, input: { title: string; message: string; audience: string; status: string }) {
@@ -2035,3 +2050,62 @@ export async function resolveJustification(input: {
 }
 
 
+
+// ── Recursos del curso ──────────────────────────────────────────────────────
+
+let _courseResourcesTableEnsured = false;
+
+/** Igual que asistencia: la tabla se crea al primer uso para no depender de una migración manual. */
+export async function ensureCourseResourcesTable() {
+  if (_courseResourcesTableEnsured) return;
+  const db = await getDb();
+  if (!db) return;
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS \`course_resources\` (
+      \`id\` int NOT NULL AUTO_INCREMENT,
+      \`schoolId\` int NOT NULL,
+      \`course\` varchar(64) NOT NULL,
+      \`assignmentId\` int DEFAULT NULL,
+      \`title\` varchar(180) NOT NULL,
+      \`fileName\` varchar(180) NOT NULL,
+      \`fileKey\` varchar(512) NOT NULL,
+      \`fileUrl\` varchar(512) NOT NULL,
+      \`contentType\` varchar(120) NOT NULL,
+      \`sizeBytes\` int NOT NULL,
+      \`uploadedByUserId\` int DEFAULT NULL,
+      \`createdAt\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`),
+      KEY \`course_resources_course_idx\` (\`schoolId\`,\`course\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+  _courseResourcesTableEnsured = true;
+}
+
+export async function listCourseResources(schoolId: number, course: string) {
+  await ensureCourseResourcesTable();
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(courseResources)
+    .where(and(eq(courseResources.schoolId, schoolId), eq(courseResources.course, course)))
+    .orderBy(desc(courseResources.createdAt));
+}
+
+export async function createCourseResource(input: Omit<InsertCourseResource, "id" | "createdAt">) {
+  await ensureCourseResourcesTable();
+  const db = await getDb();
+  if (!db) throw new Error("Database is not configured");
+  const result = await db.insert(courseResources).values(input).$returningId();
+  return (await db.select().from(courseResources).where(eq(courseResources.id, result[0].id)).limit(1))[0];
+}
+
+/** Elimina el registro y devuelve la fila borrada (para limpiar el archivo), o null si no existe en el colegio. */
+export async function deleteCourseResource(schoolId: number, id: number) {
+  await ensureCourseResourcesTable();
+  const db = await getDb();
+  if (!db) throw new Error("Database is not configured");
+  const row = (await db.select().from(courseResources)
+    .where(and(eq(courseResources.id, id), eq(courseResources.schoolId, schoolId))).limit(1))[0];
+  if (!row) return null;
+  await db.delete(courseResources).where(eq(courseResources.id, row.id));
+  return row;
+}

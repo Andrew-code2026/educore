@@ -8,17 +8,22 @@ import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { storagePut } from "./storage";
+import { storageDeleteLocal, storagePut } from "./storage";
+import { MAX_RESOURCE_BYTES, checkResourceFile } from "@shared/courseResources";
 import { saveUploadedDocument } from "./documentStorage";
 import {
   createAnnouncement,
   createDemoAssignment,
+  getUserName,
   deleteAnnouncement,
   publishAnnouncement,
   DEMO_SCHOOL_ID,
   EduRole,
   getEduCoreSnapshot,
   gradeDemoSubmission,
+  createCourseResource,
+  deleteCourseResource,
+  listCourseResources,
   recordDemoAttendance,
   saveAiConversation,
   submitDemoAssignment,
@@ -383,16 +388,24 @@ export const appRouter = router({
     }),
     createAssignment: publicProcedure.input(z.object({
       role: roleSchema,
-      title: z.string().min(3).max(180),
+      title: z.string().trim().min(3).max(180),
       subject: z.string().min(2),
       course: z.string().min(2),
-      description: z.string().min(5),
+      // Las instrucciones son opcionales: sin ellas no se inventa un texto de relleno
+      description: z.string().max(5000).default(""),
       dueAt: z.coerce.date(),
-      points: z.number().int().min(1).max(1000),
-      teacherName: z.string().min(2),
+      // 0 = actividad sin nota
+      points: z.number().int().min(0).max(1000),
+      // Solo como respaldo: el servidor usa el nombre del docente autenticado
+      teacherName: z.string().min(2).optional(),
+      status: z.enum(["Publicado", "Borrador"]).default("Publicado"),
     })).mutation(async ({ input, ctx }) => {
       const actor = await requirePermission(ctx, input.role, "assignments.create", true);
-      const result = await createDemoAssignment(input);
+      const { role: _role, teacherName, ...fields } = input;
+      const result = await createDemoAssignment(
+        { ...fields, teacherName: (await getUserName(actor.userId)) ?? teacherName ?? "Docente" },
+        actor.schoolId
+      );
       await writeAuditLog(input.role, "create_assignment", input.title, actor.schoolId);
       return result;
     }),
@@ -418,6 +431,54 @@ export const appRouter = router({
       const result = await gradeDemoSubmission(input);
       await writeAuditLog(input.role, "grade_submission", `${input.submissionId}:${input.grade}`, actor.schoolId);
       return result;
+    }),
+    courseResources: publicProcedure.input(z.object({
+      role: roleSchema,
+      course: z.string().min(1).max(64),
+    })).query(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "assignments.view");
+      return listCourseResources(actor.schoolId, input.course);
+    }),
+    uploadCourseResource: publicProcedure.input(z.object({
+      role: roleSchema,
+      course: z.string().min(1).max(64),
+      title: z.string().trim().min(2).max(180),
+      assignmentId: z.number().int().nullable(),
+      fileName: z.string().min(1).max(180),
+      // Base64 de hasta 20 MB (~4/3 del tamaño original)
+      dataBase64: z.string().min(1).max(Math.ceil(MAX_RESOURCE_BYTES * 1.4)),
+    })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "assignments.update", true);
+      const buffer = Buffer.from(input.dataBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
+      const check = checkResourceFile(input.fileName, buffer.length);
+      if (!check.ok) throw new TRPCError({ code: "BAD_REQUEST", message: check.message });
+      const safeCourse = input.course.replace(/[^a-zA-Z0-9_-]/g, "_");
+      const stored = await storagePut(`schools/${actor.schoolId}/courses/${safeCourse}/resources/${check.storageName}`, buffer, check.contentType);
+      const resource = await createCourseResource({
+        schoolId: actor.schoolId,
+        course: input.course,
+        assignmentId: input.assignmentId,
+        title: input.title,
+        fileName: path.basename(input.fileName),
+        fileKey: stored.key,
+        fileUrl: stored.url,
+        contentType: check.contentType,
+        sizeBytes: buffer.length,
+        uploadedByUserId: actor.userId || null,
+      });
+      await writeAuditLog(input.role, "upload_course_resource", `${input.course}:${input.title}`, actor.schoolId);
+      return resource;
+    }),
+    deleteCourseResource: publicProcedure.input(z.object({
+      role: roleSchema,
+      id: z.number().int(),
+    })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "assignments.update", true);
+      const removed = await deleteCourseResource(actor.schoolId, input.id);
+      if (!removed) throw new TRPCError({ code: "NOT_FOUND", message: "El recurso ya no existe." });
+      storageDeleteLocal(removed.fileKey);
+      await writeAuditLog(input.role, "delete_course_resource", `${removed.course}:${removed.title}`, actor.schoolId);
+      return { id: removed.id };
     }),
     updateGrade: publicProcedure.input(z.object({
       role: roleSchema,

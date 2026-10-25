@@ -1,7 +1,6 @@
 import type {
   Activity,
   CourseSummary,
-  Resource,
   RubricCriterion,
   Student,
 } from './types';
@@ -61,41 +60,6 @@ export const defaultRubric: RubricCriterion[] = [
   },
 ];
 
-export const defaultResources: Resource[] = [
-  {
-    title: 'Guía de laboratorio y rúbrica de evaluación',
-    type: 'Guía PDF',
-    meta: '2.4 MB · Actualizado hace 3 días',
-    used: 'Taller de derivadas',
-    icon: '▤',
-    color: 'cyan',
-  },
-  {
-    title: 'Rúbrica institucional para entrega digital',
-    type: 'Rúbrica PDF',
-    meta: '1.1 MB · Vigente ciclo 2026',
-    used: 'Todas las actividades',
-    icon: '✦',
-    color: 'violet',
-  },
-  {
-    title: 'Plantilla de reporte experimental',
-    type: 'Documento DOCX',
-    meta: '850 KB · Formato estándar',
-    used: 'Actividad de física',
-    icon: '↗',
-    color: 'mint',
-  },
-  {
-    title: 'Formatos de entrega y citación APA 7',
-    type: 'Guía de estilo',
-    meta: '620 KB · Biblioteca institucional',
-    used: 'Proyectos académicos',
-    icon: '◇',
-    color: 'amber',
-  },
-];
-
 const STUDENT_COLORS = ['#64e8ff', '#a78bfa', '#fbbf6b', '#70e0b2', '#f88fb2', '#38bdf8', '#c084fc'];
 
 function getInitials(name: string): string {
@@ -105,7 +69,7 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function formatDateShort(dateValue: string | Date | null | undefined): string {
+function formatDateShort(dateValue: string | Date | null | undefined): string {
   if (!dateValue) return '28 Oct';
   const d = new Date(dateValue);
   if (Number.isNaN(d.getTime())) return '28 Oct';

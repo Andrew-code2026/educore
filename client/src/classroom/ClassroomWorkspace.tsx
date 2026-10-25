@@ -17,11 +17,9 @@ import {
   adaptEduCoreActivities,
   adaptEduCoreCourses,
   adaptEduCoreStudents,
-  defaultResources,
   defaultRubric,
   emptyActivity,
   emptyStudent,
-  formatDateShort,
 } from './adapter';
 
 import { ClasscoreHero } from './components/ClasscoreHero';
@@ -38,7 +36,8 @@ import { Icon } from './components/SharedUI';
 import { ClassroomLanding } from './landing/ClassroomLanding';
 import type { ActivityFilter, ActivitySort } from './course/activities';
 import type { SubmissionFilter } from './course/submissions';
-import { activePeriod, type PendingReview } from './landing/courses';
+import { dueDateOf, emptyDraft } from './course/activityDraft';
+import { DEFAULT_SUBJECT, activePeriod, type PendingReview } from './landing/courses';
 
 import './classroom.css';
 
@@ -61,7 +60,7 @@ export function ClassroomWorkspace({
   onNavigateSection,
   initialCourseId,
 }: ClassroomWorkspaceProps) {
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const shellContext = useOptionalShellContext();
 
   // 1. Adapta cursos de EduCore
@@ -139,35 +138,10 @@ export function ClassroomWorkspace({
   const [reviewRecords, setReviewRecords] = useState<Record<string, ReviewRecord>>({});
 
   // 7. Creador de actividad
-  const [draft, setDraft] = useState<Draft>({
-    name: '',
-    description: '',
-    due: '2026-10-28',
-    publish: '2026-10-21',
-    maxFiles: 2,
-    maxSize: '25 MB',
-    formats: ['PDF', 'DOCX', 'ZIP'],
-    graded: true,
-    gradeCenter: true,
-    weight: '20%',
-    allowReplacement: true,
-    allowResubmission: true,
-    subject: selectedCourse?.subject || 'Biología',
-    course: selectedCourse?.name || '11-2',
-  });
+  const [draft, setDraft] = useState<Draft>(emptyDraft);
 
   // Mutaciones de tRPC con persistencia real en EduCore
-  const createAssignmentMutation = trpc.educore.createAssignment.useMutation({
-    onSuccess: (newAssignment: any) => {
-      sonnerToast.success('Actividad guardada y registrada en EduCore');
-      setToastMessage('Actividad publicada en ClassCORE');
-      setDrawerOpen(false);
-      onChanged();
-    },
-    onError: (err: any) => {
-      sonnerToast.error(err.message || 'Error al guardar la actividad');
-    },
-  });
+  const createAssignmentMutation = trpc.educore.createAssignment.useMutation();
 
   // El calificador avisa del resultado y refresca una sola vez al terminar ambas mutaciones
   const gradeSubmissionMutation = trpc.educore.gradeSubmission.useMutation();
@@ -280,8 +254,8 @@ export function ClassroomWorkspace({
   // Escape listener para cerrar drawers
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      // El creador de actividades maneja su propio Escape para no perder lo escrito sin avisar
       if (event.key === 'Escape') {
-        setDrawerOpen(false);
         setPreviewOpen(false);
         setReviewIndex(null);
       }
@@ -313,7 +287,6 @@ export function ClassroomWorkspace({
       if (!course) return;
       setSelectedCourse(course);
       setView('activities');
-      setDraft((d) => ({ ...d, course: course.name, subject: course.subject || d.subject }));
       setDrawerOpen(true);
     },
     [courses]
@@ -355,57 +328,35 @@ export function ClassroomWorkspace({
     handleSelectActivity(activity);
   };
 
-  // Creación y publicación de actividad
-  const handleCreateActivity = (publish: boolean) => {
-    const name = draft.name.trim() || 'Nueva actividad';
-    const cleanCourseName = selectedCourse.name.replace(/^Curso\s*/i, '');
-    // Fecha local a las 23:59; un 'AAAA-MM-DD' suelto se interpreta en UTC y cae el día anterior
-    const dueAt = new Date(`${draft.due || '2026-10-28'}T23:59:00`);
-
-    // Mutación al backend de EduCore
-    createAssignmentMutation.mutate({
-      role,
-      title: name,
-      subject: draft.subject || selectedCourse.subject || 'Biología',
-      course: cleanCourseName,
-      description:
-        draft.description.trim() ||
-        'Actividad con entrega digital y evidencia creada en ClassCORE.',
-      dueAt,
-      points: draft.graded ? 100 : 0,
-      teacherName: 'Laura Gómez',
-    });
-
-    // Actualización optimista en UI local
-    const id = `local-${Date.now()}`;
-    const dateFormatted = formatDateShort(dueAt);
-    const newAct: Activity = {
-      ...emptyActivity,
-      id,
-      name,
-      description:
-        draft.description.trim() ||
-        'Actividad con entrega digital y evidencia creada en ClassCORE.',
-      date: dateFormatted,
-      dueDate: `${dateFormatted} · 23:59`,
-      dueAt: dueAt.toISOString(),
-      submissions: 0,
-      graded: 0,
-      status: publish ? 'Publicada' : 'Borrador',
-      affectsGradeCenter: draft.gradeCenter,
-      weight: draft.weight || '20%',
-      formats: draft.formats,
-      maxFiles: draft.maxFiles,
-      maxSize: draft.maxSize,
-      allowReplacement: draft.allowReplacement,
-      allowResubmission: draft.allowResubmission,
-      course: cleanCourseName,
-      subject: draft.subject || selectedCourse.subject || 'Biología',
-    };
-
-    setActivities((prev) => [newAct, ...prev]);
-    setSelectedActivity(newAct);
-    setDraft((d) => ({ ...d, name: '', description: '' }));
+  // Creación de actividad: el curso y la asignatura salen del curso abierto, nunca del borrador
+  const handleCreateActivity = async (publish: boolean): Promise<boolean> => {
+    const subjects = activities.map((a) => a.subject).filter(Boolean) as string[];
+    const subject =
+      subjects.sort((a, b) => subjects.filter((s) => s === b).length - subjects.filter((s) => s === a).length)[0] ??
+      selectedCourse.subject ??
+      DEFAULT_SUBJECT;
+    try {
+      await createAssignmentMutation.mutateAsync({
+        role,
+        title: draft.name.trim(),
+        subject,
+        course: selectedCourse.name.replace(/^Curso\s*/i, ''),
+        description: draft.description.trim(),
+        dueAt: dueDateOf(draft),
+        points: draft.graded ? 100 : 0,
+        status: publish ? 'Publicado' : 'Borrador',
+      });
+      sonnerToast.success(
+        publish ? `"${draft.name.trim()}" publicada para el curso` : `Borrador "${draft.name.trim()}" guardado`
+      );
+      setDraft(emptyDraft());
+      setDrawerOpen(false);
+      onChanged();
+      return true;
+    } catch (err: any) {
+      sonnerToast.error(err?.message || 'No se pudo guardar la actividad. Intenta de nuevo.');
+      return false;
+    }
   };
 
   // Simulación y validación de archivos de estudiante
@@ -566,12 +517,10 @@ export function ClassroomWorkspace({
 
               {view === 'resources' && (
                 <ResourcesView
-                  resources={defaultResources}
-                  onAddResource={
-                    canManage
-                      ? () => sonnerToast.info('Añadir recurso vinculado a actividad')
-                      : undefined
-                  }
+                  role={role}
+                  course={selectedCourse.name.replace(/^Curso\s*/i, '')}
+                  activities={activities}
+                  canManage={canManage}
                 />
               )}
             </div>
@@ -584,9 +533,13 @@ export function ClassroomWorkspace({
         <ActivityDrawer
           draft={draft}
           setDraft={setDraft}
+          courseLabel={
+            selectedCourse.subject && selectedCourse.subject !== DEFAULT_SUBJECT
+              ? `${selectedCourse.subject} · ${selectedCourse.name}`
+              : selectedCourse.name
+          }
           onClose={() => setDrawerOpen(false)}
-          onSave={() => handleCreateActivity(false)}
-          onPublish={() => handleCreateActivity(true)}
+          onSubmit={handleCreateActivity}
           isPending={createAssignmentMutation.isPending}
         />
       )}

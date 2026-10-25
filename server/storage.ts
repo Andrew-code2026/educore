@@ -119,3 +119,13 @@ export async function storageGetSignedUrl(relKey: string): Promise<string> {
 
   return `/uploads/${key}`;
 }
+
+
+/** Borra un archivo del almacenamiento local; en Forge/S3 el objeto se conserva (no hay API de borrado). */
+export function storageDeleteLocal(relKey: string): void {
+  const uploadsRoot = path.resolve(process.cwd(), "uploads");
+  const localFilePath = path.resolve(uploadsRoot, normalizeKey(relKey));
+  // Nunca fuera de uploads/, aunque la clave venga manipulada
+  if (!localFilePath.startsWith(uploadsRoot + path.sep)) return;
+  fs.rmSync(localFilePath, { force: true });
+}

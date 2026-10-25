@@ -4,18 +4,6 @@
  * aquí solo vive lo propio del calificador.
  */
 
-.ccw {
-  --ccw-foot-bg: rgba(17, 27, 36, .025);
-  --ccw-error: #C03535;
-  --ccw-error-border: #D14343;
-}
-
-.dark .ccw {
-  --ccw-foot-bg: rgba(255, 255, 255, .025);
-  --ccw-error: #FF8A8A;
-  --ccw-error-border: #FF8A8A;
-}
-
 .ccw.ccw-grader {
   max-width: 1400px;
   display: flex;
@@ -82,11 +70,6 @@
   font-size: 13px;
   color: var(--edc-muted);
   white-space: nowrap;
-}
-
-.ccw .ccw-icon-btn:disabled {
-  opacity: .4;
-  cursor: not-allowed;
 }
 
 .ccw .ccw-icon-btn[aria-pressed='true'] {
@@ -180,89 +163,6 @@
   color: var(--edc-ink-2);
 }
 
-.ccw .ccw-field {
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.ccw .ccw-field__label {
-  padding: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--edc-ink);
-}
-
-.ccw .ccw-field__optional {
-  margin-left: 4px;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--edc-muted);
-}
-
-/* Dos opciones de igual ancho y un indicador que se desliza: el cambio se ve inmediato */
-.ccw .ccw-segmented {
-  position: relative;
-  align-self: flex-start;
-  display: inline-grid;
-  grid-template-columns: 1fr 1fr;
-  padding: 3px;
-  border-radius: 999px;
-  background: var(--ccw-neutral-bg);
-  isolation: isolate;
-}
-
-.ccw .ccw-segmented__thumb {
-  position: absolute;
-  z-index: -1;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc(50% - 3px);
-  border-radius: 999px;
-  background: var(--ccw-field-bg);
-  box-shadow: 0 1px 2px rgba(17, 27, 36, .12), 0 1px 1px rgba(17, 27, 36, .04);
-  transition: transform .18s cubic-bezier(.2, 0, 0, 1);
-  will-change: transform;
-}
-
-.dark .ccw .ccw-segmented__thumb {
-  background: rgba(255, 255, 255, .12);
-  box-shadow: none;
-}
-
-.ccw .ccw-segmented[data-value='rubric'] .ccw-segmented__thumb {
-  transform: translateX(100%);
-}
-
-.ccw .ccw-segmented button {
-  height: 30px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--edc-muted);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: color .18s ease;
-}
-
-.ccw .ccw-segmented button:hover {
-  color: var(--edc-ink-2);
-}
-
-.ccw .ccw-segmented button[aria-pressed='true'] {
-  color: var(--edc-ink);
-  cursor: default;
-}
-
 .ccw .ccw-grade-input {
   align-self: flex-start;
   display: flex;
@@ -305,16 +205,6 @@
 .ccw .ccw-grade-input__scale {
   font-size: 16px;
   color: var(--edc-muted);
-}
-
-.ccw .ccw-help {
-  font-size: 12.5px;
-  color: var(--edc-muted);
-}
-
-.ccw .ccw-help--error {
-  color: var(--ccw-error);
-  font-weight: 500;
 }
 
 .ccw .ccw-textarea {
@@ -495,16 +385,6 @@
 .ccw .ccw-save--error {
   color: var(--ccw-error);
   font-weight: 500;
-}
-
-.ccw .ccw-spin {
-  animation: ccw-spin .8s linear infinite;
-}
-
-@keyframes ccw-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 /* ── Lista de estudiantes ──────────────────────────────── */
@@ -714,8 +594,6 @@
   }
 
   .ccw .ccw-back,
-  .ccw .ccw-segmented__thumb,
-  .ccw .ccw-segmented button,
   .ccw .ccw-suggestion,
   .ccw .ccw-roster__item,
   .ccw .ccw-roster__chev {

@@ -376,7 +376,7 @@ function ReviewPanel({
 
           <fieldset className="ccw-field">
             <legend className="ccw-field__label">Calificación</legend>
-            <div role="group" aria-label="Forma de calificar" className="ccw-segmented" data-value={draft.mode}>
+            <div role="group" aria-label="Forma de calificar" className="ccw-segmented" data-index={draft.mode === 'rubric' ? 1 : 0}>
               <span aria-hidden="true" className="ccw-segmented__thumb" />
               <button type="button" aria-pressed={!usingRubric} onClick={() => usingRubric && update({ mode: 'direct' })}>
                 Nota directa

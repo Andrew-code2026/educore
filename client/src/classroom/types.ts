@@ -71,17 +71,6 @@ export interface CourseSummary {
   subject?: string;
 }
 
-export interface Resource {
-  id?: string;
-  title: string;
-  type: string;
-  meta: string;
-  used: string;
-  icon: string;
-  color: string;
-  url?: string;
-}
-
 export interface ReviewRecord {
   score?: number;
   scoreMode: 'rubric' | 'manual';
@@ -92,22 +81,15 @@ export interface ReviewRecord {
   status: SubmissionStatus;
 }
 
+/** Lo que el docente escribe en "Nueva actividad"; todo se envía al servidor. */
 export interface Draft {
   name: string;
   description: string;
+  /** "AAAA-MM-DD" */
   due: string;
-  publish: string;
-  maxFiles: number;
-  maxSize: string;
-  formats: string[];
+  /** "HH:MM" */
+  dueTime: string;
   graded: boolean;
-  gradeCenter: boolean;
-  weight: string;
-  allowReplacement: boolean;
-  allowResubmission: boolean;
-  subject?: string;
-  course?: string;
-  scale?: string;
 }
 
 export interface Upload {
