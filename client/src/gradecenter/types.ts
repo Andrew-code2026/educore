@@ -126,7 +126,6 @@ export interface Preferences {
   sort: SortSpec;
   filters: Filters;
   focusMode: boolean;
-  showCodes: boolean;
   /** Un clic entra directamente al editor inline en lugar de abrir el popover. */
   quickEdit: boolean;
 }

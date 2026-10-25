@@ -37,7 +37,6 @@ export const DEFAULT_PREFERENCES: Preferences = {
   sort: { key: "name", dir: "asc" },
   filters: EMPTY_FILTERS,
   focusMode: false,
-  showCodes: true,
   quickEdit: false,
 };
 
@@ -54,11 +53,6 @@ export function applyDensityDefaults(preferences: Preferences, density: Density)
 
 export function columnWidthOf(preferences: Pick<Preferences, "columnWidths" | "density">, evaluationId: string): number {
   return preferences.columnWidths[evaluationId] ?? COLUMN_WIDTH[preferences.density];
-}
-
-export function viewDensity(view: ViewId, density: Density): Density {
-  if (view === "compact") return "compact";
-  return density;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

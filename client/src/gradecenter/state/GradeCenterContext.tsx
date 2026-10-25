@@ -13,7 +13,7 @@ import { createEmptyDataset } from "../data/emptyDataset";
 import type { GradebookAssignment } from "../domain/assignments";
 import { buildAnalytics, type Analytics, type StudentMetrics } from "../domain/metrics";
 import { EMPTY_FILTERS, filterStudents, sortStudents, visibleEvaluations } from "../domain/selectors";
-import { clamp, roundGrade } from "../data/seed";
+import { clamp } from "../data/seed";
 import { normalizeGrade, parseGradeInput } from "../domain/grading";
 import {
   gradeKey,
@@ -22,7 +22,6 @@ import {
   type Evaluation,
   type EvaluationStatus,
   type EvaluationTypeId,
-  type GradeMap,
   type GradeValue,
   type Preferences,
   type SortSpec,
@@ -123,7 +122,6 @@ export type Action =
   | { type: "filters/patch"; patch: Partial<Filters> }
   | { type: "focus"; focusMode: boolean }
   | { type: "quickEdit"; quickEdit: boolean }
-  | { type: "showCodes"; show: boolean }
   | { type: "resetPreferences" }
   | { type: "activeCell"; cell: CellRef }
   | { type: "editing"; editing: boolean }
@@ -273,8 +271,6 @@ export function gradeCenterReducer(state: State, action: Action): State {
       return { ...state, preferences: { ...state.preferences, quickEdit: action.quickEdit } };
 
 
-    case "showCodes":
-      return { ...state, preferences: { ...state.preferences, showCodes: action.show } };
 
     case "resetPreferences": {
       const preferences = resetPreferences(state.preferences);
@@ -657,7 +653,6 @@ export function gradeCenterReducer(state: State, action: Action): State {
 export interface GradeCenterContextValue {
   dataset: Dataset;
   confirmedDataset: Dataset;
-  draftChanges: Record<string, DraftChange>;
   preferences: Preferences;
   sync: SyncState;
   analytics: Analytics;
@@ -678,10 +673,8 @@ export interface GradeCenterContextValue {
   selectedCells: string[];
   selectionAnchor: CellRef | null;
   pastePreview: PastePreview | null;
-  gradeAt: (studentId: string, evaluationId: string) => GradeValue;
   commentAt: (studentId: string, evaluationId: string) => string;
   weightIntegrity: { used: number; remaining: number; status: "valid" | "incomplete" | "exceeded" };
-  isCellSelected: (row: number, col: number, studentId: string, evaluationId: string) => boolean;
   selectAllVisible: () => void;
   toggleRowSelection: (studentId: string) => void;
   selectCell: (cell: CellRef, studentId: string, evaluationId: string, options?: { additive?: boolean; range?: boolean }) => void;
@@ -695,8 +688,6 @@ export interface GradeCenterContextValue {
   clearSelectedGrades: () => void;
   undo: () => void;
   redo: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
   columnWidth: (evaluationId: string) => number;
   setView: (view: ViewId) => void;
   setDensity: (density: Density) => void;
@@ -711,12 +702,10 @@ export interface GradeCenterContextValue {
   patchFilters: (patch: Partial<Filters>) => void;
   setFocusMode: (value: boolean) => void;
   setQuickEdit: (value: boolean) => void;
-  setShowCodes: (value: boolean) => void;
   resetAllPreferences: () => void;
   setActiveCell: (cell: CellRef) => void;
   setEditing: (value: boolean) => void;
   focusCell: (row: number, col: number) => void;
-  moveCell: (deltaRow: number, deltaCol: number) => void;
   selectStudent: (studentId: string | null) => void;
   selectEvaluation: (evaluationId: string | null) => void;
   createEvaluation: (input: { name: string; type: EvaluationTypeId; date?: string; weight: number; description?: string; status: EvaluationStatus }) => Promise<{ ok: boolean; error?: string; evaluationId?: string }>;
@@ -732,7 +721,7 @@ export interface GradeCenterContextValue {
 }
 
 /** Estado que cambia con cada movimiento del teclado: vive en su propio contexto. */
-type GridKeys = "activeCell" | "editing" | "pulse" | "selectedCells" | "selectionAnchor" | "isCellSelected";
+type GridKeys = "activeCell" | "editing" | "pulse" | "selectedCells" | "selectionAnchor";
 export type GradeCenterGridValue = Pick<GradeCenterContextValue, GridKeys>;
 export type GradeCenterCoreValue = Omit<GradeCenterContextValue, GridKeys>;
 
@@ -745,7 +734,6 @@ const GradeCenterGridContext = createContext<GradeCenterGridValue | null>(null);
  * vuelve a pintar las celdas que cambian, no las cientos que no.
  */
 const ACTION_KEYS = [
-  "gradeAt",
   "commentAt",
   "selectAllVisible",
   "toggleRowSelection",
@@ -1090,15 +1078,6 @@ export function GradeCenterProvider({
       });
     },
     [students.length, evaluations.length],
-  );
-
-  const moveCell = useCallback(
-    (deltaRow: number, deltaCol: number) => {
-      const { activeCell } = stateRef.current;
-      focusCell(activeCell.row + deltaRow, activeCell.col + deltaCol);
-      dispatch({ type: "editing", editing: false });
-    },
-    [focusCell],
   );
 
   const jumpToCell = useCallback(
@@ -1521,7 +1500,6 @@ export function GradeCenterProvider({
         patchFilters: (patch) => dispatch({ type: "filters/patch", patch }),
         setFocusMode: (focusMode) => dispatch({ type: "focus", focusMode }),
         setQuickEdit: (quickEdit) => dispatch({ type: "quickEdit", quickEdit }),
-        setShowCodes: (showCodes) => dispatch({ type: "showCodes", show: showCodes }),
         resetAllPreferences: () => dispatch({ type: "resetPreferences" }),
         setActiveCell: (cell) => dispatch({ type: "activeCell", cell }),
         setEditing: (editing) => dispatch({ type: "editing", editing }),
@@ -1534,7 +1512,6 @@ export function GradeCenterProvider({
   const core = useMemo<GradeCenterCoreValue>(() => ({
     dataset: state.dataset,
     confirmedDataset: state.confirmedDataset,
-    draftChanges: state.drafts,
     preferences: state.preferences,
     sync: state.sync,
     analytics,
@@ -1548,8 +1525,6 @@ export function GradeCenterProvider({
     selectedEvaluationId: state.selectedEvaluationId,
     selectedRows: state.selectedRows,
     pastePreview: state.pastePreview,
-    gradeAt: (studentId, evaluationId) =>
-      state.dataset.grades[gradeKey(studentId, evaluationId)] ?? null,
     commentAt: (studentId, evaluationId) =>
       state.dataset.comments[gradeKey(studentId, evaluationId)] ?? "",
     weightIntegrity,
@@ -1566,12 +1541,9 @@ export function GradeCenterProvider({
     clearSelectedGrades,
     undo,
     redo,
-    canUndo: undoStack.current.length > 0,
-    canRedo: redoStack.current.length > 0,
     columnWidth,
     ...dispatchers,
     focusCell,
-    moveCell,
     createEvaluation,
     updateEvaluation,
     removeEvaluation,
@@ -1614,7 +1586,6 @@ export function GradeCenterProvider({
     undo,
     redo,
     focusCell,
-    moveCell,
     createEvaluation,
     updateEvaluation,
     removeEvaluation,
@@ -1632,10 +1603,8 @@ export function GradeCenterProvider({
       pulse: state.pulse,
       selectedCells: state.selectedCells,
       selectionAnchor: state.selectionAnchor,
-      isCellSelected: (_row, _col, studentId, evaluationId) =>
-        state.selectedCells.includes(gradeKey(studentId, evaluationId)) || state.selectedRows.includes(studentId),
     }),
-    [state.activeCell, state.editing, state.pulse, state.selectedCells, state.selectionAnchor, state.selectedRows],
+    [state.activeCell, state.editing, state.pulse, state.selectedCells, state.selectionAnchor],
   );
 
   const value = useMemo<GradeCenterContextValue>(() => ({ ...core, ...grid }), [core, grid]);
