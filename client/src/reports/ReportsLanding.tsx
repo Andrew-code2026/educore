@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
-import { ArrowRight, BookOpen, ChartColumn, FileText, RotateCcw, ShieldCheck, TriangleAlert } from "lucide-react";
+import { ArrowRight, BookOpen, ChartColumn, FileText, ShieldCheck, TriangleAlert } from "lucide-react";
 import { formatGrade, PASSING_GRADE } from "@/analytics/landing";
 import type { CourseModel, ReportCardModel, ReportsLandingModel } from "./landing";
 import { LandingHeader } from "./LandingHeader";
 import { CourseAverageList } from "./CourseAverageList";
 import { ReportCardList } from "./ReportCardList";
+import { EmptyCard, ErrorCard } from "./parts";
 import "./landing.css";
 
 interface ReportsLandingProps {
@@ -19,9 +20,10 @@ interface ReportsLandingProps {
   onOpenCourse: (course: CourseModel) => void;
   onOpenAlerts: () => void;
   onGenerate: (card: ReportCardModel) => void;
+  onOpenReportCards: (card: ReportCardModel) => void;
 }
 
-/** Portada de Reportes y analítica: lectura del periodo, promedio por curso y boletines. */
+/** Portada de Reportes y analítica: boletines, lectura del periodo y promedio por curso. */
 export function ReportsLanding({
   model,
   academicYear,
@@ -33,6 +35,7 @@ export function ReportsLanding({
   onOpenCourse,
   onOpenAlerts,
   onGenerate,
+  onOpenReportCards,
 }: ReportsLandingProps) {
   return (
     <div className="rpt">
@@ -49,9 +52,48 @@ export function ReportsLanding({
         />
 
         {error ? (
-          <ErrorCard onRetry={onRetry} />
+          <ErrorCard title="No pudimos cargar los reportes" onRetry={onRetry} />
         ) : model ? (
           <>
+            {/* Lo accionable primero: abrir, revisar e imprimir boletines */}
+            <section aria-labelledby="rpt-cards-heading" className="rpt-section">
+              <div className="rpt-section__head">
+                <h2 id="rpt-cards-heading" className="rpt-section__title">
+                  Boletines
+                </h2>
+                {!model.canGenerate && model.reportCards.length > 0 && (
+                  <span className="rpt-section__hint">La generación la realiza coordinación o rectoría</span>
+                )}
+              </div>
+              {model.reportCards.length > 0 ? (
+                <ReportCardList
+                  reportCards={model.reportCards}
+                  canGenerate={model.canGenerate}
+                  generatingKey={generatingKey}
+                  onGenerate={onGenerate}
+                  onOpen={onOpenReportCards}
+                />
+              ) : (
+                <EmptyCard icon={<FileText strokeWidth={1.9} />} title="Sin boletines para mostrar">
+                  Los boletines aparecerán cuando haya cursos con estudiantes matriculados y un periodo configurado.
+                </EmptyCard>
+              )}
+              {model.withoutStudents.length > 0 && (
+                <CourseChips
+                  title="Sin estudiantes matriculados"
+                  label="Cursos sin estudiantes"
+                  items={model.withoutStudents}
+                  getKey={(group) => group}
+                >
+                  {(group) => (
+                    <span className="rpt-chip rpt-chip--static">
+                      <span className="rpt-group rpt-num">{group}</span>
+                    </span>
+                  )}
+                </CourseChips>
+              )}
+            </section>
+
             <ReadingCard model={model} onOpenAlerts={onOpenAlerts} />
 
             <section aria-labelledby="rpt-courses-heading" className="rpt-section">
@@ -86,43 +128,6 @@ export function ReportsLanding({
                 <EmptyCard icon={<BookOpen strokeWidth={1.9} />} title="Aún no tienes cursos asignados">
                   Cuando tengas cursos y materias asignados, verás aquí su promedio.
                 </EmptyCard>
-              )}
-            </section>
-
-            <section aria-labelledby="rpt-cards-heading" className="rpt-section">
-              <div className="rpt-section__head">
-                <h2 id="rpt-cards-heading" className="rpt-section__title">
-                  Boletines
-                </h2>
-                {!model.canGenerate && model.reportCards.length > 0 && (
-                  <span className="rpt-section__hint">La generación la realiza coordinación o rectoría</span>
-                )}
-              </div>
-              {model.reportCards.length > 0 ? (
-                <ReportCardList
-                  reportCards={model.reportCards}
-                  canGenerate={model.canGenerate}
-                  generatingKey={generatingKey}
-                  onGenerate={onGenerate}
-                />
-              ) : (
-                <EmptyCard icon={<FileText strokeWidth={1.9} />} title="Sin boletines para mostrar">
-                  Los boletines aparecerán cuando haya cursos con estudiantes matriculados y un periodo configurado.
-                </EmptyCard>
-              )}
-              {model.withoutStudents.length > 0 && (
-                <CourseChips
-                  title="Sin estudiantes matriculados"
-                  label="Cursos sin estudiantes"
-                  items={model.withoutStudents}
-                  getKey={(group) => group}
-                >
-                  {(group) => (
-                    <span className="rpt-chip rpt-chip--static">
-                      <span className="rpt-group rpt-num">{group}</span>
-                    </span>
-                  )}
-                </CourseChips>
               )}
             </section>
           </>
@@ -210,44 +215,6 @@ function CourseChips<T>({ title, label, items, getKey, children }: CourseChipsPr
           <li key={getKey(item)}>{children(item)}</li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-interface EmptyCardProps {
-  icon: ReactNode;
-  title: string;
-  children: ReactNode;
-}
-
-function EmptyCard({ icon, title, children }: EmptyCardProps) {
-  return (
-    <div className="rpt-surface rpt-empty" role="status">
-      <span aria-hidden="true" className="rpt-empty__icon">
-        {icon}
-      </span>
-      <div className="rpt-empty__body">
-        <span className="rpt-empty__title">{title}</span>
-        <span className="rpt-empty__text">{children}</span>
-      </div>
-    </div>
-  );
-}
-
-function ErrorCard({ onRetry }: { onRetry: () => void }) {
-  return (
-    <div className="rpt-surface rpt-empty" role="alert">
-      <span aria-hidden="true" className="rpt-empty__icon rpt-empty__icon--error">
-        <TriangleAlert strokeWidth={1.9} />
-      </span>
-      <div className="rpt-empty__body">
-        <span className="rpt-empty__title">No pudimos cargar los reportes</span>
-        <span className="rpt-empty__text">Revisa tu conexión e inténtalo de nuevo.</span>
-      </div>
-      <button type="button" className="rpt-btn rpt-btn--outline rpt-empty__action" onClick={onRetry}>
-        <RotateCcw aria-hidden="true" strokeWidth={1.9} />
-        Reintentar
-      </button>
     </div>
   );
 }

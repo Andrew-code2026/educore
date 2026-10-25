@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { FileText, LoaderCircle } from "lucide-react";
+import { ArrowRight, FileText, LoaderCircle } from "lucide-react";
 import { REPORT_CARD_STATUS_LABEL, reportCardProgress, type ReportCardModel } from "./landing";
 
 interface ReportCardListProps {
@@ -8,6 +8,7 @@ interface ReportCardListProps {
   /** Clave del curso cuya generación está en curso. */
   generatingKey: string | null;
   onGenerate: (card: ReportCardModel) => void;
+  onOpen: (card: ReportCardModel) => void;
 }
 
 export const ReportCardList = memo(function ReportCardList({
@@ -15,6 +16,7 @@ export const ReportCardList = memo(function ReportCardList({
   canGenerate,
   generatingKey,
   onGenerate,
+  onOpen,
 }: ReportCardListProps) {
   return (
     <ul aria-label="Boletines por curso" className="rpt-surface rpt-list">
@@ -26,6 +28,7 @@ export const ReportCardList = memo(function ReportCardList({
           isGenerating={generatingKey === card.key}
           isLocked={generatingKey !== null}
           onGenerate={onGenerate}
+          onOpen={onOpen}
         />
       ))}
     </ul>
@@ -39,9 +42,10 @@ interface ReportCardRowProps {
   /** Mientras se genera un curso no se lanza otro en paralelo. */
   isLocked: boolean;
   onGenerate: (card: ReportCardModel) => void;
+  onOpen: (card: ReportCardModel) => void;
 }
 
-function ReportCardRow({ card, canGenerate, isGenerating, isLocked, onGenerate }: ReportCardRowProps) {
+function ReportCardRow({ card, canGenerate, isGenerating, isLocked, onGenerate, onOpen }: ReportCardRowProps) {
   const pct = card.students > 0 ? Math.round((card.generated / card.students) * 100) : 0;
   const actionLabel = card.status === "complete" ? "Regenerar" : "Generar";
 
@@ -77,8 +81,17 @@ function ReportCardRow({ card, canGenerate, isGenerating, isLocked, onGenerate }
         </div>
       </div>
 
-      {canGenerate && (
-        <div className="rpt-row-action">
+      <div className="rpt-row-action">
+        <button
+          type="button"
+          className="rpt-btn rpt-btn--outline"
+          aria-label={`Ver los boletines de ${card.group}`}
+          onClick={() => onOpen(card)}
+        >
+          Ver boletines
+          <ArrowRight aria-hidden="true" strokeWidth={1.9} />
+        </button>
+        {canGenerate && (
           <button
             type="button"
             className={card.status === "complete" ? "rpt-btn rpt-btn--outline" : "rpt-btn rpt-btn--primary"}
@@ -90,8 +103,8 @@ function ReportCardRow({ card, canGenerate, isGenerating, isLocked, onGenerate }
             {isGenerating && <LoaderCircle aria-hidden="true" className="rpt-spin" strokeWidth={1.9} />}
             {isGenerating ? "Generando…" : actionLabel}
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </li>
   );
 }

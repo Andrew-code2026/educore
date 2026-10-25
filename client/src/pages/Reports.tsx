@@ -5,7 +5,9 @@ import type { EduRole, Section } from "@/components/shell";
 import { resolveActivePeriod } from "@/attendance/landing/landing";
 import { plural } from "@/analytics/landing";
 import { ReportsLanding } from "@/reports/ReportsLanding";
+import { CourseReportCards } from "@/reports/CourseReportCards";
 import { buildReportsLanding, type ReportCardModel } from "@/reports/landing";
+import { buildCourseReportCards, buildReportCardSchool } from "@/reports/reportCard";
 
 interface ReportsPageProps {
   data: any;
@@ -25,6 +27,19 @@ export function ReportsPage({ data, role, setSection }: ReportsPageProps) {
   const [generatingKey, setGeneratingKey] = useState<string | null>(null);
 
   const generateMutation = trpc.gradeCenter.generateReportCards.useMutation();
+
+  // Drill-down: boletines del curso abierto y, dentro, el estudiante elegido
+  const [openCourse, setOpenCourse] = useState<ReportCardModel | null>(null);
+  const [openStudentId, setOpenStudentId] = useState<number | null>(null);
+  const courseReportCardsQuery = trpc.gradeCenter.courseReportCards.useQuery(
+    { role, courseId: openCourse?.courseId ?? 0 },
+    { enabled: openCourse !== null, staleTime: 30_000, retry: 1 },
+  );
+  const school = useMemo(() => buildReportCardSchool(data?.school), [data?.school]);
+  const courseModel = useMemo(
+    () => (courseReportCardsQuery.data ? buildCourseReportCards(courseReportCardsQuery.data) : null),
+    [courseReportCardsQuery.data],
+  );
 
   const model = useMemo(
     () =>
@@ -56,7 +71,7 @@ export function ReportsPage({ data, role, setSection }: ReportsPageProps) {
         } else {
           toast.error("No hay conexión con la base de datos para generar boletines.");
         }
-        await utils.gradeCenter.reportCards.invalidate();
+        await Promise.all([utils.gradeCenter.reportCards.invalidate(), utils.gradeCenter.courseReportCards.invalidate()]);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : `No pudimos generar los boletines de ${card.group}.`);
       } finally {
@@ -75,8 +90,33 @@ export function ReportsPage({ data, role, setSection }: ReportsPageProps) {
     void refetchReportCards();
   }, [refetchPlanillas, refetchReportCards]);
 
+  const handleOpenReportCards = useCallback((card: ReportCardModel) => {
+    setOpenCourse(card);
+    setOpenStudentId(null);
+  }, []);
+  const handleCloseReportCards = useCallback(() => setOpenCourse(null), []);
+  const { refetch: refetchCourseReportCards } = courseReportCardsQuery;
+  const handleRetryCourse = useCallback(() => void refetchCourseReportCards(), [refetchCourseReportCards]);
+
   const error =
     (planillasQuery.isError && !planillasQuery.data) || (reportCardsQuery.isError && !reportCardsQuery.data);
+
+  if (openCourse) {
+    return (
+      <CourseReportCards
+        group={openCourse.group}
+        period={openCourse.period}
+        model={courseModel}
+        // `null` sin error: el servidor no tiene base de datos disponible
+        error={(courseReportCardsQuery.isError && !courseReportCardsQuery.data) || courseReportCardsQuery.data === null}
+        school={school}
+        selectedStudentId={openStudentId}
+        onSelectStudent={setOpenStudentId}
+        onBack={handleCloseReportCards}
+        onRetry={handleRetryCourse}
+      />
+    );
+  }
 
   return (
     <ReportsLanding
@@ -90,6 +130,7 @@ export function ReportsPage({ data, role, setSection }: ReportsPageProps) {
       onOpenCourse={handleOpenCourse}
       onOpenAlerts={handleOpenAlerts}
       onGenerate={handleGenerate}
+      onOpenReportCards={handleOpenReportCards}
     />
   );
 }
