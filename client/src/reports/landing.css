@@ -395,7 +395,9 @@
 
 .rpt .rpt-row-action {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 /* ── Lectura del periodo ───────────────────────────────── */

@@ -307,13 +307,7 @@ export interface HistorySummaryStats {
   trendLabel: string;
 }
 
-export type StudentRecordTab =
-  | "summary"
-  | "attendance"
-  | "history"
-  | "justifications"
-  | "follow_up"
-  | "timeline";
+export type StudentRecordTab = "summary" | "attendance" | "justifications" | "follow_up";
 
 export interface StudentTimelineItem {
   id: string;

@@ -4,7 +4,7 @@ El módulo ofrece una experiencia docente de pase de lista con estética **Chron
 
 ## Experiencia
 
-La planilla combina Command Deck (curso, jornada y sincronización), Pulse Rail (avance y conteos) y Roster Field (lista densa de estudiantes). Mantiene las acciones P/A/T/E, navegación de teclado, filtros, búsqueda, atención docente, pila de deshacer de 24 acciones, autosave serializado, resumen individual con ficha personal/familiar y señales explicables, y modo **Enfocar asistencia** a pantalla completa.
+La planilla tiene tres superficies: **encabezado** (curso, horario, fecha, estado de la clase y guardado), **avance del día** (registrados, conteos P/A/T/E y la única acción masiva, "Marcar restantes presentes", que nunca sobrescribe registros ya hechos) y **planilla** (vistas Todos · Por registrar · Ausentes · Con alertas, búsqueda, deshacer, Enfocar y ayuda, sobre el roster). Cada fila muestra estudiante con su alerta principal, control P/A/T/E e historial (últimas 8 jornadas + % histórico). Mantiene navegación de teclado, pila de deshacer de 24 acciones, autosave serializado, resumen individual con ficha personal/familiar y señales explicables, y modo **Enfocar asistencia** a pantalla completa.
 
 El panel y el selector respetan el tema claro/oscuro y `prefers-reduced-motion`. El host puede apartar su navegación durante el modo de concentración mediante `onFocusModeChange`.
 
@@ -14,14 +14,13 @@ El panel y el selector respetan el tema claro/oscuro y `prefers-reduced-motion`.
 | --- | --- |
 | `landing/` | Portada docente (diseño EduCore Docente): resumen del periodo, clases de hoy, justificaciones por revisar y próximas clases. `landing.ts` es el modelo de presentación puro, con pruebas. |
 | `AttendancePanel.tsx` | Orquestador del panel docente y su sesión local. |
-| `components/AttendanceHeader.tsx` | Command Deck: curso, fecha, cambio de día, clase, sincronización y regreso al selector. |
-| `components/DaySummaryRail.tsx` | Pulse Rail con avance y conteos semánticos. |
-| `components/AttendanceToolbar.tsx` | Búsqueda, acciones masivas, deshacer y ayuda de atajos. |
-| `components/AttendanceSheet.tsx` | Roster Field con encabezado sticky y estudiante congelado. |
+| `components/AttendanceHeader.tsx` | Encabezado: curso, horario, fecha, estado de la clase, sincronización y regreso al selector. |
+| `components/DayProgress.tsx` | Avance del día, conteos semánticos y acción "Marcar restantes presentes". |
+| `components/AttendanceToolbar.tsx` + `FilterChips.tsx` | Vistas del roster, búsqueda, deshacer, Enfocar y ayuda. |
+| `components/AttendanceSheet.tsx` | Roster con encabezado sticky y estructura ARIA de grilla. |
 | `components/StudentRow.tsx` + `StatusCell.tsx` | Registro por estudiante, estados P/A/T/E e historial visual. |
 | `components/StudentPopover.tsx` | Popover contextual Liquid Glass. |
 | `components/StudentExpediente.tsx` | Resumen docente individual; delega las vistas completas del host mediante callbacks. |
-| `components/AttentionRail.tsx` | Bandeja superpuesta de señales docentes. |
 | `components/SyncIndicator.tsx` | Estados de sincronización y reintento. |
 | `hooks/useAttendanceSession.ts` | Jornada por curso/fecha, deshacer y autosave serializado. |
 | `hooks/useAttendanceHotkeys.ts` | Atajos del pase de lista. |
@@ -93,6 +92,6 @@ Ajusta esos umbrales en un solo lugar si el modelo real de EduCore usa otros cri
 
 El módulo consume tokens CSS del host (`--surface-*`, `--hairline`, `--glass-bg`, `--brand*` y estados `--st-*`). Al integrarlo, copia o mapea los bloques de tema claro y `.dark` de `client/src/index.css` a la paleta real. Los tokens de acento se establecen con `data-accent` en `<html>`.
 
-Atajos: `P` presente · `A` ausente · `T` tardanza · `E` excusa · `Enter` presente · `Supr`/`⌫` pendiente · `↑`/`↓` estudiante anterior/siguiente · `Tab`/`⇧Tab` recorrer la planilla · `/` buscar · `?` ayuda · `Ctrl`/`⌘ + Z` deshacer. Los atajos no se disparan al escribir y quedan inactivos si hay un popover o diálogo abierto. Al registrar un pendiente, el foco avanza al siguiente estudiante.
+Atajos: `P` presente · `A` ausente · `T` tardanza · `E` excusa · `Enter` presente · `Supr`/`⌫` pendiente · `↑`/`↓` estudiante anterior/siguiente · `Tab`/`⇧Tab` recorrer la planilla · `/` buscar · `?` ayuda · `Ctrl`/`⌘ + Z` deshacer. Los atajos de registro actúan con el foco en la planilla; `/` y `?` funcionan en todo el panel. No se disparan al escribir, quedan inactivos si hay un popover, menú o diálogo abierto, y `Enter` sobre un botón conserva su acción nativa. Al registrar un pendiente, el foco avanza al siguiente estudiante.
 
 El popover usa una sola referencia `PopoverTrigger` por fila para conservar su anclaje y retorno de foco. `AttendanceSheet`, `StudentRow` y `StudentPopover` mantienen memorias por estudiante para reducir renders al cambiar rápidamente de fila. Respeta `prefers-reduced-motion` y conserva los tokens semánticos de asistencia.

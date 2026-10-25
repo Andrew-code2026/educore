@@ -1,304 +1,320 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { ChevronDown, Download, Eye, PenLine, Search, SearchX, Users } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Activity, Student } from '../types';
-import { Icon } from './SharedUI';
-
-const SUBMISSION_FILTERS = ['Todos', 'Por revisar', 'Entregaron', 'No entregaron', 'Calificados'];
+import { plural } from '../landing/courses';
+import { describeDue, formatDayMonth, formatTime } from '../course/overview';
+import {
+  SUBMISSION_FILTERS,
+  countBySubmissionFilter,
+  firstToGrade,
+  phaseOfSubmission,
+  selectSubmissions,
+  submissionsCsv,
+  summarizeSubmissions,
+  type SubmissionFilter,
+  type SubmissionPhase,
+} from '../course/submissions';
 
 interface SubmissionsViewProps {
   activity: Activity;
+  /** Actividades del curso para cambiar de una a otra sin salir de la pestaña. */
+  activities: Activity[];
+  onSelectActivity: (activity: Activity) => void;
   students: Student[];
-  filter: string;
-  setFilter: (f: string) => void;
+  filter: SubmissionFilter;
+  setFilter: (filter: SubmissionFilter) => void;
   onOpenGrader: (studentIndex: number) => void;
-  onBack: () => void;
   onPreview: () => void;
 }
 
+const PHASE_LABEL: Record<SubmissionPhase, string> = {
+  review: 'Por revisar',
+  graded: 'Calificada',
+  missing: 'Sin entrega',
+};
+
+// Mismos tonos que los estados de actividad: por revisar azul, calificada verde, sin entrega neutro
+const PHASE_PILL: Record<SubmissionPhase, string> = {
+  review: 'review',
+  graded: 'open',
+  missing: 'closed',
+};
+
+/** Entregas de una actividad: quién entregó, qué falta por calificar y acceso al calificador. */
 export function SubmissionsView({
   activity,
+  activities,
+  onSelectActivity,
   students,
   filter,
   setFilter,
   onOpenGrader,
-  onBack,
   onPreview,
 }: SubmissionsViewProps) {
-  const [search, setSearch] = useState('');
-  const [exported, setExported] = useState(false);
+  const [query, setQuery] = useState('');
 
-  const delivered = students.filter((s) => s.status !== 'No entregó').length;
-  const pending = students.filter((s) => s.status === 'Por revisar').length;
-  const missing = students.filter((s) => s.status === 'No entregó').length;
-  const graded = students.filter((s) => s.status === 'Calificada').length;
+  const { summary, counts, visible, indexById } = useMemo(
+    () => ({
+      summary: summarizeSubmissions(students),
+      counts: countBySubmissionFilter(students),
+      visible: selectSubmissions(students, filter, query),
+      indexById: new Map(students.map((s, i) => [s.id, i])),
+    }),
+    [students, filter, query]
+  );
 
-  const counts: Record<string, number> = {
-    Todos: students.length,
-    'Por revisar': pending,
-    Entregaron: delivered,
-    'No entregaron': missing,
-    Calificados: graded,
-  };
+  const published = activities.filter((a) => a.status !== 'Borrador');
 
-  const normalizedSearch = search.trim().toLowerCase();
-  const visibleStudents = students.filter((student) => {
-    const filterMatch =
-      filter === 'Todos' ||
-      (filter === 'Por revisar' && student.status === 'Por revisar') ||
-      (filter === 'Entregaron' && student.status !== 'No entregó') ||
-      (filter === 'No entregaron' && student.status === 'No entregó') ||
-      (filter === 'Calificados' && student.status === 'Calificada');
+  if (!activity.id) {
+    return (
+      <div className="ccw ccw-submissions">
+        <div className="ccw-surface ccw-empty ccw-empty--page">
+          <span aria-hidden="true" className="ccw-empty__icon">
+            <Users strokeWidth={1.75} />
+          </span>
+          <h2 className="ccw-empty__title">Aún no hay entregas</h2>
+          <p className="ccw-empty__note">
+            Cuando publiques una actividad, aquí verás quién entregó y qué falta por calificar.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-    const searchMatch =
-      !normalizedSearch ||
-      `${student.name} ${student.group} ${student.file ?? ''}`
-        .toLowerCase()
-        .includes(normalizedSearch);
-
-    return filterMatch && searchMatch;
-  });
-
-  const progress = students.length ? Math.round((delivered / students.length) * 100) : 0;
+  const now = new Date();
+  const dueAt = activity.dueAt ? new Date(activity.dueAt) : null;
+  const dueLabel = dueAt ? `${describeDue(dueAt, now)} · ${formatTime(dueAt)}` : 'Sin fecha límite';
+  const progress = summary.total > 0 ? Math.round((summary.delivered / summary.total) * 100) : 0;
+  const gradeStart = firstToGrade(students);
 
   const exportList = () => {
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
-      ['Estudiante,Grupo,Estado,Archivo,Calificación']
-        .concat(
-          students.map(
-            (s) =>
-              `"${s.name}","${s.group}","${s.status}","${s.file || 'Sin entrega'}","${
-                s.score !== undefined ? s.score : ''
-              }"`
-          )
-        )
-        .join('\n');
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob([submissionsCsv(students)], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `entregas-${activity.name.replace(/\s+/g, '_')}.csv`);
-    document.body.appendChild(link);
+    link.href = url;
+    link.download = `entregas-${activity.name.trim().replace(/[^\p{L}\p{N}]+/gu, '-').toLowerCase()}.csv`;
     link.click();
-    document.body.removeChild(link);
-
-    setExported(true);
-    window.setTimeout(() => setExported(false), 2400);
+    URL.revokeObjectURL(url);
+    toast.success('Lista de entregas exportada');
   };
 
   return (
-    <section className="view-section submissions-view">
-      <button type="button" className="backline" onClick={onBack}>
-        <Icon name="back" size={14} /> Actividades con entrega
-      </button>
-
-      <div className="detail-heading submission-heading">
-        <div className="submission-header-copy">
-          <span className="eyebrow">ACTIVIDAD · {activity.status.toUpperCase()}</span>
-          <h2>{activity.name}</h2>
-          <p>{activity.description}</p>
-
-          <div className="submission-summary">
-            <strong>
-              {delivered}
-              <small>/ {students.length}</small>
-              <span>entregaron</span>
-            </strong>
-            <strong className="review-priority">
-              {pending}
-              <span>por revisar</span>
-            </strong>
-            <strong className="missing-count">
-              {missing}
-              <span>no entregaron</span>
-            </strong>
+    <div className="ccw ccw-submissions">
+      <section aria-label="Actividad" className="ccw-surface ccw-brief">
+        <div className="ccw-brief__main">
+          <div className="ccw-brief__copy">
+            <label className="ccw-picker">
+              <span className="ccw-sr">Actividad</span>
+              <select
+                value={activity.id}
+                onChange={(e) => {
+                  const next = activities.find((a) => a.id === e.target.value);
+                  if (next) onSelectActivity(next);
+                }}
+              >
+                {(published.some((a) => a.id === activity.id) ? published : [activity, ...published]).map(
+                  (a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  )
+                )}
+              </select>
+              <ChevronDown aria-hidden="true" strokeWidth={2} />
+            </label>
+            <p className="ccw-brief__meta">{dueLabel}</p>
           </div>
 
-          <div className="submission-progress" aria-label={`${progress}% de entregas recibidas`}>
-            <span style={{ width: `${progress}%` }} />
-          </div>
-
-          <div className="submission-progress-meta">
-            <span>{progress}% recibido</span>
-            <span>{graded} calificadas</span>
-          </div>
-        </div>
-
-        <div className="submission-header-side">
-          <div>
-            <small>Fecha límite</small>
-            <strong>{activity.dueDate}</strong>
-          </div>
-          <div>
-            <small>Tipo de entrega</small>
-            <strong>{activity.type}</strong>
-          </div>
-          <div>
-            <small>Formatos</small>
-            <strong>{activity.formats.join(' · ')}</strong>
-          </div>
-          <div>
-            <small>Grade Center</small>
-            <strong className={activity.affectsGradeCenter ? 'violet' : 'muted'}>
-              {activity.affectsGradeCenter ? `Sí · ${activity.weight ?? '20%'}` : 'No impacta'}
-            </strong>
-          </div>
-        </div>
-      </div>
-
-      <div className="submission-tools submission-workspace-tools">
-        <div className="submission-search">
-          <Icon name="search" size={15} />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar estudiante, grupo o archivo…"
-          />
-        </div>
-
-        <div className="submission-filter-pills">
-          {SUBMISSION_FILTERS.map((item) => (
+          <div className="ccw-brief__actions">
             <button
               type="button"
+              className="ccw-btn ccw-btn--outline ccw-btn--sm"
+              onClick={onPreview}
+              title="Ver la entrega como la ve el estudiante"
+            >
+              <Eye aria-hidden="true" strokeWidth={2} />
+              Vista estudiante
+            </button>
+            <button
+              type="button"
+              className="ccw-btn ccw-btn--outline ccw-btn--sm"
+              onClick={exportList}
+              disabled={!students.length}
+            >
+              <Download aria-hidden="true" strokeWidth={2} />
+              Exportar
+            </button>
+            <button
+              type="button"
+              className="ccw-btn ccw-btn--primary ccw-btn--sm"
+              onClick={() => onOpenGrader(gradeStart)}
+              disabled={gradeStart < 0}
+            >
+              <PenLine aria-hidden="true" strokeWidth={2} />
+              {summary.review > 0 ? 'Calificar pendientes' : 'Abrir calificador'}
+            </button>
+          </div>
+        </div>
+
+        <div className="ccw-brief__progress">
+          <div className="ccw-brief__progress-head">
+            <span>
+              <strong className="ccw-num">{summary.delivered}</strong> de{' '}
+              {plural(summary.total, 'estudiante entregó', 'estudiantes entregaron')}
+            </span>
+            <span className="ccw-num">{progress}%</span>
+          </div>
+          <span className="ccw-meter__track ccw-brief__track" aria-hidden="true">
+            <span className="ccw-meter__bar" style={{ width: `${progress}%` }} />
+          </span>
+        </div>
+      </section>
+
+      <div className="ccw-toolbar">
+        <label className="ccw-search">
+          <Search aria-hidden="true" strokeWidth={2} />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar estudiante o archivo"
+            aria-label="Buscar estudiante o archivo"
+          />
+        </label>
+
+        <div role="group" aria-label="Filtrar entregas" className="ccw-filters">
+          {SUBMISSION_FILTERS.map((item) => (
+            <button
               key={item}
-              className={filter === item ? 'selected' : ''}
+              type="button"
+              className="ccw-chip"
+              aria-pressed={filter === item}
               onClick={() => setFilter(item)}
             >
               {item}
-              <b>{counts[item]}</b>
+              <span className="ccw-chip__count ccw-num">{counts[item]}</span>
             </button>
           ))}
         </div>
-
-        <div className="submission-actions">
-          <button
-            type="button"
-            className="primary-button open-grader-action"
-            onClick={() => {
-              const firstPending = students.findIndex((s) => s.status === 'Por revisar');
-              onOpenGrader(firstPending >= 0 ? firstPending : 0);
-            }}
-            disabled={!students.length}
-          >
-            <Icon name="check" size={14} /> Abrir calificador
-          </button>
-
-          <button type="button" className="ghost-button export-action" onClick={exportList}>
-            <Icon name="download" size={14} /> Exportar
-          </button>
-
-          <button
-            type="button"
-            className="outline-button"
-            onClick={onPreview}
-            title="Ver cómo experimenta el estudiante la entrega"
-          >
-            <Icon name="eye" size={14} /> Vista estudiante
-          </button>
-
-          {exported && (
-            <span className="export-feedback">
-              <Icon name="check" size={12} /> CSV descargado
-            </span>
-          )}
-        </div>
       </div>
 
-      <div className="submission-list workspace-submission-list">
-        <div className="submission-list-head">
-          <span>Entrega digital</span>
-          <span>
-            {visibleStudents.length} de {students.length} visibles
+      {visible.length > 0 ? (
+        <ul className="ccw-surface ccw-list" aria-label={plural(visible.length, 'estudiante', 'estudiantes')}>
+          {visible.map((student) => (
+            <SubmissionRow
+              key={student.id}
+              student={student}
+              dueAt={dueAt}
+              now={now}
+              onOpen={() => onOpenGrader(indexById.get(student.id) ?? 0)}
+            />
+          ))}
+        </ul>
+      ) : (
+        <div className="ccw-surface ccw-empty">
+          <span aria-hidden="true" className="ccw-empty__icon">
+            {students.length ? <SearchX strokeWidth={1.75} /> : <Users strokeWidth={1.75} />}
           </span>
-        </div>
-
-        <div className="submission-cards">
-          {visibleStudents.map((student) => {
-            const originalIndex = students.findIndex((item) => item.id === student.id);
-            const statusTone =
-              student.status === 'Por revisar'
-                ? 'review'
-                : student.status === 'Calificada'
-                ? 'done'
-                : student.status === 'No entregó'
-                ? 'absent'
-                : 'delivered';
-
-            return (
+          {students.length ? (
+            <>
+              <p className="ccw-empty__title">Ninguna entrega coincide</p>
+              <p className="ccw-empty__note">Prueba con otro nombre o cambia el filtro.</p>
               <button
                 type="button"
-                className={`submission-row-card ${
-                  student.status === 'Por revisar'
-                    ? 'needs-review'
-                    : student.status === 'No entregó'
-                    ? 'not-submitted'
-                    : 'graded'
-                }`}
-                key={student.id}
-                onClick={() => onOpenGrader(originalIndex)}
+                className="ccw-btn ccw-btn--outline"
+                onClick={() => {
+                  setFilter('Todos');
+                  setQuery('');
+                }}
               >
-                <span className="submission-student">
-                  <i style={{ background: student.color }}>{student.initials}</i>
-                  <span>
-                    <strong>{student.name}</strong>
-                    <small>
-                      {student.group} ·{' '}
-                      {student.status === 'No entregó'
-                        ? 'Pendiente de entrega'
-                        : `entregó ${student.time ?? 'recientemente'}`}
-                    </small>
-                  </span>
-                </span>
-
-                <span className="submission-file">
-                  <Icon name={student.file ? 'file' : 'clock'} size={17} />
-                  <span>
-                    {student.file ? (
-                      <>
-                        <strong>{student.file}</strong>
-                        <small>
-                          {student.fileSize} · {student.fileType ?? activity.formats[0]}
-                        </small>
-                      </>
-                    ) : (
-                      <>
-                        <strong>Sin entrega</strong>
-                        <small>La fecha límite sigue pendiente</small>
-                      </>
-                    )}
-                  </span>
-                </span>
-
-                <span className={`status-text ${statusTone}`}>
-                  <i />
-                  {student.status}
-                </span>
-
-                <span className="submission-grade">
-                  {student.score !== undefined ? (
-                    <>
-                      <b>{Number(student.score).toFixed(1)}</b>
-                      <small>/ 5.0</small>
-                    </>
-                  ) : (
-                    <span>—</span>
-                  )}
-                </span>
-
-                <span className="submission-review-action">
-                  Revisar <Icon name="arrow" size={14} />
-                </span>
+                Ver todas
               </button>
-            );
-          })}
+            </>
+          ) : (
+            <>
+              <p className="ccw-empty__title">Sin estudiantes matriculados</p>
+              <p className="ccw-empty__note">Cuando el curso tenga estudiantes, sus entregas aparecerán aquí.</p>
+            </>
+          )}
         </div>
+      )}
+    </div>
+  );
+}
 
-        {!visibleStudents.length && (
-          <div className="submission-empty">
-            <Icon name="search" size={24} />
-            <strong>No encontramos entregas</strong>
-            <span>Prueba con otro estudiante, grupo o filtro.</span>
-          </div>
+function SubmissionRow({
+  student,
+  dueAt,
+  now,
+  onOpen,
+}: {
+  student: Student;
+  dueAt: Date | null;
+  now: Date;
+  onOpen: () => void;
+}) {
+  const phase = phaseOfSubmission(student);
+  const submittedAt = student.submittedAt ? new Date(student.submittedAt) : null;
+  const late = Boolean(submittedAt && dueAt && submittedAt > dueAt);
+
+  let detail: string;
+  if (phase === 'missing') {
+    detail = dueAt && dueAt < now ? 'No entregó antes del cierre' : 'Aún no ha entregado';
+  } else {
+    detail = submittedAt ? `Entregó el ${formatDayMonth(submittedAt)}` : 'Entrega registrada';
+    if (student.file) detail += ` · ${student.file}`;
+  }
+
+  return (
+    <li className={`ccw-row ccw-sub${phase === 'missing' ? ' ccw-sub--missing' : ''}`}>
+      <span aria-hidden="true" className="ccw-avatar">
+        {student.initials}
+      </span>
+      <span className="ccw-row__body">
+        <span className="ccw-row__title">{student.name}</span>
+        <span className="ccw-row__detail">
+          {detail}
+          {late && <span className="ccw-row__late"> · Tarde</span>}
+        </span>
+      </span>
+      <span className={`ccw-pill ccw-pill--${PHASE_PILL[phase]}`}>
+        <span aria-hidden="true" className="ccw-pill__dot" />
+        {PHASE_LABEL[phase]}
+      </span>
+      <span className="ccw-grade ccw-num">
+        {student.score !== undefined ? (
+          <>
+            <b>{student.score.toFixed(1)}</b>
+            <span className="ccw-grade__scale">/5</span>
+          </>
+        ) : (
+          <span aria-label="Sin calificación">—</span>
         )}
-      </div>
-    </section>
+      </span>
+      {/* Sin entrega no hay nada que abrir; la celda vacía mantiene las columnas alineadas */}
+      <span className="ccw-sub__action">
+        {phase === 'review' && (
+          <button
+            type="button"
+            className="ccw-btn ccw-btn--primary ccw-btn--sm"
+            onClick={onOpen}
+            aria-label={`Calificar la entrega de ${student.name}`}
+          >
+            Calificar
+          </button>
+        )}
+        {phase === 'graded' && (
+          <button
+            type="button"
+            className="ccw-btn ccw-btn--outline ccw-btn--sm"
+            onClick={onOpen}
+            aria-label={`Ver la entrega calificada de ${student.name}`}
+          >
+            Ver
+          </button>
+        )}
+      </span>
+    </li>
   );
 }

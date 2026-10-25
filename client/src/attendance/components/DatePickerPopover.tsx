@@ -1,13 +1,12 @@
 /**
  * Selector de fecha compacto de la jornada.
- * Resalta las jornadas lectivas del curso y permite saltar a hoy o a la anterior.
+ * Resalta las jornadas lectivas del curso y permite volver a hoy.
  */
-import { motion } from "framer-motion";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { formatLongDate, formatShortDate } from "../format";
+import { formatLongDate, formatShortDate, formatWeekdayDate } from "../format";
 import { fromISODate, toISODate } from "../data/dateUtils";
 
 interface DatePickerPopoverProps {
@@ -65,21 +64,21 @@ export function DatePickerPopover({ date, onChange, classDays, todayIso }: DateP
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="attendance-date-trigger"
+          className="att-date-trigger"
           aria-label={`Fecha de la jornada: ${formatLongDate(date)}`}
           title={formatLongDate(date)}
         >
-          <span className="attendance-date-trigger-icon" aria-hidden="true">
-            <CalendarDays className="h-3.5 w-3.5" />
+          <CalendarDays className="att-date-trigger-icon h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span className="tabular whitespace-nowrap">
+            {date === todayIso ? `Hoy, ${formatShortDate(date)}` : formatWeekdayDate(date)}
           </span>
-          <span className="attendance-date-trigger-value tabular">{formatShortDate(date)}</span>
-          <ChevronDown className="attendance-date-trigger-chevron h-3 w-3 shrink-0" aria-hidden="true" />
+          <ChevronDown className="att-date-trigger-chevron h-3 w-3 shrink-0" aria-hidden="true" />
         </button>
       </PopoverTrigger>
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="attendance-date-popover glass-strong w-[248px] rounded-2xl p-3"
+        className="glass-strong w-[248px] rounded-2xl p-3"
       >
         <div className="flex items-center justify-between">
           <button
@@ -88,7 +87,7 @@ export function DatePickerPopover({ date, onChange, classDays, todayIso }: DateP
             className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
             aria-label="Mes anterior"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           </button>
           <span className="text-[12.5px] font-semibold capitalize">
             {MONTH_FORMAT.format(cursor)}
@@ -99,7 +98,7 @@ export function DatePickerPopover({ date, onChange, classDays, todayIso }: DateP
             className="grid h-7 w-7 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
             aria-label="Mes siguiente"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -139,68 +138,17 @@ export function DatePickerPopover({ date, onChange, classDays, todayIso }: DateP
           )}
         </div>
 
-        <div className="mt-3 flex items-center gap-1.5 border-t border-hairline pt-2.5">
+        <div className="mt-3 border-t border-hairline pt-2.5">
           <button
             type="button"
             onClick={() => select(todayIso)}
-            className="flex-1 rounded-lg bg-foreground/[0.04] px-2 py-1.5 text-xs font-medium transition-colors hover:bg-foreground/[0.08]"
+            disabled={date === todayIso}
+            className="w-full rounded-lg bg-foreground/[0.04] px-2 py-1.5 text-xs font-medium transition-colors hover:bg-foreground/[0.08] disabled:pointer-events-none disabled:opacity-50"
           >
-            Hoy
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const previous = fromISODate(date);
-              previous.setDate(previous.getDate() - 1);
-              select(toISODate(previous));
-            }}
-            className="flex-1 rounded-lg bg-foreground/[0.04] px-2 py-1.5 text-xs font-medium transition-colors hover:bg-foreground/[0.08]"
-          >
-            Día anterior
+            Ir a hoy
           </button>
         </div>
       </PopoverContent>
     </Popover>
-  );
-}
-
-/** Chip de estado de la clase (activa / programada / cerrada). */
-export function ClassStateChip({
-  state,
-  label,
-  hint,
-}: {
-  state: "active" | "upcoming" | "finished" | "closed" | "none";
-  label: string;
-  hint: string;
-}) {
-  const active = state === "active";
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
-        active
-          ? "bg-brand-soft text-brand ring-brand/25"
-          : "bg-foreground/[0.035] text-muted-foreground ring-hairline",
-      )}
-    >
-      <span className="relative flex h-1.5 w-1.5">
-        {active ? (
-          <motion.span
-            initial={{ scale: 0.45, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="absolute inset-0 rounded-full bg-brand"
-            transition={{ duration: 0.24, ease: "easeOut" }}
-          />
-        ) : null}
-        <span
-          className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-brand" : "bg-muted-foreground/60")}
-        />
-      </span>
-      <span className="tabular">
-        {label}
-        {hint ? <span className="ml-1.5 text-muted-foreground/80">{hint}</span> : null}
-      </span>
-    </span>
   );
 }

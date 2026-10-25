@@ -21,8 +21,8 @@ import { StudentAttendancePortal } from "@/components/attendance/StudentAttendan
 import { StudentFullRecordModal } from "@/components/attendance/StudentFullRecordModal";
 import { JustificationModal } from "@/components/attendance/JustificationModal";
 import {
-  DEFAULT_ATTENDANCE_DAYS,
   type AttendanceCourse,
+  type AttendanceDay,
   type AttendanceFollowUpCaseItem,
   type AttendanceFollowUpNoteItem,
   type AttendanceJustificationItem,
@@ -31,6 +31,9 @@ import {
   type StudentRecordTab,
 } from "@/components/attendance/types";
 import type { AttendanceFilter, SessionStatuses, Student } from "@/attendance/types";
+import { toISODate } from "@/attendance/data/dateUtils";
+import { resolveActivePeriod } from "@/attendance/landing/landing";
+import { formatDay } from "@/components/attendance/record/recordUi";
 
 export interface AttendancePageProps {
   data: any;
@@ -104,9 +107,7 @@ function AttendanceNextContainer({
 
   const [viewMode, setViewMode] = React.useState<"course-select" | "panel">("course-select");
   const [selectedCourseId, setSelectedCourseId] = React.useState<string>("11-2");
-  const [selectedDate, setSelectedDate] = React.useState<string>(() => {
-    return new Date().toISOString().slice(0, 10);
-  });
+  const [selectedDate, setSelectedDate] = React.useState<string>(() => toISODate(new Date()));
   const [selectedFilter, setSelectedFilter] = React.useState<AttendanceFilter>("all");
   const [reviewJustificationId, setReviewJustificationId] = React.useState<number | null>(null);
 
@@ -114,7 +115,6 @@ function AttendanceNextContainer({
   const [isRecordModalOpen, setIsRecordModalOpen] = React.useState(false);
   const [recordStudent, setRecordStudent] = React.useState<AttendanceStudent | null>(null);
   const [recordTab, setRecordTab] = React.useState<StudentRecordTab>("summary");
-  const [activeCaseId, setActiveCaseId] = React.useState<number | null>(null);
 
   // Estado para el modal administrativo de justificaciones
   const [isJustificationModalOpen, setIsJustificationModalOpen] = React.useState(false);
@@ -133,6 +133,15 @@ function AttendanceNextContainer({
     { staleTime: 30_000, retry: 1 }
   );
 
+  // Caso abierto del estudiante cuyo expediente está abierto: sus notas se consultan aparte.
+  const activeCaseId = React.useMemo<number | null>(() => {
+    if (!recordStudent) return null;
+    const openCase = (followUpQuery.data ?? []).find(
+      (c: any) => String(c.studentId) === String(recordStudent.id) && c.status !== "resolved"
+    );
+    return openCase?.id ?? null;
+  }, [followUpQuery.data, recordStudent]);
+
   const activeCaseHistoryQuery = trpc.followUp.history.useQuery(
     { caseId: activeCaseId ?? 0 },
     { enabled: Boolean(activeCaseId) }
@@ -140,9 +149,8 @@ function AttendanceNextContainer({
 
   // Mutaciones para operaciones del Expediente y Justificaciones
   const openFollowUpMutation = trpc.followUp.open.useMutation({
-    onSuccess: async (created) => {
+    onSuccess: async () => {
       await utils.followUp.list.invalidate({ courseId: selectedCourseId });
-      if (created?.id) setActiveCaseId(created.id);
       toast.success("Caso de seguimiento abierto y asignado al docente.");
     },
     onError: (err) => {
@@ -379,7 +387,7 @@ function AttendanceNextContainer({
       time: "07:00 – 08:30",
       color: "from-blue-600 to-indigo-600",
       students: [],
-      teacherName: user?.name || "Juan Diego Loaiza",
+      teacherName: user?.name || undefined,
     };
   }, [eduCourseMap, selectedCourseId, user?.name]);
 
@@ -401,7 +409,7 @@ function AttendanceNextContainer({
       const eduSt = eduStudentMap.get(student.id);
       if (eduSt) {
         setRecordStudent(eduSt);
-        setRecordTab("history");
+        setRecordTab("attendance");
         setIsRecordModalOpen(true);
       }
     },
@@ -455,6 +463,40 @@ function AttendanceNextContainer({
       return "pending";
     },
     [recordsByStudentDate, selectedDate, todayStatuses]
+  );
+
+  // Clases reales del curso (fechas con asistencia tomada) para el Expediente,
+  // con los registros de ese curso y no los de otros grupos del estudiante.
+  const recordCourse = React.useMemo(
+    () => courses.find((c) => c.id === currentEduCourse.id),
+    [courses, currentEduCourse.id]
+  );
+  const { recordDays, recordStatusByKey } = React.useMemo(() => {
+    const statusByKey = new Map<string, AttendanceStatus>();
+    const add = (studentId: string, date: string, raw: string) => {
+      if (raw === "pending") return;
+      statusByKey.set(`${studentId}:${date}`, (raw === "excuse" ? "excused" : raw) as AttendanceStatus);
+    };
+    for (const st of recordCourse?.students ?? []) {
+      for (const rec of st.history) add(st.id, rec.date, rec.status);
+    }
+    const todayIso = toISODate(new Date());
+    for (const [studentId, raw] of Object.entries(todayStatusesByCourse[currentEduCourse.id] ?? {})) {
+      add(studentId, todayIso, raw);
+    }
+    const dates = Array.from(new Set(Array.from(statusByKey.keys(), (key) => key.slice(key.indexOf(":") + 1)))).sort();
+    const days: AttendanceDay[] = dates.map((iso) => ({ iso, label: formatDay(iso) }));
+    return { recordDays: days, recordStatusByKey: statusByKey };
+  }, [recordCourse, todayStatusesByCourse, currentEduCourse.id]);
+
+  const getRecordStatus = React.useCallback(
+    (studentId: string, date: string): AttendanceStatus => recordStatusByKey.get(`${studentId}:${date}`) ?? "pending",
+    [recordStatusByKey]
+  );
+
+  const academicPeriodLabel = React.useMemo(
+    () => resolveActivePeriod(data?.academicPeriods)?.name,
+    [data?.academicPeriods]
   );
 
   const handleModalSetStatus = React.useCallback(
@@ -600,10 +642,8 @@ function AttendanceNextContainer({
           }}
           student={recordStudent}
           course={currentEduCourse}
-          days={DEFAULT_ATTENDANCE_DAYS}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-          getStatus={getRecordCellStatus}
+          days={recordDays}
+          getStatus={getRecordStatus}
           onSetStatus={handleModalSetStatus}
           onNextStudent={handleNextStudent}
           onPrevStudent={handlePrevStudent}
@@ -627,13 +667,10 @@ function AttendanceNextContainer({
           }}
           caseHistoryNotes={activeCaseNotesList}
           isOpeningCase={openFollowUpMutation.isPending}
-          isUpdatingCase={updateFollowUpMutation.isPending}
           isAddingNote={addNoteMutation.isPending}
           justifications={courseJustifications}
-          onRecordPhysicalReceipt={handleRecordPhysicalReceipt}
-          onEscalateJustification={handleEscalateJustification}
           onResolveJustification={handleResolveJustification}
-          onNavigateToGradeCenter={(cId) => onNavigate?.("grades")}
+          academicPeriodLabel={academicPeriodLabel}
           schoolLogoUrl={data?.school?.logoUrl}
           schoolName={data?.school?.name}
         />

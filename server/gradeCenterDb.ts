@@ -185,6 +185,12 @@ export type GradeCenterAssignmentSummary = {
 const GRADE_SCALE_MAX = 5;
 const PASSING_GRADE = 3;
 
+/** Nota llevada a la escala 0–5 según el máximo de su evaluación. */
+const normalizeGrade = (value: number, maxValue: number) => (value / (maxValue || GRADE_SCALE_MAX)) * GRADE_SCALE_MAX;
+/** Regla de Grade Center para la definitiva: sin borradores ni evaluaciones sin peso. */
+const countsForDefinitive = (evaluation: { status: string; weight: number }) => evaluation.status !== "DRAFT" && evaluation.weight > 0;
+const roundGrade = (value: number) => Math.round(value * 10) / 10;
+
 const isActivePeriod = (status: string) => status === "Activo" || status === "ACTIVE";
 const isClosedPeriod = (status: string) => status === "Cerrado" || status === "CLOSED";
 
@@ -274,22 +280,21 @@ export async function listGradeCenterAssignments(actor: GradeCenterActor): Promi
     const weighted = new Map<number, { sum: number; weight: number }>();
     for (const evaluation of evaluations) {
       lastActivity = Math.max(lastActivity, evaluation.updatedAt.getTime());
-      const maxValue = evaluation.maxValue || GRADE_SCALE_MAX;
-      const countsForDefinitive = evaluation.status !== "DRAFT" && evaluation.weight > 0;
+      const counts = countsForDefinitive(evaluation);
       for (const grade of gradesByAssessment.get(evaluation.id) ?? []) {
         if (grade.value === null || !studentIds.has(grade.studentId)) continue;
-        const normalized = (grade.value / maxValue) * GRADE_SCALE_MAX;
+        const normalized = normalizeGrade(grade.value, evaluation.maxValue);
         graded += 1;
         normalizedSum += normalized;
         lastActivity = Math.max(lastActivity, grade.updatedAt.getTime());
-        if (!countsForDefinitive) continue;
+        if (!counts) continue;
         const acc = weighted.get(grade.studentId) ?? { sum: 0, weight: 0 };
         acc.sum += normalized * evaluation.weight;
         acc.weight += evaluation.weight;
         weighted.set(grade.studentId, acc);
       }
     }
-    const belowPassing = Array.from(weighted, ([studentId, acc]) => ({ studentId, name: "", average: Math.round((acc.sum / acc.weight) * 10) / 10 }))
+    const belowPassing = Array.from(weighted, ([studentId, acc]) => ({ studentId, name: "", average: roundGrade(acc.sum / acc.weight) }))
       .filter(row => row.average < PASSING_GRADE)
       .sort((a, b) => a.average - b.average);
     summaries.push({
@@ -305,7 +310,7 @@ export async function listGradeCenterAssignments(actor: GradeCenterActor): Promi
       evaluations: evaluations.length,
       graded,
       total: studentIds.size * evaluations.length,
-      average: graded ? Math.round((normalizedSum / graded) * 10) / 10 : null,
+      average: graded ? roundGrade(normalizedSum / graded) : null,
       lastActivityAt: lastActivity ? new Date(lastActivity) : null,
       periodEndsAt: period?.endDate ?? null,
       belowPassing,
@@ -370,6 +375,126 @@ export async function listGradeCenterReportCards(actor: GradeCenterActor): Promi
     });
   }
   return { courses: summaries, canGenerate };
+}
+
+export type ReportCardSubject = {
+  subjectId: number;
+  subjectName: string;
+  /** Definitiva parcial en escala 0–5; `null` sin notas que cuenten. */
+  average: number | null;
+  /** Notas registradas en evaluaciones que cuentan para la definitiva. */
+  graded: number;
+  evaluations: number;
+};
+
+export type StudentReportCard = {
+  studentId: number;
+  name: string;
+  subjects: ReportCardSubject[];
+  /** Promedio de las materias con definitiva. */
+  average: number | null;
+  observations: Array<{ id: number; text: string; createdAt: Date }>;
+  /** Última generación oficial del boletín en el periodo; `null` = vista preliminar. */
+  generatedAt: Date | null;
+};
+
+export type CourseReportCards = {
+  /** `directorName`: director(a) de grupo registrado en el curso. */
+  course: { id: number; name: string; year: string; directorName: string | null };
+  period: { id: number; name: string; closed: boolean };
+  academicYearId: number;
+  students: StudentReportCard[];
+};
+
+type ReportCardScope = { courseId: number; academicYearId: number; academicPeriodId: number };
+
+/**
+ * Boletín de cada estudiante matriculado en el curso para el periodo dado.
+ * Única fuente del cálculo: lo usan la consulta en vivo y la generación oficial,
+ * así el boletín que ve el docente y el que se congela nunca difieren.
+ */
+async function computeCourseReportCards(schoolId: number, scope: ReportCardScope): Promise<StudentReportCard[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const [links, enrollments, evaluations] = await Promise.all([
+    db.select({ subjectId: courseSubjects.subjectId }).from(courseSubjects).where(and(eq(courseSubjects.schoolId, schoolId), eq(courseSubjects.courseId, scope.courseId), eq(courseSubjects.status, "ACTIVE"))),
+    db.select({ studentUserId: studentEnrollments.studentUserId }).from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, schoolId), eq(studentEnrollments.courseId, scope.courseId), eq(studentEnrollments.academicYearId, scope.academicYearId), eq(studentEnrollments.enrollmentStatus, "ACTIVE"))),
+    db.select({ id: assessments.id, subjectId: assessments.subjectId, maxValue: assessments.maxValue, weight: assessments.weight, status: assessments.status }).from(assessments).where(and(eq(assessments.schoolId, schoolId), eq(assessments.courseId, scope.courseId), eq(assessments.academicPeriodId, scope.academicPeriodId), ne(assessments.status, "DELETED"))),
+  ]);
+  const studentIds = Array.from(new Set(enrollments.map(row => row.studentUserId)));
+  if (!studentIds.length) return [];
+  const subjectIds = Array.from(new Set(links.map(row => row.subjectId)));
+  const counted = evaluations.filter(countsForDefinitive);
+
+  const [subjectRows, nameRows, gradeRows, observationRows, runRows] = await Promise.all([
+    subjectIds.length ? db.select({ id: subjects.id, name: subjects.name }).from(subjects).where(and(eq(subjects.schoolId, schoolId), inArray(subjects.id, subjectIds))) : [],
+    db.select({ id: users.id, name: users.name }).from(users).where(and(eq(users.schoolId, schoolId), inArray(users.id, studentIds))),
+    counted.length ? db.select({ assessmentId: assessmentGrades.assessmentId, studentId: assessmentGrades.studentId, value: assessmentGrades.value }).from(assessmentGrades).where(and(eq(assessmentGrades.schoolId, schoolId), inArray(assessmentGrades.assessmentId, counted.map(row => row.id)), inArray(assessmentGrades.studentId, studentIds))) : [],
+    db.select({ id: academicObservations.id, studentId: academicObservations.studentId, text: academicObservations.text, createdAt: academicObservations.createdAt }).from(academicObservations).where(and(eq(academicObservations.schoolId, schoolId), eq(academicObservations.academicPeriodId, scope.academicPeriodId), eq(academicObservations.status, "PUBLISHED"), inArray(academicObservations.studentId, studentIds))).orderBy(academicObservations.createdAt),
+    db.select({ studentId: reportCardRuns.studentId, generatedAt: reportCardRuns.generatedAt }).from(reportCardRuns).where(and(eq(reportCardRuns.schoolId, schoolId), eq(reportCardRuns.courseId, scope.courseId), eq(reportCardRuns.academicPeriodId, scope.academicPeriodId), inArray(reportCardRuns.studentId, studentIds))),
+  ]);
+
+  const subjectList = subjectRows.slice().sort((a, b) => a.name.localeCompare(b.name, "es"));
+  const nameById = new Map(nameRows.map(row => [row.id, row.name ?? ""]));
+  const valueByKey = new Map(gradeRows.filter(row => row.value !== null).map(row => [`${row.assessmentId}:${row.studentId}`, row.value as number]));
+  const evaluationsBySubject = new Map<number, typeof counted>();
+  for (const evaluation of counted) {
+    const bucket = evaluationsBySubject.get(evaluation.subjectId);
+    if (bucket) bucket.push(evaluation);
+    else evaluationsBySubject.set(evaluation.subjectId, [evaluation]);
+  }
+  const lastRunByStudent = new Map<number, number>();
+  for (const run of runRows) lastRunByStudent.set(run.studentId, Math.max(lastRunByStudent.get(run.studentId) ?? 0, run.generatedAt.getTime()));
+
+  const cards = studentIds.map((studentId): StudentReportCard => {
+    const subjectCards = subjectList.map((subject): ReportCardSubject => {
+      const ofSubject = evaluationsBySubject.get(subject.id) ?? [];
+      let graded = 0;
+      let sum = 0;
+      let weight = 0;
+      for (const evaluation of ofSubject) {
+        const value = valueByKey.get(`${evaluation.id}:${studentId}`);
+        if (value === undefined) continue;
+        graded += 1;
+        sum += normalizeGrade(value, evaluation.maxValue) * evaluation.weight;
+        weight += evaluation.weight;
+      }
+      return { subjectId: subject.id, subjectName: subject.name, average: weight ? roundGrade(sum / weight) : null, graded, evaluations: ofSubject.length };
+    });
+    const withAverage = subjectCards.filter(subject => subject.average !== null);
+    const lastRun = lastRunByStudent.get(studentId);
+    return {
+      studentId,
+      name: nameById.get(studentId) || `Estudiante #${studentId}`,
+      subjects: subjectCards,
+      average: withAverage.length ? roundGrade(withAverage.reduce((total, subject) => total + (subject.average as number), 0) / withAverage.length) : null,
+      observations: observationRows.filter(row => row.studentId === studentId).map(({ id, text, createdAt }) => ({ id, text, createdAt })),
+      generatedAt: lastRun ? new Date(lastRun) : null,
+    };
+  });
+  return cards.sort((a, b) => a.name.localeCompare(b.name, "es"));
+}
+
+/**
+ * Boletines del curso en su periodo de trabajo, calculados en vivo desde Grade Center.
+ * Docentes ven el boletín completo (todas las materias) de los cursos donde tienen asignación.
+ */
+export async function getGradeCenterCourseReportCards(actor: GradeCenterActor, input: { courseId: number }): Promise<CourseReportCards | null> {
+  const db = await getDb();
+  if (!db) return null;
+  if (!WRITE_ROLES.includes(actor.roleKey)) throw new Error("No tienes permisos para ver los boletines del curso.");
+  if (!(await visibleCourseIds(actor)).includes(input.courseId)) throw new Error("No tienes acceso a los boletines de este curso.");
+  const course = (await db.select().from(courses).where(and(eq(courses.id, input.courseId), eq(courses.schoolId, actor.schoolId))).limit(1))[0];
+  if (!course || course.academicYearId === null) throw new Error("El curso no tiene un año académico configurado.");
+  const period = (await workingPeriodByYear(actor.schoolId, [course])).get(course.academicYearId);
+  if (!period) throw new Error("El curso no tiene un periodo académico configurado.");
+  const students = await computeCourseReportCards(actor.schoolId, { courseId: course.id, academicYearId: course.academicYearId, academicPeriodId: period.id });
+  return {
+    course: { id: course.id, name: course.name, year: course.year, directorName: course.teacherName.trim() || null },
+    period: { id: period.id, name: period.name, closed: isClosedPeriod(period.status) },
+    academicYearId: course.academicYearId,
+    students,
+  };
 }
 
 export async function ensureGradeScale(schoolId: number) {
@@ -512,22 +637,34 @@ export async function generateGradeCenterReportCards(actor: GradeCenterActor, in
   const db = await getDb();
   if (!db) return null;
   if (!MANAGEMENT_ROLES.includes(actor.roleKey)) throw new Error("Solo roles institucionales pueden generar boletines.");
-  const course = (await db.select().from(courses).where(and(eq(courses.id, input.courseId), eq(courses.schoolId, actor.schoolId))).limit(1))[0];
-  const enrollments = await db.select().from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, actor.schoolId), eq(studentEnrollments.courseId, input.courseId), eq(studentEnrollments.academicYearId, input.academicYearId), eq(studentEnrollments.enrollmentStatus, "ACTIVE")));
+  const [course, period] = await Promise.all([
+    db.select().from(courses).where(and(eq(courses.id, input.courseId), eq(courses.schoolId, actor.schoolId))).limit(1).then(rows => rows[0]),
+    db.select().from(academicPeriods).where(and(eq(academicPeriods.id, input.academicPeriodId), eq(academicPeriods.schoolId, actor.schoolId))).limit(1).then(rows => rows[0]),
+  ]);
   if (!course || course.academicYearId !== input.academicYearId) throw new Error("Curso inválido para generar boletines.");
-  const subjectLinks = await db.select().from(courseSubjects).where(and(eq(courseSubjects.schoolId, actor.schoolId), eq(courseSubjects.courseId, input.courseId), eq(courseSubjects.status, "ACTIVE")));
-  const generated = [];
-  for (const enrollment of enrollments) {
-    const subjectsData = [];
-    for (const link of subjectLinks) {
-      const subjectAssessments = await db.select().from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), eq(assessments.academicYearId, input.academicYearId), eq(assessments.academicPeriodId, input.academicPeriodId), eq(assessments.courseId, input.courseId), eq(assessments.subjectId, link.subjectId), ne(assessments.status, "DELETED")));
-      const subjectGrades = subjectAssessments.length ? await db.select().from(assessmentGrades).where(and(eq(assessmentGrades.schoolId, actor.schoolId), eq(assessmentGrades.studentId, enrollment.studentUserId), inArray(assessmentGrades.assessmentId, subjectAssessments.map(item => item.id)))) : [];
-      subjectsData.push({ subjectId: link.subjectId, average: weightedAverage(subjectAssessments.map(assessment => ({ value: subjectGrades.find(grade => grade.assessmentId === assessment.id)?.value ?? null, maxValue: assessment.maxValue, weight: assessment.weight }))) });
-    }
-    const payload = JSON.stringify({ schoolId: actor.schoolId, studentId: enrollment.studentUserId, courseId: input.courseId, academicYearId: input.academicYearId, academicPeriodId: input.academicPeriodId, subjects: subjectsData });
-    await db.insert(reportCardRuns).values({ schoolId: actor.schoolId, academicYearId: input.academicYearId, academicPeriodId: input.academicPeriodId, courseId: input.courseId, studentId: enrollment.studentUserId, status: "COMPLETED", createdByUserId: actor.userId, dataJson: payload });
-    generated.push(enrollment.studentUserId);
+  if (!period || (period.academicYearId !== null && period.academicYearId !== input.academicYearId)) throw new Error("Periodo inválido para generar boletines.");
+  // Congela exactamente el boletín que se ve en vivo
+  const cards = await computeCourseReportCards(actor.schoolId, input);
+  if (cards.length) {
+    await db.insert(reportCardRuns).values(cards.map(card => ({
+      schoolId: actor.schoolId,
+      academicYearId: input.academicYearId,
+      academicPeriodId: input.academicPeriodId,
+      courseId: input.courseId,
+      studentId: card.studentId,
+      status: "COMPLETED",
+      createdByUserId: actor.userId,
+      dataJson: JSON.stringify({
+        schoolId: actor.schoolId,
+        studentId: card.studentId,
+        courseId: input.courseId,
+        academicYearId: input.academicYearId,
+        academicPeriodId: input.academicPeriodId,
+        average: card.average,
+        subjects: card.subjects.map(({ subjectId, subjectName, average }) => ({ subjectId, subjectName, average })),
+      }),
+    })));
   }
-  await writeAcademicAudit(actor, "report_cards_generated", "report_card_run", `${input.courseId}:${generated.length}`);
-  return { status: "COMPLETED", generated: generated.length, total: enrollments.length };
+  await writeAcademicAudit(actor, "report_cards_generated", "report_card_run", `${input.courseId}:${cards.length}`);
+  return { status: "COMPLETED", generated: cards.length, total: cards.length };
 }
