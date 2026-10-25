@@ -12,7 +12,8 @@
     "test": "vitest run",
     "db:start": "\"%LOCALAPPDATA%\\Programs\\mariadb-portable\\bin\\mysqld.exe\" --defaults-file=\"%LOCALAPPDATA%\\Programs\\mariadb-portable\\data\\my.ini\" --console",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
-    "seed:11-2": "tsx server/seedStudents11_2.ts"
+    "seed:11-2": "tsx server/seedStudents11_2.ts",
+    "seed:mvp": "tsx server/seedMvp.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",

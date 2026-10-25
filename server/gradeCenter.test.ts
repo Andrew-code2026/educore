@@ -35,10 +35,10 @@ afterAll(async () => {
 });
 
 describe("EduCore Grade Center", () => {
-  it("loads the real demo context for 11-2 Mathematics", () => {
+  it("loads the real demo context for 11-2 Biology", () => {
     expect(seededContext?.selected?.course?.name).toBe("11-2");
-    expect(seededContext?.selected?.subject?.name).toBe("Matemáticas");
-    expect(seededContext?.assessments.length).toBeGreaterThanOrEqual(4);
+    expect(seededContext?.selected?.subject?.name).toBe("Biología");
+    expect(seededContext?.assessments.length).toBeGreaterThanOrEqual(1);
   });
 
   it("creates an assessment with valid academic context", async () => {
@@ -58,7 +58,7 @@ describe("EduCore Grade Center", () => {
   it("creates pending grade rows only for enrolled students", async () => {
     const rows = seededContext!.rows;
     expect(rows.length).toBeGreaterThan(0);
-    expect(rows.every(row => row.values.length >= 4)).toBe(true);
+    expect(rows.every(row => row.values.length >= 1)).toBe(true);
     expect(rows.every(row => row.enrollment.courseId === seededContext!.selected!.course.id)).toBe(true);
   });
 
@@ -77,8 +77,8 @@ describe("EduCore Grade Center", () => {
   it("allows an assigned teacher to read the authorized context", async () => {
     const result = await getGradeCenterContext(actor(teacher, "TEACHER"));
     expect(result?.selected?.course?.name).toBe("11-2");
-    expect(result?.selected?.subject?.name).toBe("Matemáticas");
-    expect(result?.assessments.length).toBeGreaterThanOrEqual(4);
+    expect(result?.selected?.subject?.name).toBe("Biología");
+    expect(result?.assessments.length).toBeGreaterThanOrEqual(1);
   });
 
   it("blocks a teacher from creating grades for an unassigned subject", async () => {
@@ -289,13 +289,13 @@ describe("EduCore Grade Center", () => {
       });
 
       it("rejects assessment update if total weight of all assessments exceeds 100%", async () => {
-        const assessment = seededContext!.assessments[0];
-        // Asignar un peso que haga superar el 100% considerando las demás evaluaciones activas
+        // La evaluación sembrada ya pesa 100%; cualquier peso extra en la creada por la prueba lo supera
+        expect(createdAssessmentId).toBeTruthy();
         const { updateGradeCenterAssessment } = await import("./gradeCenterDb");
         await expect(
           updateGradeCenterAssessment(actor(teacher, "TEACHER"), {
-            id: assessment.id,
-            weight: 95,
+            id: createdAssessmentId!,
+            weight: 5,
           })
         ).rejects.toThrow(/no puede superar el 100%/);
       });

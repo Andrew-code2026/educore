@@ -226,9 +226,15 @@ export function calculatePriorityItems(
         t.subject.toLowerCase() === teacherSubject.toLowerCase()
     );
     const topTask = matchingTask ?? options?.gradingQueue?.[0];
-    const taskDetail = topTask
-      ? `${topTask.subject || teacherSubject} ${topTask.course}`
-      : "Revisa los envíos recibidos";
+    // Si las entregas vienen de varios cursos, se nombran todos para no atribuirlas a uno solo
+    const queueCourses = Array.from(
+      new Set((options?.gradingQueue || []).map((t) => t.course).filter(Boolean))
+    ).sort();
+    const taskDetail = !topTask
+      ? "Revisa los envíos recibidos"
+      : queueCourses.length > 1
+        ? `${topTask.subject || teacherSubject} ${queueCourses.join(" y ")}`
+        : `${topTask.subject || teacherSubject} ${topTask.course}`;
 
     items.push({
       id: "pending",
@@ -342,15 +348,20 @@ export function buildTeacherCourseCards(
     ).length;
 
     const gradedCount = courseSubmissions.length - pendingCount;
+    const studentCount = course.studentsCount ?? course.students ?? course.studentCount ?? 0;
+    // Mismo criterio que la planilla: notas registradas sobre estudiantes × actividades
+    const expectedGrades = studentCount * courseAssignmentIds.size;
     const progress =
-      courseSubmissions.length > 0
-        ? Math.round((gradedCount / courseSubmissions.length) * 100)
-        : 100;
+      expectedGrades > 0
+        ? Math.min(100, Math.round((gradedCount / expectedGrades) * 100))
+        : courseSubmissions.length > 0
+          ? Math.round((gradedCount / courseSubmissions.length) * 100)
+          : 100;
 
     return {
       id: course.id ?? idx + 1,
       name: displayName,
-      studentCount: course.students ?? course.studentCount ?? 24,
+      studentCount,
       averageGrade,
       pendingCount,
       progress,

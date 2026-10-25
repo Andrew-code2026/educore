@@ -16,6 +16,7 @@ import {
   users,
 } from "../drizzle/schema";
 import { getDb, type AcademicActor, writeAcademicAudit } from "./db";
+import { DEMO_ACTIVITIES, DEMO_STUDENTS, DEMO_SUBJECT } from "./demoSeed";
 
 export type GradeCenterActor = AcademicActor;
 
@@ -65,31 +66,39 @@ function weightedAverage(values: Array<{ value: number | null; maxValue: number;
   return Number((recorded.reduce((sum, item) => sum + ((item.value! / item.maxValue) * 5), 0) / recorded.length).toFixed(2));
 }
 
+/** Las evaluaciones de cada curso demo (las mismas actividades del aula) con las notas del dataset del MVP. */
 export async function ensureGradeCenterSeeded(schoolId: number) {
   const db = await getDb();
   if (!db) return;
-  const course = (await db.select().from(courses).where(and(eq(courses.schoolId, schoolId), eq(courses.name, "11-2"))).limit(1))[0];
-  const subject = (await db.select().from(subjects).where(and(eq(subjects.schoolId, schoolId), eq(subjects.name, "Matemáticas"))).limit(1))[0];
+  const subject = (await db.select().from(subjects).where(and(eq(subjects.schoolId, schoolId), eq(subjects.name, DEMO_SUBJECT.name))).limit(1))[0];
   const period = (await db.select().from(academicPeriods).where(and(eq(academicPeriods.schoolId, schoolId), eq(academicPeriods.status, "Activo"))).orderBy(academicPeriods.orderIndex).limit(1))[0];
-  const year = course?.academicYearId ? (await db.select().from(academicYears).where(and(eq(academicYears.schoolId, schoolId), eq(academicYears.id, course.academicYearId))).limit(1))[0] : null;
-  if (!course || !subject || !period || !year) return;
-  const link = (await db.select({ id: courseSubjects.id }).from(courseSubjects).where(and(eq(courseSubjects.schoolId, schoolId), eq(courseSubjects.courseId, course.id), eq(courseSubjects.subjectId, subject.id), eq(courseSubjects.status, "ACTIVE"))).limit(1))[0];
-  const assignment = (await db.select({ teacherUserId: teacherAssignments.teacherUserId }).from(teacherAssignments).where(and(eq(teacherAssignments.schoolId, schoolId), eq(teacherAssignments.courseId, course.id), eq(teacherAssignments.subjectId, subject.id), eq(teacherAssignments.status, "ACTIVE"))).limit(1))[0];
-  if (!link || !assignment) return;
-  const existing = await db.select({ id: assessments.id }).from(assessments).where(and(eq(assessments.schoolId, schoolId), eq(assessments.courseId, course.id), eq(assessments.subjectId, subject.id), eq(assessments.academicPeriodId, period.id))).limit(1);
-  if (existing.length) return;
-  await ensureGradeScale(schoolId);
-  const seed = [
-    { title: "Taller de funciones", assessmentType: "TALLER", weight: 20, values: [4.2, 3.8] },
-    { title: "Quiz de derivadas", assessmentType: "QUIZ", weight: 20, values: [4.6, 3.1] },
-    { title: "Proyecto aplicado", assessmentType: "PROYECTO", weight: 30, values: [4.4, 3.7] },
-    { title: "Parcial de cálculo", assessmentType: "EXAMEN", weight: 30, values: [4.1, 2.9] },
-  ] as const;
-  const enrollments = await db.select().from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, schoolId), eq(studentEnrollments.courseId, course.id), eq(studentEnrollments.academicYearId, year.id), eq(studentEnrollments.enrollmentStatus, "ACTIVE"))).orderBy(studentEnrollments.id);
-  for (const item of seed) {
-    await db.insert(assessments).values({ schoolId, academicYearId: year.id, academicPeriodId: period.id, courseId: course.id, subjectId: subject.id, teacherId: assignment.teacherUserId, title: item.title, description: "Evaluación demo del Grade Center.", assessmentType: item.assessmentType, date: new Date(), maxValue: 5, weight: item.weight, status: "PUBLISHED" });
-    const assessment = (await db.select().from(assessments).where(and(eq(assessments.schoolId, schoolId), eq(assessments.courseId, course.id), eq(assessments.subjectId, subject.id), eq(assessments.academicPeriodId, period.id), eq(assessments.title, item.title))).orderBy(desc(assessments.id)).limit(1))[0];
-    if (assessment && enrollments.length) await db.insert(assessmentGrades).values(enrollments.map((enrollment, index) => ({ schoolId, assessmentId: assessment.id, studentId: enrollment.studentUserId, studentEnrollmentId: enrollment.id, courseId: course.id, subjectId: subject.id, academicYearId: year.id, academicPeriodId: period.id, value: item.values[index] ?? null, comment: index === 1 && item.title === "Parcial de cálculo" ? "Revisar procedimiento y justificar cada paso." : null, status: "RECORDED" })));
+  if (!subject || !period) return;
+  let scaleEnsured = false;
+  for (const activity of DEMO_ACTIVITIES) {
+    const course = (await db.select().from(courses).where(and(eq(courses.schoolId, schoolId), eq(courses.name, activity.course))).limit(1))[0];
+    const year = course?.academicYearId ? (await db.select().from(academicYears).where(and(eq(academicYears.schoolId, schoolId), eq(academicYears.id, course.academicYearId))).limit(1))[0] : null;
+    if (!course || !year) continue;
+    const link = (await db.select({ id: courseSubjects.id }).from(courseSubjects).where(and(eq(courseSubjects.schoolId, schoolId), eq(courseSubjects.courseId, course.id), eq(courseSubjects.subjectId, subject.id), eq(courseSubjects.status, "ACTIVE"))).limit(1))[0];
+    const assignment = (await db.select({ teacherUserId: teacherAssignments.teacherUserId }).from(teacherAssignments).where(and(eq(teacherAssignments.schoolId, schoolId), eq(teacherAssignments.courseId, course.id), eq(teacherAssignments.subjectId, subject.id), eq(teacherAssignments.status, "ACTIVE"))).limit(1))[0];
+    if (!link || !assignment) continue;
+    const existing = await db.select({ id: assessments.id }).from(assessments).where(and(eq(assessments.schoolId, schoolId), eq(assessments.courseId, course.id), eq(assessments.subjectId, subject.id), eq(assessments.academicPeriodId, period.id), eq(assessments.title, activity.title))).limit(1);
+    if (existing.length) continue;
+    if (!scaleEnsured) {
+      await ensureGradeScale(schoolId);
+      scaleEnsured = true;
+    }
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + activity.dueInDays);
+    const inserted = await db.insert(assessments).values({ schoolId, academicYearId: year.id, academicPeriodId: period.id, courseId: course.id, subjectId: subject.id, teacherId: assignment.teacherUserId, title: activity.title, description: activity.description, assessmentType: activity.assessmentType, date: dueDate, maxValue: 5, weight: activity.weight, status: "PUBLISHED" }).$returningId();
+    const assessmentId = inserted[0]?.id;
+    if (!assessmentId) continue;
+    const enrollments = await db.select({ id: studentEnrollments.id, studentUserId: studentEnrollments.studentUserId, openId: users.openId }).from(studentEnrollments).innerJoin(users, eq(users.id, studentEnrollments.studentUserId)).where(and(eq(studentEnrollments.schoolId, schoolId), eq(studentEnrollments.courseId, course.id), eq(studentEnrollments.academicYearId, year.id), eq(studentEnrollments.enrollmentStatus, "ACTIVE"))).orderBy(studentEnrollments.id);
+    if (!enrollments.length) continue;
+    await db.insert(assessmentGrades).values(enrollments.map(enrollment => {
+      const result = DEMO_STUDENTS.find(student => student.openId === enrollment.openId)?.results[activity.index];
+      const value = typeof result === "number" ? result : null;
+      return { schoolId, assessmentId, studentId: enrollment.studentUserId, studentEnrollmentId: enrollment.id, courseId: course.id, subjectId: subject.id, academicYearId: year.id, academicPeriodId: period.id, value, comment: null, status: value === null ? "PENDING" : "RECORDED" };
+    }));
   }
 }
 
@@ -111,7 +120,7 @@ export async function getGradeCenterContext(actor: GradeCenterActor, input: Grad
     subjectRows = subjectRows.filter(row => assignedIds.has(row.id));
   }
   if (input.subjectId !== undefined && !subjectRows.some(row => row.id === input.subjectId)) throw new Error("No tienes permiso para acceder a esta materia.");
-  const subject = subjectRows.find(row => row.id === input.subjectId) ?? subjectRows.find(row => row.name === "Matemáticas") ?? subjectRows[0];
+  const subject = subjectRows.find(row => row.id === input.subjectId) ?? subjectRows[0];
   if (!subject) return { courses: courseRows, subjects: [], periods: [], assessments: [], students: [], rows: [], stats: { average: null, max: null, min: null, assessments: 0, students: 0, graded: 0, total: 0, completion: 0, weightTotal: 0, remainingWeight: 100, weightStatus: "INCOMPLETE" as const }, distribution: [], insights: [], observations: [], scale: null, selected: { course }, reportCards: [] };
   const periods = await db.select().from(academicPeriods).where(and(eq(academicPeriods.schoolId, actor.schoolId), eq(academicPeriods.academicYearId, course.academicYearId ?? 0))).orderBy(academicPeriods.orderIndex);
   if (input.academicPeriodId !== undefined && !periods.some(row => row.id === input.academicPeriodId)) throw new Error("No tienes permiso para acceder a este periodo.");

@@ -127,7 +127,7 @@ describe("EduCore academic architecture", () => {
   });
   it("returns admin courses, subjects, teachers and enrollments", async () => {
     const snapshot = await getAcademicSnapshot({ schoolId, userId: admin!.user.id, roleKey: "SCHOOL_ADMIN" });
-    expect(snapshot?.courses.length).toBeGreaterThanOrEqual(10);
+    expect(snapshot?.courses.length).toBeGreaterThanOrEqual(2);
     expect(snapshot?.subjects.length).toBeGreaterThan(0);
     expect(snapshot?.teacherAssignments.length).toBeGreaterThan(0);
     expect(snapshot?.studentEnrollments.length).toBeGreaterThan(0);

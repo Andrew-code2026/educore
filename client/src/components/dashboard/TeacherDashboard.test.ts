@@ -113,9 +113,10 @@ describe("TeacherDashboard — Business Logic & Data Calculations", () => {
   });
 
   it("sincroniza las tarjetas de cursos con las entregas reales sin contradecir el KPI global", () => {
+    // El avance se mide como en la planilla: notas registradas sobre estudiantes × actividades
     const courses = [
-      { id: 1, name: "11-2", subject: "Biología", students: 24, average: 4.3 },
-      { id: 2, name: "11-1", subject: "Biología", students: 21, average: 4.1 },
+      { id: 1, name: "11-2", subject: "Biología", studentsCount: 2, average: 4.3 },
+      { id: 2, name: "11-1", subject: "Biología", studentsCount: 1, average: 4.1 },
     ];
     const assignments = [
       { id: 10, course: "11-2", title: "Lab 1" },
