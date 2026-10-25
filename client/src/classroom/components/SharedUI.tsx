@@ -72,56 +72,6 @@ export function StatusPill({ status }: { status: ActivityStatus | SubmissionStat
   );
 }
 
-export function SectionLabel({ children, action }: { children: ReactNode; action?: ReactNode }) {
-  return (
-    <div className="section-label">
-      <span>{children}</span>
-      {action}
-    </div>
-  );
-}
-
-export function Metric({
-  value,
-  label,
-  delta,
-  tone = 'cyan',
-  icon,
-}: {
-  value: string;
-  label: string;
-  delta?: string;
-  tone?: string;
-  icon: string;
-}) {
-  return (
-    <div className="metric-card">
-      <div className={`metric-icon ${tone}`}>
-        <Icon name={icon} size={18} />
-      </div>
-      <div className="metric-copy">
-        <strong>{value}</strong>
-        <span>{label}</span>
-        {delta && <em>{delta}</em>}
-      </div>
-    </div>
-  );
-}
-
-export function AvatarStack({ count = 4 }: { count?: number }) {
-  const colors = ['#64e8ff', '#a78bfa', '#fbbf6b', '#70e0b2', '#f88fb2'];
-  return (
-    <div className="avatar-stack">
-      {Array.from({ length: count }).map((_, index) => (
-        <span key={index} style={{ background: colors[index % colors.length] }}>
-          {['AT', 'CM', 'SR', 'JP', 'VG'][index]}
-        </span>
-      ))}
-      {count < 10 && <b>+{count * 7}</b>}
-    </div>
-  );
-}
-
 export function ProgressBar({ value, color = 'cyan' }: { value: number; color?: string }) {
   return (
     <div className="progress-track">

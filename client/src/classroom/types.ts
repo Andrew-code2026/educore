@@ -9,6 +9,8 @@ export interface Activity {
   type: ActivityType;
   date: string;
   dueDate: string;
+  /** Fecha límite en ISO; base para ordenar y calcular días restantes. */
+  dueAt?: string;
   submissions: number;
   graded: number;
   status: ActivityStatus;
@@ -37,6 +39,8 @@ export interface Student {
   status: SubmissionStatus;
   score?: number;
   time?: string;
+  /** Momento de la entrega en ISO. */
+  submittedAt?: string;
   file?: string;
   fileType?: string;
   fileSize?: string;
@@ -67,43 +71,25 @@ export interface CourseSummary {
   subject?: string;
 }
 
-export interface Resource {
-  id?: string;
-  title: string;
-  type: string;
-  meta: string;
-  used: string;
-  icon: string;
-  color: string;
-  url?: string;
-}
-
 export interface ReviewRecord {
   score?: number;
   scoreMode: 'rubric' | 'manual';
   evaluationMode: 'rubric' | 'direct';
   criteria: RubricCriterion[];
+  /** Retroalimentación del docente para el estudiante. */
   feedback: string;
-  comments: string[];
   status: SubmissionStatus;
 }
 
+/** Lo que el docente escribe en "Nueva actividad"; todo se envía al servidor. */
 export interface Draft {
   name: string;
   description: string;
+  /** "AAAA-MM-DD" */
   due: string;
-  publish: string;
-  maxFiles: number;
-  maxSize: string;
-  formats: string[];
+  /** "HH:MM" */
+  dueTime: string;
   graded: boolean;
-  gradeCenter: boolean;
-  weight: string;
-  allowReplacement: boolean;
-  allowResubmission: boolean;
-  subject?: string;
-  course?: string;
-  scale?: string;
 }
 
 export interface Upload {

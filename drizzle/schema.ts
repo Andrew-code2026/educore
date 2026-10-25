@@ -385,6 +385,26 @@ export const submissions = mysqlTable("submissions", {
   grade: double("grade"),
 });
 
+/** Materiales de un curso (guías, rúbricas, plantillas); opcionalmente ligados a una actividad. */
+export const courseResources = mysqlTable(
+  "course_resources",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    schoolId: int("schoolId").notNull(),
+    course: varchar("course", { length: 64 }).notNull(),
+    assignmentId: int("assignmentId"),
+    title: varchar("title", { length: 180 }).notNull(),
+    fileName: varchar("fileName", { length: 180 }).notNull(),
+    fileKey: varchar("fileKey", { length: 512 }).notNull(),
+    fileUrl: varchar("fileUrl", { length: 512 }).notNull(),
+    contentType: varchar("contentType", { length: 120 }).notNull(),
+    sizeBytes: int("sizeBytes").notNull(),
+    uploadedByUserId: int("uploadedByUserId"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [index("course_resources_course_idx").on(table.schoolId, table.course)]
+);
+
 export const events = mysqlTable("events", {
   id: int("id").autoincrement().primaryKey(),
   schoolId: int("schoolId").notNull(),
@@ -608,3 +628,6 @@ export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
 
+
+export type CourseResource = typeof courseResources.$inferSelect;
+export type InsertCourseResource = typeof courseResources.$inferInsert;

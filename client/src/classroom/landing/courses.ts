@@ -197,6 +197,11 @@ function resolvePeriod(data: any, now: Date): { academicYear: string; period: st
   return { academicYear, period: active?.name ?? null };
 }
 
+/** Nombre del periodo académico activo, o null si el snapshot no tiene uno vigente. */
+export function activePeriod(data: any, now: Date = new Date()): string | null {
+  return resolvePeriod(data, now).period;
+}
+
 export function buildClassroomLanding(data: any, now: Date = new Date()): ClassroomLandingModel {
   const assignments: RawAssignment[] = data?.assignments ?? [];
   const submissions: RawSubmission[] = data?.submissions ?? [];
