@@ -12,7 +12,9 @@ const SHORT_DATE = new Intl.DateTimeFormat("es-CO", {
   month: "short",
 });
 
-const TIME = new Intl.DateTimeFormat("es-CO", {
+const WEEKDAY_SHORT = new Intl.DateTimeFormat("es-CO", { weekday: "short" });
+
+const TIME =new Intl.DateTimeFormat("es-CO", {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
@@ -27,6 +29,12 @@ export function formatLongDate(iso: string): string {
 /** "2 oct" */
 export function formatShortDate(iso: string): string {
   return SHORT_DATE.format(fromISODate(iso)).replace(".", "");
+}
+
+/** "sáb 26 oct" */
+export function formatWeekdayDate(iso: string): string {
+  const weekday = WEEKDAY_SHORT.format(fromISODate(iso)).replace(".", "");
+  return `${weekday} ${formatShortDate(iso)}`;
 }
 
 export function formatClock(date: Date): string {

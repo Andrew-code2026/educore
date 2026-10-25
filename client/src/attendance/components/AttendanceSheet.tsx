@@ -1,10 +1,9 @@
 /**
- * Roster Field: planilla de asistencia a todo el ancho. Incluye estructura ARIA
- * de grilla para lectores de pantalla, conservando scroll y encabezado sticky.
+ * Roster de la planilla con estructura ARIA de grilla, encabezado sticky y columna
+ * de estudiante congelada en pantallas estrechas. La barra de vistas vive en el panel.
  */
 import { SearchX, Users } from "lucide-react";
 import { memo, useMemo } from "react";
-import { cn } from "@/lib/utils";
 import { computeStudentStats } from "../data/selectors";
 import type { AttendanceStatus, AttentionFlag, Course, SessionStatuses, Student, StudentStats } from "../types";
 import { StudentRow } from "./StudentRow";
@@ -20,6 +19,7 @@ interface AttendanceSheetProps {
   onFocusStudent: (studentId: string) => void;
   onStatus: (studentId: string, status: AttendanceStatus) => void;
   onPopoverStatus: (studentId: string, status: AttendanceStatus) => void;
+  onResetView: () => void;
   onOpenExpediente?: (student: Student) => void;
   onOpenHistory?: (student: Student) => void;
   onOpenFollowUp?: (student: Student) => void;
@@ -34,6 +34,8 @@ interface StudentRowHandlers {
 }
 
 const EMPTY_EXTRA_REASONS: string[] = [];
+/** La última columna es la acción de expediente: su encabezado solo existe para lectores de pantalla. */
+const COLUMNS = ["#", "Estudiante", "Hoy", "Historial", "Expediente"] as const;
 
 export const AttendanceSheet = memo(function AttendanceSheet({
   course,
@@ -46,6 +48,7 @@ export const AttendanceSheet = memo(function AttendanceSheet({
   onFocusStudent,
   onStatus,
   onPopoverStatus,
+  onResetView,
   onOpenExpediente,
   onOpenHistory,
   onOpenFollowUp,
@@ -65,7 +68,7 @@ export const AttendanceSheet = memo(function AttendanceSheet({
   const extraReasonsByStudentId = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const [studentId, flags] of attentionByStudent) {
-      map.set(studentId, flags.slice(1).map(item => `${item.label} · ${item.detail}`));
+      map.set(studentId, flags.slice(1).map(item => item.label));
     }
     return map;
   }, [attentionByStudent]);
@@ -87,94 +90,78 @@ export const AttendanceSheet = memo(function AttendanceSheet({
   const noRoster = course.students.length === 0;
 
   return (
-    <section className="chrona-roster glass flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px]" aria-label={`Planilla de asistencia de ${course.name}`}>
-      <div className="min-h-0 flex-1 overflow-auto scroll-thin">
-        {students.length === 0 ? (
-          <div
-            className="flex min-h-[220px] min-w-0 w-full flex-col items-center justify-center gap-2 px-6 py-8 text-center"
-            role="status"
-            aria-live="polite"
-          >
-            <div className="flex flex-col items-center gap-2">
-              {noRoster ? <Users className="h-6 w-6 text-muted-foreground/60" aria-hidden="true" /> : <SearchX className="h-6 w-6 text-muted-foreground/60" aria-hidden="true" />}
-              <p className="text-[13px] font-medium">{noRoster ? "Sin estudiantes asignados" : "Ningún estudiante coincide con la vista actual"}</p>
-              <p className="max-w-[300px] text-xs text-muted-foreground">
-                {noRoster ? "Cuando EduCore cargue el roster de este curso, aparecerá aquí." : "Prueba otro filtro o limpia la búsqueda para volver al roster completo."}
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div
-            className="roster-grid min-w-[900px]"
-            role="grid"
-            data-attendance-roster
-            aria-label={`Planilla de asistencia de ${course.name}`}
-            aria-rowcount={students.length + 1}
-            aria-colcount={6}
-          >
-            <div className="roster-grid roster-header-grid" role="row" aria-rowindex={1}>
-              <div className="roster-heading roster-index sticky top-0 z-40 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground/70" role="columnheader" aria-colindex={1}>
-                #
-              </div>
-              <div className="roster-heading roster-student-head sticky top-0 z-40 flex h-9 items-center gap-2 border-b border-hairline-strong bg-[var(--roster-head)] px-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground" role="columnheader" aria-colindex={2}>
-                <span>Estudiante</span>
-                <span className="rounded-full bg-foreground/[0.045] px-1.5 py-0.5 text-xs tracking-normal">{students.length} en lista</span>
-              </div>
-              <div className="roster-heading roster-col-attendance sticky top-0 z-30 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground" role="columnheader" aria-colindex={3}>Asistencia</div>
-              <div className="roster-heading roster-col-status sticky top-0 z-30 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground" role="columnheader" aria-colindex={4}>
-                Estado <span className="ml-1 hidden text-[var(--chrona-cyan-strong)] sm:inline">· hoy</span>
-              </div>
-              <div className="roster-heading roster-col-trace sticky top-0 z-30 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground" role="columnheader" aria-colindex={5}>Últimas 8</div>
-              <div className="roster-heading roster-col-signal sticky top-0 z-30 flex h-9 items-center justify-center border-b border-hairline-strong bg-[var(--roster-head)] text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground" role="columnheader" aria-colindex={6}>Señal</div>
-            </div>
-
-            {students.map((student, index) => {
-              const status = statuses[student.id] ?? "pending";
-              const flags = attentionByStudent.get(student.id) ?? [];
-              const rowHandlers = rowHandlersByStudentId.get(student.id)!;
-              return (
-                <StudentRow
-                  key={student.id}
-                  index={index + 1}
-                  student={student}
-                  course={course}
-                  status={status}
-                  stats={statsByStudentId.get(student.id)!}
-                  todayIso={todayIso}
-                  flag={flags[0] ?? null}
-                  extraReasons={extraReasonsByStudentId.get(student.id) ?? EMPTY_EXTRA_REASONS}
-                  focused={focusedId === student.id}
-                  open={openPopoverId === student.id}
-                  onOpenChange={rowHandlers.onOpenChange}
-                  onFocus={rowHandlers.onFocus}
-                  onStatus={rowHandlers.onStatus}
-                  onPopoverStatus={rowHandlers.onPopoverStatus}
-                  onOpenExpediente={onOpenExpediente}
-                  onOpenHistory={onOpenHistory}
-                  onOpenFollowUp={onOpenFollowUp}
-                />
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <footer className="chrona-shortcut-dock" aria-label="Atajos principales de la planilla">
-        <div className="chrona-shortcut-group" role="group" aria-label="Estados de asistencia">
-          <span className="chrona-shortcut-group-label">Marcar</span>
-          <span className="chrona-shortcut-pair"><kbd className="kbd">P</kbd><span>Presente</span></span>
-          <span className="chrona-shortcut-pair"><kbd className="kbd">A</kbd><span>Ausente</span></span>
-          <span className="chrona-shortcut-pair"><kbd className="kbd">T</kbd><span>Tardanza</span></span>
-          <span className="chrona-shortcut-pair"><kbd className="kbd">E</kbd><span>Excusa</span></span>
+    <div className="min-h-0 flex-1 overflow-auto scroll-thin">
+      {students.length === 0 ? (
+        <div className="att-roster-empty" role="status" aria-live="polite">
+          {noRoster ? (
+            <Users className="h-6 w-6 text-muted-foreground/60" aria-hidden="true" />
+          ) : (
+            <SearchX className="h-6 w-6 text-muted-foreground/60" aria-hidden="true" />
+          )}
+          <p className="text-[13.5px] font-semibold">
+            {noRoster ? "Sin estudiantes asignados" : "Ningún estudiante coincide"}
+          </p>
+          <p className="max-w-[300px] text-xs text-muted-foreground">
+            {noRoster
+              ? "Cuando EduCore cargue el roster de este curso, aparecerá aquí."
+              : "Prueba otra vista o limpia la búsqueda."}
+          </p>
+          {noRoster ? null : (
+            <button type="button" onClick={onResetView} className="att-link-button">
+              Ver todos los estudiantes
+            </button>
+          )}
         </div>
-        <div className="chrona-shortcut-group" role="group" aria-label="Navegación y controles">
-          <span className="chrona-shortcut-group-label">Moverse</span>
-          <span className="chrona-shortcut-pair"><span className="chrona-shortcut-keys"><kbd className="kbd">↑</kbd><kbd className="kbd">↓</kbd></span><span>Estudiante</span></span>
-          <span className="chrona-shortcut-pair"><kbd className="kbd">Supr</kbd><kbd className="kbd">⌫</kbd><span>Pendiente</span></span>
-          <span className="chrona-shortcut-pair"><kbd className="kbd">Ctrl/⌘ Z</kbd><span>Deshacer</span></span>
+      ) : (
+        <div
+          className="roster-grid roster-table"
+          role="grid"
+          data-attendance-roster
+          aria-label={`Planilla de asistencia de ${course.name}`}
+          aria-rowcount={students.length + 1}
+          aria-colcount={COLUMNS.length}
+        >
+          <div className="roster-grid roster-header-row" role="row" aria-rowindex={1}>
+            {COLUMNS.map((column, index) => (
+              <div
+                key={column}
+                className={index === 1 ? "roster-heading roster-student-head" : "roster-heading"}
+                role="columnheader"
+                aria-colindex={index + 1}
+              >
+                {index === COLUMNS.length - 1 ? <span className="sr-only">{column}</span> : column}
+              </div>
+            ))}
+          </div>
+
+          {students.map((student, index) => {
+            const flags = attentionByStudent.get(student.id) ?? [];
+            const rowHandlers = rowHandlersByStudentId.get(student.id)!;
+            return (
+              <StudentRow
+                key={student.id}
+                index={index + 1}
+                student={student}
+                status={statuses[student.id] ?? "pending"}
+                stats={statsByStudentId.get(student.id)!}
+                todayIso={todayIso}
+                flag={flags[0] ?? null}
+                extraReasons={extraReasonsByStudentId.get(student.id) ?? EMPTY_EXTRA_REASONS}
+                focused={focusedId === student.id}
+                open={openPopoverId === student.id}
+                onOpenChange={rowHandlers.onOpenChange}
+                onFocus={rowHandlers.onFocus}
+                onStatus={rowHandlers.onStatus}
+                onPopoverStatus={rowHandlers.onPopoverStatus}
+                onOpenExpediente={onOpenExpediente}
+                onOpenHistory={onOpenHistory}
+                onOpenFollowUp={onOpenFollowUp}
+              />
+            );
+          })}
         </div>
-      </footer>
-    </section>
+      )}
+    </div>
   );
 });
 

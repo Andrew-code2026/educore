@@ -4,8 +4,10 @@
  *
  * Reglas de convivencia:
  * - Los atajos de edición solo actúan mientras el foco está dentro del roster.
+ * - `/` (buscar) y `?` (ayuda) funcionan en todo el panel.
  * - En campos de texto no se intercepta nada (incluido Ctrl/Cmd+Z).
- * - Con un popover del panel o un diálogo abierto el hook llega deshabilitado.
+ * - Enter sobre un botón conserva su activación nativa (abrir el detalle, etc.).
+ * - Con un popover, menú o diálogo abierto el hook no actúa.
  */
 import { useEffect } from "react";
 import type { AttendanceStatus } from "../types";
@@ -22,7 +24,8 @@ interface Options {
    * Tab / ⇧Tab también permiten salir de la planilla.
    */
   onTab?: (delta: number) => boolean;
-  onOpenShortcuts?: () => void;
+  onOpenShortcuts: () => void;
+  onFocusSearch: () => void;
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -36,6 +39,16 @@ function isTypingTarget(target: EventTarget | null): boolean {
     target.getAttribute("role") === "textbox" ||
     target.getAttribute("role") === "combobox"
   );
+}
+
+/** Capas Radix abiertas (menús, popovers, diálogos) que tienen prioridad sobre los atajos. */
+function hasOpenLayer(target: EventTarget | null): boolean {
+  if (target instanceof Element && target.closest("[data-radix-popper-content-wrapper], [role=dialog], [role=menu]")) {
+    return true;
+  }
+  return document.querySelector(
+    '[data-radix-popper-content-wrapper] [data-state="open"], [role="dialog"][data-state="open"], [role="menu"][data-state="open"]',
+  ) !== null;
 }
 
 function isRosterTarget(target: EventTarget | null): boolean {
@@ -56,14 +69,27 @@ export function useAttendanceHotkeys({
   onMove,
   onTab,
   onOpenShortcuts,
+  onFocusSearch,
 }: Options) {
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (!enabled) return;
-      if (!isRosterTarget(event.target)) return;
-      if (isTypingTarget(event.target)) return;
+      if (!enabled || event.defaultPrevented) return;
+      if (isTypingTarget(event.target) || hasOpenLayer(event.target)) return;
 
       const meta = event.ctrlKey || event.metaKey;
+
+      if (!meta && !event.altKey && (event.key === "?" || (event.shiftKey && event.key === "/"))) {
+        event.preventDefault();
+        onOpenShortcuts();
+        return;
+      }
+      if (!meta && !event.altKey && !event.shiftKey && event.key === "/") {
+        event.preventDefault();
+        onFocusSearch();
+        return;
+      }
+
+      if (!isRosterTarget(event.target)) return;
 
       if (meta && event.key.toLowerCase() === "z") {
         event.preventDefault();
@@ -74,12 +100,6 @@ export function useAttendanceHotkeys({
       if (event.key === "Tab") {
         if (!onTab || meta || event.altKey) return;
         if (onTab(event.shiftKey ? -1 : 1)) event.preventDefault();
-        return;
-      }
-
-      if (event.key === "?" || (event.shiftKey && event.key === "/")) {
-        event.preventDefault();
-        onOpenShortcuts?.();
         return;
       }
 
@@ -94,6 +114,7 @@ export function useAttendanceHotkeys({
 
       switch (event.key) {
         case "Enter":
+          if (event.target instanceof Element && event.target.closest("button")) return;
           event.preventDefault();
           onStatus("present");
           break;
@@ -117,5 +138,5 @@ export function useAttendanceHotkeys({
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [enabled, onMove, onOpenShortcuts, onStatus, onTab, onUndo]);
+  }, [enabled, onFocusSearch, onMove, onOpenShortcuts, onStatus, onTab, onUndo]);
 }
