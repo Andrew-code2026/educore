@@ -180,6 +180,13 @@ export function ShellContextProvider({
           breadcrumbs: [{ label: "Administración" }, { label: "Configuración", isCurrent: true }],
           contextPills: [{ label: schoolName, tone: "primary" }],
         };
+      case "piar":
+        return {
+          title: "PIAR",
+          subtitle: "Planes Individuales de Ajustes Razonables",
+          breadcrumbs: [{ label: "Seguimiento" }, { label: "PIAR", isCurrent: true }],
+          contextPills: [{ label: "Decreto 1421 de 2017", tone: "primary" }],
+        };
       case "analytics":
         return {
           title: "Análisis & Alertas",

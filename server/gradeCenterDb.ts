@@ -25,7 +25,7 @@ type GradeCenterInput = { courseId?: number; subjectId?: number; academicPeriodI
 const MANAGEMENT_ROLES = ["SUPER_ADMIN", "SCHOOL_ADMIN", "RECTOR", "COORDINATOR"];
 const WRITE_ROLES = [...MANAGEMENT_ROLES, "TEACHER"];
 
-async function visibleCourseIds(actor: GradeCenterActor) {
+export async function visibleCourseIds(actor: GradeCenterActor) {
   const db = await getDb();
   if (!db) return [];
   const all = await db.select({ id: courses.id }).from(courses).where(eq(courses.schoolId, actor.schoolId));

@@ -1,4 +1,4 @@
-import { boolean, double, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { boolean, double, index, int, mediumtext, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -405,6 +405,30 @@ export const courseResources = mysqlTable(
   (table) => [index("course_resources_course_idx").on(table.schoolId, table.course)]
 );
 
+/** PIAR (Decreto 1421 de 2017) de un estudiante en un año académico; los tres anexos se guardan como JSON. */
+export const piarRecords = mysqlTable(
+  "piar_records",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    schoolId: int("schoolId").notNull(),
+    studentUserId: int("studentUserId").notNull(),
+    courseId: int("courseId").notNull(),
+    academicYearId: int("academicYearId").notNull(),
+    data: mediumtext("data").notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("DRAFT"),
+    createdByUserId: int("createdByUserId"),
+    updatedByUserId: int("updatedByUserId"),
+    updatedByName: varchar("updatedByName", { length: 160 }),
+    finalizedAt: timestamp("finalizedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("piar_records_school_student_year_unique").on(table.schoolId, table.studentUserId, table.academicYearId),
+    index("piar_records_course_idx").on(table.schoolId, table.courseId),
+  ]
+);
+
 export const events = mysqlTable("events", {
   id: int("id").autoincrement().primaryKey(),
   schoolId: int("schoolId").notNull(),
@@ -631,3 +655,6 @@ export type InsertUser = typeof users.$inferInsert;
 
 export type CourseResource = typeof courseResources.$inferSelect;
 export type InsertCourseResource = typeof courseResources.$inferInsert;
+
+export type PiarRecord = typeof piarRecords.$inferSelect;
+export type InsertPiarRecord = typeof piarRecords.$inferInsert;

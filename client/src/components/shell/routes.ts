@@ -20,6 +20,7 @@ export const SECTION_PATHS = {
   users: "/users",
   settings: "/settings",
   analytics: "/analytics",
+  piar: "/piar",
 } as const satisfies Record<Section, string>;
 
 export const DEFAULT_SECTION: Section = "overview";
