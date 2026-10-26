@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ClipboardCheck,
   ClipboardList,
+  FileHeart,
   GraduationCap,
   LayoutDashboard,
   Megaphone,
@@ -89,6 +90,12 @@ export const ALL_NAV_ITEMS: Record<Section, Omit<NavItem, "roles" | "groupKey" |
     icon: Activity,
     description: "Rendimiento grupal, alertas tempranas y métricas",
   },
+  piar: {
+    id: "piar",
+    label: "PIAR",
+    icon: FileHeart,
+    description: "Planes Individuales de Ajustes Razonables por curso",
+  },
   settings: {
     id: "settings",
     label: "Configuración",
@@ -118,6 +125,7 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
           { ...ALL_NAV_ITEMS.analytics, roles: ["teacher"], groupKey: "tracking", mobilePriority: "more" },
           { ...ALL_NAV_ITEMS.calendar, roles: ["teacher"], groupKey: "tracking", mobilePriority: "more" },
           { ...ALL_NAV_ITEMS.reports, roles: ["teacher"], groupKey: "tracking", mobilePriority: "more" },
+          { ...ALL_NAV_ITEMS.piar, roles: ["teacher"], groupKey: "tracking", mobilePriority: "more" },
         ],
       },
       {
@@ -213,6 +221,7 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
         { ...ALL_NAV_ITEMS.attendance, roles: ["admin"], groupKey: "operation", mobilePriority: "more" },
         { ...ALL_NAV_ITEMS.classroom, roles: ["admin"], groupKey: "operation", mobilePriority: "more" },
         { ...ALL_NAV_ITEMS.calendar, roles: ["admin"], groupKey: "operation", mobilePriority: "more" },
+        { ...ALL_NAV_ITEMS.piar, roles: ["admin"], groupKey: "operation", mobilePriority: "more" },
       ],
     },
     {

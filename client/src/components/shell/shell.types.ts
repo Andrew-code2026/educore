@@ -13,7 +13,8 @@ export type Section =
   | "reports"
   | "users"
   | "settings"
-  | "analytics";
+  | "analytics"
+  | "piar";
 
 export interface BreadcrumbItem {
   label: string;
