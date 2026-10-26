@@ -1,7 +1,9 @@
-import type { Dataset, Evaluation, EvaluationTypeId, GradeCommentMap, GradeMap, Student } from "./types";
+import type { Dba, Dataset, Evaluation, EvaluationTypeId, GradeCommentMap, GradeMap, Student } from "./types";
 import { gradeKey } from "./types";
 import { createEmptyDataset } from "./data/emptyDataset";
 import type { GradebookAssignment } from "./domain/assignments";
+import { queryCatalog } from "./data/dbaCatalog";
+import { generateDbaDescriptors } from "./lib/descriptorGenerator";
 
 /**
  * Adaptador de datos reales de EduCore Main para el módulo Grade Center Next.
@@ -68,6 +70,33 @@ export function adaptEduCoreContextToDataset(context: any, user?: any): Dataset 
     "autoevaluacion",
   ];
 
+  // Detección de grado y materia para precargar los DBAs oficiales del MEN correspondientes
+  const gradeMatch = courseName.match(/^(\d{1,2})/);
+  const inferredGrade = gradeMatch ? parseInt(gradeMatch[1], 10) : 11;
+  const subLower = subjectName.toLowerCase();
+  const inferredSubject = subLower.includes("matem")
+    ? "matematicas"
+    : subLower.includes("lengua") || subLower.includes("español")
+    ? "lenguaje"
+    : "ciencias";
+
+  const defaultDbas: Dba[] = queryCatalog(inferredGrade, inferredSubject).slice(0, 3).map((item) => ({
+    id: item.id,
+    code: item.code,
+    title: item.title,
+    statement: item.statement,
+    dimension: item.dimension,
+    evidences: item.evidences,
+    grade: item.grade,
+    subjectCode: item.subjectCode,
+    descriptors: generateDbaDescriptors({
+      title: item.title,
+      statement: item.statement,
+      evidences: item.evidences,
+      dimension: item.dimension,
+    }),
+  }));
+
   const evaluations: Evaluation[] = (context.assessments ?? []).map((a: any, index: number) => {
     const id = String(a.id);
     const rawType = (a.assessmentType || "taller").toLowerCase();
@@ -87,6 +116,13 @@ export function adaptEduCoreContextToDataset(context: any, user?: any): Dataset 
     const title = a.title || `Evaluación ${index + 1}`;
     const shortName = title.length > 20 ? title.slice(0, 18) + "…" : title;
 
+    // Asignación de DBA correspondiente a la evaluación
+    const assignedDbaIds = a.dbaIds && a.dbaIds.length > 0
+      ? a.dbaIds
+      : defaultDbas.length > 0
+      ? [defaultDbas[index % defaultDbas.length].id]
+      : [];
+
     return {
       id,
       code: `E${index + 1}`,
@@ -99,7 +135,7 @@ export function adaptEduCoreContextToDataset(context: any, user?: any): Dataset 
       weight: Number(a.weight ?? 0),
       date: dateStr,
       period: periodName,
-      dbaIds: [],
+      dbaIds: assignedDbaIds,
       status: a.status === "CLOSED" ? "active" : a.status === "DRAFT" ? "preparing" : "active",
     };
   });
@@ -140,7 +176,7 @@ export function adaptEduCoreContextToDataset(context: any, user?: any): Dataset 
       role: "Docente Titular",
       initials: teacherInitials,
     },
-    dba: [],
+    dba: defaultDbas,
     students,
     evaluations,
     grades,

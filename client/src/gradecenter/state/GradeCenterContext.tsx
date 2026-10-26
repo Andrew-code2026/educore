@@ -17,6 +17,7 @@ import { clamp, roundGrade } from "../data/seed";
 import { normalizeGrade } from "../domain/grading";
 import {
   gradeKey,
+  type Dba,
   type Dataset,
   type Density,
   type Evaluation,
@@ -154,6 +155,7 @@ export type Action =
   | { type: "sync/idle" }
   | { type: "sync/idle-if-empty" }
   | { type: "sync/error"; message: string }
+  | { type: "setDbaList"; dba: Dba[] }
 
 export function createInitialState(customDataset?: Dataset, readOnly?: boolean): State {
   const preferences = loadPreferences();
@@ -499,6 +501,14 @@ export function gradeCenterReducer(state: State, action: Action): State {
       };
     }
 
+    case "setDbaList": {
+      return {
+        ...state,
+        dataset: { ...state.dataset, dba: action.dba },
+        confirmedDataset: { ...state.confirmedDataset, dba: action.dba },
+      };
+    }
+
     case "evaluation/deleted-confirmed": {
       const evaluations = state.dataset.evaluations.filter((evaluation) => evaluation.id !== action.evaluationId);
       const confirmedEvaluations = state.confirmedDataset.evaluations.filter((evaluation) => evaluation.id !== action.evaluationId);
@@ -717,7 +727,7 @@ export interface GradeCenterContextValue {
   moveCell: (deltaRow: number, deltaCol: number) => void;
   selectStudent: (studentId: string | null) => void;
   selectEvaluation: (evaluationId: string | null) => void;
-  createEvaluation: (input: { name: string; type: EvaluationTypeId; date?: string; weight: number; description?: string; status: EvaluationStatus }) => Promise<{ ok: boolean; error?: string; evaluationId?: string }>;
+  createEvaluation: (input: { name: string; type: EvaluationTypeId; date?: string; weight: number; description?: string; status: EvaluationStatus; dbaIds?: string[] }) => Promise<{ ok: boolean; error?: string; evaluationId?: string }>;
   updateEvaluation: (evaluationId: string, patch: Partial<Pick<Evaluation, "name" | "shortName" | "abbrev" | "type" | "weight" | "date" | "period" | "description" | "status" | "dbaIds">>) => Promise<{ ok: boolean; error?: string }>;
   removeEvaluation: (evaluationId: string) => Promise<{ ok: boolean; error?: string }>;
   commitGrade: (studentId: string, evaluationId: string, value: GradeValue, comment?: string) => void;
@@ -727,6 +737,7 @@ export interface GradeCenterContextValue {
   /** Lleva la matriz hasta la fila de un estudiante. */
   jumpToStudent: (studentId: string) => void;
   retrySync: () => void;
+  setDbaList: (dba: Dba[]) => void;
 }
 
 const GradeCenterContext = createContext<GradeCenterContextValue | null>(null);
@@ -1240,6 +1251,7 @@ export function GradeCenterProvider({
       weight: number;
       description?: string;
       status: EvaluationStatus;
+      dbaIds?: string[];
     }): Promise<{ ok: boolean; error?: string; evaluationId?: string }> => {
       if (readOnly) {
         const msg = readOnlyReasonRef.current || "Modo lectura: La creación de evaluaciones no está permitida en este contexto.";
@@ -1303,7 +1315,7 @@ export function GradeCenterProvider({
             date: input.date ?? new Date().toISOString().slice(0, 10),
             period: state.dataset.period,
             description: input.description?.trim() || undefined,
-            dbaIds: [],
+            dbaIds: input.dbaIds ?? [],
             status: input.status,
           };
 
@@ -1335,7 +1347,7 @@ export function GradeCenterProvider({
         date: input.date ?? "",
         period: state.dataset.period,
         description: input.description?.trim() || undefined,
-        dbaIds: [],
+        dbaIds: input.dbaIds ?? [],
         status: input.status,
       };
       pushHistory(state.dataset);
@@ -1509,6 +1521,11 @@ export function GradeCenterProvider({
     jumpToCell,
     jumpToStudent,
     retrySync,
+    setDbaList: (dba) => {
+      pushHistory(state.dataset);
+      dispatch({ type: "setDbaList", dba });
+      toast.success("DBAs y descriptores del periodo actualizados.");
+    },
   };
 
   return <GradeCenterContext.Provider value={value}>{children}</GradeCenterContext.Provider>;

@@ -15,6 +15,7 @@ export function NewEvaluationDialog({ open, onOpenChange }: { open: boolean; onO
   const [date, setDate] = useState("");
   const [weight, setWeight] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedDbaId, setSelectedDbaId] = useState<string>("");
   const [status, setStatus] = useState<EvaluationStatus>("active");
   const [error, setError] = useState<string | null>(null);
 
@@ -29,9 +30,10 @@ export function NewEvaluationDialog({ open, onOpenChange }: { open: boolean; onO
     setDate("");
     setWeight(remaining > 0 ? String(remaining) : "");
     setDescription("");
+    setSelectedDbaId(dataset.dba[0]?.id ?? "");
     setStatus("active");
     setError(null);
-  }, [open, remaining]);
+  }, [open, remaining, dataset.dba]);
 
   const close = () => {
     if (name.trim() || weight || description.trim()) {
@@ -48,6 +50,7 @@ export function NewEvaluationDialog({ open, onOpenChange }: { open: boolean; onO
       weight: Number.isFinite(parsedWeight) ? parsedWeight : Number.NaN,
       description,
       status,
+      dbaIds: selectedDbaId ? [selectedDbaId] : [],
     });
     if (!result.ok) {
       setError(result.error ?? "Revisa los datos de la evaluación.");
@@ -106,6 +109,27 @@ export function NewEvaluationDialog({ open, onOpenChange }: { open: boolean; onO
             <span className="gc-label mb-1.5 block text-[9px]">DESCRIPCIÓN O INSTRUCCIONES <span className="text-muted-foreground">(opcional)</span></span>
             <textarea value={description} maxLength={500} onChange={(event) => setDescription(event.target.value)} rows={3} placeholder="Qué deben entregar o demostrar los estudiantes…" aria-label="Descripción de la evaluación" className="w-full resize-none rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 text-[11px] outline-none focus:border-[var(--gc-cobalt)]/60" />
           </label>
+
+          {dataset.dba && dataset.dba.length > 0 && (
+            <label className="block">
+              <span className="gc-label mb-1.5 block text-[9px]">DERECHO BÁSICO DE APRENDIZAJE (DBA VINCULADO)</span>
+              <select
+                value={selectedDbaId}
+                onChange={(e) => setSelectedDbaId(e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 text-[12px] outline-none focus:border-[var(--gc-cobalt)]/60 text-slate-200"
+              >
+                <option value="" className="bg-slate-900 text-slate-300">Sin vincular a un DBA específico</option>
+                {dataset.dba.map((dba) => (
+                  <option key={dba.id} value={dba.id} className="bg-slate-900 text-white">
+                    {dba.code} · {dba.title} ({dba.dimension || "cognitivo"})
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-[9px] text-muted-foreground">
+                Las notas de esta actividad aportarán evidencia al dominio de este DBA en el boletín (Decreto 1290).
+              </span>
+            </label>
+          )}
 
           <div>
             <span className="gc-label mb-1.5 block text-[9px]">ESTADO INICIAL</span>

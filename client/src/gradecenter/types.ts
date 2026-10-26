@@ -29,12 +29,24 @@ export interface EvaluationTypeMeta {
   abbrev: string;
 }
 
+export interface DbaDescriptorSet {
+  superior: string;
+  alto: string;
+  basico: string;
+  bajo: string;
+}
+
 /** Derecho Básico de Aprendizaje: agrupa evidencias de varias evaluaciones. */
 export interface Dba {
   id: string;
   code: string;
   title: string;
   statement: string;
+  dimension?: "cognitivo" | "procedimental" | "actitudinal";
+  descriptors?: DbaDescriptorSet;
+  evidences?: string[];
+  grade?: number;
+  subjectCode?: string;
 }
 
 export interface Evaluation {

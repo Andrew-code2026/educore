@@ -15,6 +15,7 @@ export function EditEvaluationDialog({ evaluation, open, onOpenChange }: { evalu
   const [date, setDate] = useState(evaluation.date);
   const [weight, setWeight] = useState(String(evaluation.weight));
   const [description, setDescription] = useState(evaluation.description ?? "");
+  const [selectedDbaId, setSelectedDbaId] = useState(evaluation.dbaIds?.[0] ?? "");
   const [status, setStatus] = useState<EvaluationStatus>(evaluation.status ?? "active");
   const [error, setError] = useState<string | null>(null);
 
@@ -29,6 +30,7 @@ export function EditEvaluationDialog({ evaluation, open, onOpenChange }: { evalu
     setDate(evaluation.date);
     setWeight(String(evaluation.weight));
     setDescription(evaluation.description ?? "");
+    setSelectedDbaId(evaluation.dbaIds?.[0] ?? "");
     setStatus(evaluation.status ?? "active");
     setError(null);
   }, [evaluation, open]);
@@ -47,6 +49,7 @@ export function EditEvaluationDialog({ evaluation, open, onOpenChange }: { evalu
       status,
       weight: Number.isFinite(parsedWeight) ? parsedWeight : Number.NaN,
       description: description.trim() || undefined,
+      dbaIds: selectedDbaId ? [selectedDbaId] : [],
     });
     if (!result.ok) {
       setError(result.error ?? "No se pudo guardar la evaluación.");
@@ -82,6 +85,27 @@ export function EditEvaluationDialog({ evaluation, open, onOpenChange }: { evalu
           <label className="block"><span className="gc-label mb-1.5 block text-[9px]">PONDERACIÓN (%) <span className="text-[var(--gc-bajo)]">*</span></span><div className={cn("flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3", error?.toLowerCase().includes("ponder") && "border-[var(--gc-bajo)]/60")}><Percent className="size-3.5 text-muted-foreground" /><input value={weight} onChange={(event) => { setWeight(event.target.value.replace(/[^0-9.,]/g, "")); setError(null); }} inputMode="decimal" aria-label="Ponderación de la evaluación" className="gc-num min-w-0 flex-1 bg-transparent py-3 text-[12px] outline-none" /><span className="text-[10px] text-muted-foreground">{availableWeight}% disponible</span></div><span className="mt-1 block text-[9px] text-muted-foreground">El peso actual ya está incluido en el margen disponible.</span></label>
 
           <label className="block"><span className="gc-label mb-1.5 block text-[9px]">DESCRIPCIÓN O INSTRUCCIONES <span className="text-muted-foreground">(opcional)</span></span><textarea value={description} maxLength={500} onChange={(event) => setDescription(event.target.value)} rows={3} aria-label="Descripción de la evaluación" placeholder="Qué deben entregar o demostrar los estudiantes…" className="w-full resize-none rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-[11px] outline-none focus:border-[var(--gc-cobalt)]/60" /></label>
+
+          {dataset.dba && dataset.dba.length > 0 && (
+            <label className="block">
+              <span className="gc-label mb-1.5 block text-[9px]">DERECHO BÁSICO DE APRENDIZAJE (DBA VINCULADO)</span>
+              <select
+                value={selectedDbaId}
+                onChange={(e) => setSelectedDbaId(e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-[12px] outline-none focus:border-[var(--gc-cobalt)]/60 text-slate-200"
+              >
+                <option value="" className="bg-slate-900 text-slate-300">Sin vincular a un DBA específico</option>
+                {dataset.dba.map((dba) => (
+                  <option key={dba.id} value={dba.id} className="bg-slate-900 text-white">
+                    {dba.code} · {dba.title} ({dba.dimension || "cognitivo"})
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-[9px] text-muted-foreground">
+                Las notas de esta actividad aportarán evidencia al dominio de este DBA en el boletín (Decreto 1290).
+              </span>
+            </label>
+          )}
 
           <div><span className="gc-label mb-1.5 block text-[9px]">ESTADO DE LA EVALUACIÓN</span><div className="grid gap-2 sm:grid-cols-2">{(["active", "preparing"] as EvaluationStatus[]).map((item) => <button key={item} type="button" onClick={() => setStatus(item)} className={cn("rounded-2xl border p-3 text-left transition-all", status === item ? "border-[var(--gc-cobalt)]/70 bg-[var(--gc-cobalt)]/10 shadow-[0_10px_24px_-18px_var(--gc-cobalt)]" : "border-white/8 bg-white/3 hover:bg-white/6")}><div className="flex items-center justify-between gap-2 text-[11px] font-semibold"><span>{item === "active" ? "Activa para cálculo" : "En preparación"}</span>{status === item && <span className="size-1.5 rounded-full bg-[var(--gc-cobalt)]" />}</div><div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{item === "active" ? "Aparece en promedios y permite registrar notas." : "Visible en la matriz, pero fuera del cálculo definitivo."}</div></button>)}</div></div>
 
