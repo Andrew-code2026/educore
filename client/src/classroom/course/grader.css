@@ -1,0 +1,602 @@
+/*
+ * Calificador de entregas (diseño "EduCore Docente").
+ * Usa los tokens y piezas de course.css (.ccw, botones, pills, avatar, búsqueda);
+ * aquí solo vive lo propio del calificador.
+ */
+
+.ccw.ccw-grader {
+  max-width: 1400px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Barra superior ────────────────────────────────────── */
+
+.ccw .ccw-grader__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ccw .ccw-back {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 14px 0 8px;
+  border: 1px solid var(--ccw-outline-border);
+  border-radius: 999px;
+  background: var(--ccw-outline-bg);
+  color: var(--edc-ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.ccw .ccw-back:hover {
+  background: var(--ccw-outline-hover);
+}
+
+.ccw .ccw-back svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ccw .ccw-grader__activity {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--edc-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ccw .ccw-grader__nav {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ccw .ccw-grader__position {
+  margin-right: 4px;
+  font-size: 13px;
+  color: var(--edc-muted);
+  white-space: nowrap;
+}
+
+.ccw .ccw-icon-btn[aria-pressed='true'] {
+  background: var(--ccw-chip-active-bg);
+  border-color: var(--ccw-chip-active-bg);
+  color: var(--ccw-chip-active-fg);
+}
+
+.ccw .ccw-grader__focus svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ccw .ccw-grader__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: 16px;
+}
+
+/* ── Entrega y calificación ────────────────────────────── */
+
+.ccw .ccw-review {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ccw .ccw-review__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--edc-hair);
+}
+
+.ccw .ccw-review__who {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.ccw .ccw-review__name {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--edc-ink);
+}
+
+.ccw .ccw-review__body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 22px 0;
+}
+
+.ccw .ccw-review .ccw-empty {
+  padding: 48px 24px;
+}
+
+.ccw .ccw-evidence {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--ccw-date-bg);
+}
+
+.ccw .ccw-note {
+  margin: 0;
+  padding: 12px 16px;
+  border-left: 3px solid var(--ccw-icon-fg);
+  border-radius: 4px 12px 12px 4px;
+  background: var(--ccw-icon-bg);
+}
+
+.ccw .ccw-note figcaption {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ccw-icon-fg);
+}
+
+.ccw .ccw-note blockquote {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--edc-ink-2);
+}
+
+.ccw .ccw-grade-input {
+  align-self: flex-start;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ccw .ccw-grade-input input {
+  width: 120px;
+  height: 64px;
+  padding: 0 14px;
+  border: 1px solid var(--ccw-field-border);
+  border-radius: 16px;
+  background: var(--ccw-field-bg);
+  color: var(--edc-ink);
+  font-family: inherit;
+  font-size: 34px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.ccw .ccw-grade-input input::placeholder {
+  color: var(--edc-muted-3);
+  opacity: .6;
+}
+
+.ccw .ccw-grade-input input[aria-invalid='true'] {
+  border-color: var(--ccw-error-border);
+}
+
+.classcore-workspace .ccw .ccw-grade-input input:focus-visible,
+.classcore-workspace .ccw .ccw-textarea:focus-visible,
+.classcore-workspace .ccw .ccw-rubric__score input:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+.ccw .ccw-grade-input__scale {
+  font-size: 16px;
+  color: var(--edc-muted);
+}
+
+.ccw .ccw-textarea {
+  width: 100%;
+  min-height: 84px;
+  padding: 12px 14px;
+  border: 1px solid var(--ccw-field-border);
+  border-radius: 14px;
+  background: var(--ccw-field-bg);
+  color: var(--edc-ink);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.ccw .ccw-textarea::placeholder {
+  color: var(--edc-muted-2);
+}
+
+.ccw .ccw-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ccw .ccw-suggestion {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px dashed var(--ccw-field-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--edc-ink-3);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.ccw .ccw-suggestion:hover {
+  background: var(--ccw-outline-hover);
+  border-style: solid;
+}
+
+/* ── Rúbrica ───────────────────────────────────────────── */
+
+.ccw .ccw-rubric {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ccw-field-border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.ccw .ccw-rubric__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ccw .ccw-rubric__item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--edc-hair);
+}
+
+.ccw .ccw-rubric__copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ccw .ccw-rubric__title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--edc-ink);
+}
+
+.ccw .ccw-rubric__desc {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--edc-muted);
+}
+
+.ccw .ccw-rubric__score {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--edc-muted);
+}
+
+.ccw .ccw-rubric__score input {
+  width: 58px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--ccw-field-border);
+  border-radius: 10px;
+  background: var(--ccw-field-bg);
+  color: var(--edc-ink);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.ccw .ccw-rubric__total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--ccw-date-bg);
+  font-size: 13px;
+  color: var(--edc-muted);
+}
+
+.ccw .ccw-rubric__total strong {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--edc-ink);
+}
+
+.ccw .ccw-rubric__total strong span {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--edc-muted);
+}
+
+/* ── Pie de guardado ───────────────────────────────────── */
+
+.ccw .ccw-review__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin: 0 -22px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--edc-hair);
+  border-radius: 0 0 24px 24px;
+  background: var(--ccw-foot-bg);
+}
+
+.ccw .ccw-review__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ccw .ccw-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--edc-muted);
+}
+
+.ccw .ccw-save svg {
+  width: 15px;
+  height: 15px;
+}
+
+.ccw .ccw-save--dirty {
+  color: var(--ccw-soon);
+  font-weight: 500;
+}
+
+.ccw .ccw-save--saved {
+  color: var(--ccw-open-fg);
+  font-weight: 500;
+}
+
+.ccw .ccw-save--error {
+  color: var(--ccw-error);
+  font-weight: 500;
+}
+
+/* ── Lista de estudiantes ──────────────────────────────── */
+
+.ccw .ccw-roster {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 300px);
+  min-height: 320px;
+  overflow: hidden;
+}
+
+.ccw .ccw-roster__search {
+  flex: none;
+  max-width: none;
+  height: 38px;
+  margin: 12px 12px 6px;
+}
+
+.ccw .ccw-roster__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 6px 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--edc-scroll) transparent;
+}
+
+.ccw .ccw-roster__group + .ccw-roster__group {
+  margin-top: 8px;
+}
+
+.ccw .ccw-roster__group summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.ccw .ccw-roster__group summary::-webkit-details-marker {
+  display: none;
+}
+
+.ccw .ccw-roster__group summary:hover {
+  background: var(--ccw-row-hover);
+}
+
+.ccw .ccw-roster__group summary:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: -2px;
+}
+
+.ccw .ccw-roster__chev {
+  width: 14px;
+  height: 14px;
+  margin-right: 10px;
+  color: var(--edc-muted);
+  transition: transform .15s ease;
+}
+
+.ccw .ccw-roster__group[open] .ccw-roster__chev {
+  transform: rotate(90deg);
+}
+
+.ccw .ccw-roster__heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--edc-muted);
+}
+
+.ccw .ccw-roster__heading .ccw-num {
+  color: var(--edc-muted-3);
+}
+
+.ccw .ccw-roster__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ccw .ccw-roster__item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--edc-ink-2);
+  font-family: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.ccw .ccw-roster__item:hover {
+  background: var(--ccw-row-hover);
+}
+
+.ccw .ccw-roster__item[aria-current='true'] {
+  background: var(--ccw-icon-bg);
+  color: var(--edc-ink);
+  font-weight: 600;
+}
+
+.ccw .ccw-roster__name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ccw .ccw-roster__score {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ccw-open-fg);
+}
+
+.ccw .ccw-roster__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--edc-blue);
+}
+
+.ccw .ccw-roster__empty {
+  padding: 16px 10px;
+  font-size: 13px;
+  color: var(--edc-muted);
+}
+
+.ccw .ccw-avatar--sm {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+}
+
+.ccw .ccw-avatar--missing {
+  background: var(--ccw-neutral-bg);
+  color: var(--edc-muted);
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  .ccw .ccw-grader__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ccw .ccw-roster {
+    position: static;
+    max-height: 420px;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .ccw .ccw-grader__bar {
+    justify-content: space-between;
+  }
+
+  .ccw .ccw-grader__activity,
+  .ccw .ccw-grader__focus {
+    display: none;
+  }
+
+  .ccw .ccw-review__head,
+  .ccw .ccw-review__body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .ccw .ccw-review__foot {
+    margin: 0 -16px;
+    padding: 12px 16px;
+  }
+
+  .ccw .ccw-review__actions,
+  .ccw .ccw-review__actions .ccw-btn {
+    flex: 1 1 auto;
+  }
+
+  .ccw .ccw-rubric__item {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ccw .ccw-spin {
+    animation-duration: 2.4s;
+  }
+
+  .ccw .ccw-back,
+  .ccw .ccw-suggestion,
+  .ccw .ccw-roster__item,
+  .ccw .ccw-roster__chev {
+    transition: none;
+  }
+}

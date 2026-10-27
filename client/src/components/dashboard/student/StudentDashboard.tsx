@@ -18,7 +18,6 @@ import { StudentSubjects } from "./StudentSubjects";
 import { StudentPerformance } from "./StudentPerformance";
 import { StudentPrioritySection } from "./StudentPrioritySection";
 import { StudentQuickActions } from "./StudentQuickActions";
-import { StudentAiCallout } from "./StudentAiCallout";
 import type {
   StudentDashboardProps,
   StudentMetricItem,
@@ -73,7 +72,7 @@ export function StudentDashboard({
 
   const studentName = currentStudent?.name ?? "Sofía Martínez";
   const courseName = currentStudent?.course ?? "11-2";
-  const schoolName = data.school?.name ?? "Gimnasio Moderno del Valle";
+  const schoolName = data.school?.name ?? "EduCore";
 
   // Academic period active
   const activePeriod = useMemo(() => {
@@ -394,12 +393,6 @@ export function StudentDashboard({
         badge: `${subjectSummaries.length}`,
         onClick: () => setSection("academic"),
       },
-      {
-        id: "ai",
-        label: "EduCore AI Tutor",
-        icon: Sparkles,
-        onClick: () => setSection("ai"),
-      },
     ],
     [averageGrade, pendingAssignments.length, subjectSummaries.length, setSection]
   );
@@ -520,13 +513,6 @@ export function StudentDashboard({
         averageGrade={averageGrade}
         onOpenGrades={() => setSection("grades")}
         onOpenClassroom={() => setSection("classroom")}
-        aiSuggestion={{
-          text:
-            pendingAssignments.length > 0
-              ? `¿Quieres preparar tu entrega de "${pendingAssignments[0].title}" con IA?`
-              : "¿Deseas un resumen de conceptos clave para tus materias?",
-          onAction: () => setSection("ai"),
-        }}
       />
 
       {/* 4 Essential KPIs */}
@@ -573,16 +559,6 @@ export function StudentDashboard({
             availablePeriods={availablePeriods}
             activePeriod={activePeriod}
             onOpenReports={() => setSection("reports")}
-          />
-
-          {/* EduCore AI Callout */}
-          <StudentAiCallout
-            onOpenAi={() => setSection("ai")}
-            suggestionText={
-              pendingAssignments.length > 0
-                ? `Tienes un taller pendiente en ${pendingAssignments[0].subject}. Pídele a EduCore AI que te explique los conceptos clave.`
-                : undefined
-            }
           />
         </div>
       </div>

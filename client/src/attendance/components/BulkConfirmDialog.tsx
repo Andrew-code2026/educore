@@ -34,7 +34,7 @@ export function BulkConfirmDialog({ request, onClose }: BulkConfirmDialogProps) 
             {request?.description}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <div className="flex items-center gap-2 rounded-xl bg-foreground/[0.04] px-2.5 py-2 text-[11.5px] text-muted-foreground ring-1 ring-inset ring-hairline">
+        <div className="flex items-center gap-2 rounded-xl bg-foreground/[0.04] px-2.5 py-2 text-xs text-muted-foreground ring-1 ring-inset ring-hairline">
           <Undo2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           Podrás deshacerlo con Ctrl/Cmd + Z desde la toolbar.
         </div>

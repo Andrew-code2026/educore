@@ -21,6 +21,29 @@ export function normalizeGrade(value: GradeValue): GradeValue {
   return roundGrade(clamp(value, MIN_GRADE, MAX_GRADE));
 }
 
+export type GradeInputResult = { ok: true; value: GradeValue } | { ok: false; error: string };
+
+/**
+ * Interpreta lo que el docente escribe en una celda o editor.
+ * - Vacío deja la evaluación pendiente.
+ * - Acepta coma o punto decimal.
+ * - Dos dígitos sin separador son atajo de décimas: "45" → 4.5.
+ * - Fuera de 0.0–5.0 se rechaza en lugar de recortarse en silencio.
+ */
+export function parseGradeInput(raw: string): GradeInputResult {
+  const text = raw.trim().replace(",", ".");
+  if (text === "" || text === ".") return { ok: true, value: null };
+  if (!/^\d*\.?\d*$/.test(text)) {
+    return { ok: false, error: "Escribe solo números, por ejemplo 4.5" };
+  }
+  let value = Number.parseFloat(text);
+  if (!text.includes(".") && /^\d{2}$/.test(text) && value >= 10 && value <= 50) value /= 10;
+  if (!Number.isFinite(value) || value < MIN_GRADE || value > MAX_GRADE) {
+    return { ok: false, error: `La nota debe estar entre ${MIN_GRADE.toFixed(1)} y ${MAX_GRADE.toFixed(1)}` };
+  }
+  return { ok: true, value: roundGrade(value) };
+}
+
 export function calculateDefinitive(
   evaluations: Evaluation[],
   grades: GradeMap,

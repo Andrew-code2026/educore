@@ -191,7 +191,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
                 <ChevronLeft className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Ant.</span>
               </button>
-              <span className="px-1.5 text-[11px] font-mono font-bold text-slate-400">
+              <span className="px-1.5 text-xs font-mono font-bold text-slate-400">
                 {currentIndex + 1}/{totalStudents}
               </span>
               <button
@@ -281,7 +281,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
               <span className="text-xs font-black uppercase tracking-wider text-indigo-950">
                 Asistencia de hoy: {selectedDayInfo?.label}
               </span>
-              <span className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-100/80 px-2 py-0.5 rounded-md">
+              <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-100/80 px-2 py-0.5 rounded-md">
                 {selectedDate}
               </span>
             </div>
@@ -314,7 +314,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
               <div className="flex items-center justify-between rounded-xl border border-blue-200 bg-blue-50/90 px-3 py-2 text-xs text-blue-900 mt-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <FileCheck2 className="h-4 w-4 shrink-0 text-blue-600" />
-                  <span className="truncate text-[11px]">
+                  <span className="truncate text-xs">
                     Excusa: <strong>{JUSTIFICATION_STATUS_META[currentDateJustification.status].label}</strong> (
                     {JUSTIFICATION_REASON_LABELS[currentDateJustification.reasonCategory]})
                   </span>
@@ -356,7 +356,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
                     </p>
                   </div>
                   <span
-                    className={`rounded px-1.5 py-0.2 text-[9px] font-extrabold uppercase ${
+                    className={`rounded px-1.5 py-0.2 text-xs font-extrabold uppercase ${
                       patternAnalysis.severity === "critical"
                         ? "bg-rose-100 text-rose-800"
                         : "bg-amber-100 text-amber-800"
@@ -376,7 +376,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                   <span>Asistencia regular y al día</span>
                 </div>
-                <span className="text-[11px] font-bold text-emerald-700">
+                <span className="text-xs font-bold text-emerald-700">
                   Sin alertas activas
                 </span>
               </div>
@@ -386,7 +386,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
           {/* C. MINI-RESUMEN DE MÉTRICAS DEL PERIODO */}
           <section className="grid grid-cols-4 gap-2 text-center">
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-2.5">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Asistencia</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Asistencia</p>
               <p
                 className={`text-base font-black mt-0.5 ${
                   periodStats.attendanceRate >= 90
@@ -400,7 +400,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-2.5">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ausencias</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ausencias</p>
               <p
                 className={`text-base font-black mt-0.5 ${
                   periodStats.absentCount > 0 ? "text-rose-700" : "text-slate-700"
@@ -410,7 +410,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-2.5">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tardanzas</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tardanzas</p>
               <p
                 className={`text-base font-black mt-0.5 ${
                   periodStats.lateCount > 0 ? "text-amber-700" : "text-slate-700"
@@ -420,7 +420,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-2.5">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Excusas</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Excusas</p>
               <p
                 className={`text-base font-black mt-0.5 ${
                   periodStats.excusedCount > 0 ? "text-blue-700" : "text-slate-700"
@@ -439,7 +439,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
               </span>
               <button
                 type="button"
-                onClick={() => onOpenFullRecord?.("history")}
+                onClick={() => onOpenFullRecord?.("attendance")}
                 className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
               >
                 Ver historial completo ({days.length}) →
@@ -466,9 +466,9 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-xs font-bold text-slate-800">{day.label}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{day.iso}</span>
+                      <span className="text-xs text-slate-400 font-mono">{day.iso}</span>
                       {isSelected && (
-                        <span className="rounded-md bg-indigo-100 px-1.5 py-0.2 text-[9px] font-extrabold text-indigo-700">
+                        <span className="rounded-md bg-indigo-100 px-1.5 py-0.2 text-xs font-extrabold text-indigo-700">
                           Activa
                         </span>
                       )}
@@ -477,7 +477,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
                     <div className="flex items-center gap-1.5 shrink-0">
                       {just && (
                         <span
-                          className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[9px] font-bold ${
+                          className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-bold ${
                             JUSTIFICATION_STATUS_META[just.status].badge
                           }`}
                         >
@@ -486,7 +486,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
                         </span>
                       )}
                       <span
-                        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold ${meta.soft}`}
+                        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-bold ${meta.soft}`}
                       >
                         <span className={`h-1.5 w-1.5 rounded-full ${meta.dotColor}`} />
                         {meta.label}
@@ -508,18 +508,18 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
                 </h3>
               </div>
               {activeCase ? (
-                <span className="rounded-full bg-indigo-100 text-indigo-800 font-extrabold px-2 py-0.5 text-[10px]">
+                <span className="rounded-full bg-indigo-100 text-indigo-800 font-extrabold px-2 py-0.5 text-xs">
                   Caso #{activeCase.id}
                 </span>
               ) : (
-                <span className="text-[10px] text-slate-400">Sin caso activo</span>
+                <span className="text-xs text-slate-400">Sin caso activo</span>
               )}
             </div>
 
             {activeCase ? (
               <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2 text-xs">
                 <p className="font-bold text-slate-900 truncate">{activeCase.reason}</p>
-                <div className="flex items-center justify-between text-[10px] text-slate-500">
+                <div className="flex items-center justify-between text-xs text-slate-500">
                   <span>Asignado: {activeCase.responsibleName}</span>
                   <span className="font-extrabold text-indigo-700 uppercase">{activeCase.status}</span>
                 </div>
@@ -533,7 +533,7 @@ export const StudentAttendancePopover: React.FC<StudentAttendancePopoverProps> =
               </div>
             ) : (
               <div className="flex items-center justify-between gap-2 rounded-xl bg-white p-3 border border-slate-100 text-xs">
-                <span className="text-slate-500 text-[11px]">
+                <span className="text-slate-500 text-xs">
                   {patternAnalysis.hasNegativePattern
                     ? "Califica para seguimiento preventivo institucional."
                     : "Asistencia al día sin compromisos abiertos."}

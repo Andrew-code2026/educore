@@ -1,15 +1,65 @@
 import type { Dataset } from "../types";
+import { gradeKey } from "../types";
 
 export type AssignmentAccess = "owner" | "read";
 export type AssignmentStatus = "available" | "preparing" | "closed";
 
-/** Identidad estable de una planilla asignada a un docente. */
+export interface AssignmentMetrics {
+  studentsCount: number;
+  evaluationsCount: number;
+  gradedCells: number;
+  totalCells: number;
+  pendingCells: number;
+  progressPct: number;
+  /** Promedio de las notas registradas (escala 0–5); null si aún no hay notas. */
+  average: number | null;
+}
+
+/** Identidad estable de una planilla asignada a un docente con métricas propias. */
 export interface GradebookAssignment {
   id: string;
   sourceDatasetKey: string;
+  courseId?: number;
+  subjectId?: number;
+  periodId?: number | null;
   dataset: Dataset;
   access: AssignmentAccess;
   status: AssignmentStatus;
+  metrics?: AssignmentMetrics;
+  lastActivityAt?: Date | null;
+  periodEndsAt?: Date | null;
+}
+
+export function computeDatasetMetrics(dataset: Dataset): AssignmentMetrics {
+  const studentsCount = dataset.students.length;
+  const evaluationsCount = dataset.evaluations.length;
+  const totalCells = studentsCount * evaluationsCount;
+
+  let gradedCells = 0;
+  let gradeSum = 0;
+  for (const student of dataset.students) {
+    for (const evaluation of dataset.evaluations) {
+      const value = dataset.grades[gradeKey(student.id, evaluation.id)];
+      if (value !== null && value !== undefined) {
+        gradedCells += 1;
+        gradeSum += value;
+      }
+    }
+  }
+
+  const boundedGraded = Math.min(totalCells, Math.max(0, gradedCells));
+  const pendingCells = Math.max(0, totalCells - boundedGraded);
+  const progressPct = totalCells > 0 ? Math.min(100, Math.max(0, Math.round((boundedGraded / totalCells) * 100))) : 0;
+
+  return {
+    studentsCount,
+    evaluationsCount,
+    gradedCells: boundedGraded,
+    totalCells,
+    pendingCells,
+    progressPct,
+    average: gradedCells > 0 ? Math.round((gradeSum / gradedCells) * 10) / 10 : null,
+  };
 }
 
 export function assignmentFromDataset(dataset: Dataset): GradebookAssignment {
@@ -19,6 +69,7 @@ export function assignmentFromDataset(dataset: Dataset): GradebookAssignment {
     dataset,
     access: "owner",
     status: "available",
+    metrics: computeDatasetMetrics(dataset),
   };
 }
 

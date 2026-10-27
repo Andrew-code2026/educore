@@ -224,7 +224,7 @@ export function GradeCellEditorPopoverContent({
             >
               {studentName}
             </h4>
-            <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
+            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
               <span
                 className="truncate font-medium text-slate-700 dark:text-slate-300 max-w-[110px]"
                 title={assessmentTitle}
@@ -232,7 +232,7 @@ export function GradeCellEditorPopoverContent({
                 {assessmentTitle}
               </span>
               <span>·</span>
-              <span className="shrink-0 rounded bg-[var(--edc-secondary)] px-1 py-0.2 text-[9px] font-bold text-[var(--edc-primary)]">
+              <span className="shrink-0 rounded bg-[var(--edc-secondary)] px-1 py-0.2 text-xs font-bold text-[var(--edc-primary)]">
                 {typeLabel} {assessmentWeight}%
               </span>
             </div>
@@ -288,7 +288,7 @@ export function GradeCellEditorPopoverContent({
         </div>
 
         {validationError && (
-          <p className="text-[10px] font-semibold text-rose-500 animate-in fade-in text-center">
+          <p className="text-xs font-semibold text-rose-500 animate-in fade-in text-center">
             {validationError}
           </p>
         )}
@@ -296,7 +296,7 @@ export function GradeCellEditorPopoverContent({
 
       {/* 3. SUGERIDAS: Botones Rápidos Adaptados a la Escala */}
       <div className="relative mb-2.5 space-y-1">
-        <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-slate-400">
+        <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400">
           <span>Notas rápidas</span>
           <span>Escala máx. {maxValue.toFixed(1)}</span>
         </div>
@@ -314,7 +314,7 @@ export function GradeCellEditorPopoverContent({
                   e.preventDefault();
                 }}
                 onClick={() => handleSuggestionClick(sug)}
-                className={`flex h-6.5 items-center justify-center rounded-lg border text-[11px] font-semibold transition-all cursor-pointer ${
+                className={`flex h-6.5 items-center justify-center rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
                   isSelected
                     ? "border-[var(--edc-primary)] bg-[var(--edc-secondary)] text-[var(--edc-primary)] font-bold shadow-xs scale-105"
                     : "border-slate-200/80 bg-slate-50/70 hover:bg-white text-slate-700 hover:text-[var(--edc-primary)] dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-200 hover:border-slate-300"
@@ -335,14 +335,14 @@ export function GradeCellEditorPopoverContent({
             type="button"
             tabIndex={-1}
             onClick={() => setShowCommentField(true)}
-            className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 hover:text-[var(--edc-primary)] transition cursor-pointer"
+            className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-[var(--edc-primary)] transition cursor-pointer"
           >
             <Plus className="h-3 w-3 text-slate-400" />
             <span>{comment ? "Editar observación" : "Comentario +"}</span>
           </button>
         ) : (
           <div className="space-y-1 animate-in fade-in">
-            <div className="flex items-center justify-between text-[10px] text-slate-500">
+            <div className="flex items-center justify-between text-xs text-slate-500">
               <span className="font-semibold uppercase tracking-wider">Observación pedagógica</span>
               <button
                 type="button"
@@ -350,7 +350,7 @@ export function GradeCellEditorPopoverContent({
                 onClick={() => {
                   if (!comment) setShowCommentField(false);
                 }}
-                className="text-[10px] text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="text-xs text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 Ocultar
               </button>
@@ -368,7 +368,7 @@ export function GradeCellEditorPopoverContent({
       {/* 5. ACCIONES Y GUÍA DE NAVEGACIÓN */}
       <div className="relative flex items-center justify-between border-t border-slate-100/90 pt-2.5 dark:border-slate-800">
         <div
-          className="flex items-center gap-1 text-[10px] text-slate-400"
+          className="flex items-center gap-1 text-xs text-slate-400"
           title="Presiona ENTER para guardar y avanzar a la siguiente fila"
         >
           <CornerDownLeft className="h-2.5 w-2.5" />

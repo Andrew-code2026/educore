@@ -495,7 +495,7 @@ export function GradeCenterTable({
               >
                 <div className="flex items-center justify-between gap-1">
                   <span className="truncate text-xs font-bold">Estudiante</span>
-                  <span className="rounded-full bg-slate-200/80 px-1.5 py-0.2 text-[9px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  <span className="rounded-full bg-slate-200/80 px-1.5 py-0.2 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     {rows.length}
                   </span>
                 </div>
@@ -541,14 +541,14 @@ export function GradeCenterTable({
                         {isCompact ? (
                           <div className="flex flex-col items-center w-full leading-tight">
                             <div className="flex items-center gap-0.5 justify-center leading-none">
-                              <span className="font-extrabold text-[11px] text-slate-800 dark:text-slate-100 group-hover:text-[var(--edc-primary)] transition-colors">
+                              <span className="font-extrabold text-xs text-slate-800 dark:text-slate-100 group-hover:text-[var(--edc-primary)] transition-colors">
                                 {assessmentCode}
                               </span>
-                              <span className="text-[10px] font-bold text-[var(--edc-primary)]">
+                              <span className="text-xs font-bold text-[var(--edc-primary)]">
                                 {assessment.weight}%
                               </span>
                             </div>
-                            <div className="mt-0.5 w-full text-center leading-[1.1] text-[9px] font-semibold text-slate-600 dark:text-slate-300">
+                            <div className="mt-0.5 w-full text-center leading-[1.1] text-xs font-semibold text-slate-600 dark:text-slate-300">
                               <span className="block truncate" title={assessment.title}>
                                 {titleParts.line1}
                               </span>
@@ -565,11 +565,11 @@ export function GradeCenterTable({
                               <span className="font-extrabold text-xs text-slate-800 dark:text-slate-100 group-hover:text-[var(--edc-primary)] transition-colors">
                                 {assessmentCode}
                               </span>
-                              <span className="text-[11px] font-bold text-[var(--edc-primary)]">
+                              <span className="text-xs font-bold text-[var(--edc-primary)]">
                                 {assessment.weight}%
                               </span>
                             </div>
-                            <div className="mt-0.5 w-full text-center leading-tight text-[11px] font-semibold text-slate-700 dark:text-slate-200">
+                            <div className="mt-0.5 w-full text-center leading-tight text-xs font-semibold text-slate-700 dark:text-slate-200">
                               <span className="block truncate" title={assessment.title}>
                                 {titleParts.line1}
                               </span>
@@ -579,7 +579,7 @@ export function GradeCenterTable({
                                 </span>
                               )}
                             </div>
-                            <span className="text-[9px] text-slate-400 font-normal truncate mt-0.5">
+                            <span className="text-xs text-slate-400 font-normal truncate mt-0.5">
                               {typeLabel}
                             </span>
                           </div>
@@ -605,7 +605,7 @@ export function GradeCenterTable({
                     {isCompact ? "Def." : "Definitiva"}
                   </span>
                   {!isCompact && (
-                    <span className="mt-0.5 text-[9px] font-normal normal-case text-slate-500 dark:text-slate-400">
+                    <span className="mt-0.5 text-xs font-normal normal-case text-slate-500 dark:text-slate-400">
                       Ponderada
                     </span>
                   )}
@@ -697,7 +697,7 @@ export function GradeCenterTable({
                     <div className="flex items-center gap-1.5">
                       <div
                         className={`flex shrink-0 items-center justify-center rounded bg-slate-100 text-slate-700 font-bold dark:bg-slate-800 dark:text-slate-300 ${
-                          isCompact ? "h-5 w-5 text-[9px]" : "h-7 w-7 text-[11px] rounded-lg"
+                          isCompact ? "h-5 w-5 text-xs" : "h-7 w-7 text-xs rounded-lg"
                         }`}
                       >
                         {sName
@@ -744,7 +744,7 @@ export function GradeCenterTable({
                           {/* Microindicadores contextuales según ViewMode */}
                           {viewMode === "PERFORMANCE" && trend && (
                             <span
-                              className={`inline-flex items-center text-[9px] font-bold px-0.5 rounded ${
+                              className={`inline-flex items-center text-xs font-bold px-0.5 rounded ${
                                 trend === "up"
                                   ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-950/50"
                                   : trend === "down"
@@ -764,19 +764,19 @@ export function GradeCenterTable({
                           )}
 
                           {viewMode === "RISK" && definitiva !== null && definitiva < 3.5 && (
-                            <span className="inline-flex items-center text-[8px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 rounded dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300">
+                            <span className="inline-flex items-center text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 rounded dark:border-rose-900 dark:bg-rose-950/50 dark:text-rose-300">
                               {isCompact ? "Riesgo" : "Requiere atención"}
                             </span>
                           )}
 
                           {viewMode === "PENDING" && pendingCountForStudent > 0 && (
-                            <span className="inline-flex items-center text-[8px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 rounded dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
+                            <span className="inline-flex items-center text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 rounded dark:border-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
                               {pendingCountForStudent}p
                             </span>
                           )}
                         </div>
                         {!isCompact && (
-                          <p className="truncate text-[10px] text-slate-400 font-normal mt-0.5">
+                          <p className="truncate text-xs text-slate-400 font-normal mt-0.5">
                             ID {studentId} · {courseName ?? "11-2"}
                           </p>
                         )}
@@ -935,7 +935,7 @@ export function GradeCenterTable({
                       {isCompact ? (
                         definitiva !== null ? (
                           <span
-                            className={`mt-1 inline-block px-1 py-0.2 rounded text-[8px] font-bold uppercase leading-none tracking-wider ${
+                            className={`mt-1 inline-block px-1 py-0.2 rounded text-xs font-bold uppercase leading-none tracking-wider ${
                               definitiva >= 4.7
                                 ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
                                 : definitiva >= 4.0
@@ -963,14 +963,14 @@ export function GradeCenterTable({
                               : "Bajo"}
                           </span>
                         ) : (
-                          <span className="mt-0.5 inline-block text-[9px] text-slate-400">—</span>
+                          <span className="mt-0.5 inline-block text-xs text-slate-400">—</span>
                         )
                       ) : (
                         <>
                           {definitiva !== null && (
                             <>
                               <span
-                                className={`mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-semibold leading-none ${
+                                className={`mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-xs font-semibold leading-none ${
                                   definitiva >= 4.7
                                     ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
                                     : definitiva >= 4.0
@@ -989,7 +989,7 @@ export function GradeCenterTable({
                                   : "Requiere atención"}
                               </span>
                               <span
-                                className={`mt-1 text-[9px] font-medium leading-none ${
+                                className={`mt-1 text-xs font-medium leading-none ${
                                   isAllGraded
                                     ? "text-emerald-600 dark:text-emerald-400"
                                     : "text-slate-400 dark:text-slate-500"
@@ -1007,13 +1007,13 @@ export function GradeCenterTable({
                             </>
                           )}
                           {definitiva === null && (
-                            <span className="mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-[9px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800">
+                            <span className="mt-0.5 inline-block rounded-md px-1.5 py-0.5 text-xs font-medium text-slate-400 bg-slate-100 dark:bg-slate-800">
                               Sin datos
                             </span>
                           )}
                           {projection.hasPending && projection.projectedDefinitiva !== null && (
                             <span
-                              className="mt-1 inline-flex items-center gap-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400"
+                              className="mt-1 inline-flex items-center gap-0.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400"
                               title={`Proyección estimada (${projection.pendingCount} pendiente/s con rendimiento constante): ${numberValue(projection.projectedDefinitiva)}`}
                             >
                               <Sparkles className="h-2.5 w-2.5" />

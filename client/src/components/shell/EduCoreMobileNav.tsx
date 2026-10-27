@@ -14,6 +14,7 @@ import {
   ROLE_LABELS,
 } from "./navigation";
 import { useShellContext } from "./ShellContext";
+import { NavIcon } from "./EduCoreSidebar";
 
 interface EduCoreMobileNavProps {
   role: EduRole;
@@ -25,14 +26,6 @@ interface EduCoreMobileNavProps {
   onLogout: () => void;
   notificationCount?: number;
 }
-
-const storageUrl = (value: string | null | undefined): string | undefined => {
-  if (!value) return undefined;
-  if (value.startsWith("data:") || value.startsWith("blob:") || value.startsWith("http://") || value.startsWith("https://")) {
-    return value;
-  }
-  return value.split("/").map(segment => encodeURIComponent(decodeURIComponent(segment))).join("/");
-};
 
 export function EduCoreMobileNav({
   role,
@@ -58,21 +51,15 @@ export function EduCoreMobileNav({
 
   // Determinar si la sección activa está en los items del bottom nav
   const isBottomActive = bottomItems.some(item => item.id === section);
+  const moreHasBadge = moreGroups.some(group => group.items.some(item => item.badge !== undefined));
 
   if (isFocusMode) return null;
 
   return (
     <>
       {/* 1. BARRA DE NAVEGACIÓN INFERIOR FLOTANTE (Móvil & Tablet < lg) */}
-      <nav
-        aria-label="Navegación móvil inferior"
-        className="edc-nav fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 items-center rounded-2xl border border-sidebar-border bg-sidebar/95 p-1.5 text-sidebar-foreground shadow-lg backdrop-blur-lg lg:hidden"
-        style={{
-          boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.08)",
-        }}
-      >
+      <nav aria-label="Navegación móvil inferior" className="edc-bottom-nav edc-chrome">
         {bottomItems.map(item => {
-          const Icon = item.icon;
           const isActive = section === item.id;
           return (
             <button
@@ -82,20 +69,15 @@ export function EduCoreMobileNav({
                 setSection(item.id);
                 setMobileMoreOpen(false);
               }}
-              aria-label={item.label}
-              className={`relative flex min-h-[50px] flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-semibold transition cursor-pointer ${
-                isActive
-                  ? "bg-sidebar-active text-sidebar-active-foreground font-bold shadow-2xs"
-                  : "text-sidebar-foreground/65 hover:text-sidebar-foreground"
-              }`}
+              aria-label={item.badge !== undefined ? `${item.label}, ${item.badge} sin leer` : item.label}
+              aria-current={isActive ? "page" : undefined}
+              className="edc-bottom-nav__item"
             >
-              <Icon className={`h-4 w-4 ${isActive ? "text-sidebar-active-foreground" : "text-sidebar-muted-foreground"}`} />
-              <span className="truncate max-w-[64px]">{item.label}</span>
-              {item.badge !== undefined && (
-                <span className="absolute right-2 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--edc-primary)] px-1 text-[9px] font-bold text-white">
-                  {item.badge}
-                </span>
-              )}
+              <span className="edc-bottom-nav__icon">
+                <NavIcon item={item} />
+                {item.badge !== undefined && <span aria-hidden="true" className="edc-bottom-nav__dot" />}
+              </span>
+              <span className="edc-bottom-nav__label">{item.label}</span>
             </button>
           );
         })}
@@ -105,14 +87,14 @@ export function EduCoreMobileNav({
           type="button"
           onClick={() => setMobileMoreOpen(true)}
           aria-label="Más opciones"
-          className={`flex min-h-[50px] flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-semibold transition cursor-pointer ${
-            !isBottomActive
-              ? "bg-sidebar-active text-sidebar-active-foreground font-bold shadow-2xs"
-              : "text-sidebar-foreground/65 hover:text-sidebar-foreground"
-          }`}
+          aria-current={!isBottomActive ? "page" : undefined}
+          className="edc-bottom-nav__item"
         >
-          <MoreHorizontal className="h-4 w-4" />
-          <span>Más</span>
+          <span className="edc-bottom-nav__icon">
+            <MoreHorizontal aria-hidden="true" />
+            {moreHasBadge && <span aria-hidden="true" className="edc-bottom-nav__dot" />}
+          </span>
+          <span className="edc-bottom-nav__label">Más</span>
         </button>
       </nav>
 
@@ -131,7 +113,7 @@ export function EduCoreMobileNav({
           <div className="mt-4 space-y-4">
             {moreGroups.map(group => (
               <div key={group.key} className="space-y-1.5">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
                   {group.label}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
@@ -163,7 +145,7 @@ export function EduCoreMobileNav({
 
             {/* Cambio rápido de rol demo */}
             <div className="pt-3 border-t border-sidebar-border">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
                 Cambiar vista demo
               </p>
               <div className="grid grid-cols-2 gap-2">
@@ -195,24 +177,14 @@ export function EduCoreMobileNav({
         <SheetContent side="left" className="edc-nav w-[280px] border-sidebar-border bg-sidebar p-5 text-sidebar-foreground">
           <SheetHeader className="text-left pb-4 border-b border-sidebar-border pr-8">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-active font-bold text-sidebar-active-foreground shadow-xs">
-                {school?.logoUrl ? (
-                  <img
-                    src={storageUrl(school.logoUrl)}
-                    alt="Escudo institucional"
-                    className="h-full w-full rounded-xl object-contain p-1"
-                  />
-                ) : (
-                  "E"
-                )}
+              <div className="edc-logo" aria-hidden="true">
+                <div className="edc-logo__glyph" />
               </div>
               <div>
-                <SheetTitle className="text-sm font-bold text-sidebar-foreground">
-                  EduCore
+                <SheetTitle className="text-[15px] font-bold tracking-[0.14em] text-sidebar-foreground">
+                  EDUCORE
                 </SheetTitle>
-                <p className="text-[10px] uppercase tracking-wider text-sidebar-muted-foreground">
-                  School OS
-                </p>
+                <p className="text-xs text-sidebar-muted-foreground">{schoolName}</p>
               </div>
             </div>
           </SheetHeader>
@@ -221,7 +193,7 @@ export function EduCoreMobileNav({
           <div className="mt-5 space-y-4 overflow-y-auto max-h-[calc(100vh-180px)] pr-1">
             {allGroups.map(group => (
               <div key={group.key} className="space-y-1">
-                <p className="px-2 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
+                <p className="px-2 text-xs font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
                   {group.label}
                 </p>
                 <div className="space-y-0.5">
@@ -249,7 +221,7 @@ export function EduCoreMobileNav({
                         />
                         <span className="truncate">{item.label}</span>
                         {item.badge !== undefined && (
-                          <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--edc-primary)] px-1 text-[9px] font-bold text-white">
+                          <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--edc-primary)] px-1 text-xs font-bold text-white">
                             {item.badge}
                           </span>
                         )}
@@ -267,7 +239,7 @@ export function EduCoreMobileNav({
               <p className="truncate text-xs font-bold text-sidebar-foreground">
                 {ROLE_LABELS[role]}
               </p>
-              <p className="truncate text-[10px] text-sidebar-muted-foreground">{schoolName}</p>
+              <p className="truncate text-xs text-sidebar-muted-foreground">{schoolName}</p>
             </div>
             <button
               type="button"

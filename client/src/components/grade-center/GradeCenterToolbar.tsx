@@ -261,7 +261,7 @@ export function GradeCenterToolbar({
                 />
                 <label
                   htmlFor="gc-autosave-toggle"
-                  className="text-[11px] font-medium text-slate-600 dark:text-slate-300 cursor-pointer select-none"
+                  className="text-xs font-medium text-slate-600 dark:text-slate-300 cursor-pointer select-none"
                 >
                   Auto-guardar
                 </label>
@@ -271,18 +271,18 @@ export function GradeCenterToolbar({
               {autoSaveEnabled ? (
                 <div className="flex items-center pl-1.5 border-l border-slate-200 dark:border-slate-700 min-w-[95px]">
                   {saveStatus === "saving" ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400">
                       <RefreshCw className="h-3 w-3 animate-spin" />
                       <span>Guardando...</span>
                     </span>
                   ) : saveStatus === "saved" ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                       <Check className="h-3 w-3" />
                       <span>Guardado</span>
                     </span>
                   ) : saveStatus === "error" ? (
                     <span
-                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400"
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 dark:text-rose-400"
                       title="Error al guardar notas automáticamente"
                     >
                       <AlertTriangle className="h-3 w-3" />
@@ -297,7 +297,7 @@ export function GradeCenterToolbar({
                       </button>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400">
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-400">
                       <Check className="h-3 w-3 text-slate-300 dark:text-slate-600" />
                       <span>Sincronizado</span>
                     </span>
@@ -372,7 +372,7 @@ export function GradeCenterToolbar({
                 <Filter className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
                 <span>Filtros</span>
                 {currentFilter !== "ALL" && (
-                  <span className="ml-1.5 rounded-full bg-[var(--edc-primary)] px-1.5 py-0.2 text-[9px] font-bold text-white">
+                  <span className="ml-1.5 rounded-full bg-[var(--edc-primary)] px-1.5 py-0.2 text-xs font-bold text-white">
                     1
                   </span>
                 )}
@@ -385,7 +385,7 @@ export function GradeCenterToolbar({
               className="w-64 p-2 rounded-2xl border border-slate-200/90 shadow-xl bg-white dark:border-slate-800 dark:bg-slate-900 text-xs"
             >
               <div className="px-2 py-1 border-b border-slate-100 dark:border-slate-800">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                   Filtrar estudiantes
                 </p>
               </div>
@@ -440,7 +440,7 @@ export function GradeCenterToolbar({
                 className="w-60 p-2 rounded-2xl border border-slate-200/90 shadow-xl bg-white dark:border-slate-800 dark:bg-slate-900 text-xs"
               >
                 <div className="px-2 py-1 border-b border-slate-100 dark:border-slate-800">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Modo de visualización
                   </p>
                 </div>
@@ -482,7 +482,7 @@ export function GradeCenterToolbar({
                               <Check className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
                             )}
                           </div>
-                          <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">{v.desc}</p>
+                          <p className="text-xs text-slate-400 mt-0.5 leading-snug">{v.desc}</p>
                         </div>
                       </button>
                     );

@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  LogOut,
-  PanelLeftClose,
-  ShieldCheck,
-  GraduationCap,
-} from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { EduRole, Section } from "./shell.types";
+import type { EduRole, NavItem, Section } from "./shell.types";
 import { getNavGroupsForRole, ROLE_LABELS } from "./navigation";
 import { useShellContext } from "./ShellContext";
 
@@ -20,14 +13,6 @@ interface EduCoreSidebarProps {
   notificationCount?: number;
   user?: any;
 }
-
-const storageUrl = (value: string | null | undefined): string | undefined => {
-  if (!value) return undefined;
-  if (value.startsWith("data:") || value.startsWith("blob:") || value.startsWith("http://") || value.startsWith("https://")) {
-    return value;
-  }
-  return value.split("/").map(segment => encodeURIComponent(decodeURIComponent(segment))).join("/");
-};
 
 const getRoleAvatarInitials = (role: EduRole, user?: any) => {
   if (role === "teacher" && user?.name) {
@@ -47,6 +32,98 @@ const getRoleAvatarInitials = (role: EduRole, user?: any) => {
   }
 };
 
+// Trazos de iconos del diseño (24×24, stroke). Las secciones sin trazo propio usan su icono lucide.
+const rect = (x: number, y: number, w: number, h: number, r: number) =>
+  ["M", x + r, y, "h", w - 2 * r, "a", r, r, 0, 0, 1, r, r, "v", h - 2 * r, "a", r, r, 0, 0, 1, -r, r, "h", -(w - 2 * r), "a", r, r, 0, 0, 1, -r, -r, "v", -(h - 2 * r), "a", r, r, 0, 0, 1, r, -r, "z"].join(" ");
+const CLIPBOARD = rect(8, 2, 8, 4, 1) + "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2";
+
+const NAV_ICON_PATHS: Partial<Record<Section, string>> = {
+  overview: rect(3, 3, 7, 7, 1.5) + rect(14, 3, 7, 7, 1.5) + rect(14, 14, 7, 7, 1.5) + rect(3, 14, 7, 7, 1.5),
+  grades: "M3 3v16a2 2 0 0 0 2 2h16M18 17V9M13 17V5M8 17v-3",
+  classroom: CLIPBOARD + "M12 11h4M12 16h4M8 11h.01M8 16h.01",
+  attendance: CLIPBOARD + "M9 14l2 2 4-4",
+  analytics: "M22 12h-4l-3 9L9 3l-3 9H2",
+  calendar: rect(3, 4, 18, 18, 2) + "M16 2v4M8 2v4M3 10h18",
+  reports: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M8 18v-2M12 18v-6M16 18v-4",
+  communications: "M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 1 1-5.8-1.6",
+};
+
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const SHORTCUT_LABEL = IS_MAC ? "⌘B" : "Ctrl B";
+const TIP_DELAY = 350;
+const TIP_WARM_WINDOW = 400;
+
+export function NavIcon({ item }: { item: NavItem }) {
+  const d = NAV_ICON_PATHS[item.id];
+  if (!d) {
+    const Icon = item.icon;
+    return <Icon className="h-[18px] w-[18px]" />;
+  }
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+      <path d={d} />
+    </svg>
+  );
+}
+
+interface TipState {
+  open: boolean;
+  label: string;
+  badge: string;
+  kbd: string;
+  x: number;
+  y: number;
+}
+
+// Tooltips: solo en el riel salvo data-tip-always; con retardo la primera vez e inmediatos mientras están "tibios".
+function useRailTooltip(collapsed: boolean) {
+  const [tip, setTip] = React.useState<TipState>({ open: false, label: "", badge: "", kbd: "", x: 0, y: 0 });
+  const timer = React.useRef<number>(0);
+  const closedAt = React.useRef(0);
+  const openRef = React.useRef(false);
+  openRef.current = tip.open;
+
+  const show = React.useCallback(
+    (el: HTMLElement, immediate: boolean) => {
+      if (!collapsed && el.dataset.tipAlways !== "true") return;
+      window.clearTimeout(timer.current);
+      const r = el.getBoundingClientRect();
+      const next: TipState = {
+        open: true,
+        label: el.dataset.tip || "",
+        badge: el.dataset.tipBadge || "",
+        kbd: el.dataset.tipKbd || "",
+        x: Math.round(r.right + 10),
+        y: Math.round(r.top + r.height / 2),
+      };
+      const warm = openRef.current || Date.now() - closedAt.current < TIP_WARM_WINDOW;
+      if (immediate || warm) setTip(next);
+      else timer.current = window.setTimeout(() => setTip(next), TIP_DELAY);
+    },
+    [collapsed]
+  );
+
+  const hide = React.useCallback((reset?: boolean) => {
+    window.clearTimeout(timer.current);
+    if (!openRef.current) return;
+    closedAt.current = reset ? 0 : Date.now();
+    setTip(prev => ({ ...prev, open: false }));
+  }, []);
+
+  React.useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  const handlers = {
+    onMouseEnter: (e: React.MouseEvent<HTMLElement>) => show(e.currentTarget, false),
+    onMouseLeave: () => hide(),
+    onFocus: (e: React.FocusEvent<HTMLElement>) => {
+      if (e.currentTarget.matches(":focus-visible")) show(e.currentTarget, true);
+    },
+    onBlur: () => hide(),
+  };
+
+  return { tip, hide, handlers };
+}
+
 export function EduCoreSidebar({
   role,
   section,
@@ -57,245 +134,202 @@ export function EduCoreSidebar({
   notificationCount = 0,
   user,
 }: EduCoreSidebarProps) {
-  const { sidebarCollapsed, toggleSidebar, isFocusMode } = useShellContext();
+  const { sidebarCollapsed, toggleSidebar } = useShellContext();
   const groups = getNavGroupsForRole(role, notificationCount);
+  const navRef = React.useRef<HTMLElement>(null);
+  const [indicator, setIndicator] = React.useState({ y: 0, visible: false, ready: false });
+  const { tip, hide: hideTip, handlers: tipHandlers } = useRailTooltip(sidebarCollapsed);
 
-  // Atajo de teclado (Ctrl+B / ⌘+B) para colapsar/expandir el sidebar
+  const handleToggle = React.useCallback(() => {
+    hideTip(true);
+    toggleSidebar();
+  }, [hideTip, toggleSidebar]);
+
+  // Atajo de teclado (Ctrl+B / ⌘+B) para plegar/desplegar el menú
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+      const target = e.target as HTMLElement | null;
+      const isTyping = !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "b" && !isTyping) {
         e.preventDefault();
-        toggleSidebar();
+        handleToggle();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleSidebar]);
+  }, [handleToggle]);
 
-  const logoBadge = (
-    <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-[0_7px_16px_rgba(37,99,235,0.25)]">
-      {school?.logoUrl ? (
-        <img
-          src={storageUrl(school.logoUrl)}
-          alt="Escudo institucional"
-          className="h-full w-full rounded-[13px] object-contain p-1"
-        />
-      ) : (
-        <GraduationCap className="h-[18px] w-[18px]" />
-      )}
-      <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-cyan-300 ring-2 ring-sidebar" />
-    </div>
-  );
+  // Indicador activo compartido: la primera colocación es instantánea, los cambios posteriores se animan.
+  React.useLayoutEffect(() => {
+    const el = navRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!el) {
+      setIndicator(prev => (prev.visible ? { ...prev, visible: false } : prev));
+      return;
+    }
+    setIndicator(prev => (prev.y === el.offsetTop && prev.visible ? prev : { ...prev, y: el.offsetTop, visible: true }));
+  }, [section, role, sidebarCollapsed]);
+
+  React.useEffect(() => {
+    if (!indicator.visible || indicator.ready) return;
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setIndicator(prev => ({ ...prev, ready: true })));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [indicator.visible, indicator.ready]);
+
+  const displayName = role === "teacher" ? (user?.name || "Juan Diego Loaiza") : role === "admin" ? "Rectoría / Admin" : ROLE_LABELS[role];
 
   return (
-    <aside
-      aria-label="Navegación principal"
-      className={`edc-nav fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground backdrop-blur-md transition-all duration-200 ease-out ${
-        isFocusMode ? "-translate-x-full pointer-events-none opacity-0" : "translate-x-0"
-      } lg:flex ${
-        sidebarCollapsed ? "w-[72px]" : "w-[250px]"
-      }`}
-      style={{
-        boxShadow: "1px 0 12px rgba(15, 23, 42, 0.03)",
-      }}
-    >
-      {/* Encabezado de Marca y Toggle */}
-      <div
-        className={`flex h-[62px] items-center border-b border-sidebar-border px-3 ${
-          sidebarCollapsed ? "justify-center" : "justify-between"
-        }`}
-      >
-        {sidebarCollapsed ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                aria-label="Expandir menú lateral"
-                className="cursor-pointer transition-transform hover:scale-105 active:scale-95"
-              >
-                {logoBadge}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right" sideOffset={12}>
-              <p className="font-semibold">Expandir menú (Ctrl+B)</p>
-              <p className="text-[10px] opacity-70">{schoolName}</p>
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <>
-            <div className="flex min-w-0 items-center gap-2.5">
-              {logoBadge}
-              <div className="min-w-0 transition-opacity duration-200">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[15px] font-extrabold tracking-[0.16em] text-sidebar-foreground">
-                    EDUCORE
-                  </span>
-                  <span className="rounded-md border border-blue-200 bg-blue-50 px-1.5 py-0 text-[8px] font-bold tracking-wider text-blue-700 dark:border-blue-400/30 dark:bg-blue-500/15 dark:text-blue-300">
-                    2.0
-                  </span>
-                </div>
-                <p className="truncate text-[10px] font-medium tracking-[0.01em] text-sidebar-muted-foreground">
-                  {schoolName}
-                </p>
-              </div>
-            </div>
-
-            {/* Botón de colapso / expansión */}
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              aria-label="Colapsar menú lateral"
-              title="Colapsar menú (Ctrl+B)"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sidebar-muted-foreground transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground cursor-pointer"
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* Lista de Navegación por Grupos Semánticos */}
-      <div className="flex-1 overflow-y-auto px-2 py-4 scrollbar-none">
-        <nav className="space-y-4">
-          {groups.map((group, groupIndex) => (
-            <div key={group.key} className="space-y-1">
-              {!sidebarCollapsed ? (
-                <p className="px-3 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-muted-foreground">
-                  {group.label}
-                </p>
-              ) : groupIndex > 0 ? (
-                <div className="my-2 border-t border-sidebar-border px-2" />
-              ) : null}
-
-              <div className="space-y-0.5 pt-0.5">
-                {group.items.map(item => {
-                  const Icon = item.icon;
-                  const isActive = section === item.id;
-
-                  const buttonContent = (
-                    <button
-                      type="button"
-                      onClick={() => setSection(item.id)}
-                      className={`group relative flex w-full items-center rounded-xl py-2.5 transition-all duration-150 cursor-pointer ${
-                        sidebarCollapsed
-                          ? "justify-center px-0"
-                          : "justify-start px-3 gap-3"
-                      } ${
-                        isActive
-                          ? "bg-sidebar-active font-semibold text-sidebar-active-foreground shadow-xs"
-                          : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                      }`}
-                      aria-current={isActive ? "page" : undefined}
-                    >
-                      {/* Indicador visual activo en borde izquierdo cuando está expandido */}
-                      {isActive && !sidebarCollapsed && (
-                        <span
-                          className="absolute left-1 h-5 w-1 rounded-full bg-sidebar-active-foreground"
-                          aria-hidden="true"
-                        />
-                      )}
-
-                      <Icon
-                        className={`h-[18px] w-[18px] shrink-0 transition-colors ${
-                          isActive
-                            ? "text-sidebar-active-foreground"
-                            : "text-sidebar-muted-foreground group-hover:text-sidebar-accent-foreground"
-                        }`}
-                      />
-
-                      {!sidebarCollapsed && (
-                        <>
-                          <span className="truncate text-sm font-medium">{item.label}</span>
-                          {item.badge !== undefined && (
-                            <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--edc-primary)] px-1.5 text-[10px] font-bold text-white">
-                              {item.badge}
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </button>
-                  );
-
-                  if (sidebarCollapsed) {
-                    return (
-                      <Tooltip key={item.id}>
-                        <TooltipTrigger asChild>{buttonContent}</TooltipTrigger>
-                        <TooltipContent side="right" sideOffset={12} className="font-medium">
-                          <div>
-                            <p className="font-semibold">{item.label}</p>
-                            <p className="text-[10px] opacity-70">{group.label}</p>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  }
-
-                  return <div key={item.id}>{buttonContent}</div>;
-                })}
-              </div>
-            </div>
-          ))}
-        </nav>
-      </div>
-
-      {/* Tarjeta de Seguridad (solo expandido) */}
-      {!sidebarCollapsed && (
-        <div className="mx-3 mb-2 rounded-xl border border-sidebar-border bg-sidebar-accent p-2.5">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-[11px] font-semibold text-sidebar-foreground">Aislamiento Seguro</span>
-          </div>
-          <p className="mt-0.5 text-[10px] leading-3.5 text-sidebar-muted-foreground truncate">
-            RBAC activo · {schoolName}
-          </p>
+    <aside className="edc-side edc-chrome" aria-label="Barra lateral" data-collapsed={sidebarCollapsed}>
+      <div className="edc-side__brand">
+        <div className="edc-logo" aria-hidden="true">
+          <div className="edc-logo__glyph" />
         </div>
-      )}
-
-      {/* Footer de Usuario */}
-      <div
-        className={`border-t border-sidebar-border p-2.5 ${
-          sidebarCollapsed ? "flex flex-col items-center gap-2" : "flex items-center gap-3"
-        }`}
-      >
-        {sidebarCollapsed ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex h-9 w-9 cursor-default items-center justify-center rounded-full bg-sidebar-active text-xs font-bold text-sidebar-active-foreground ring-1 ring-sidebar-border">
-                {getRoleAvatarInitials(role, user)}
-              </div>
-            </TooltipTrigger>
-            <TooltipContent side="right" sideOffset={12}>
-              <p className="font-semibold">{role === "teacher" ? (user?.name || "Juan Diego Loaiza") : ROLE_LABELS[role]}</p>
-              <p className="text-[10px] opacity-70">{schoolName}</p>
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-active text-xs font-bold text-sidebar-active-foreground ring-1 ring-sidebar-border">
-            {getRoleAvatarInitials(role, user)}
-          </div>
-        )}
-
-        {!sidebarCollapsed && (
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-bold text-sidebar-foreground">
-              {role === "teacher" ? (user?.name || "Juan Diego Loaiza") : role === "admin" ? "Rectoría / Admin" : ROLE_LABELS[role]}
-            </p>
-            <p className="truncate text-[10px] font-medium text-sidebar-muted-foreground">
-              {schoolName}
-            </p>
-          </div>
-        )}
-
+        <div className="edc-side__brand-text edc-fade">
+          <span className="edc-side__wordmark">EDUCORE</span>
+          <span className="edc-side__school">{schoolName}</span>
+        </div>
         <button
           type="button"
-          onClick={onLogout}
-          aria-label="Cerrar sesión"
-          title="Cerrar sesión"
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-muted-foreground transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-500/15 dark:hover:text-rose-400 cursor-pointer"
+          className="edc-icon-btn"
+          onClick={handleToggle}
+          aria-label="Plegar menú"
+          aria-controls="educore-nav"
+          aria-expanded="true"
+          data-tip="Plegar menú"
+          data-tip-kbd={SHORTCUT_LABEL}
+          data-tip-always="true"
+          {...tipHandlers}
         >
-          <LogOut className="h-4 w-4" />
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18" />
+            <path d="m16 15-3-3 3-3" />
+          </svg>
         </button>
+        <button
+          type="button"
+          className="edc-side__expand"
+          onClick={handleToggle}
+          aria-label="Desplegar menú"
+          aria-controls="educore-nav"
+          aria-expanded="false"
+          data-tip="Desplegar menú"
+          data-tip-kbd={SHORTCUT_LABEL}
+          {...tipHandlers}
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18" />
+            <path d="m14 9 3 3-3 3" />
+          </svg>
+        </button>
+      </div>
+
+      <nav id="educore-nav" ref={navRef} className="edc-nav-list" aria-label="Principal">
+        {indicator.visible && (
+          <div
+            aria-hidden="true"
+            className="edc-nav-indicator"
+            style={{
+              opacity: indicator.ready ? 1 : 0,
+              transform: `translateY(${indicator.y}px)`,
+              transition: indicator.ready ? "transform .32s cubic-bezier(.2,0,0,1), opacity .2s ease" : "none",
+            }}
+          />
+        )}
+        {groups.map(group => {
+          const headId = `nav-h-${group.key}`;
+          return (
+            <div key={group.key} role="group" aria-labelledby={headId} className="edc-nav-group">
+              <div className="edc-nav-group__head">
+                <span id={headId} className="edc-nav-group__label edc-fade">{group.label}</span>
+                <span aria-hidden="true" className="edc-nav-group__rule" />
+              </div>
+              {group.items.map(item => {
+                const isActive = section === item.id;
+                const hasBadge = item.badge !== undefined;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="edc-nav-item"
+                    onClick={() => {
+                      hideTip(true);
+                      setSection(item.id);
+                    }}
+                    aria-current={isActive ? "page" : undefined}
+                    aria-label={hasBadge ? `${item.label}, ${item.badge} sin leer` : item.label}
+                    data-tip={item.label}
+                    data-tip-badge={hasBadge ? String(item.badge) : ""}
+                    {...tipHandlers}
+                  >
+                    <span className="edc-nav-item__icon">
+                      <NavIcon item={item} />
+                      {hasBadge && <span aria-hidden="true" className="edc-nav-item__dot" />}
+                    </span>
+                    <span className="edc-nav-item__label edc-fade">{item.label}</span>
+                    {hasBadge && (
+                      <span aria-hidden="true" className="edc-nav-item__badge">{item.badge}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
+      </nav>
+
+      <div className="edc-side__footer">
+        <div className="edc-side__user">
+          <span
+            aria-hidden="true"
+            className="edc-side__avatar"
+            data-tip={displayName}
+            onMouseEnter={tipHandlers.onMouseEnter}
+            onMouseLeave={tipHandlers.onMouseLeave}
+          >
+            {getRoleAvatarInitials(role, user)}
+          </span>
+          <div className="edc-side__user-text edc-fade">
+            <span className="edc-side__user-name">{displayName}</span>
+            <span className="edc-side__user-sub">{schoolName}</span>
+          </div>
+          <button
+            type="button"
+            className="edc-icon-btn"
+            onClick={onLogout}
+            aria-label="Cerrar sesión"
+            data-tip="Cerrar sesión"
+            data-tip-always="true"
+            {...tipHandlers}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <path d="m16 17 5-5-5-5" />
+              <path d="M21 12H9" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div
+        aria-hidden="true"
+        className="edc-tip"
+        style={{
+          left: tip.x,
+          top: tip.y - 15,
+          opacity: tip.open ? 1 : 0,
+          transform: tip.open ? "translateX(0)" : "translateX(-4px)",
+        }}
+      >
+        <span>{tip.label}</span>
+        {tip.badge && <span className="edc-tip__badge">{tip.badge}</span>}
+        {tip.kbd && <kbd>{tip.kbd}</kbd>}
       </div>
     </aside>
   );

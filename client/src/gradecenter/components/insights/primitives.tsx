@@ -10,21 +10,10 @@ import {
   levelTint,
 } from "../../domain/scale";
 import { formatGrade } from "../../lib/format";
-import type { TrendInfo } from "../../domain/metrics";
 
 /* -------------------------------------------------------------------------- */
 /* Nivel                                                                      */
 /* -------------------------------------------------------------------------- */
-
-export function LevelDot({ level, className }: { level: LevelId | null; className?: string }) {
-  if (!level) return <span className={cn("size-2 rounded-full bg-white/20", className)} />;
-  return (
-    <span
-      className={cn("size-2 shrink-0 rounded-full", className)}
-      style={{ backgroundColor: LEVELS[level].color, boxShadow: `0 0 10px ${levelTint(level, 0.7)}` }}
-    />
-  );
-}
 
 export function LevelBadge({
   level,
@@ -42,7 +31,7 @@ export function LevelBadge({
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border font-medium whitespace-nowrap",
-        size === "xs" ? "px-1.5 py-px text-[10px]" : "px-2 py-0.5 text-[11px]",
+        size === "xs" ? "px-1.5 py-px text-xs" : "px-2 py-0.5 text-xs",
         className,
       )}
       style={
@@ -118,7 +107,7 @@ export function Sparkline({
 }) {
   const valid = points.map((value, index) => ({ index, value })).filter((p) => p.value != null);
   if (valid.length === 0) {
-    return <div className={cn("text-[10px] text-muted-foreground", className)}>Sin datos suficientes</div>;
+    return <div className={cn("text-xs text-muted-foreground", className)}>Sin datos suficientes</div>;
   }
 
   const stroke = color ?? LEVELS[levelFromScore(valid[valid.length - 1].value) ?? "basico"].color;
@@ -188,7 +177,7 @@ export function DistributionBars({
         const pct = total > 0 ? (count / total) * 100 : 0;
         return (
           <div key={level} className="flex items-center gap-2">
-            <span className={cn("shrink-0 text-muted-foreground", dense ? "w-3 text-[9px]" : "w-16 text-[10px]")}>
+            <span className={cn("shrink-0 text-muted-foreground", dense ? "w-3 text-xs" : "w-16 text-xs")}>
               {dense ? LEVELS[level].short.charAt(0) : LEVELS[level].label}
             </span>
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/6">
@@ -201,7 +190,7 @@ export function DistributionBars({
                 }}
               />
             </div>
-            <span className="gc-num w-9 shrink-0 text-right text-[10px] text-muted-foreground">
+            <span className="gc-num w-9 shrink-0 text-right text-xs text-muted-foreground">
               {count}
             </span>
           </div>
@@ -210,61 +199,6 @@ export function DistributionBars({
     </div>
   );
 }
-
-/** Barras verticales compactas para comparar evaluaciones. */
-export function MicroBars({
-  values,
-  className,
-  highlightIndex,
-}: {
-  values: (number | null)[];
-  className?: string;
-  highlightIndex?: number;
-}) {
-  return (
-    <div className={cn("flex h-8 items-end gap-[3px]", className)}>
-      {values.map((value, index) => {
-        const level = levelFromScore(value);
-        const height = value == null ? 6 : Math.max(8, ((value - MIN_GRADE) / (MAX_GRADE - MIN_GRADE)) * 100);
-        return (
-          <div
-            key={index}
-            className={cn(
-              "flex-1 rounded-t-[3px] transition-all duration-300",
-              index === highlightIndex && "ring-1 ring-white/40",
-            )}
-            style={{
-              height: `${height}%`,
-              background: level ? levelTint(level, index === highlightIndex ? 1 : 0.62) : "oklch(1 0 0 / 12%)",
-            }}
-            title={value == null ? "Pendiente" : formatGrade(value)}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Tendencia                                                                  */
-/* -------------------------------------------------------------------------- */
-
-export function TrendStrip({ trend, className }: { trend: TrendInfo; className?: string }) {
-  const tone =
-    trend.direction === "up" ? LEVELS.alto.color : trend.direction === "down" ? LEVELS.bajo.color : "var(--muted-foreground)";
-  const arrow = trend.direction === "up" ? "↗" : trend.direction === "down" ? "↘" : "→";
-
-  return (
-    <span className={cn("inline-flex items-center gap-1 text-[11px] font-medium", className)} style={{ color: tone }}>
-      <span className="text-[13px] leading-none">{arrow}</span>
-      {trend.label}
-    </span>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Métricas                                                                   */
-/* -------------------------------------------------------------------------- */
 
 export function MetricTile({
   label,
@@ -281,14 +215,14 @@ export function MetricTile({
 }) {
   return (
     <div className={cn("glass-soft rounded-xl px-3 py-2.5", className)}>
-      <div className="gc-label text-[9px]">{label}</div>
+      <div className="gc-label text-xs">{label}</div>
       <div
         className="gc-num mt-1 text-lg leading-none font-semibold"
         style={accent ? { color: accent } : undefined}
       >
         {value}
       </div>
-      {hint && <div className="mt-1 text-[10px] text-muted-foreground">{hint}</div>}
+      {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
     </div>
   );
 }
@@ -304,7 +238,7 @@ export function ScoreChip({
 }) {
   const level = levelFromScore(score);
   const sizes: Record<string, string> = {
-    xs: "text-[11px]",
+    xs: "text-xs",
     sm: "text-[13px]",
     md: "text-[15px]",
     lg: "text-2xl",

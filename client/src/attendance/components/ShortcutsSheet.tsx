@@ -1,5 +1,6 @@
-/** Hoja de referencia de atajos: la asistencia se toma sin soltar el teclado. */
+/** Hoja de ayuda: atajos de teclado y reglas de las señales de alerta. */
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ATTENTION_RULE_LABELS } from "../data/selectors";
 
 interface ShortcutsSheetProps {
   open: boolean;
@@ -41,7 +42,7 @@ export function ShortcutsSheet({ open, onOpenChange }: ShortcutsSheetProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="glass-strong max-w-[420px] rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="text-[15px]">Atajos del panel de asistencia</DialogTitle>
+          <DialogTitle className="text-[15px]">Atajos y ayuda</DialogTitle>
           <DialogDescription className="text-[12px]">
             Los cambios se aplican al instante y se guardan solos en segundo plano. Al registrar a un
             estudiante pendiente, el foco avanza al siguiente.
@@ -50,7 +51,7 @@ export function ShortcutsSheet({ open, onOpenChange }: ShortcutsSheetProps) {
         <div className="mt-1 space-y-3">
           {GROUPS.map(group => (
             <div key={group.title}>
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.13em] text-muted-foreground/80">
+              <p className="text-xs font-semibold uppercase tracking-[0.13em] text-muted-foreground/80">
                 {group.title}
               </p>
               <div className="mt-1.5 space-y-0.5">
@@ -72,6 +73,19 @@ export function ShortcutsSheet({ open, onOpenChange }: ShortcutsSheetProps) {
               </div>
             </div>
           ))}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.13em] text-muted-foreground/80">
+              Señales de alerta
+            </p>
+            <ul className="mt-1.5 space-y-1 px-1.5 text-[12px] text-foreground/90">
+              {ATTENTION_RULE_LABELS.map(label => (
+                <li key={label} className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-st-late" aria-hidden="true" />
+                  {label}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -62,7 +62,7 @@ export function UnsavedChangesDialog({
             <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
               Tienes {totalPending} cambio{totalPending === 1 ? "" : "s"} sin guardar en el libro de calificaciones:
             </p>
-            <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px]">
+            <div className="mt-1.5 flex flex-wrap gap-1.5 text-xs">
               {pendingGradesCount > 0 && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/90 dark:bg-slate-800/90 font-medium text-slate-800 dark:text-slate-200 border border-amber-200/50 dark:border-amber-900/30">
                   {pendingGradesCount} nota{pendingGradesCount === 1 ? "" : "s"}

@@ -1,5 +1,7 @@
 export * from "./shell.types";
 export * from "./navigation";
+export * from "./routes";
+export * from "./useSectionRoute";
 export * from "./ShellContext";
 export * from "./EduCoreSidebar";
 export * from "./EduCoreHeader";

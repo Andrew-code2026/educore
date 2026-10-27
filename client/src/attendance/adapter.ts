@@ -38,14 +38,6 @@ const COURSE_METADATA: Record<
     classDays: [1, 2, 3, 4, 5],
     color: "from-emerald-600 to-teal-600",
   },
-  "10-1": {
-    subject: "Biología",
-    room: "Laboratorio de Ciencias 204",
-    start: "12:00",
-    end: "13:00",
-    classDays: [1, 2, 3, 4, 5],
-    color: "from-cyan-600 to-blue-600",
-  },
 };
 
 /** Normaliza estados de asistencia de EduCore a los tokens de Manus */
@@ -94,6 +86,8 @@ export function adaptEduCoreDataToManus({
 }: AttendanceAdapterOptions): {
   courses: Course[];
   todayStatuses: SessionStatuses;
+  /** Estados de la jornada de hoy separados por curso (un estudiante puede estar en varios). */
+  todayStatusesByCourse: Record<string, SessionStatuses>;
   statusesByDate: Record<string, SessionStatuses>;
   eduStudentMap: Map<string, EduAttendanceStudent>;
   eduCourseMap: Map<string, EduAttendanceCourse>;
@@ -163,14 +157,12 @@ export function adaptEduCoreDataToManus({
       courseNames.push(c.name);
     }
   });
-  if (courseNames.length === 0) {
-    courseNames.push("11-2", "11-1", "10-1");
-  }
 
   const eduStudentMap = new Map<string, EduAttendanceStudent>();
   const eduCourseMap = new Map<string, EduAttendanceCourse>();
   const statusesByDate: Record<string, SessionStatuses> = {};
   const todayStatuses: SessionStatuses = {};
+  const todayStatusesByCourse: Record<string, SessionStatuses> = {};
 
   const courses: Course[] = courseNames.map((courseName, cIdx) => {
     const meta =
@@ -183,12 +175,10 @@ export function adaptEduCoreDataToManus({
         color: "from-slate-600 to-indigo-600",
       };
 
-    let matchedStudents = rawStudents.filter((s: any) => s.course === courseName);
-    if (!matchedStudents.length) {
-      if (courseName === "11-1") matchedStudents = rawStudents.slice(0, 18);
-      else if (courseName === "10-1") matchedStudents = rawStudents.slice(8, 24);
-      else matchedStudents = rawStudents;
-    }
+    const courseTodayStatuses: SessionStatuses = {};
+    todayStatusesByCourse[courseName] = courseTodayStatuses;
+
+    const matchedStudents = rawStudents.filter((s: any) => s.course === courseName);
 
     const students: Student[] = matchedStudents.map((s: any, sIdx: number) => {
       const studentIdStr = String(s.id);
@@ -209,6 +199,7 @@ export function adaptEduCoreDataToManus({
             history.push({ date: recordDate, status });
           } else {
             todayStatuses[studentIdStr] = status;
+            courseTodayStatuses[studentIdStr] = status;
           }
         }
       }
@@ -243,8 +234,9 @@ export function adaptEduCoreDataToManus({
         avatar: s.avatarUrl,
         avatarColor: s.avatarColor || (sIdx % 2 === 0 ? "#dbeafe" : "#fef3c7"),
         email: s.email,
-        guardianName: s.guardianName || "Familia " + lastName,
-        guardianPhone: s.guardianPhone || s.phone || "+57 301 555 0101",
+        // Sin datos reales se deja vacío: el expediente no debe mostrar contactos inventados.
+        guardianName: s.guardianName || undefined,
+        guardianPhone: s.guardianPhone || s.phone || undefined,
         guardianEmail: s.guardianEmail || s.email,
         attendanceRate: rate,
         absencesCount,
@@ -274,7 +266,7 @@ export function adaptEduCoreDataToManus({
       time: `${meta.start} – ${meta.end}`,
       color: meta.color,
       students: students.map((st) => eduStudentMap.get(st.id)!),
-      teacherName: snapshotData?.user?.name || "Juan Diego Loaiza",
+      teacherName: snapshotData?.user?.name || undefined,
     };
     eduCourseMap.set(courseName, eduCourse);
 
@@ -294,6 +286,7 @@ export function adaptEduCoreDataToManus({
   return {
     courses,
     todayStatuses,
+    todayStatusesByCourse,
     statusesByDate,
     eduStudentMap,
     eduCourseMap,

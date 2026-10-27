@@ -29,12 +29,12 @@ export const INITIAL_SYNC_STATE: SyncState = {
 };
 
 export const SYNC_LABEL: Record<SyncState["status"], string> = {
-  idle: "Todo al día",
-  pending: "Cambios pendientes",
-  saving: "Guardando en servidor…",
-  saved: "Guardado en servidor",
-  synced: "Sincronizado",
-  error: "Error de sincronización",
+  idle: "Guardado",
+  pending: "Guardando…",
+  saving: "Guardando…",
+  saved: "Guardado",
+  synced: "Guardado",
+  error: "No se pudo guardar",
 };
 
 export function describeSyncAge(lastSyncedAt: number | null, now: number): string {

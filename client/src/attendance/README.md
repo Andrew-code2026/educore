@@ -4,7 +4,7 @@ El módulo ofrece una experiencia docente de pase de lista con estética **Chron
 
 ## Experiencia
 
-La planilla combina Command Deck (curso, jornada y sincronización), Pulse Rail (avance y conteos) y Roster Field (lista densa de estudiantes). Mantiene las acciones P/A/T/E, navegación de teclado, filtros, búsqueda, atención docente, pila de deshacer de 24 acciones, autosave serializado, resumen individual con ficha personal/familiar y señales explicables, y modo **Enfocar asistencia** a pantalla completa.
+La planilla tiene tres superficies: **encabezado** (curso, horario, fecha, estado de la clase y guardado), **avance del día** (registrados, conteos P/A/T/E y la única acción masiva, "Marcar restantes presentes", que nunca sobrescribe registros ya hechos) y **planilla** (vistas Todos · Por registrar · Ausentes · Con alertas, búsqueda, deshacer, Enfocar y ayuda, sobre el roster). Cada fila muestra estudiante con su alerta principal, control P/A/T/E e historial (últimas 8 jornadas + % histórico). Mantiene navegación de teclado, pila de deshacer de 24 acciones, autosave serializado, resumen individual con ficha personal/familiar y señales explicables, y modo **Enfocar asistencia** a pantalla completa.
 
 El panel y el selector respetan el tema claro/oscuro y `prefers-reduced-motion`. El host puede apartar su navegación durante el modo de concentración mediante `onFocusModeChange`.
 
@@ -12,16 +12,15 @@ El panel y el selector respetan el tema claro/oscuro y `prefers-reduced-motion`.
 
 | Archivo / carpeta | Responsabilidad |
 | --- | --- |
-| `AttendanceCourseSelect.tsx` | Resumen, búsqueda y filtros locales Hoy/Próximos/Todos; agrupa la agenda por fecha y abre la planilla mediante un callback. |
+| `landing/` | Portada docente (diseño EduCore Docente): resumen del periodo, clases de hoy, justificaciones por revisar y próximas clases. `landing.ts` es el modelo de presentación puro, con pruebas. |
 | `AttendancePanel.tsx` | Orquestador del panel docente y su sesión local. |
-| `components/AttendanceHeader.tsx` | Command Deck: curso, fecha, cambio de día, clase, sincronización y regreso al selector. |
-| `components/DaySummaryRail.tsx` | Pulse Rail con avance y conteos semánticos. |
-| `components/AttendanceToolbar.tsx` | Búsqueda, acciones masivas, deshacer y ayuda de atajos. |
-| `components/AttendanceSheet.tsx` | Roster Field con encabezado sticky y estudiante congelado. |
+| `components/AttendanceHeader.tsx` | Encabezado: curso, horario, fecha, estado de la clase, sincronización y regreso al selector. |
+| `components/DayProgress.tsx` | Avance del día, conteos semánticos y acción "Marcar restantes presentes". |
+| `components/AttendanceToolbar.tsx` + `FilterChips.tsx` | Vistas del roster, búsqueda, deshacer, Enfocar y ayuda. |
+| `components/AttendanceSheet.tsx` | Roster con encabezado sticky y estructura ARIA de grilla. |
 | `components/StudentRow.tsx` + `StatusCell.tsx` | Registro por estudiante, estados P/A/T/E e historial visual. |
 | `components/StudentPopover.tsx` | Popover contextual Liquid Glass. |
 | `components/StudentExpediente.tsx` | Resumen docente individual; delega las vistas completas del host mediante callbacks. |
-| `components/AttentionRail.tsx` | Bandeja superpuesta de señales docentes. |
 | `components/SyncIndicator.tsx` | Estados de sincronización y reintento. |
 | `hooks/useAttendanceSession.ts` | Jornada por curso/fecha, deshacer y autosave serializado. |
 | `hooks/useAttendanceHotkeys.ts` | Atajos del pase de lista. |
@@ -35,13 +34,15 @@ El panel y el selector respetan el tema claro/oscuro y `prefers-reduced-motion`.
 Importa la API pública y adapta los datos existentes a `Course`, `Student`, `AttendanceRecord` y `SessionStatuses`:
 
 ```tsx
-import { AttendanceCourseSelect, AttendancePanel } from "@/features/attendance";
+import { AttendanceLanding, AttendancePanel } from "@/features/attendance";
 
-<AttendanceCourseSelect
+<AttendanceLanding
   courses={cursosDelDocente}
-  statuses={registrosDeLaJornada}
-  onSelectCourse={(courseId, date) => abrirPlanilla(courseId, date)}
-  onReviewExcuses={(courseId, date) => abrirRevisionExistente(courseId, date)}
+  statusesByCourse={registrosDeHoyPorCurso}
+  justifications={justificaciones}
+  periods={periodosAcademicos}
+  onOpenSession={(courseId, date, filter) => abrirPlanilla(courseId, date, filter)}
+  onReviewJustification={(courseId, id) => abrirRevisionExistente(courseId, id)}
 />;
 
 <AttendancePanel
@@ -65,14 +66,14 @@ El shell anfitrión debe mostrar **una única entrada global** para Asistencia. 
 
 ### Contratos y datos
 
-- `courses` y `statuses` son valores de entrada del host; la vista no hace consultas ni conserva fixtures.
-- La búsqueda filtra por nombre, grado, materia y salón; los filtros Hoy/Próximos/Todos y la agrupación de sesiones por fecha son estado de presentación local basado en `classDays` recibido. Una recurrencia aparece bajo su fecha siguiente, identificada como tal.
-- “Continuar asistencia” reutiliza la apertura existente y solo se muestra si `statuses` refleja una sesión parcialmente registrada. Las métricas de roster vacío no muestran tasas o alertas de cero y los mensajes de ausencia de justificaciones requieren una fuente real de conteos/estudiantes.
+- `courses`, `statusesByCourse` y `justifications` son valores de entrada del host; la portada no hace consultas ni conserva fixtures.
+- Una clase de hoy queda “Lista tomada” cuando no hay pendientes, “En curso” durante su horario y “Lista pendiente” si terminó sin lista completa; en esos dos últimos casos la acción principal es “Tomar lista”. Un reloj por minuto mantiene el estado al día.
+- “Con alertas” cuenta estudiantes con ausencias consecutivas o asistencia baja; la alerta de una clase abre la planilla con el filtro de atención docente (`initialFilter`).
+- “Asistencia del periodo” usa el histórico dentro de las fechas del periodo activo (si cubren hoy) más la jornada de hoy; sin registros muestra “Sin registros aún”.
 - `initialStatuses` representa la jornada abierta al montar el panel. El host adapta la respuesta de su API a `SessionStatuses` y la pasa con curso y fecha.
 - `onPersist` recibe la instantánea inmutable `{ courseId, date, statuses }`. Los guardados se serializan y una respuesta obsoleta no marca como guardada una edición posterior; un rechazo activa el estado de error y el reintento. Si se omite, los cambios permanecen en la sesión local y el indicador no afirma que se guardaron en EduCore.
 - `onOpenExpediente`, `onOpenHistory` y `onOpenFollowUp` delegan a las vistas ya existentes en EduCore Main. Sin callback, las acciones correspondientes quedan deshabilitadas o se muestra el resumen docente local.
 - `getStudentSummaryProfile` puede proporcionar `studentCode`, `guardianPhone` y `guardianEmail`. `Student.guardian` y los conteos de solicitudes/excusas deben proceder de EduCore; el módulo no inventa datos familiares ni crea flujos documentales.
-- El estado vacío del selector significa que no se recibieron cursos. No se interpreta como una agenda cargada sin clases y no presenta KPIs de cero.
 
 ## Sesión y reglas de negocio
 
@@ -91,6 +92,6 @@ Ajusta esos umbrales en un solo lugar si el modelo real de EduCore usa otros cri
 
 El módulo consume tokens CSS del host (`--surface-*`, `--hairline`, `--glass-bg`, `--brand*` y estados `--st-*`). Al integrarlo, copia o mapea los bloques de tema claro y `.dark` de `client/src/index.css` a la paleta real. Los tokens de acento se establecen con `data-accent` en `<html>`.
 
-Atajos: `P` presente · `A` ausente · `T` tardanza · `E` excusa · `Enter` presente · `Supr`/`⌫` pendiente · `↑`/`↓` estudiante anterior/siguiente · `Tab`/`⇧Tab` recorrer la planilla · `/` buscar · `?` ayuda · `Ctrl`/`⌘ + Z` deshacer. Los atajos no se disparan al escribir y quedan inactivos si hay un popover o diálogo abierto. Al registrar un pendiente, el foco avanza al siguiente estudiante.
+Atajos: `P` presente · `A` ausente · `T` tardanza · `E` excusa · `Enter` presente · `Supr`/`⌫` pendiente · `↑`/`↓` estudiante anterior/siguiente · `Tab`/`⇧Tab` recorrer la planilla · `/` buscar · `?` ayuda · `Ctrl`/`⌘ + Z` deshacer. Los atajos de registro actúan con el foco en la planilla; `/` y `?` funcionan en todo el panel. No se disparan al escribir, quedan inactivos si hay un popover, menú o diálogo abierto, y `Enter` sobre un botón conserva su acción nativa. Al registrar un pendiente, el foco avanza al siguiente estudiante.
 
 El popover usa una sola referencia `PopoverTrigger` por fila para conservar su anclaje y retorno de foco. `AttendanceSheet`, `StudentRow` y `StudentPopover` mantienen memorias por estudiante para reducir renders al cambiar rápidamente de fila. Respeta `prefers-reduced-motion` y conserva los tokens semánticos de asistencia.

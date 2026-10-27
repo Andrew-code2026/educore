@@ -43,13 +43,13 @@ export function StudentAgenda({
               {todayItems.length > 0 && (
                 <Badge
                   variant="secondary"
-                  className="rounded-full bg-blue-50 text-blue-700 border-blue-100 text-[10px] font-semibold py-0 px-2"
+                  className="rounded-full bg-blue-50 text-blue-700 border-blue-100 text-xs font-semibold py-0 px-2"
                 >
                   {todayItems.length} {todayItems.length === 1 ? "actividad" : "actividades"}
                 </Badge>
               )}
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-slate-500">
               Eventos institucionales y fechas clave para ti.
             </p>
           </div>
@@ -111,7 +111,7 @@ export function StudentAgenda({
               <div className="flex items-start sm:items-center gap-3 min-w-0">
                 {/* Time or date badge */}
                 <div className="w-20 shrink-0">
-                  <span className="inline-flex w-full items-center justify-center gap-1 rounded-md bg-white border border-slate-200 px-2 py-1 text-[11px] font-bold text-slate-700 shadow-2xs">
+                  <span className="inline-flex w-full items-center justify-center gap-1 rounded-md bg-white border border-slate-200 px-2 py-1 text-xs font-bold text-slate-700 shadow-2xs">
                     <Clock3 className="h-3 w-3 text-slate-400 shrink-0" />
                     <span className="truncate">{item.timeOrDate}</span>
                   </span>
@@ -125,7 +125,7 @@ export function StudentAgenda({
                     </p>
                     {item.tag && (
                       <span
-                        className={`shrink-0 rounded-full px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wider ${
+                        className={`shrink-0 rounded-full px-1.5 py-0.2 text-xs font-bold uppercase tracking-wider ${
                           item.tagTone === "warning"
                             ? "bg-amber-100 text-amber-800"
                             : item.tagTone === "danger"
@@ -141,7 +141,7 @@ export function StudentAgenda({
                   </div>
 
                   {item.subtitle && (
-                    <p className="truncate text-[11px] text-slate-500 mt-0.5">
+                    <p className="truncate text-xs text-slate-500 mt-0.5">
                       {item.subtitle}
                     </p>
                   )}
@@ -150,7 +150,7 @@ export function StudentAgenda({
 
               {/* Action indicator */}
               {item.onClick && (
-                <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 group-hover:text-blue-700 self-end sm:self-center shrink-0">
+                <div className="flex items-center gap-1 text-xs font-semibold text-slate-400 group-hover:text-blue-700 self-end sm:self-center shrink-0">
                   <span className="hidden lg:inline">Ver detalle</span>
                   <ChevronRight className="h-3.5 w-3.5" />
                 </div>
@@ -169,7 +169,7 @@ export function StudentAgenda({
               <p className="text-xs font-bold text-slate-800">
                 {activeTab === "today" ? "Todo al día por ahora" : "Sin eventos próximos"}
               </p>
-              <p className="text-[11px] text-slate-500 truncate">
+              <p className="text-xs text-slate-500 truncate">
                 {activeTab === "today"
                   ? "No tienes eventos institucionales ni actividades fijadas para hoy."
                   : "No hay eventos registrados en el calendario para los próximos días."}
@@ -180,7 +180,7 @@ export function StudentAgenda({
           <button
             type="button"
             onClick={onOpenCalendar}
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-blue-700 transition"
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-blue-700 transition"
           >
             <span>Consultar calendario</span>
             <ArrowRight className="h-3 w-3" />

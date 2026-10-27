@@ -4,11 +4,9 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 import {
   BookOpen,
-  History,
   Moon,
   PanelLeft,
   Sliders,
-  Sparkles,
   Sun,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,16 +14,15 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useShellContext } from "@/components/shell";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
-import { AttendanceCourseSelect } from "@/attendance/AttendanceCourseSelect";
+import { AttendanceLanding } from "@/attendance/landing/AttendanceLanding";
 import { AttendancePanel } from "@/attendance/AttendancePanel";
 import { adaptEduCoreDataToManus, getStudentSummaryFamilyProfile } from "@/attendance/adapter";
-import { AttendanceModule as AttendanceLegacyModule } from "@/components/attendance/AttendanceModule";
 import { StudentAttendancePortal } from "@/components/attendance/StudentAttendancePortal";
 import { StudentFullRecordModal } from "@/components/attendance/StudentFullRecordModal";
 import { JustificationModal } from "@/components/attendance/JustificationModal";
 import {
-  DEFAULT_ATTENDANCE_DAYS,
   type AttendanceCourse,
+  type AttendanceDay,
   type AttendanceFollowUpCaseItem,
   type AttendanceFollowUpNoteItem,
   type AttendanceJustificationItem,
@@ -33,7 +30,10 @@ import {
   type AttendanceStudent,
   type StudentRecordTab,
 } from "@/components/attendance/types";
-import type { Course, SessionStatuses, Student } from "@/attendance/types";
+import type { AttendanceFilter, SessionStatuses, Student } from "@/attendance/types";
+import { toISODate } from "@/attendance/data/dateUtils";
+import { resolveActivePeriod } from "@/attendance/landing/landing";
+import { formatDay } from "@/components/attendance/record/recordUi";
 
 export interface AttendancePageProps {
   data: any;
@@ -74,59 +74,7 @@ export function AttendancePage({
     );
   }
 
-  // 2. Mecanismo de reversibilidad instantánea hacia la versión previa de Asistencia
-  const [useLegacy, setUseLegacy] = React.useState<boolean>(() => {
-    try {
-      return localStorage.getItem("educore_attendance_version") === "legacy";
-    } catch {
-      return false;
-    }
-  });
-
-  const toggleLegacy = React.useCallback((legacy: boolean) => {
-    setUseLegacy(legacy);
-    try {
-      localStorage.setItem("educore_attendance_version", legacy ? "legacy" : "next");
-    } catch {}
-  }, []);
-
-  // Si el usuario eligió la versión legacy, renderizar el módulo previo con un acceso flotante para volver a Next
-  if (useLegacy) {
-    return (
-      <div className="relative">
-        <AttendanceLegacyModule
-          data={data}
-          role={role}
-          user={user}
-          selectedStudentId={selectedStudentId}
-          onSelectStudent={onSelectStudent}
-          onNavigate={onNavigate}
-        />
-        {/* Botón flotante para regresar a la experiencia Next */}
-        <div className="fixed bottom-4 right-4 z-50">
-          <button
-            type="button"
-            onClick={() => toggleLegacy(false)}
-            className="flex items-center gap-2 rounded-full border border-sky-300 bg-sky-600/95 px-3.5 py-2 text-xs font-semibold text-white shadow-xl backdrop-blur-md transition-all hover:scale-105 hover:bg-sky-500"
-            title="Volver a la nueva experiencia de Asistencia Next (Manus)"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Volver a Asistencia Next</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <AttendanceNextContainer
-      data={data}
-      role={role}
-      user={user}
-      onNavigate={onNavigate}
-      onSwitchToLegacy={() => toggleLegacy(true)}
-    />
-  );
+  return <AttendanceNextContainer data={data} role={role} user={user} onNavigate={onNavigate} />;
 }
 
 interface AttendanceNextContainerProps {
@@ -134,7 +82,6 @@ interface AttendanceNextContainerProps {
   role: "admin" | "teacher" | "student" | "guardian";
   user?: any;
   onNavigate?: (section: any) => void;
-  onSwitchToLegacy: () => void;
 }
 
 function AttendanceNextContainer({
@@ -142,10 +89,9 @@ function AttendanceNextContainer({
   role,
   user,
   onNavigate,
-  onSwitchToLegacy,
 }: AttendanceNextContainerProps) {
   const { theme, toggleTheme } = useTheme();
-  const { sidebarCollapsed, setSidebarCollapsed, isFocusMode, setIsFocusMode } = useShellContext();
+  const { sidebarCollapsed, setSidebarCollapsed, setIsFocusMode } = useShellContext();
 
   const [accent, setAccentState] = React.useState<AccentId>(() => {
     const stored = typeof localStorage !== "undefined" ? localStorage.getItem("edu-accent") : null;
@@ -161,15 +107,14 @@ function AttendanceNextContainer({
 
   const [viewMode, setViewMode] = React.useState<"course-select" | "panel">("course-select");
   const [selectedCourseId, setSelectedCourseId] = React.useState<string>("11-2");
-  const [selectedDate, setSelectedDate] = React.useState<string>(() => {
-    return new Date().toISOString().slice(0, 10);
-  });
+  const [selectedDate, setSelectedDate] = React.useState<string>(() => toISODate(new Date()));
+  const [selectedFilter, setSelectedFilter] = React.useState<AttendanceFilter>("all");
+  const [reviewJustificationId, setReviewJustificationId] = React.useState<number | null>(null);
 
   // Estado para el Expediente 360° Integral
   const [isRecordModalOpen, setIsRecordModalOpen] = React.useState(false);
   const [recordStudent, setRecordStudent] = React.useState<AttendanceStudent | null>(null);
   const [recordTab, setRecordTab] = React.useState<StudentRecordTab>("summary");
-  const [activeCaseId, setActiveCaseId] = React.useState<number | null>(null);
 
   // Estado para el modal administrativo de justificaciones
   const [isJustificationModalOpen, setIsJustificationModalOpen] = React.useState(false);
@@ -177,20 +122,25 @@ function AttendanceNextContainer({
   // Consultas de datos reales desde tRPC
   const utils = trpc.useUtils();
 
-  const attendanceQuery = trpc.attendance.list.useQuery(
-    { courseId: selectedCourseId },
-    { staleTime: 30_000, retry: 1 }
-  );
+  // Registros y justificaciones de todos los cursos: la portada resume la jornada completa
+  // y la planilla puede cambiar de curso sin perder el histórico real
+  const attendanceQuery = trpc.attendance.list.useQuery(undefined, { staleTime: 30_000, retry: 1 });
 
-  const justificationsQuery = trpc.justification.list.useQuery(
-    { courseId: selectedCourseId },
-    { enabled: Boolean(selectedCourseId), staleTime: 30_000, retry: 1 }
-  );
+  const justificationsQuery = trpc.justification.list.useQuery(undefined, { staleTime: 30_000, retry: 1 });
 
   const followUpQuery = trpc.followUp.list.useQuery(
     { courseId: selectedCourseId },
     { staleTime: 30_000, retry: 1 }
   );
+
+  // Caso abierto del estudiante cuyo expediente está abierto: sus notas se consultan aparte.
+  const activeCaseId = React.useMemo<number | null>(() => {
+    if (!recordStudent) return null;
+    const openCase = (followUpQuery.data ?? []).find(
+      (c: any) => String(c.studentId) === String(recordStudent.id) && c.status !== "resolved"
+    );
+    return openCase?.id ?? null;
+  }, [followUpQuery.data, recordStudent]);
 
   const activeCaseHistoryQuery = trpc.followUp.history.useQuery(
     { caseId: activeCaseId ?? 0 },
@@ -199,9 +149,8 @@ function AttendanceNextContainer({
 
   // Mutaciones para operaciones del Expediente y Justificaciones
   const openFollowUpMutation = trpc.followUp.open.useMutation({
-    onSuccess: async (created) => {
+    onSuccess: async () => {
       await utils.followUp.list.invalidate({ courseId: selectedCourseId });
-      if (created?.id) setActiveCaseId(created.id);
       toast.success("Caso de seguimiento abierto y asignado al docente.");
     },
     onError: (err) => {
@@ -334,7 +283,7 @@ function AttendanceNextContainer({
   );
 
   // Adaptación de datos de EduCore a modelos de Manus
-  const { courses, todayStatuses, eduStudentMap, eduCourseMap, recordsByStudentDate } = React.useMemo(() => {
+  const { courses, todayStatuses, todayStatusesByCourse, eduStudentMap, eduCourseMap, recordsByStudentDate } = React.useMemo(() => {
     return adaptEduCoreDataToManus({
       snapshotData: data,
       realAttendanceRecords: attendanceQuery.data,
@@ -349,14 +298,6 @@ function AttendanceNextContainer({
       setSelectedCourseId(courses[0].id);
     }
   }, [courses, selectedCourseId]);
-
-  // Conteo de justificaciones pendientes
-  const pendingJustificationsCount = React.useMemo(() => {
-    const list = justificationsQuery.data ?? [];
-    return list.filter((j: any) =>
-      ["submitted", "pending_physical_support", "in_review", "absence_registered"].includes(j.status)
-    ).length;
-  }, [justificationsQuery.data]);
 
   // Lista de justificaciones tipadas para el Expediente y Modal
   const justificationsList = React.useMemo<AttendanceJustificationItem[]>(() => {
@@ -395,6 +336,12 @@ function AttendanceNextContainer({
       studentCode: j.student?.studentCode,
     }));
   }, [justificationsQuery.data]);
+
+  // El Expediente y el modal de justificaciones trabajan sobre el curso seleccionado
+  const courseJustifications = React.useMemo(
+    () => justificationsList.filter((j) => j.courseId === selectedCourseId),
+    [justificationsList, selectedCourseId]
+  );
 
   // Lista de casos de seguimiento tipados
   const followUpCasesList = React.useMemo<AttendanceFollowUpCaseItem[]>(() => {
@@ -440,7 +387,7 @@ function AttendanceNextContainer({
       time: "07:00 – 08:30",
       color: "from-blue-600 to-indigo-600",
       students: [],
-      teacherName: user?.name || "Juan Diego Loaiza",
+      teacherName: user?.name || undefined,
     };
   }, [eduCourseMap, selectedCourseId, user?.name]);
 
@@ -462,7 +409,7 @@ function AttendanceNextContainer({
       const eduSt = eduStudentMap.get(student.id);
       if (eduSt) {
         setRecordStudent(eduSt);
-        setRecordTab("history");
+        setRecordTab("attendance");
         setIsRecordModalOpen(true);
       }
     },
@@ -516,6 +463,40 @@ function AttendanceNextContainer({
       return "pending";
     },
     [recordsByStudentDate, selectedDate, todayStatuses]
+  );
+
+  // Clases reales del curso (fechas con asistencia tomada) para el Expediente,
+  // con los registros de ese curso y no los de otros grupos del estudiante.
+  const recordCourse = React.useMemo(
+    () => courses.find((c) => c.id === currentEduCourse.id),
+    [courses, currentEduCourse.id]
+  );
+  const { recordDays, recordStatusByKey } = React.useMemo(() => {
+    const statusByKey = new Map<string, AttendanceStatus>();
+    const add = (studentId: string, date: string, raw: string) => {
+      if (raw === "pending") return;
+      statusByKey.set(`${studentId}:${date}`, (raw === "excuse" ? "excused" : raw) as AttendanceStatus);
+    };
+    for (const st of recordCourse?.students ?? []) {
+      for (const rec of st.history) add(st.id, rec.date, rec.status);
+    }
+    const todayIso = toISODate(new Date());
+    for (const [studentId, raw] of Object.entries(todayStatusesByCourse[currentEduCourse.id] ?? {})) {
+      add(studentId, todayIso, raw);
+    }
+    const dates = Array.from(new Set(Array.from(statusByKey.keys(), (key) => key.slice(key.indexOf(":") + 1)))).sort();
+    const days: AttendanceDay[] = dates.map((iso) => ({ iso, label: formatDay(iso) }));
+    return { recordDays: days, recordStatusByKey: statusByKey };
+  }, [recordCourse, todayStatusesByCourse, currentEduCourse.id]);
+
+  const getRecordStatus = React.useCallback(
+    (studentId: string, date: string): AttendanceStatus => recordStatusByKey.get(`${studentId}:${date}`) ?? "pending",
+    [recordStatusByKey]
+  );
+
+  const academicPeriodLabel = React.useMemo(
+    () => resolveActivePeriod(data?.academicPeriods)?.name,
+    [data?.academicPeriods]
   );
 
   const handleModalSetStatus = React.useCallback(
@@ -595,125 +576,61 @@ function AttendanceNextContainer({
     [submitJustificationMutation]
   );
 
+  const handleOpenSession = React.useCallback((courseId: string, date: string, filter: AttendanceFilter = "all") => {
+    setSelectedCourseId(courseId);
+    setSelectedDate(date);
+    setSelectedFilter(filter);
+    setViewMode("panel");
+  }, []);
+
+  const handleReviewJustification = React.useCallback((courseId: string, justificationId: number) => {
+    setSelectedCourseId(courseId);
+    setReviewJustificationId(justificationId);
+    setIsJustificationModalOpen(true);
+  }, []);
+
+  const isLanding = viewMode === "course-select";
+
   return (
-    <div className="attendance-workspace font-sans relative flex h-full flex-col overflow-hidden bg-background text-foreground">
-      {/* Aurora ambiental de fondo */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-48 left-[18%] h-[520px] w-[520px] rounded-full bg-brand/10 blur-[130px]" />
-        <div className="absolute -bottom-56 right-[-6%] h-[460px] w-[460px] rounded-full bg-st-excuse/10 blur-[140px]" />
-      </div>
+    <div
+      className="attendance-workspace font-sans relative flex h-full flex-col overflow-hidden bg-background text-foreground"
+      data-screen={isLanding ? "landing" : undefined}
+    >
+      {isLanding ? (
+        <AttendanceLanding
+          courses={courses}
+          statusesByCourse={todayStatusesByCourse}
+          justifications={justificationsList}
+          periods={data?.academicPeriods}
+          onOpenSession={handleOpenSession}
+          onReviewJustification={handleReviewJustification}
+        />
+      ) : (
+        <>
+          {/* Aurora ambiental de fondo */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute -top-48 left-[18%] h-[520px] w-[520px] rounded-full bg-brand/10 blur-[130px]" />
+            <div className="absolute -bottom-56 right-[-6%] h-[460px] w-[460px] rounded-full bg-st-excuse/10 blur-[140px]" />
+          </div>
 
-      {/* 1. Barra superior institucional original de Manus */}
-      <header className={cn("relative z-10 flex h-14 shrink-0 items-center justify-between border-b border-hairline px-4 sm:px-6 bg-[var(--surface-1)]/80 backdrop-blur-md", isFocusMode && "hidden")}>
-        <div className="flex min-w-0 items-center gap-2">
-          <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground/70" aria-hidden="true" />
-          <span className="text-[12px] text-muted-foreground">EduCore</span>
-          <span className="text-muted-foreground/40">/</span>
-          <span className="truncate text-[12.5px] font-medium text-foreground">Asistencia</span>
-        </div>
-
-        <div className="ml-auto flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => toggleTheme?.()}
-            aria-label="Cambiar tema"
-            className="grid h-8 w-8 place-items-center rounded-[10px] bg-foreground/[0.04] text-muted-foreground ring-1 ring-inset ring-hairline transition-colors duration-150 hover:bg-foreground/[0.08] hover:text-foreground"
-          >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="flex h-8 items-center gap-1.5 rounded-[10px] bg-foreground/[0.04] px-2.5 text-[11.5px] font-medium text-muted-foreground ring-1 ring-inset ring-hairline transition-colors duration-150 hover:bg-foreground/[0.08] hover:text-foreground"
-              >
-                <Sliders className="h-3.5 w-3.5" aria-hidden="true" />
-                Apariencia
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" sideOffset={8} className="glass-strong w-[286px] rounded-2xl p-3 z-50">
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
-                Preferencias visuales
-              </p>
-
-              <div className="mt-2.5 space-y-2.5">
-                <div>
-                  <p className="text-[11.5px] font-medium">Acento de marca</p>
-                  <p className="mb-1.5 text-[10.5px] text-muted-foreground">
-                    Para alinear con la paleta real de EduCore.
-                  </p>
-                  <div className="flex gap-1.5">
-                    {ACCENTS.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setAccentState(item.id)}
-                        aria-pressed={accent === item.id}
-                        className={cn(
-                          "flex flex-1 items-center gap-1.5 rounded-xl px-2 py-1.5 text-[11px] font-medium ring-1 ring-inset transition-colors",
-                          accent === item.id
-                            ? "bg-brand-soft text-brand ring-brand/30"
-                            : "bg-foreground/[0.03] text-muted-foreground ring-hairline hover:bg-foreground/[0.07]"
-                        )}
-                      >
-                        <span className="h-3.5 w-3.5 rounded-full" style={{ background: item.swatch }} />
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <label className="flex items-center justify-between gap-3 rounded-xl bg-foreground/[0.03] px-2.5 py-2 ring-1 ring-inset ring-hairline">
-                  <span className="min-w-0">
-                    <span className="block text-[11.5px] font-medium">Sidebar colapsada</span>
-                    <span className="block text-[10.5px] text-muted-foreground">250 px ↔ 72 px</span>
-                  </span>
-                  <Switch checked={sidebarCollapsed} onCheckedChange={setSidebarCollapsed} />
-                </label>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </header>
-
-      {/* 2. Área principal de contenido a pantalla completa */}
-      <main className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
-        {/* Vista Selección de Cursos (Academic Liquid Glass) */}
-        {viewMode === "course-select" && (
-          <AttendanceCourseSelect
-            courses={courses}
-            statuses={todayStatuses}
-            pendingExcusesCount={pendingJustificationsCount}
-            onSelectCourse={(courseId, date) => {
-              setSelectedCourseId(courseId);
-              setSelectedDate(date);
-              setViewMode("panel");
-            }}
-            onReviewExcuses={(courseId) => {
-              setSelectedCourseId(courseId);
-              setIsJustificationModalOpen(true);
-            }}
-          />
-        )}
-
-        {/* Vista Planilla de Asistencia (AttendancePanel de Manus) */}
-        {viewMode === "panel" && (
-          <AttendancePanel
-            courses={courses}
-            initialCourseId={selectedCourseId}
-            initialDate={selectedDate}
-            initialStatuses={todayStatuses}
-            onBackToCourses={() => setViewMode("course-select")}
-            onOpenExpediente={handleOpenExpediente}
-            onOpenHistory={handleOpenHistory}
-            onOpenFollowUp={handleOpenFollowUp}
-            getStudentSummaryProfile={(student) => getStudentSummaryFamilyProfile(student, eduStudentMap)}
-            onPersist={handlePersist}
-            onFocusModeChange={setIsFocusMode}
-          />
-        )}
-      </main>
+          <main className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden w-full px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
+            <AttendancePanel
+              courses={courses}
+              initialCourseId={selectedCourseId}
+              initialDate={selectedDate}
+              initialStatuses={todayStatuses}
+              initialFilter={selectedFilter}
+              onBackToCourses={() => setViewMode("course-select")}
+              onOpenExpediente={handleOpenExpediente}
+              onOpenHistory={handleOpenHistory}
+              onOpenFollowUp={handleOpenFollowUp}
+              getStudentSummaryProfile={(student) => getStudentSummaryFamilyProfile(student, eduStudentMap)}
+              onPersist={handlePersist}
+              onFocusModeChange={setIsFocusMode}
+            />
+          </main>
+        </>
+      )}
 
       {/* 3. Expediente Integral 360° (Modal con 5 pestañas, ficha técnica, visor de adjuntos e impresión dossier) */}
       {recordStudent && isRecordModalOpen && (
@@ -725,10 +642,8 @@ function AttendanceNextContainer({
           }}
           student={recordStudent}
           course={currentEduCourse}
-          days={DEFAULT_ATTENDANCE_DAYS}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
-          getStatus={getRecordCellStatus}
+          days={recordDays}
+          getStatus={getRecordStatus}
           onSetStatus={handleModalSetStatus}
           onNextStudent={handleNextStudent}
           onPrevStudent={handlePrevStudent}
@@ -752,13 +667,10 @@ function AttendanceNextContainer({
           }}
           caseHistoryNotes={activeCaseNotesList}
           isOpeningCase={openFollowUpMutation.isPending}
-          isUpdatingCase={updateFollowUpMutation.isPending}
           isAddingNote={addNoteMutation.isPending}
-          justifications={justificationsList}
-          onRecordPhysicalReceipt={handleRecordPhysicalReceipt}
-          onEscalateJustification={handleEscalateJustification}
+          justifications={courseJustifications}
           onResolveJustification={handleResolveJustification}
-          onNavigateToGradeCenter={(cId) => onNavigate?.("grades")}
+          academicPeriodLabel={academicPeriodLabel}
           schoolLogoUrl={data?.school?.logoUrl}
           schoolName={data?.school?.name}
         />
@@ -767,31 +679,21 @@ function AttendanceNextContainer({
       {/* 4. Modal Administrativo de Excusas y Justificaciones */}
       <JustificationModal
         isOpen={isJustificationModalOpen}
-        onClose={() => setIsJustificationModalOpen(false)}
+        onClose={() => {
+          setIsJustificationModalOpen(false);
+          setReviewJustificationId(null);
+        }}
         courseLabel={currentEduCourse.label}
         students={currentEduCourse.students}
-        justifications={justificationsList}
+        justifications={courseJustifications}
+        selectedJustificationId={reviewJustificationId}
+        onSelectJustificationId={setReviewJustificationId}
         getStatus={getRecordCellStatus}
         onRecordPhysicalReceipt={handleRecordPhysicalReceipt}
         onEscalateToCoordination={handleEscalateJustification}
         onResolveJustification={handleResolveJustification}
         onSubmitJustification={handleSubmitJustification}
       />
-
-      {/* 5. Botón flotante para alternar a la versión anterior (Contingencia sin riesgo) */}
-      {!isFocusMode && (
-        <div className="fixed bottom-4 right-4 z-40">
-          <button
-            type="button"
-            onClick={onSwitchToLegacy}
-            className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/90 px-3.5 py-1.5 text-[11px] font-medium text-slate-600 shadow-md backdrop-blur-md transition-all hover:border-slate-300 hover:bg-white hover:text-slate-900 hover:shadow-lg dark:border-white/10 dark:bg-slate-900/90 dark:text-slate-300 dark:hover:bg-slate-900"
-            title="Cambiar a la versión anterior de Asistencia"
-          >
-            <History className="h-3.5 w-3.5 text-slate-400" />
-            <span>Versión anterior</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

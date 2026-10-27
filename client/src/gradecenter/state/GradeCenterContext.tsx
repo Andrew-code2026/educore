@@ -13,8 +13,8 @@ import { createEmptyDataset } from "../data/emptyDataset";
 import type { GradebookAssignment } from "../domain/assignments";
 import { buildAnalytics, type Analytics, type StudentMetrics } from "../domain/metrics";
 import { EMPTY_FILTERS, filterStudents, sortStudents, visibleEvaluations } from "../domain/selectors";
-import { clamp, roundGrade } from "../data/seed";
-import { normalizeGrade } from "../domain/grading";
+import { clamp } from "../data/seed";
+import { normalizeGrade, parseGradeInput } from "../domain/grading";
 import {
   gradeKey,
   type Dba,
@@ -23,7 +23,6 @@ import {
   type Evaluation,
   type EvaluationStatus,
   type EvaluationTypeId,
-  type GradeMap,
   type GradeValue,
   type Preferences,
   type SortSpec,
@@ -121,10 +120,9 @@ export type Action =
   | { type: "showAllEvaluations" }
   | { type: "sort"; sort: SortSpec }
   | { type: "filters"; filters: Filters }
+  | { type: "filters/patch"; patch: Partial<Filters> }
   | { type: "focus"; focusMode: boolean }
   | { type: "quickEdit"; quickEdit: boolean }
-  | { type: "analysis"; open: boolean }
-  | { type: "showCodes"; show: boolean }
   | { type: "resetPreferences" }
   | { type: "activeCell"; cell: CellRef }
   | { type: "editing"; editing: boolean }
@@ -260,6 +258,9 @@ export function gradeCenterReducer(state: State, action: Action): State {
     case "filters":
       return { ...state, preferences: { ...state.preferences, filters: action.filters }, selectedRows: [], selectedCells: [], selectionAnchor: null };
 
+    case "filters/patch":
+      return { ...state, preferences: { ...state.preferences, filters: { ...state.preferences.filters, ...action.patch } }, selectedRows: [], selectedCells: [], selectionAnchor: null };
+
     case "focus":
       return {
         ...state,
@@ -271,11 +272,7 @@ export function gradeCenterReducer(state: State, action: Action): State {
     case "quickEdit":
       return { ...state, preferences: { ...state.preferences, quickEdit: action.quickEdit } };
 
-    case "analysis":
-      return { ...state, preferences: { ...state.preferences, analysisOpen: action.open } };
 
-    case "showCodes":
-      return { ...state, preferences: { ...state.preferences, showCodes: action.show } };
 
     case "resetPreferences": {
       const preferences = resetPreferences(state.preferences);
@@ -666,7 +663,6 @@ export function gradeCenterReducer(state: State, action: Action): State {
 export interface GradeCenterContextValue {
   dataset: Dataset;
   confirmedDataset: Dataset;
-  draftChanges: Record<string, DraftChange>;
   preferences: Preferences;
   sync: SyncState;
   analytics: Analytics;
@@ -687,10 +683,8 @@ export interface GradeCenterContextValue {
   selectedCells: string[];
   selectionAnchor: CellRef | null;
   pastePreview: PastePreview | null;
-  gradeAt: (studentId: string, evaluationId: string) => GradeValue;
   commentAt: (studentId: string, evaluationId: string) => string;
   weightIntegrity: { used: number; remaining: number; status: "valid" | "incomplete" | "exceeded" };
-  isCellSelected: (row: number, col: number, studentId: string, evaluationId: string) => boolean;
   selectAllVisible: () => void;
   toggleRowSelection: (studentId: string) => void;
   selectCell: (cell: CellRef, studentId: string, evaluationId: string, options?: { additive?: boolean; range?: boolean }) => void;
@@ -704,8 +698,6 @@ export interface GradeCenterContextValue {
   clearSelectedGrades: () => void;
   undo: () => void;
   redo: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
   columnWidth: (evaluationId: string) => number;
   setView: (view: ViewId) => void;
   setDensity: (density: Density) => void;
@@ -716,15 +708,14 @@ export interface GradeCenterContextValue {
   showAllEvaluations: () => void;
   setSort: (sort: SortSpec) => void;
   setFilters: (filters: Filters) => void;
+  /** Combina cambios sobre los filtros vigentes sin depender de una copia obsoleta. */
+  patchFilters: (patch: Partial<Filters>) => void;
   setFocusMode: (value: boolean) => void;
   setQuickEdit: (value: boolean) => void;
-  setAnalysisOpen: (value: boolean) => void;
-  setShowCodes: (value: boolean) => void;
   resetAllPreferences: () => void;
   setActiveCell: (cell: CellRef) => void;
   setEditing: (value: boolean) => void;
   focusCell: (row: number, col: number) => void;
-  moveCell: (deltaRow: number, deltaCol: number) => void;
   selectStudent: (studentId: string | null) => void;
   selectEvaluation: (evaluationId: string | null) => void;
   createEvaluation: (input: { name: string; type: EvaluationTypeId; date?: string; weight: number; description?: string; status: EvaluationStatus; dbaIds?: string[] }) => Promise<{ ok: boolean; error?: string; evaluationId?: string }>;
@@ -740,7 +731,55 @@ export interface GradeCenterContextValue {
   setDbaList: (dba: Dba[]) => void;
 }
 
-const GradeCenterContext = createContext<GradeCenterContextValue | null>(null);
+/** Estado que cambia con cada movimiento del teclado: vive en su propio contexto. */
+type GridKeys = "activeCell" | "editing" | "pulse" | "selectedCells" | "selectionAnchor";
+export type GradeCenterGridValue = Pick<GradeCenterContextValue, GridKeys>;
+export type GradeCenterCoreValue = Omit<GradeCenterContextValue, GridKeys>;
+
+const GradeCenterContext = createContext<GradeCenterCoreValue | null>(null);
+const GradeCenterGridContext = createContext<GradeCenterGridValue | null>(null);
+
+/**
+ * Acciones con identidad estable. Las celdas de la matriz consumen este
+ * contexto en lugar del estado completo: así moverse por la planilla solo
+ * vuelve a pintar las celdas que cambian, no las cientos que no.
+ */
+const ACTION_KEYS = [
+  "commentAt",
+  "selectAllVisible",
+  "toggleRowSelection",
+  "selectCell",
+  "clearSelection",
+  "copySelection",
+  "readPaste",
+  "undo",
+  "redo",
+  "previewPasteText",
+  "bulkGrade",
+  "clearSelectedGrades",
+  "resizeColumn",
+  "resizeStudentColumn",
+  "resizeDefinitivaColumn",
+  "setView",
+  "setFilters",
+  "patchFilters",
+  "setFocusMode",
+  "setActiveCell",
+  "setEditing",
+  "focusCell",
+  "selectStudent",
+  "selectEvaluation",
+  "createEvaluation",
+  "updateEvaluation",
+  "removeEvaluation",
+  "commitGrade",
+  "clearGrade",
+  "jumpToStudent",
+] as const satisfies readonly (keyof GradeCenterContextValue)[];
+
+export type GradeCenterActions = Pick<GradeCenterContextValue, (typeof ACTION_KEYS)[number]>;
+
+const GradeCenterActionsContext = createContext<GradeCenterActions | null>(null);
 
 export function GradeCenterProvider({
   children,
@@ -781,6 +820,11 @@ export function GradeCenterProvider({
   const readOnlyReasonRef = useRef(readOnlyReason);
   readOnlyReasonRef.current = readOnlyReason;
 
+  // Lectura del estado más reciente sin convertirlo en dependencia: así las
+  // acciones no cambian de identidad cada vez que el docente mueve la celda activa.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   const undoStack = useRef<Dataset[]>([]);
   const redoStack = useRef<Dataset[]>([]);
   datasetRef.current = state.dataset;
@@ -817,17 +861,24 @@ export function GradeCenterProvider({
     [state.dataset, analytics, state.preferences.filters, state.preferences.sort],
   );
 
+  const { hiddenEvaluations, columnWidths, density } = state.preferences;
   const evaluations = useMemo(
-    () => visibleEvaluations(state.preferences, state.dataset),
-    [state.preferences, state.dataset],
+    () => visibleEvaluations({ hiddenEvaluations }, state.dataset),
+    [hiddenEvaluations, state.dataset.evaluations],
+  );
+  const columnWidth = useCallback(
+    (evaluationId: string) => columnWidthOf({ columnWidths, density }, evaluationId),
+    [columnWidths, density],
   );
 
   /* ------------------------------------------------------------------ */
   /* Preferencias persistentes                                          */
   /* ------------------------------------------------------------------ */
 
+  // Se agrupa la escritura: redimensionar una columna dispara decenas de cambios por segundo.
   useEffect(() => {
-    savePreferences(state.preferences);
+    const id = window.setTimeout(() => savePreferences(state.preferences), 300);
+    return () => window.clearTimeout(id);
   }, [state.preferences]);
 
   /* ------------------------------------------------------------------ */
@@ -1040,14 +1091,6 @@ export function GradeCenterProvider({
     [students.length, evaluations.length],
   );
 
-  const moveCell = useCallback(
-    (deltaRow: number, deltaCol: number) => {
-      focusCell(state.activeCell.row + deltaRow, state.activeCell.col + deltaCol);
-      dispatch({ type: "editing", editing: false });
-    },
-    [focusCell, state.activeCell.row, state.activeCell.col],
-  );
-
   const jumpToCell = useCallback(
     (studentId: string, evaluationId: string) => {
       const row = students.findIndex((item) => item.student.id === studentId);
@@ -1087,7 +1130,7 @@ export function GradeCenterProvider({
       dispatch({ type: "selectStudent", studentId });
       const row = students.findIndex((item) => item.student.id === studentId);
       if (row >= 0) {
-        focusCell(row, state.activeCell.col);
+        focusCell(row, stateRef.current.activeCell.col);
         return;
       }
       const alphabetical = [...state.dataset.students].sort((a, b) =>
@@ -1101,7 +1144,7 @@ export function GradeCenterProvider({
       dispatch({ type: "sort", sort: { key: "name", dir: "asc" } });
       dispatch({ type: "activeCell", cell: { row: fallbackRow, col: 0 } });
     },
-    [students, focusCell, state.activeCell.col, state.dataset],
+    [students, focusCell, state.dataset],
   );
 
   const selectAllVisible = useCallback(() => {
@@ -1122,12 +1165,13 @@ export function GradeCenterProvider({
   const toggleRowSelection = useCallback((studentId: string) => {
     const row = students.findIndex((item) => item.student.id === studentId);
     dispatch({ type: "selection/toggle-row", id: studentId, evaluationIds: evaluations.map((evaluation) => evaluation.id) });
-    if (row >= 0) dispatch({ type: "activeCell", cell: { row, col: state.activeCell.col } });
-  }, [students, evaluations, state.activeCell.col]);
+    if (row >= 0) dispatch({ type: "activeCell", cell: { row, col: stateRef.current.activeCell.col } });
+  }, [students, evaluations]);
 
   const selectCell = useCallback((cell: CellRef, studentId: string, evaluationId: string, options?: { additive?: boolean; range?: boolean }) => {
     const key = gradeKey(studentId, evaluationId);
-    const from = options?.range && state.selectionAnchor ? state.selectionAnchor : undefined;
+    const anchor = stateRef.current.selectionAnchor;
+    const from = options?.range && anchor ? anchor : undefined;
     const rangeKeys = from
       ? students.slice(Math.min(from.row, cell.row), Math.max(from.row, cell.row) + 1).flatMap((item) =>
           evaluations.slice(Math.min(from.col, cell.col), Math.max(from.col, cell.col) + 1).map((evaluation) => gradeKey(item.student.id, evaluation.id)),
@@ -1135,12 +1179,13 @@ export function GradeCenterProvider({
       : undefined;
     dispatch({ type: "selection/cell", key, cell, additive: options?.additive, rangeKeys });
     dispatch({ type: "activeCell", cell });
-  }, [evaluations, state.selectionAnchor, students]);
+  }, [evaluations, students]);
 
   const clearSelection = useCallback(() => dispatch({ type: "selection/clear" }), []);
 
   const copySelection = useCallback(async () => {
-    const cells = state.selectedCells.length ? state.selectedCells : [gradeKey(students[state.activeCell.row]?.student.id ?? "", evaluations[state.activeCell.col]?.id ?? "")];
+    const { selectedCells, activeCell } = stateRef.current;
+    const cells = selectedCells.length ? selectedCells : [gradeKey(students[activeCell.row]?.student.id ?? "", evaluations[activeCell.col]?.id ?? "")];
     const coordinates = cells.map((key) => {
       const [studentId, evaluationId] = key.split("::");
       return { key, row: students.findIndex((item) => item.student.id === studentId), col: evaluations.findIndex((item) => item.id === evaluationId) };
@@ -1166,7 +1211,7 @@ export function GradeCenterProvider({
         // El navegador puede bloquear el permiso; la edición de la matriz no debe romperse.
       }
     }
-  }, [state.selectedCells, state.activeCell, state.dataset.grades, students, evaluations]);
+  }, [state.dataset.grades, students, evaluations]);
 
   const previewPasteText = useCallback((sourceText: string) => {
     const lines = sourceText.split(/\r?\n/);
@@ -1174,8 +1219,8 @@ export function GradeCenterProvider({
     const hasTabs = lines.some((line) => line.includes("\t"));
     const commaColumns = !hasTabs && lines.some((line) => line.split(",").length > 2 || !/^\s*-?\d+(?:[.,]\d+)?\s*$/.test(line));
     const rows = lines.map((line) => hasTabs ? line.split("\t") : commaColumns ? line.split(",") : [line]);
-    if (rows.length) dispatch({ type: "paste/preview", preview: { rows, target: state.activeCell, sourceText } });
-  }, [state.activeCell]);
+    if (rows.length) dispatch({ type: "paste/preview", preview: { rows, target: stateRef.current.activeCell, sourceText } });
+  }, []);
 
   const readPaste = useCallback(async () => {
     try {
@@ -1196,10 +1241,9 @@ export function GradeCenterProvider({
       const student = students[preview.target.row + r]?.student;
       const evaluation = evaluations[preview.target.col + c];
       if (!student || !evaluation) return;
-      const normalized = raw.trim().replace(",", ".");
-      const value = normalized === "" ? null : Number(normalized);
-      if (value == null || (Number.isFinite(value) && value >= 0 && value <= 5)) {
-        updates.push({ studentId: student.id, evaluationId: evaluation.id, value: value == null ? null : normalizeGrade(value) });
+      const parsed = parseGradeInput(raw);
+      if (parsed.ok) {
+        updates.push({ studentId: student.id, evaluationId: evaluation.id, value: parsed.value });
       } else {
         invalidCells.push(`fila ${r + 1}, columna ${c + 1}`);
       }
@@ -1218,13 +1262,14 @@ export function GradeCenterProvider({
       toast.info(readOnlyReasonRef.current || "Modo lectura: La modificación de calificaciones no está permitida en este contexto.");
       return;
     }
-    const keys = state.selectedCells.length ? state.selectedCells : [gradeKey(students[state.activeCell.row]?.student.id ?? "", evaluations[state.activeCell.col]?.id ?? "")];
+    const { selectedCells, activeCell } = stateRef.current;
+    const keys = selectedCells.length ? selectedCells : [gradeKey(students[activeCell.row]?.student.id ?? "", evaluations[activeCell.col]?.id ?? "")];
     const updates = keys.flatMap((key) => {
       const [studentId, evaluationId] = key.split("::");
       return studentId && evaluationId ? [{ studentId, evaluationId, value: null as GradeValue }] : [];
     });
     applyBulkGrades(updates);
-  }, [state.selectedCells, state.activeCell, students, evaluations, applyBulkGrades, readOnly]);
+  }, [students, evaluations, applyBulkGrades, readOnly]);
 
   const undo = useCallback(() => {
     if (readOnly) return;
@@ -1446,37 +1491,55 @@ export function GradeCenterProvider({
     [pushHistory, scheduleSync, state.dataset, readOnly],
   );
 
-  const value: GradeCenterContextValue = {
+  const weightIntegrity = useMemo(() => {
+    const used = Math.round(state.dataset.evaluations.reduce((sum, evaluation) => sum + evaluation.weight, 0) * 10) / 10;
+    const status: GradeCenterContextValue["weightIntegrity"]["status"] = used > 100 ? "exceeded" : used === 100 ? "valid" : "incomplete";
+    return { used, remaining: Math.round((100 - used) * 10) / 10, status };
+  }, [state.dataset.evaluations]);
+
+  const dispatchers = useMemo(
+    () =>
+      ({
+        setView: (view) => dispatch({ type: "view", view }),
+        setDensity: (density) => dispatch({ type: "density", density }),
+        resizeColumn: (evaluationId, width) => dispatch({ type: "columnWidth", evaluationId, width }),
+        resizeStudentColumn: (width) => dispatch({ type: "studentColumnWidth", width }),
+        resizeDefinitivaColumn: (width) => dispatch({ type: "definitivaColumnWidth", width }),
+        toggleEvaluation: (evaluationId) => dispatch({ type: "toggleEvaluation", evaluationId }),
+        showAllEvaluations: () => dispatch({ type: "showAllEvaluations" }),
+        setSort: (sort) => dispatch({ type: "sort", sort }),
+        setFilters: (filters) => dispatch({ type: "filters", filters }),
+        patchFilters: (patch) => dispatch({ type: "filters/patch", patch }),
+        setFocusMode: (focusMode) => dispatch({ type: "focus", focusMode }),
+        setQuickEdit: (quickEdit) => dispatch({ type: "quickEdit", quickEdit }),
+        resetAllPreferences: () => dispatch({ type: "resetPreferences" }),
+        setActiveCell: (cell) => dispatch({ type: "activeCell", cell }),
+        setEditing: (editing) => dispatch({ type: "editing", editing }),
+        selectStudent: (studentId) => dispatch({ type: "selectStudent", studentId }),
+        selectEvaluation: (evaluationId) => dispatch({ type: "selectEvaluation", evaluationId }),
+      }) satisfies Partial<GradeCenterContextValue>,
+    [],
+  );
+
+  const core = useMemo<GradeCenterCoreValue>(() => ({
     dataset: state.dataset,
     confirmedDataset: state.confirmedDataset,
-    draftChanges: state.drafts,
     preferences: state.preferences,
     sync: state.sync,
     analytics,
     readOnly,
-    readOnlyReason: readOnlyReasonRef.current,
+    readOnlyReason,
     availableAssignments,
     onSelectAssignment,
     students,
     evaluations,
-    activeCell: state.activeCell,
-    editing: state.editing,
     selectedStudentId: state.selectedStudentId,
     selectedEvaluationId: state.selectedEvaluationId,
-    pulse: state.pulse,
     selectedRows: state.selectedRows,
-    selectedCells: state.selectedCells,
-    selectionAnchor: state.selectionAnchor,
     pastePreview: state.pastePreview,
-    gradeAt: (studentId, evaluationId) =>
-      state.dataset.grades[gradeKey(studentId, evaluationId)] ?? null,
     commentAt: (studentId, evaluationId) =>
       state.dataset.comments[gradeKey(studentId, evaluationId)] ?? "",
-    weightIntegrity: (() => {
-      const used = state.dataset.evaluations.reduce((sum, evaluation) => sum + evaluation.weight, 0);
-      return { used, remaining: 100 - used, status: used > 100 ? "exceeded" : used === 100 ? "valid" : "incomplete" };
-    })(),
-    isCellSelected: (row, col, studentId, evaluationId) => state.selectedCells.includes(gradeKey(studentId, evaluationId)) || state.selectedRows.includes(studentId),
+    weightIntegrity,
     selectAllVisible,
     toggleRowSelection,
     selectCell,
@@ -1490,29 +1553,9 @@ export function GradeCenterProvider({
     clearSelectedGrades,
     undo,
     redo,
-    canUndo: undoStack.current.length > 0,
-    canRedo: redoStack.current.length > 0,
-    columnWidth: (evaluationId) => columnWidthOf(state.preferences, evaluationId),
-    setView: (view) => dispatch({ type: "view", view }),
-    setDensity: (density) => dispatch({ type: "density", density }),
-    resizeColumn: (evaluationId, width) => dispatch({ type: "columnWidth", evaluationId, width }),
-    resizeStudentColumn: (width) => dispatch({ type: "studentColumnWidth", width }),
-    resizeDefinitivaColumn: (width) => dispatch({ type: "definitivaColumnWidth", width }),
-    toggleEvaluation: (evaluationId) => dispatch({ type: "toggleEvaluation", evaluationId }),
-    showAllEvaluations: () => dispatch({ type: "showAllEvaluations" }),
-    setSort: (sort) => dispatch({ type: "sort", sort }),
-    setFilters: (filters) => dispatch({ type: "filters", filters }),
-    setFocusMode: (focusMode) => dispatch({ type: "focus", focusMode }),
-    setQuickEdit: (quickEdit) => dispatch({ type: "quickEdit", quickEdit }),
-    setAnalysisOpen: (analysisOpen) => dispatch({ type: "analysis", open: analysisOpen }),
-    setShowCodes: (showCodes) => dispatch({ type: "showCodes", show: showCodes }),
-    resetAllPreferences: () => dispatch({ type: "resetPreferences" }),
-    setActiveCell: (cell) => dispatch({ type: "activeCell", cell }),
-    setEditing: (editing) => dispatch({ type: "editing", editing }),
+    columnWidth,
+    ...dispatchers,
     focusCell,
-    moveCell,
-    selectStudent: (studentId) => dispatch({ type: "selectStudent", studentId }),
-    selectEvaluation: (evaluationId) => dispatch({ type: "selectEvaluation", evaluationId }),
     createEvaluation,
     updateEvaluation,
     removeEvaluation,
@@ -1526,15 +1569,110 @@ export function GradeCenterProvider({
       dispatch({ type: "setDbaList", dba });
       toast.success("DBAs y descriptores del periodo actualizados.");
     },
-  };
+  }), [
+    state.dataset,
+    state.confirmedDataset,
+    state.drafts,
+    state.preferences,
+    state.sync,
+    state.selectedStudentId,
+    state.selectedEvaluationId,
+    state.selectedRows,
+    state.pastePreview,
+    analytics,
+    readOnly,
+    readOnlyReason,
+    availableAssignments,
+    onSelectAssignment,
+    students,
+    evaluations,
+    weightIntegrity,
+    columnWidth,
+    dispatchers,
+    selectAllVisible,
+    toggleRowSelection,
+    selectCell,
+    clearSelection,
+    copySelection,
+    readPaste,
+    previewPasteText,
+    applyPastePreview,
+    bulkGrade,
+    cancelPastePreview,
+    clearSelectedGrades,
+    undo,
+    redo,
+    focusCell,
+    createEvaluation,
+    updateEvaluation,
+    removeEvaluation,
+    commitGrade,
+    clearGrade,
+    jumpToCell,
+    jumpToStudent,
+    retrySync,
+    pushHistory,
+    dispatch,
+  ]);
 
-  return <GradeCenterContext.Provider value={value}>{children}</GradeCenterContext.Provider>;
+  const grid = useMemo<GradeCenterGridValue>(
+    () => ({
+      activeCell: state.activeCell,
+      editing: state.editing,
+      pulse: state.pulse,
+      selectedCells: state.selectedCells,
+      selectionAnchor: state.selectionAnchor,
+    }),
+    [state.activeCell, state.editing, state.pulse, state.selectedCells, state.selectionAnchor],
+  );
+
+  const value = useMemo<GradeCenterContextValue>(() => ({ ...core, ...grid }), [core, grid]);
+
+  const latestRef = useRef(value);
+  latestRef.current = value;
+  const actions = useMemo(() => {
+    const stable = {} as Record<string, unknown>;
+    for (const key of ACTION_KEYS) {
+      stable[key] = (...args: unknown[]) =>
+        (latestRef.current[key] as (...params: unknown[]) => unknown)(...args);
+    }
+    return stable as unknown as GradeCenterActions;
+  }, []);
+
+  return (
+    <GradeCenterActionsContext.Provider value={actions}>
+      <GradeCenterContext.Provider value={core}>
+        <GradeCenterGridContext.Provider value={grid}>{children}</GradeCenterGridContext.Provider>
+      </GradeCenterContext.Provider>
+    </GradeCenterActionsContext.Provider>
+  );
 }
 
-export function useGradeCenter(): GradeCenterContextValue {
+/**
+ * Estado general de la planilla (datos, preferencias, acciones). No incluye la
+ * celda activa ni la selección: moverse por la matriz no repinta a quien lo usa.
+ */
+export function useGradeCenter(): GradeCenterCoreValue {
   const context = useContext(GradeCenterContext);
   if (!context) {
     throw new Error("useGradeCenter debe usarse dentro de <GradeCenterProvider>");
+  }
+  return context;
+}
+
+/** Celda activa, edición y selección: solo para la matriz. */
+export function useGradeCenterGrid(): GradeCenterGridValue {
+  const context = useContext(GradeCenterGridContext);
+  if (!context) {
+    throw new Error("useGradeCenterGrid debe usarse dentro de <GradeCenterProvider>");
+  }
+  return context;
+}
+
+export function useGradeCenterActions(): GradeCenterActions {
+  const context = useContext(GradeCenterActionsContext);
+  if (!context) {
+    throw new Error("useGradeCenterActions debe usarse dentro de <GradeCenterProvider>");
   }
   return context;
 }

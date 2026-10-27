@@ -11,9 +11,9 @@ export type Section =
   | "calendar"
   | "communications"
   | "reports"
-  | "ai"
   | "users"
-  | "settings";
+  | "settings"
+  | "analytics";
 
 export interface BreadcrumbItem {
   label: string;

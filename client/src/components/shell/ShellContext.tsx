@@ -112,7 +112,7 @@ export function ShellContextProvider({
           title: "Inicio",
           subtitle: schoolName,
           breadcrumbs: [{ label: "Inicio", isCurrent: true }],
-          contextPills: [{ label: schoolName, tone: "default" }, { label: "Año 2026", tone: "primary" }],
+          contextPills: [{ label: "Año 2026", tone: "primary" }],
         };
       case "grades":
         return {
@@ -166,13 +166,6 @@ export function ShellContextProvider({
           breadcrumbs: [{ label: "Análisis" }, { label: "Reportes", isCurrent: true }],
           contextPills: [{ label: "Periodo 2", tone: "primary" }],
         };
-      case "ai":
-        return {
-          title: "EduCore AI",
-          subtitle: "Copiloto pedagógico y analítico",
-          breadcrumbs: [{ label: "Inteligencia" }, { label: "EduCore AI", isCurrent: true }],
-          contextPills: [{ label: "Modo contextual activo", tone: "violet" }],
-        };
       case "users":
         return {
           title: "Directorio de Usuarios",
@@ -186,6 +179,13 @@ export function ShellContextProvider({
           subtitle: "Identidad, tema y periodos escolares",
           breadcrumbs: [{ label: "Administración" }, { label: "Configuración", isCurrent: true }],
           contextPills: [{ label: schoolName, tone: "primary" }],
+        };
+      case "analytics":
+        return {
+          title: "Análisis & Alertas",
+          subtitle: "Rendimiento grupal, alertas tempranas y métricas",
+          breadcrumbs: [{ label: "Seguimiento" }, { label: "Análisis & Alertas", isCurrent: true }],
+          contextPills: [{ label: "Periodo 2 · 2026", tone: "primary" }],
         };
       default:
         return {

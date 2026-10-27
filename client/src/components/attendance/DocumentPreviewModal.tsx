@@ -221,7 +221,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                   {fileName}
                 </h3>
                 <span
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                  className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider border ${
                     isPdf
                       ? "bg-rose-50 text-rose-700 border-rose-200"
                       : isImage
@@ -250,7 +250,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                     : ext.toUpperCase() || "Documento"}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 truncate">
+              <p className="text-xs text-slate-500 truncate">
                 {submittedByName ? `Radicado por ${submittedByName}` : "Constancia digital adjunta"}
                 {attendanceDate ? ` · Inasistencia del ${attendanceDate}` : ""}
               </p>
@@ -272,7 +272,7 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="px-1.5 py-0.5 text-[11px] font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
+                  className="px-1.5 py-0.5 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
                   title="Restablecer zoom"
                 >
                   {zoom}%

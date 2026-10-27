@@ -94,12 +94,12 @@ export function GroupIntelligenceBar({
               <span className="truncate text-xs font-bold text-slate-800 dark:text-slate-100">
                 {courseName || "Curso"} {subjectName ? `· ${subjectName}` : ""}
               </span>
-              <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+              <span className="flex items-center gap-1 text-xs font-semibold text-slate-500 dark:text-slate-400">
                 <Users className="h-3 w-3" />
                 {totalStudents} {totalStudents === 1 ? "estudiante" : "estudiantes"}
               </span>
             </div>
-            <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
               {/* Promedio General */}
               <span className="flex items-center gap-1">
                 Promedio:{" "}
@@ -147,12 +147,12 @@ export function GroupIntelligenceBar({
                 {totalAtRisk > 0 && (
                   <span className="ml-1.5 flex items-center gap-1">
                     {highRiskStudents.length > 0 && (
-                      <Badge variant="destructive" className="h-4 px-1 text-[9px] font-bold">
+                      <Badge variant="destructive" className="h-4 px-1 text-xs font-bold">
                         {highRiskStudents.length} Alto
                       </Badge>
                     )}
                     {mediumRiskStudents.length > 0 && (
-                      <Badge className="h-4 px-1 text-[9px] font-bold bg-amber-500 hover:bg-amber-600 text-white">
+                      <Badge className="h-4 px-1 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white">
                         {mediumRiskStudents.length} Medio
                       </Badge>
                     )}
@@ -174,11 +174,11 @@ export function GroupIntelligenceBar({
                     <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                     Estudiantes que Requieren Atención
                   </h4>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-xs text-slate-400">
                     Aprobación institucional mínima: {passingGrade.toFixed(1)}
                   </p>
                 </div>
-                <Badge variant="outline" className="text-[10px] font-bold py-0">
+                <Badge variant="outline" className="text-xs font-bold py-0">
                   {totalAtRisk} caso(s)
                 </Badge>
               </div>
@@ -189,7 +189,7 @@ export function GroupIntelligenceBar({
                   <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
                     ¡Excelente panorama académico!
                   </p>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-xs text-slate-400">
                     Todos los estudiantes del grupo se encuentran en proyección aprobatoria.
                   </p>
                 </div>
@@ -258,11 +258,11 @@ export function GroupIntelligenceBar({
                     <Clock className="h-3.5 w-3.5 text-indigo-500" />
                     Notas Pendientes por Calificar
                   </h4>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-xs text-slate-400">
                     Haz clic en cualquier ítem para saltar directamente a la celda
                   </p>
                 </div>
-                <Badge variant="outline" className="text-[10px] font-bold py-0 border-indigo-200 text-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-300">
+                <Badge variant="outline" className="text-xs font-bold py-0 border-indigo-200 text-indigo-700 bg-indigo-50 dark:bg-indigo-950/40 dark:text-indigo-300">
                   {totalPendingGrades}
                 </Badge>
               </div>
@@ -273,7 +273,7 @@ export function GroupIntelligenceBar({
                   <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
                     ¡Planilla al día!
                   </p>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-xs text-slate-400">
                     No hay celdas vacías en las evaluaciones creadas.
                   </p>
                 </div>
@@ -293,11 +293,11 @@ export function GroupIntelligenceBar({
                         <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
                           {item.studentName}
                         </p>
-                        <p className="text-[10px] text-slate-400 truncate">
+                        <p className="text-xs text-slate-400 truncate">
                           {item.assessmentTitle} · {item.assessmentWeight}%
                         </p>
                       </div>
-                      <div className="flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
+                      <div className="flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
                         <span>Calificar</span>
                         <ArrowRight className="h-3 w-3" />
                       </div>
@@ -337,27 +337,27 @@ function RiskStudentItem({ student, onOpenSimulator }: RiskStudentItemProps) {
             </span>
             <Badge
               variant={isHigh ? "destructive" : "secondary"}
-              className={`text-[9px] py-0 px-1 font-bold ${
+              className={`text-xs py-0 px-1 font-bold ${
                 !isHigh ? "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200" : ""
               }`}
             >
               Requiere atención
             </Badge>
           </div>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {student.reason}
           </p>
         </div>
 
         <div className="text-right shrink-0">
-          <span className="text-[10px] font-bold text-slate-400 uppercase">Def. Actual</span>
+          <span className="text-xs font-bold text-slate-400 uppercase">Def. Actual</span>
           <p className="text-xs font-black text-slate-700 dark:text-slate-300">
             {numberValue(student.currentDefinitiva)}
           </p>
         </div>
       </div>
 
-      <div className="mt-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-[10px]">
+      <div className="mt-1.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-xs">
         <span className="text-slate-500 font-medium">
           {student.whatIsNeeded.message}
         </span>
@@ -366,7 +366,7 @@ function RiskStudentItem({ student, onOpenSimulator }: RiskStudentItemProps) {
           size="sm"
           variant="ghost"
           onClick={onOpenSimulator}
-          className="h-5 px-1.5 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100/50 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+          className="h-5 px-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100/50 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
         >
           <Calculator className="h-3 w-3 mr-1" />
           Simular

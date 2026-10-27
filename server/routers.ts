@@ -1,26 +1,36 @@
 import { z } from "zod";
 import path from "node:path";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { ANNOUNCEMENT_AUDIENCES, ANNOUNCEMENT_MESSAGE_MAX, ANNOUNCEMENT_STATUS, ANNOUNCEMENT_TITLE_MAX } from "@shared/communications";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { invokeLLM } from "./_core/llm";
 import { sdk } from "./_core/sdk";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { storagePut } from "./storage";
+import { storageDeleteLocal, storagePut } from "./storage";
+import { MAX_RESOURCE_BYTES, checkResourceFile } from "@shared/courseResources";
 import { saveUploadedDocument } from "./documentStorage";
 import {
+  createAnnouncement,
   createDemoAssignment,
+  getUserName,
+  deleteAnnouncement,
+  publishAnnouncement,
   DEMO_SCHOOL_ID,
   EduRole,
   getEduCoreSnapshot,
   gradeDemoSubmission,
+  createCourseResource,
+  deleteCourseResource,
+  listCourseResources,
   recordDemoAttendance,
   saveAiConversation,
   submitDemoAssignment,
   updateDemoGrade,
   updateSchoolSettings,
   createAcademicPeriod,
+  createSchoolEvent,
   updateAcademicPeriod,
   writeAuditLog,
   acceptInvitation,
@@ -67,6 +77,9 @@ import {
   deleteGradeCenterAssessment,
   generateGradeCenterReportCards,
   getGradeCenterContext,
+  getGradeCenterCourseReportCards,
+  listGradeCenterAssignments,
+  listGradeCenterReportCards,
   saveAcademicObservation,
   saveGradeCenterGrades,
   updateGradeCenterAssessment,
@@ -321,6 +334,25 @@ export const appRouter = router({
       if (!hasPermission(actor.roleKey, "grades.view") && !hasPermission(actor.roleKey, "courses.view")) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes acceso a las calificaciones." });
       return getGradeCenterContext(actor, input);
     }),
+    assignments: publicProcedure.input(z.object({ role: roleSchema })).query(async ({ input, ctx }) => {
+      const actor = await resolveActor(ctx, input.role);
+      if (!hasPermission(actor.roleKey, "grades.view") && !hasPermission(actor.roleKey, "courses.view")) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes acceso a las calificaciones." });
+      return listGradeCenterAssignments(actor);
+    }),
+    reportCards: publicProcedure.input(z.object({ role: roleSchema })).query(async ({ input, ctx }) => {
+      // Mismo acceso que `assignments`: el estado de boletines se deriva de las planillas visibles
+      const actor = await resolveActor(ctx, input.role);
+      if (!hasPermission(actor.roleKey, "grades.view") && !hasPermission(actor.roleKey, "courses.view")) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes acceso a las calificaciones." });
+      const result = await listGradeCenterReportCards(actor);
+      // Misma regla que generateReportCards: rol directivo y permiso de exportación
+      return { ...result, canGenerate: result.canGenerate && hasPermission(actor.roleKey, "reports.export") };
+    }),
+    courseReportCards: publicProcedure.input(z.object({ role: roleSchema, courseId: z.number().int() })).query(async ({ input, ctx }) => {
+      // Mismo acceso que `reportCards`; el alcance por curso lo valida getGradeCenterCourseReportCards
+      const actor = await resolveActor(ctx, input.role);
+      if (!hasPermission(actor.roleKey, "grades.view") && !hasPermission(actor.roleKey, "courses.view")) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes acceso a las calificaciones." });
+      return getGradeCenterCourseReportCards(actor, { courseId: input.courseId });
+    }),
     createAssessment: publicProcedure.input(z.object({ role: roleSchema, academicYearId: z.number().int(), academicPeriodId: z.number().int(), courseId: z.number().int(), subjectId: z.number().int(), title: z.string().min(3).max(180), description: z.string().max(1000).optional(), assessmentType: z.enum(["QUIZ", "TALLER", "EXAMEN", "PROYECTO", "ACTIVIDAD", "PARTICIPACION", "RECUPERACION", "OTRO"]), date: z.coerce.date(), maxValue: z.number().positive().max(100), weight: z.number().min(0).max(100), status: z.enum(["DRAFT", "PUBLISHED", "CLOSED"]).default("DRAFT") })).mutation(async ({ input, ctx }) => {
       const actor = await requireAcademicActor(ctx, input.role, "grades.update", true);
       return createGradeCenterAssessment(actor, input);
@@ -363,16 +395,24 @@ export const appRouter = router({
     }),
     createAssignment: publicProcedure.input(z.object({
       role: roleSchema,
-      title: z.string().min(3).max(180),
+      title: z.string().trim().min(3).max(180),
       subject: z.string().min(2),
       course: z.string().min(2),
-      description: z.string().min(5),
+      // Las instrucciones son opcionales: sin ellas no se inventa un texto de relleno
+      description: z.string().max(5000).default(""),
       dueAt: z.coerce.date(),
-      points: z.number().int().min(1).max(1000),
-      teacherName: z.string().min(2),
+      // 0 = actividad sin nota
+      points: z.number().int().min(0).max(1000),
+      // Solo como respaldo: el servidor usa el nombre del docente autenticado
+      teacherName: z.string().min(2).optional(),
+      status: z.enum(["Publicado", "Borrador"]).default("Publicado"),
     })).mutation(async ({ input, ctx }) => {
       const actor = await requirePermission(ctx, input.role, "assignments.create", true);
-      const result = await createDemoAssignment(input);
+      const { role: _role, teacherName, ...fields } = input;
+      const result = await createDemoAssignment(
+        { ...fields, teacherName: (await getUserName(actor.userId)) ?? teacherName ?? "Docente" },
+        actor.schoolId
+      );
       await writeAuditLog(input.role, "create_assignment", input.title, actor.schoolId);
       return result;
     }),
@@ -398,6 +438,54 @@ export const appRouter = router({
       const result = await gradeDemoSubmission(input);
       await writeAuditLog(input.role, "grade_submission", `${input.submissionId}:${input.grade}`, actor.schoolId);
       return result;
+    }),
+    courseResources: publicProcedure.input(z.object({
+      role: roleSchema,
+      course: z.string().min(1).max(64),
+    })).query(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "assignments.view");
+      return listCourseResources(actor.schoolId, input.course);
+    }),
+    uploadCourseResource: publicProcedure.input(z.object({
+      role: roleSchema,
+      course: z.string().min(1).max(64),
+      title: z.string().trim().min(2).max(180),
+      assignmentId: z.number().int().nullable(),
+      fileName: z.string().min(1).max(180),
+      // Base64 de hasta 20 MB (~4/3 del tamaño original)
+      dataBase64: z.string().min(1).max(Math.ceil(MAX_RESOURCE_BYTES * 1.4)),
+    })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "assignments.update", true);
+      const buffer = Buffer.from(input.dataBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
+      const check = checkResourceFile(input.fileName, buffer.length);
+      if (!check.ok) throw new TRPCError({ code: "BAD_REQUEST", message: check.message });
+      const safeCourse = input.course.replace(/[^a-zA-Z0-9_-]/g, "_");
+      const stored = await storagePut(`schools/${actor.schoolId}/courses/${safeCourse}/resources/${check.storageName}`, buffer, check.contentType);
+      const resource = await createCourseResource({
+        schoolId: actor.schoolId,
+        course: input.course,
+        assignmentId: input.assignmentId,
+        title: input.title,
+        fileName: path.basename(input.fileName),
+        fileKey: stored.key,
+        fileUrl: stored.url,
+        contentType: check.contentType,
+        sizeBytes: buffer.length,
+        uploadedByUserId: actor.userId || null,
+      });
+      await writeAuditLog(input.role, "upload_course_resource", `${input.course}:${input.title}`, actor.schoolId);
+      return resource;
+    }),
+    deleteCourseResource: publicProcedure.input(z.object({
+      role: roleSchema,
+      id: z.number().int(),
+    })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "assignments.update", true);
+      const removed = await deleteCourseResource(actor.schoolId, input.id);
+      if (!removed) throw new TRPCError({ code: "NOT_FOUND", message: "El recurso ya no existe." });
+      storageDeleteLocal(removed.fileKey);
+      await writeAuditLog(input.role, "delete_course_resource", `${removed.course}:${removed.title}`, actor.schoolId);
+      return { id: removed.id };
     }),
     updateGrade: publicProcedure.input(z.object({
       role: roleSchema,
@@ -521,6 +609,20 @@ export const appRouter = router({
       await writeAuditLog(input.role, "update_academic_period", input.name, actor.schoolId);
       return result;
     }),
+    createEvent: publicProcedure.input(z.object({
+      role: roleSchema,
+      title: z.string().trim().min(3).max(180),
+      type: z.enum(["Examen", "Reunión", "Actividad institucional", "Institucional"]),
+      eventDate: z.coerce.date(),
+      location: z.string().trim().max(180).nullable().default(null),
+      audience: z.string().trim().min(2).max(120),
+    })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "communications.create", true);
+      const { role: _role, ...event } = input;
+      const result = await createSchoolEvent({ ...event, location: event.location || null }, actor.schoolId);
+      await writeAuditLog(input.role, "create_event", input.title, actor.schoolId);
+      return result;
+    }),
     generateDraft: publicProcedure.input(z.object({
       role: roleSchema,
       kind: z.enum(["activity", "communication", "planning", "insight"]),
@@ -552,7 +654,7 @@ export const appRouter = router({
         responseText = input.kind === "activity"
           ? `## Borrador de actividad\n\n**Tema:** ${input.prompt}\n\n**Objetivo**\nAplicar el concepto a una situación cercana al estudiante.\n\n**Instrucciones**\n1. Revisa el material base.\n2. Resuelve los ejercicios propuestos explicando tu razonamiento.\n3. Comparte una conclusión de tres líneas.\n\n**Criterios de evaluación**\n- Comprensión conceptual (40%).\n- Procedimiento y argumentación (40%).\n- Presentación y entrega (20%).`
           : input.kind === "communication"
-            ? `**Asunto:** Información importante: ${input.prompt}\n\nEstimada comunidad educativa,\n\nQueremos compartir la siguiente información: ${input.prompt}. Agradecemos revisar las fechas y participar según corresponda.\n\nCordialmente,\nGimnasio Moderno del Valle`
+            ? `**Asunto:** Información importante: ${input.prompt}\n\nEstimada comunidad educativa,\n\nQueremos compartir la siguiente información: ${input.prompt}. Agradecemos revisar las fechas y participar según corresponda.\n\nCordialmente,\nEquipo Institucional`
             : input.kind === "planning"
               ? `## Planeación: ${input.prompt}\n\n**Objetivos:** Comprender los conceptos clave y aplicarlos en ejercicios guiados.\n\n**Secuencia:** Activación de saberes previos · explicación breve · práctica colaborativa · cierre reflexivo.\n\n**Evaluación:** Evidencia de proceso, participación y producto final.\n\n**Recursos:** Guía docente, tablero y material digital.`
               : "La información disponible sugiere priorizar seguimiento a los estudiantes con desempeño inferior a 3.5 y revisar la asistencia de los cursos con tendencia descendente. Estas son recomendaciones para revisión humana, no decisiones automáticas.";
@@ -627,6 +729,38 @@ export const appRouter = router({
 
         return result;
       }),
+  }),
+  communications: router({
+    create: publicProcedure.input(z.object({
+      role: roleSchema,
+      title: z.string().trim().min(3).max(ANNOUNCEMENT_TITLE_MAX),
+      message: z.string().trim().min(5).max(ANNOUNCEMENT_MESSAGE_MAX),
+      audience: z.enum(ANNOUNCEMENT_AUDIENCES),
+      publish: z.boolean().default(false),
+    })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "communications.create", true);
+      // Redactar no implica poder enviar: publicar exige además communications.send
+      if (input.publish && !hasPermission(actor.roleKey, "communications.send")) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Puedes guardar el comunicado como borrador; publicarlo requiere permisos de envío." });
+      }
+      const status = input.publish ? ANNOUNCEMENT_STATUS.published : ANNOUNCEMENT_STATUS.draft;
+      const created = await createAnnouncement(actor.schoolId, { title: input.title, message: input.message, audience: input.audience, status });
+      if (!created) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No se pudo guardar el comunicado." });
+      await writeAuditLog(input.role, input.publish ? "publish_announcement" : "draft_announcement", input.title, actor.schoolId);
+      return created;
+    }),
+    publish: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "communications.send", true);
+      if (!(await publishAnnouncement(actor.schoolId, input.id))) throw new TRPCError({ code: "NOT_FOUND", message: "El comunicado ya no existe." });
+      await writeAuditLog(input.role, "publish_announcement", `Comunicado ${input.id}`, actor.schoolId);
+      return { id: input.id };
+    }),
+    remove: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "communications.send", true);
+      if (!(await deleteAnnouncement(actor.schoolId, input.id))) throw new TRPCError({ code: "NOT_FOUND", message: "El comunicado ya no existe." });
+      await writeAuditLog(input.role, "delete_announcement", `Comunicado ${input.id}`, actor.schoolId);
+      return { id: input.id };
+    }),
   }),
   followUp: router({
     list: publicProcedure

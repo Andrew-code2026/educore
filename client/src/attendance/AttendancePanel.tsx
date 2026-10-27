@@ -1,24 +1,23 @@
 /**
  * Panel de Asistencia (vista docente).
  *
- * Orquesta encabezado, status rail, toolbar, filtros, planilla y atención
- * docente sobre una única fuente de verdad (`useAttendanceSession`).
+ * Orquesta tres superficies —encabezado, avance del día y planilla— sobre una
+ * única fuente de verdad (`useAttendanceSession`).
  *
  * Flujo pensado para trabajo diario: abrir → elegir clase → tomar asistencia con
  * teclado → detectar → actuar sin salir de la planilla.
  */
 import { MotionConfig } from "framer-motion";
-import { GraduationCap, Info } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { GraduationCap } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { toISODate } from "./data/dateUtils";
 import { AttendanceHeader } from "./components/AttendanceHeader";
 import { AttendanceSheet } from "./components/AttendanceSheet";
 import { AttendanceToolbar } from "./components/AttendanceToolbar";
-import { AttentionRail } from "./components/AttentionRail";
 import { BulkConfirmDialog, type BulkConfirmRequest } from "./components/BulkConfirmDialog";
-import { DaySummaryRail } from "./components/DaySummaryRail";
+import { DayProgress } from "./components/DayProgress";
 import { FilterChips } from "./components/FilterChips";
 import { ShortcutsSheet } from "./components/ShortcutsSheet";
 import { StudentExpediente } from "./components/StudentExpediente";
@@ -31,13 +30,12 @@ import {
   computeDayMetrics,
   filterCounts,
   filterStudents,
-  primaryAttentionFlags,
-  progressMessage,
 } from "./data/selectors";
 import type {
   AttendanceFilter,
   AttendancePanelProps,
   AttendanceStatus,
+  AttentionFlag,
   Student,
 } from "./types";
 
@@ -57,7 +55,7 @@ export function AttendancePanel(props: AttendancePanelProps) {
       >
         <GraduationCap className="h-7 w-7 text-muted-foreground/70" aria-hidden="true" />
         <p className="text-[13.5px] font-medium">Sin cursos asignados</p>
-        <p className="max-w-[320px] text-[11.5px] text-muted-foreground">
+        <p className="max-w-[320px] text-xs text-muted-foreground">
           Cuando el docente tenga cursos cargados, la jornada de asistencia aparecerá aquí.
         </p>
       </div>
@@ -72,6 +70,7 @@ function AttendanceSessionView({
   initialCourseId,
   initialDate,
   initialStatuses,
+  initialFilter = "all",
   onOpenExpediente,
   onOpenHistory,
   onOpenFollowUp,
@@ -88,10 +87,9 @@ function AttendanceSessionView({
     initialStatuses,
     onPersist,
   });
-  const sessionStatuses = session.statuses;
   const setSessionStatus = session.setStatus;
 
-  const [filter, setFilter] = useState<AttendanceFilter>("all");
+  const [filter, setFilter] = useState<AttendanceFilter>(initialFilter);
   const [query, setQuery] = useState("");
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
@@ -100,6 +98,7 @@ function AttendanceSessionView({
   const [focusMode, setFocusMode] = useState(false);
   const [expedienteStudent, setExpedienteStudent] = useState<Student | null>(null);
   const [clockNow, setClockNow] = useState(() => new Date());
+  const searchRef = useRef<HTMLInputElement>(null);
   const expedienteFamilyProfile = useMemo(
     () => expedienteStudent ? getStudentSummaryProfile?.(expedienteStudent) : undefined,
     [expedienteStudent, getStudentSummaryProfile],
@@ -156,13 +155,8 @@ function AttendanceSessionView({
     [course.students, session.statuses],
   );
 
-  const attentionFlags = useMemo(
-    () => primaryAttentionFlags(course.students, session.statuses, session.date),
-    [course.students, session.date, session.statuses],
-  );
-
   const attentionByStudent = useMemo(() => {
-    const map = new Map<string, ReturnType<typeof attentionFlagsFor>>();
+    const map = new Map<string, AttentionFlag[]>();
     for (const student of course.students) {
       map.set(
         student.id,
@@ -172,14 +166,22 @@ function AttendanceSessionView({
     return map;
   }, [course.students, session.date, session.statuses]);
 
-  const attentionIds = useMemo(
-    () => new Set(attentionFlags.map(flag => flag.studentId)),
-    [attentionFlags],
-  );
+  const attentionIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const [studentId, flags] of attentionByStudent) {
+      if (flags.length > 0) ids.add(studentId);
+    }
+    return ids;
+  }, [attentionByStudent]);
 
   const studentsById = useMemo(
     () => new Map(course.students.map(student => [student.id, student])),
     [course.students],
+  );
+
+  const counts = useMemo(
+    () => filterCounts(course.students, session.statuses, attentionIds),
+    [attentionIds, course.students, session.statuses],
   );
 
   const visibleStudents = useMemo(
@@ -195,19 +197,6 @@ function AttendanceSessionView({
     [attentionIds, course.students, filter, query, session.date, session.statuses],
   );
 
-  const visiblePendingCount = useMemo(
-    () => visibleStudents.reduce(
-      (count, student) => count + ((session.statuses[student.id] ?? "pending") === "pending" ? 1 : 0),
-      0,
-    ),
-    [session.statuses, visibleStudents],
-  );
-
-  const counts = useMemo(
-    () => filterCounts(course.students, session.statuses, attentionIds),
-    [attentionIds, course.students, session.statuses],
-  );
-
   /**
    * Foco de fila. `dom` mueve además el foco real del navegador, de modo que
    * Tab / ⇧Tab continúen desde la fila correcta al salir de la planilla.
@@ -215,7 +204,7 @@ function AttendanceSessionView({
   const focusStudent = useCallback((studentId: string, options?: { dom?: boolean }) => {
     setFocusedId(studentId);
     window.requestAnimationFrame(() => {
-      const element = document.querySelector<HTMLElement>(`[data-student-id="${studentId}"]`);
+      const element = document.querySelector<HTMLElement>(`[data-student-id="${CSS.escape(studentId)}"]`);
       if (!element) return;
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       element.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
@@ -236,7 +225,6 @@ function AttendanceSessionView({
 
   const registerStudentStatus = useCallback(
     (studentId: string, status: AttendanceStatus, advance = false) => {
-      const previous = sessionStatuses[studentId] ?? "pending";
       setSessionStatus(studentId, status, statusLabel(studentId, status));
       // Registrar desde la planilla avanza el cursor para mantener el ritmo del pase de lista.
       if (advance && status !== "pending") {
@@ -245,7 +233,7 @@ function AttendanceSessionView({
         if (next) focusStudent(next.id, { dom: true });
       }
     },
-    [focusStudent, sessionStatuses, setSessionStatus, statusLabel, visibleStudents],
+    [focusStudent, setSessionStatus, statusLabel, visibleStudents],
   );
 
   const handleRosterStatus = useCallback(
@@ -293,20 +281,27 @@ function AttendanceSessionView({
     [currentStudent?.id, focusStudent, visibleStudents],
   );
 
+  const { canUndo, undo } = session;
+  const handleUndo = useCallback(() => {
+    if (!canUndo) {
+      toast.info("Nada que deshacer", { description: "No hay cambios recientes en esta jornada." });
+      return;
+    }
+    undo();
+    toast.success("Cambio deshecho", { description: "El registro volvió a su estado anterior." });
+  }, [canUndo, undo]);
+
+  const openShortcuts = useCallback(() => setShortcutsOpen(true), []);
+  const focusSearch = useCallback(() => searchRef.current?.focus(), []);
+
   useAttendanceHotkeys({
     enabled: !openPopoverId && !shortcutsOpen && !confirmRequest,
     onStatus: applyStatusToFocused,
-    onUndo: () => {
-      if (!session.canUndo) {
-        toast.info("Nada que deshacer", { description: "No hay cambios recientes en esta jornada." });
-        return;
-      }
-      session.undo();
-      toast.success("Cambio deshecho", { description: "El registro volvió a su estado anterior." });
-    },
+    onUndo: handleUndo,
     onMove: moveFocus,
     onTab: moveFocusByTab,
-    onOpenShortcuts: () => setShortcutsOpen(true),
+    onOpenShortcuts: openShortcuts,
+    onFocusSearch: focusSearch,
   });
 
   const runBulk = useCallback(
@@ -337,26 +332,23 @@ function AttendanceSessionView({
     [course.name, session],
   );
 
-  const handleAllPresent = useCallback(() => {
-    runBulk(
-      visibleStudents.map(student => student.id),
-      "present",
-      "Todos presentes",
-      "Todos los estudiantes visibles ya están presentes.",
-    );
-  }, [runBulk, visibleStudents]);
-
+  /** Solo toca a quienes siguen sin registro: nunca sobrescribe ausencias o tardanzas ya marcadas. */
   const handleCompletePending = useCallback(() => {
-    const pending = visibleStudents
+    const pending = course.students
       .filter(student => (session.statuses[student.id] ?? "pending") === "pending")
       .map(student => student.id);
-    runBulk(pending, "present", "Completar pendientes", "No quedan pendientes en la vista actual.");
-  }, [runBulk, session.statuses, visibleStudents]);
+    runBulk(pending, "present", "Restantes marcados presentes", "No quedan estudiantes por registrar.");
+  }, [course.students, runBulk, session.statuses]);
+
+  const resetView = useCallback(() => {
+    setFilter("all");
+    setQuery("");
+  }, []);
 
   return (
     <MotionConfig reducedMotion="user">
       <div
-        className={cn("flex min-h-0 flex-1 flex-col gap-2.5", focusMode && "chrona-focus-stage", className)}
+        className={cn("att-panel flex min-h-0 flex-1 flex-col gap-3", focusMode && "chrona-focus-stage", className)}
         data-concentration-mode={focusMode ? "active" : undefined}
         role={focusMode ? "region" : undefined}
         aria-label={focusMode ? "Modo Enfocar asistencia" : undefined}
@@ -384,60 +376,21 @@ function AttendanceSessionView({
           onRetrySync={session.retrySync}
         />
 
-        <DaySummaryRail metrics={metrics} activeFilter={filter} onFilter={setFilter} />
+        <DayProgress metrics={metrics} onCompletePending={handleCompletePending} />
 
-        <div className="chrona-workbar flex flex-wrap items-center gap-1.5 rounded-[14px] px-2 py-1.5">
+        <section className="att-roster glass" aria-label={`Planilla de asistencia de ${course.name}`}>
           <AttendanceToolbar
-            pendingCount={visiblePendingCount}
-            canUndo={session.canUndo}
-            undoDepth={session.undoDepth}
-            lastActionLabel={session.lastAction?.label ?? null}
+            filters={<FilterChips active={filter} counts={counts} onChange={setFilter} />}
+            searchRef={searchRef}
             query={query}
             onQueryChange={setQuery}
-            onAllPresent={handleAllPresent}
-            onCompletePending={handleCompletePending}
-            onUndo={() => {
-              if (!session.canUndo) return;
-              session.undo();
-              toast.success("Cambio deshecho");
-            }}
-            onOpenShortcuts={() => setShortcutsOpen(true)}
+            canUndo={session.canUndo}
+            lastActionLabel={session.lastAction?.label ?? null}
+            onUndo={handleUndo}
+            onOpenShortcuts={openShortcuts}
             focusMode={focusMode}
             onToggleFocusMode={() => setFocusMode(value => !value)}
-            filters={
-              <FilterChips
-                active={filter}
-                counts={counts}
-                onChange={setFilter}
-                visible={visibleStudents.length}
-                total={course.students.length}
-                query={query}
-                onClearQuery={() => setQuery("")}
-              />
-            }
           />
-          <AttentionRail
-            flags={attentionFlags}
-            studentsById={studentsById}
-            onSelect={studentId => {
-              setFilter("all");
-              setQuery("");
-              focusStudent(studentId);
-              setOpenPopoverId(studentId);
-            }}
-            activeStudentId={openPopoverId ?? currentStudent?.id ?? null}
-          />
-        </div>
-
-        {classState.state === "none" ? (
-          <div className="flex items-center gap-2 rounded-xl bg-foreground/[0.03] px-3 py-1.5 text-[11.5px] text-muted-foreground ring-1 ring-inset ring-hairline">
-            <Info className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            {course.name} no tiene clase programada este día · {progressMessage(metrics)}. Puedes revisar
-            o ajustar registros igualmente.
-          </div>
-        ) : null}
-
-        <div className="flex min-h-0 flex-1 gap-2.5">
           <AttendanceSheet
             course={course}
             students={visibleStudents}
@@ -449,13 +402,13 @@ function AttendanceSessionView({
             onFocusStudent={setFocusedId}
             onStatus={handleRosterStatus}
             onPopoverStatus={handlePopoverStatus}
+            onResetView={resetView}
             onOpenExpediente={handleOpenExpediente}
             onOpenHistory={onOpenHistory}
             onOpenFollowUp={onOpenFollowUp}
             todayIso={session.date}
           />
-
-        </div>
+        </section>
 
         <BulkConfirmDialog request={confirmRequest} onClose={() => setConfirmRequest(null)} />
         <ShortcutsSheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} />

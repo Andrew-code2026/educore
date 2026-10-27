@@ -480,7 +480,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
             >
               <span>Pendientes</span>
               <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                className={`px-1.5 py-0.2 rounded-full text-xs ${
                   tabCounts.pending > 0
                     ? "bg-amber-100 text-amber-800 font-bold"
                     : "bg-slate-200/80 text-slate-600"
@@ -501,7 +501,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
             >
               <span>Programadas</span>
               <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                className={`px-1.5 py-0.2 rounded-full text-xs ${
                   tabCounts.scheduled > 0
                     ? "bg-purple-100 text-purple-800 font-bold"
                     : "bg-slate-200/80 text-slate-600"
@@ -521,7 +521,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
               }`}
             >
               <span>En revisión</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-slate-200/80 text-slate-600 text-[10px]">
+              <span className="px-1.5 py-0.2 rounded-full bg-slate-200/80 text-slate-600 text-xs">
                 {tabCounts.in_review}
               </span>
             </button>
@@ -536,7 +536,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
               }`}
             >
               <span>Pendientes de soporte</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-slate-200/80 text-slate-600 text-[10px]">
+              <span className="px-1.5 py-0.2 rounded-full bg-slate-200/80 text-slate-600 text-xs">
                 {tabCounts.pending_support}
               </span>
             </button>
@@ -551,7 +551,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
               }`}
             >
               <span>Resueltas</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-slate-200/80 text-slate-600 text-[10px]">
+              <span className="px-1.5 py-0.2 rounded-full bg-slate-200/80 text-slate-600 text-xs">
                 {tabCounts.resolved}
               </span>
             </button>
@@ -566,7 +566,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
               }`}
             >
               <span>Todas</span>
-              <span className="px-1.5 py-0.2 rounded-full bg-slate-200/80 text-slate-600 text-[10px]">
+              <span className="px-1.5 py-0.2 rounded-full bg-slate-200/80 text-slate-600 text-xs">
                 {tabCounts.all}
               </span>
             </button>
@@ -598,7 +598,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
         <div className="flex-1 flex overflow-hidden">
           {/* LEFT COLUMN: LIST OF REQUESTS */}
           <div className="w-80 sm:w-96 flex-shrink-0 border-r border-slate-200 flex flex-col bg-slate-50/50 overflow-hidden">
-            <div className="px-4 py-2 border-b border-slate-200/60 text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex justify-between items-center">
+            <div className="px-4 py-2 border-b border-slate-200/60 text-xs font-semibold text-slate-500 uppercase tracking-wider flex justify-between items-center">
               <span>Solicitudes ({filteredJustifications.length})</span>
               {searchTerm && <span className="text-blue-600">Filtradas</span>}
             </div>
@@ -614,7 +614,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                       ? "No hay solicitudes registradas"
                       : "No hay trámites en este filtro"}
                   </h4>
-                  <p className="text-[11px] text-slate-500 max-w-[220px]">
+                  <p className="text-xs text-slate-500 max-w-[220px]">
                     {justifications.length === 0
                       ? "Las excusas radicadas por acudientes o docentes aparecerán en esta bandeja."
                       : "Prueba seleccionando otra pestaña o limpiando el texto del buscador."}
@@ -670,13 +670,13 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                             <h4 className="text-xs font-bold text-slate-900 truncate leading-tight">
                               {displayName}
                             </h4>
-                            <span className="text-[10px] text-slate-400 font-mono">
+                            <span className="text-xs text-slate-400 font-mono">
                               {displayCode}
                             </span>
                           </div>
                         </div>
 
-                        <span className="text-[10px] text-slate-500 font-medium whitespace-nowrap">
+                        <span className="text-xs text-slate-500 font-medium whitespace-nowrap">
                           {formatDate(item.attendanceDate)}
                         </span>
                       </div>
@@ -684,25 +684,25 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                       {/* Status pill & Reason */}
                       <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
                         <span
-                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${meta.badge}`}
+                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-semibold border ${meta.badge}`}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${meta.dotColor}`} />
                           <StatusIcon className="w-2.5 h-2.5" />
                           {meta.label}
                         </span>
 
-                        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-medium border border-slate-200/70">
+                        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200/70">
                           {JUSTIFICATION_REASON_LABELS[item.reasonCategory]}
                         </span>
                       </div>
 
                       {/* Preview Description */}
-                      <p className="text-[11px] text-slate-600 line-clamp-1 mb-1.5">
+                      <p className="text-xs text-slate-600 line-clamp-1 mb-1.5">
                         {item.description}
                       </p>
 
                       {/* Footer tags */}
-                      <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
                         <span>Por: {item.submittedByName}</span>
                         {item.requiresPhysicalSupport && !item.physicalSupportReceivedAt && (
                           <span className="text-amber-600 font-medium flex items-center gap-0.5 ml-auto">
@@ -839,7 +839,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                         <h4 className="font-bold text-xs text-purple-900">
                           Aviso de Inasistencia Programada
                         </h4>
-                        <p className="text-purple-800 text-[11px] mt-0.5">
+                        <p className="text-purple-800 text-xs mt-0.5">
                           Radicada anticipadamente por {activeJustification.submittedByName} ({activeJustification.submittedByRole === "guardian" ? "Acudiente" : "Estudiante"}). 
                           <strong> No genera falta en lista antes de la fecha de la sesión.</strong>
                         </p>
@@ -869,7 +869,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                       <span className="text-xs font-bold text-slate-800 block">
                         Resolución del Trámite
                       </span>
-                      <span className="text-[11px] text-slate-500">
+                      <span className="text-xs text-slate-500">
                         {["approved", "unjustified", "rejected"].includes(activeJustification.status)
                           ? `Expediente resuelto por ${activeJustification.resolvedByName || "Docente"} el ${formatDateTime(activeJustification.resolvedAt)}`
                           : "Acción inmediata de evaluación y resolución institucional"}
@@ -983,7 +983,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
 
                 {/* Avisos normativos y de asistencia modificada */}
                 {activeJustification.status !== "scheduled_absence" && (
-                  <div className="text-[11px] text-slate-500 bg-blue-50/40 border border-blue-100 rounded-lg p-2.5 flex items-start gap-2">
+                  <div className="text-xs text-slate-500 bg-blue-50/40 border border-blue-100 rounded-lg p-2.5 flex items-start gap-2">
                     <AlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                     <span>
                       La falta registrada por el docente se mantiene como registro original en la planilla. La ausencia solo pasa formalmente a <strong>Excusa</strong> cuando este trámite sea aprobado tras la verificación de los soportes.
@@ -998,7 +998,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                       <span className="font-bold block">
                         Atención: Registro de asistencia modificado post-radicación
                       </span>
-                      <span className="text-[11px] text-amber-800">
+                      <span className="text-xs text-amber-800">
                         El registro de esta fecha figura actualmente como{" "}
                         <strong className="uppercase">{activeJustification.currentAttendanceStatus || "modificado"}</strong>{" "}
                         en la planilla docente. Revisa si la falta fue corregida antes de emitir una resolución.
@@ -1013,7 +1013,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                   <div className="space-y-4">
                     {/* Radicación y Solicitante */}
                     <div className="border border-slate-200 rounded-xl p-4 bg-white space-y-3">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                         Datos de Radicación
                       </span>
                       <div className="flex items-center gap-3">
@@ -1030,7 +1030,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                           <p className="text-xs font-bold text-slate-900 leading-tight">
                             {activeJustification.submittedByName}
                           </p>
-                          <p className="text-[11px] text-slate-500 capitalize">
+                          <p className="text-xs text-slate-500 capitalize">
                             Rol:{" "}
                             {activeJustification.submittedByRole === "guardian"
                               ? "Acudiente Titular"
@@ -1050,7 +1050,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                     {/* Motivo y Declaración de hechos */}
                     <div className="border border-slate-200 rounded-xl p-4 bg-white space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                           Motivo declarado
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-100">
@@ -1069,7 +1069,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                   <div className="space-y-4">
                     {/* Constancia Digital */}
                     <div className="border border-slate-200 rounded-xl p-4 bg-white space-y-2.5">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                         Constancia Digital Adjunta
                       </span>
 
@@ -1083,7 +1083,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                               <p className="text-xs font-semibold text-slate-900 truncate" title={activeJustification.digitalEvidenceName || "Constancia_digital.pdf"}>
                                 {activeJustification.digitalEvidenceName || "Constancia_digital.pdf"}
                               </p>
-                              <span className="text-[10px] text-slate-500 block">
+                              <span className="text-xs text-slate-500 block">
                                 Documento digital verificado
                               </span>
                             </div>
@@ -1122,15 +1122,15 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                     {/* Soporte Físico Original */}
                     <div className="border border-slate-200 rounded-xl p-4 bg-white space-y-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                           Soporte Físico
                         </span>
                         {activeJustification.requiresPhysicalSupport ? (
-                          <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
                             Requerido por protocolo
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600">
+                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
                             No requerido
                           </span>
                         )}
@@ -1143,12 +1143,12 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                               Soporte Físico Recibido
                             </div>
-                            <p className="text-[11px] text-emerald-700">
+                            <p className="text-xs text-emerald-700">
                               Recibido el {formatDateTime(activeJustification.physicalSupportReceivedAt)} por{" "}
                               <strong>{activeJustification.physicalSupportReceivedByName}</strong>.
                             </p>
                             {activeJustification.physicalSupportNotes && (
-                              <p className="text-[11px] text-emerald-800 mt-1.5 italic bg-white/70 p-2 rounded border border-emerald-100">
+                              <p className="text-xs text-emerald-800 mt-1.5 italic bg-white/70 p-2 rounded border border-emerald-100">
                                 "{activeJustification.physicalSupportNotes}"
                               </p>
                             )}
@@ -1160,7 +1160,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                                 <Hourglass className="w-3.5 h-3.5 text-amber-600" />
                                 Pendiente de entrega
                               </span>
-                              <span className="text-[11px] text-amber-800">
+                              <span className="text-xs text-amber-800">
                                 Plazo: {activeJustification.physicalSupportDeadline ? formatDate(activeJustification.physicalSupportDeadline) : "Sin definir"}
                               </span>
                             </div>
@@ -1189,7 +1189,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                           <ShieldAlert className="w-4 h-4 text-blue-600" />
                           Derivado a Coordinación Académica / Convivencia
                         </div>
-                        <p className="text-blue-800 text-[11px] bg-white/80 p-2 rounded border border-blue-100 mt-1">
+                        <p className="text-blue-800 text-xs bg-white/80 p-2 rounded border border-blue-100 mt-1">
                           {activeJustification.coordinationNotes || "Caso remitido para valoración institucional."}
                         </p>
                       </div>
@@ -1224,15 +1224,15 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                                 ? "Resolución: No justificada"
                                 : ev.eventType}
                             </span>
-                            <span className="text-[10px] text-slate-400">
+                            <span className="text-xs text-slate-400">
                               {formatDateTime(ev.createdAt)}
                             </span>
                           </div>
-                          <p className="text-[11px] text-slate-500 mt-0.5">
+                          <p className="text-xs text-slate-500 mt-0.5">
                             Por: <strong>{ev.actorName}</strong> ({ev.actorRole})
                           </p>
                           {ev.notes && (
-                            <p className="text-[11px] text-slate-600 mt-1 bg-slate-50 p-2 rounded border border-slate-100">
+                            <p className="text-xs text-slate-600 mt-1 bg-slate-50 p-2 rounded border border-slate-100">
                               {ev.notes}
                             </p>
                           )}
@@ -1243,11 +1243,11 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                         <span className="w-2.5 h-2.5 rounded-full bg-blue-500 absolute -left-[21px] top-1 ring-4 ring-white" />
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-bold text-slate-800">Radicación inicial</span>
-                          <span className="text-[10px] text-slate-400">
+                          <span className="text-xs text-slate-400">
                             {formatDateTime(activeJustification.submittedAt || activeJustification.createdAt)}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
+                        <p className="text-xs text-slate-500 mt-0.5">
                           Por: <strong>{activeJustification.submittedByName}</strong>
                         </p>
                       </div>
@@ -1433,7 +1433,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
               </div>
 
               {resolveTargetStatus === "approved" && (
-                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 text-[11px]">
+                <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 text-xs">
                   <strong>Efecto en planilla:</strong> La asistencia del estudiante en la fecha{" "}
                   <strong>{formatDate(activeJustification.attendanceDate)}</strong> cambiará
                   automáticamente a <strong>Excusa</strong>.
@@ -1623,7 +1623,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
 
                 {newRequiresPhysical && (
                   <div>
-                    <label className="text-[11px] text-slate-500 block mb-1">
+                    <label className="text-xs text-slate-500 block mb-1">
                       Fecha límite de entrega física:
                     </label>
                     <input
@@ -1641,7 +1641,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                 <label className="font-semibold text-slate-800 block text-xs">
                   Constancia digital adjunta (opcional):
                 </label>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-xs text-slate-500">
                   Adjunta el archivo entregado (PDF, Word, Excel, imagen o texto hasta 25 MB).
                 </p>
 
@@ -1654,7 +1654,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                           {newDigitalEvidenceName}
                         </span>
                         {newDigitalFileSize && (
-                          <span className="text-[10px] text-slate-400">{newDigitalFileSize}</span>
+                          <span className="text-xs text-slate-400">{newDigitalFileSize}</span>
                         )}
                       </div>
                     </div>

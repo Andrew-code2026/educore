@@ -629,7 +629,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
               type="button"
               onClick={onBackToCourses}
               title="Volver a lista de cursos"
-              className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-50/80 px-2.5 text-[11px] font-medium text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-800 shadow-2xs"
+              className="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-50/80 px-2.5 text-xs font-medium text-slate-500 transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-800 shadow-2xs"
             >
               <ArrowLeft className="h-3 w-3 text-slate-400" />
               <span className="hidden sm:inline">Cursos</span>
@@ -659,13 +659,13 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
 
             {/* Room & Time Pill / Live Indicator */}
             <div className="hidden lg:flex items-center gap-1.5 text-xs text-slate-500 font-medium pl-1">
-              <span className="rounded-md bg-slate-100/90 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+              <span className="rounded-md bg-slate-100/90 px-2 py-0.5 text-xs font-semibold text-slate-600">
                 {course.room}
               </span>
               <span className="text-slate-300">·</span>
 
               {isClassActiveNow ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200/70 shadow-2xs">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 border border-emerald-200/70 shadow-2xs">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
@@ -689,7 +689,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                   setSelectedStudent(null);
                 }}
                 title={`Saltar a la siguiente clase: ${nextCourse.label} · ${nextCourse.subject}`}
-                className="hidden xl:inline-flex items-center gap-1 rounded-lg border border-indigo-100 bg-indigo-50/60 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition shadow-2xs mr-1"
+                className="hidden xl:inline-flex items-center gap-1 rounded-lg border border-indigo-100 bg-indigo-50/60 px-2.5 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition shadow-2xs mr-1"
               >
                 <span className="text-indigo-400 font-normal">Siguiente:</span>
                 <span>{nextCourse.label}</span>
@@ -707,7 +707,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
               >
                 <RotateCcw className="h-3.5 w-3.5 text-slate-500" />
                 <span>Deshacer</span>
-                <kbd className="hidden sm:inline-block rounded bg-slate-100 px-1 py-0.2 font-mono text-[9px] text-slate-400">
+                <kbd className="hidden sm:inline-block rounded bg-slate-100 px-1 py-0.2 font-mono text-xs text-slate-400">
                   Ctrl+Z
                 </kbd>
               </button>
@@ -754,7 +754,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
               <FileCheck2 className="h-3.5 w-3.5 text-blue-600" />
               <span>Excusas</span>
               {pendingJustificationsCount > 0 && (
-                <span className="rounded-full bg-blue-600 px-1.5 py-0.2 text-[10px] font-extrabold text-white">
+                <span className="rounded-full bg-blue-600 px-1.5 py-0.2 text-xs font-extrabold text-white">
                   {pendingJustificationsCount}
                 </span>
               )}
@@ -769,7 +769,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
             )}
 
             {/* Real-time Save Status */}
-            <div className="hidden sm:flex items-center gap-1 text-[11px] font-medium pl-1 text-slate-500" title="Los cambios se guardan automáticamente en el servidor">
+            <div className="hidden sm:flex items-center gap-1 text-xs font-medium pl-1 text-slate-500" title="Los cambios se guardan automáticamente en el servidor">
               {isSaving ? (
                 <span className="inline-flex items-center gap-1 text-amber-700 font-semibold">
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
@@ -809,7 +809,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                       key={day.iso}
                       type="button"
                       onClick={() => onSelectDateIndex(idx)}
-                      className={`rounded-lg px-2 py-1 text-[11px] font-bold transition ${
+                      className={`rounded-lg px-2 py-1 text-xs font-bold transition ${
                         isSelected
                           ? "bg-slate-900 text-white shadow-2xs scale-102"
                           : "text-slate-600 hover:bg-white/80 hover:text-slate-900"
@@ -871,7 +871,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                   type="button"
                   onClick={togglePendingFilter}
                   title={filter === "pending" ? "Quitar filtro de pendientes" : "Filtrar a pendientes"}
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold transition ${
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold transition ${
                     filter === "pending"
                       ? "bg-amber-500 text-white shadow-2xs scale-102"
                       : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200/60"
@@ -879,7 +879,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                   <span>{currentCounts.pending} Pendientes</span>
-                  {filter === "pending" && <span className="ml-0.5 text-[9px] opacity-80">✕</span>}
+                  {filter === "pending" && <span className="ml-0.5 text-xs opacity-80">✕</span>}
                 </button>
               </>
             )}
@@ -896,7 +896,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                       ? "Quitar filtro de alertas (ver todos)"
                       : "Filtrar tabla a estudiantes que requieren atención"
                   }
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold transition ${
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold transition ${
                     filter === "problems"
                       ? "bg-rose-600 text-white shadow-2xs scale-105"
                       : "bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/60"
@@ -904,7 +904,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                 >
                   <AlertTriangle className="h-3 w-3 shrink-0" />
                   <span>{studentsAttentionCount} en alerta</span>
-                  {filter === "problems" && <span className="ml-0.5 text-[9px] opacity-80">✕</span>}
+                  {filter === "problems" && <span className="ml-0.5 text-xs opacity-80">✕</span>}
                 </button>
               </>
             )}
@@ -915,7 +915,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                 <span className="text-slate-300 hidden xl:inline">·</span>
                 <span
                   title={groupAnalysis.trendSentence}
-                  className="hidden xl:inline-flex items-center gap-1 rounded-full bg-indigo-50/80 px-2 py-0.5 text-[11px] font-semibold text-indigo-800 border border-indigo-100/90 shadow-2xs"
+                  className="hidden xl:inline-flex items-center gap-1 rounded-full bg-indigo-50/80 px-2 py-0.5 text-xs font-semibold text-indigo-800 border border-indigo-100/90 shadow-2xs"
                 >
                   <Sparkles className="h-3 w-3 text-indigo-500" />
                   <span>{groupAnalysis.headline}</span>
@@ -929,15 +929,15 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                 type="button"
                 onClick={() => setShowShortcutPopover((v) => !v)}
                 title="Ver atajos de teclado"
-                className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-700 transition p-1 rounded-md hover:bg-slate-100"
+                className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-700 transition p-1 rounded-md hover:bg-slate-100"
               >
                 <Keyboard className="h-3.5 w-3.5" />
-                <span className="hidden xl:inline text-[10px] font-medium">Atajos</span>
+                <span className="hidden xl:inline text-xs font-medium">Atajos</span>
               </button>
 
               {showShortcutPopover && (
-                <div className="absolute right-0 top-full mt-1.5 z-30 w-56 rounded-xl border border-slate-200 bg-white p-3 shadow-lg text-[11px] text-slate-700 animate-in fade-in duration-100">
-                  <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-100 font-bold text-slate-900 text-[10px] uppercase tracking-wider">
+                <div className="absolute right-0 top-full mt-1.5 z-30 w-56 rounded-xl border border-slate-200 bg-white p-3 shadow-lg text-xs text-slate-700 animate-in fade-in duration-100">
+                  <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-slate-100 font-bold text-slate-900 text-xs uppercase tracking-wider">
                     <span>Atajos de teclado</span>
                     <button
                       type="button"
@@ -950,35 +950,35 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                   <div className="space-y-1.5 font-medium text-slate-600">
                     <div className="flex justify-between items-center">
                       <span>Marcar Presente:</span>
-                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-800 border border-slate-200">P / Enter</kbd>
+                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-800 border border-slate-200">P / Enter</kbd>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Marcar Ausente:</span>
-                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-800 border border-slate-200">A</kbd>
+                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-800 border border-slate-200">A</kbd>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Marcar Tardanza:</span>
-                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-800 border border-slate-200">T</kbd>
+                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-800 border border-slate-200">T</kbd>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Marcar Excusa:</span>
-                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-800 border border-slate-200">E</kbd>
+                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-800 border border-slate-200">E</kbd>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Restablecer Pendiente:</span>
-                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-800 border border-slate-200">Backspace</kbd>
+                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-800 border border-slate-200">Backspace</kbd>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Saltar a pendientes:</span>
-                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-800 border border-slate-200">Tab</kbd>
+                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-800 border border-slate-200">Tab</kbd>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Navegar estudiante:</span>
-                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-800 border border-slate-200">↑ / ↓</kbd>
+                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-800 border border-slate-200">↑ / ↓</kbd>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Deshacer cambio:</span>
-                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-slate-800 border border-slate-200">Ctrl + Z</kbd>
+                      <kbd className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs font-bold text-slate-800 border border-slate-200">Ctrl + Z</kbd>
                     </div>
                   </div>
                 </div>
@@ -1000,7 +1000,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                 <span className="text-xs font-extrabold uppercase tracking-wide text-blue-950">
                   Bandeja de Justificaciones y Excusas
                 </span>
-                <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-2xs">
+                <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-bold text-white shadow-2xs">
                   {pendingJustificationsCount} {pendingJustificationsCount === 1 ? "trámite pendiente" : "trámites pendientes"}
                 </span>
               </div>
@@ -1049,7 +1049,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                 <button
                   type="button"
                   onClick={() => setFilter("all")}
-                  className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition ${
+                  className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
                     filter === "all"
                       ? "bg-white text-indigo-700 shadow-2xs"
                       : "text-slate-500 hover:text-slate-800"
@@ -1060,7 +1060,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                 <button
                   type="button"
                   onClick={() => setFilter("pending")}
-                  className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition ${
+                  className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
                     filter === "pending"
                       ? "bg-white text-amber-700 shadow-2xs"
                       : "text-slate-500 hover:text-slate-800"
@@ -1071,7 +1071,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                 <button
                   type="button"
                   onClick={() => setFilter("problems")}
-                  className={`rounded-md px-2.5 py-1 text-[11px] font-bold transition ${
+                  className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
                     filter === "problems"
                       ? "bg-white text-rose-700 shadow-2xs"
                       : "text-slate-500 hover:text-slate-800"
@@ -1083,7 +1083,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="text-[11px] text-slate-400 font-medium hidden md:inline">
+              <span className="text-xs text-slate-400 font-medium hidden md:inline">
                 {rows.length} de {course.students.length} estudiantes
               </span>
 
@@ -1096,7 +1096,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                     ? "Abrir panel lateral de Atención docente"
                     : "Ocultar panel lateral y ver tabla a ancho completo"
                 }
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition shadow-2xs ${
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition shadow-2xs ${
                   !isExpandedTable
                     ? "border-indigo-300 bg-indigo-50 text-indigo-800"
                     : studentsAttentionCount > 0
@@ -1111,7 +1111,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                 />
                 <span>Atención docente</span>
                 {studentsAttentionCount > 0 && (
-                  <span className="rounded-full bg-rose-600 px-1.5 py-0.2 text-[9px] font-bold text-white">
+                  <span className="rounded-full bg-rose-600 px-1.5 py-0.2 text-xs font-bold text-white">
                     {studentsAttentionCount}
                   </span>
                 )}
@@ -1123,7 +1123,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[620px] border-collapse text-left">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/70 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                <tr className="border-b border-slate-100 bg-slate-50/70 text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
                   <th className="w-9 px-2.5 py-2 text-center">#</th>
                   <th className="sticky left-0 z-10 min-w-[220px] bg-slate-50/95 px-3 py-2">
                     Estudiante
@@ -1158,7 +1158,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                       }`}
                     >
                       {/* Row Index */}
-                      <td className="px-2.5 py-2 text-center text-[11px] font-bold text-slate-400">
+                      <td className="px-2.5 py-2 text-center text-xs font-bold text-slate-400">
                         {index + 1}
                       </td>
 
@@ -1173,7 +1173,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                             />
                           ) : (
                             <div
-                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-slate-800 ring-1 ring-slate-200"
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-slate-800 ring-1 ring-slate-200"
                               style={{ backgroundColor: student.avatarColor || "#e2e8f0" }}
                             >
                               {student.name.slice(0, 2).toUpperCase()}
@@ -1197,7 +1197,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                               {/* Subtle contextual signal ONLY when student has a genuine negative attendance pattern */}
                               {analysis && analysis.hasNegativePattern && (
                                 <span
-                                  className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.2 text-[9px] font-bold shrink-0 border ${
+                                  className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.2 text-xs font-bold shrink-0 border ${
                                     analysis.severity === "critical"
                                       ? "bg-rose-50 text-rose-700 border-rose-200/70"
                                       : "bg-amber-50 text-amber-800 border-amber-200/70"
@@ -1251,7 +1251,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                             </div>
 
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="block text-[10px] text-slate-400 leading-tight font-mono">
+                              <span className="block text-xs text-slate-400 leading-tight font-mono">
                                 {student.code}
                               </span>
                               {(() => {
@@ -1275,7 +1275,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                                         ? `Inasistencia programada con anticipación: ${JUSTIFICATION_REASON_LABELS[currentJustification.reasonCategory]}. Clic para ver solicitud.`
                                         : `Excusa: ${JUSTIFICATION_STATUS_META[currentJustification.status].label} (${JUSTIFICATION_REASON_LABELS[currentJustification.reasonCategory]}). Clic para ver trámite.`
                                     }
-                                    className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.2 text-[9px] font-bold border transition hover:opacity-80 ${
+                                    className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.2 text-xs font-bold border transition hover:opacity-80 ${
                                       JUSTIFICATION_STATUS_META[currentJustification.status].badge
                                     }`}
                                   >
@@ -1296,7 +1296,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                       {/* Overall % Attendance Compact Pill (Coherent with recorded sessions) */}
                       <td className="px-2 py-2 text-center">
                         <span
-                          className={`inline-flex items-center justify-center px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                          className={`inline-flex items-center justify-center px-2 py-0.5 rounded-md text-xs font-bold ${
                             (analysis?.effectiveAttendanceRate ?? student.attendanceRate) >= 90
                               ? "text-emerald-700 bg-emerald-50/90"
                               : (analysis?.effectiveAttendanceRate ?? student.attendanceRate) >= 80
@@ -1353,7 +1353,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                                     handleSetStatusWithUndo(student.id, currentDate.iso, st);
                                     setActiveStudentId(student.id);
                                   }}
-                                  className={`h-6 w-7 rounded-md text-[11px] font-bold transition-all ${
+                                  className={`h-6 w-7 rounded-md text-xs font-bold transition-all ${
                                     isCurrent
                                       ? activeStyles
                                       : `text-slate-500 ${inactiveHover}`
@@ -1374,7 +1374,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                           );
                           if (!isScheduled) return null;
                           return (
-                            <div className="flex items-center justify-center gap-1 mt-0.5 text-[9px] font-semibold text-purple-700">
+                            <div className="flex items-center justify-center gap-1 mt-0.5 text-xs font-semibold text-purple-700">
                               <CalendarClock className="w-2.5 h-2.5" />
                               <span>Prevista</span>
                             </div>
@@ -1438,7 +1438,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                                 {analysis.totalAbsencesInPeriod > 0 && (
                                   <span
                                     title={`${analysis.totalAbsencesInPeriod} inasistencias`}
-                                    className="rounded bg-rose-50 px-1 py-0.2 text-[9px] font-bold text-rose-700 border border-rose-200/80"
+                                    className="rounded bg-rose-50 px-1 py-0.2 text-xs font-bold text-rose-700 border border-rose-200/80"
                                   >
                                     {analysis.totalAbsencesInPeriod}A
                                   </span>
@@ -1446,7 +1446,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                                 {analysis.totalLateInPeriod > 0 && (
                                   <span
                                     title={`${analysis.totalLateInPeriod} tardanzas`}
-                                    className="rounded bg-amber-50 px-1 py-0.2 text-[9px] font-bold text-amber-800 border border-amber-200/80"
+                                    className="rounded bg-amber-50 px-1 py-0.2 text-xs font-bold text-amber-800 border border-amber-200/80"
                                   >
                                     {analysis.totalLateInPeriod}T
                                   </span>
@@ -1454,7 +1454,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                                 {analysis.totalExcusedInPeriod > 0 && (
                                   <span
                                     title={`${analysis.totalExcusedInPeriod} excusas`}
-                                    className="rounded bg-blue-50 px-1 py-0.2 text-[9px] font-bold text-blue-800 border border-blue-200/80"
+                                    className="rounded bg-blue-50 px-1 py-0.2 text-xs font-bold text-blue-800 border border-blue-200/80"
                                   >
                                     {analysis.totalExcusedInPeriod}E
                                   </span>
@@ -1479,7 +1479,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
           </div>
 
           {/* Table Footer with Summary Legend */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/50 px-4 py-2 text-[11px] text-slate-500">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/50 px-4 py-2 text-xs text-slate-500">
             <div className="flex items-center gap-3">
               <span className="font-semibold text-slate-700">Leyenda:</span>
               <span className="inline-flex items-center gap-1">
@@ -1499,13 +1499,13 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                 <strong>E</strong> Excusa
               </span>
               <span className="text-slate-300">|</span>
-              <span className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+              <span className="inline-flex items-center gap-1 text-xs text-slate-400">
                 <span className="h-2 w-2 rounded-xs bg-rose-600 ring-1 ring-rose-200" />
                 Ausencias consecutivas
               </span>
             </div>
 
-            <div className="text-[10px] text-slate-400">
+            <div className="text-xs text-slate-400">
               Navega con <kbd className="rounded bg-slate-200 px-1 py-0.5 font-mono">↑ / ↓</kbd>, salta pendientes con <kbd className="rounded bg-slate-200 px-1 py-0.5 font-mono">Tab</kbd>, marca con <kbd className="rounded bg-slate-200 px-1 py-0.5 font-mono">P / A / T / E</kbd> y deshace con <kbd className="rounded bg-slate-200 px-1 py-0.5 font-mono">Ctrl+Z</kbd>
             </div>
           </div>
@@ -1522,7 +1522,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                       studentsAttentionCount > 0
                         ? "bg-rose-100 text-rose-700"
                         : "bg-emerald-100 text-emerald-700"
@@ -1541,7 +1541,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                 </div>
               </div>
 
-              <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
                 Casos que requieren intervención, ausencias reiteradas o alertas críticas.
               </p>
 
@@ -1581,7 +1581,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                             />
                           ) : (
                             <div
-                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-slate-800 ring-1 ring-slate-200"
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-slate-800 ring-1 ring-slate-200"
                               style={{ backgroundColor: student.avatarColor || "#e2e8f0" }}
                             >
                               {initials}
@@ -1591,7 +1591,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                             <p className="truncate text-xs font-bold text-slate-900 leading-tight">
                               {student.name}
                             </p>
-                            <p className="text-[11px] text-slate-600 font-medium truncate mt-0.5">
+                            <p className="text-xs text-slate-600 font-medium truncate mt-0.5">
                               <span className="font-extrabold text-slate-900">
                                 {analysis?.effectiveAttendanceRate ?? student.attendanceRate}%
                               </span>
@@ -1602,7 +1602,7 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                         </div>
 
                         {existingCase && (
-                          <span className="shrink-0 rounded-md bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700 border border-indigo-100">
+                          <span className="shrink-0 rounded-md bg-indigo-50 px-1.5 py-0.5 text-xs font-bold text-indigo-700 border border-indigo-100">
                             {existingCase.status === "in_review"
                               ? "En revisión"
                               : existingCase.status === "resolved"
@@ -1623,13 +1623,13 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
                     <p className="text-xs font-bold text-emerald-900">
                       Grupo sin patrones de asistencia que requieran atención
                     </p>
-                    <p className="mt-0.5 text-[10px] text-emerald-700/80">
+                    <p className="mt-0.5 text-xs text-emerald-700/80">
                       Todos los estudiantes mantienen una asistencia regular o sin patrones negativos.
                     </p>
                     <button
                       type="button"
                       onClick={() => setIsExpandedTable(true)}
-                      className="mt-2.5 inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2 py-0.5 text-[10px] font-bold text-emerald-800 shadow-2xs hover:bg-emerald-50 transition"
+                      className="mt-2.5 inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-white px-2 py-0.5 text-xs font-bold text-emerald-800 shadow-2xs hover:bg-emerald-50 transition"
                     >
                       <Maximize2 className="h-3 w-3" />
                       <span>Expandir tabla</span>
@@ -1692,8 +1692,6 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
           student={selectedStudent}
           course={course}
           days={days}
-          selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
           getStatus={getStatus}
           onSetStatus={handleSetStatusWithUndo}
           onNextStudent={handleNextStudent}
@@ -1707,13 +1705,9 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
           onAddCaseNote={onAddCaseNote}
           caseHistoryNotes={activeCaseHistoryNotes}
           isOpeningCase={isOpeningCase}
-          isUpdatingCase={isUpdatingCase}
           isAddingNote={isAddingNote}
           justifications={justifications}
-          onRecordPhysicalReceipt={onRecordPhysicalReceipt}
-          onEscalateJustification={onEscalateJustification}
           onResolveJustification={onResolveJustification}
-          onNavigateToGradeCenter={onNavigateToGradeCenter}
           schoolLogoUrl={schoolLogoUrl}
           schoolName={schoolName}
         />

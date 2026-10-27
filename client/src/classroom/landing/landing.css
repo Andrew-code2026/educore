@@ -1,0 +1,895 @@
+/*
+ * "Mis cursos" — portada docente de Classroom (diseño "EduCore Docente").
+ * Hereda los tokens de color de .edc-shell y añade los de tarjetas y controles.
+ * Los selectores van prefijados con .ccl para ganar a los estilos genéricos de
+ * .classcore-workspace (botones, foco, tipografía) sin recurrir a !important.
+ */
+
+.ccl {
+  --ccl-card-bg: linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, .62));
+  --ccl-card-border: rgba(255, 255, 255, .95);
+  --ccl-card-shadow: 0 1px 2px rgba(24, 53, 90, .04), 0 14px 34px -16px rgba(16, 60, 113, .18);
+  --ccl-card-shadow-hover: 0 1px 2px rgba(24, 53, 90, .04), 0 22px 40px -18px rgba(16, 60, 113, .32);
+  --ccl-tile-bg: rgba(255, 255, 255, .88);
+  --ccl-tile-border: rgba(17, 27, 36, .06);
+  --ccl-tile-hl-bg: #F0F7FF;
+  --ccl-tile-hl-border: rgba(3, 119, 223, .18);
+  --ccl-chip-bg: rgba(255, 255, 255, .7);
+  --ccl-chip-border: rgba(255, 255, 255, .95);
+  --ccl-dot: #B9C1C9;
+  --ccl-group-bg: #111B24;
+  --ccl-group-fg: #FFFFFF;
+  --ccl-active-bg: #E6F2EA;
+  --ccl-active-fg: #2F7D4F;
+  --ccl-neutral-bg: rgba(17, 27, 36, .06);
+  --ccl-neutral-fg: #3D4650;
+  --ccl-neutral-dot: #79818A;
+  --ccl-icon-bg: #DEEDFE;
+  --ccl-icon-fg: #0C62B5;
+  --ccl-track: #E6EEF6;
+  --ccl-bar: linear-gradient(180deg, #0080FA, #0C62B5);
+  --ccl-empty-border: rgba(17, 27, 36, .12);
+  --ccl-empty-bg: rgba(255, 255, 255, .5);
+  --ccl-avatar-bg: linear-gradient(145deg, #DEEDFE, #BFD8FF);
+  --ccl-avatar-fg: #06498A;
+  --ccl-row-hover: #FFFFFF;
+  --ccl-dark-bg: #111B24;
+  --ccl-dark-hover: #1F2E3E;
+  --ccl-dark-fg: #FFFFFF;
+  --ccl-outline-bg: #FFFFFF;
+  --ccl-outline-hover: #F5FAFF;
+  --ccl-outline-border: rgba(17, 27, 36, .1);
+  --ccl-primary: #0377DF;
+  --ccl-primary-hover: #0C62B5;
+  --ccl-count-bg: #DEEDFE;
+  --ccl-count-fg: #045AA5;
+  --ccl-glow-a: radial-gradient(closest-side, rgba(101, 170, 248, .42), rgba(176, 210, 255, .18) 55%, transparent);
+  --ccl-glow-b: radial-gradient(closest-side, rgba(198, 218, 253, .5), transparent);
+
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--edc-scroll) transparent;
+  padding: 30px 28px 28px;
+  background: var(--edc-main-bg);
+  color: var(--edc-ink);
+  font-family: 'Outfit', system-ui, sans-serif;
+  line-height: normal;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+
+.dark .ccl {
+  --ccl-card-bg: linear-gradient(180deg, rgba(27, 38, 51, .92), rgba(22, 32, 44, .78));
+  --ccl-card-border: rgba(255, 255, 255, .06);
+  --ccl-card-shadow: 0 1px 2px rgba(0, 0, 0, .2), 0 14px 34px -16px rgba(0, 0, 0, .55);
+  --ccl-card-shadow-hover: 0 1px 2px rgba(0, 0, 0, .2), 0 22px 40px -18px rgba(0, 0, 0, .7);
+  --ccl-tile-bg: rgba(255, 255, 255, .04);
+  --ccl-tile-border: rgba(255, 255, 255, .07);
+  --ccl-tile-hl-bg: rgba(3, 119, 223, .12);
+  --ccl-tile-hl-border: rgba(83, 151, 252, .24);
+  --ccl-chip-bg: rgba(255, 255, 255, .05);
+  --ccl-chip-border: rgba(255, 255, 255, .08);
+  --ccl-dot: #4B5868;
+  --ccl-group-bg: #EEF3F8;
+  --ccl-group-fg: #111B24;
+  --ccl-active-bg: rgba(47, 125, 79, .22);
+  --ccl-active-fg: #7FD3A0;
+  --ccl-neutral-bg: rgba(255, 255, 255, .08);
+  --ccl-neutral-fg: #C3CDD8;
+  --ccl-neutral-dot: #8C98A5;
+  --ccl-icon-bg: rgba(3, 119, 223, .2);
+  --ccl-icon-fg: #6FB1FA;
+  --ccl-track: rgba(255, 255, 255, .08);
+  --ccl-bar: linear-gradient(180deg, #2F8EFC, #0377DF);
+  --ccl-empty-border: rgba(255, 255, 255, .12);
+  --ccl-empty-bg: rgba(255, 255, 255, .03);
+  --ccl-avatar-bg: linear-gradient(145deg, rgba(3, 119, 223, .32), rgba(83, 151, 252, .2));
+  --ccl-avatar-fg: #CFE4FF;
+  --ccl-row-hover: rgba(255, 255, 255, .05);
+  --ccl-dark-bg: #EEF3F8;
+  --ccl-dark-hover: #FFFFFF;
+  --ccl-dark-fg: #111B24;
+  --ccl-outline-bg: rgba(255, 255, 255, .04);
+  --ccl-outline-hover: rgba(255, 255, 255, .08);
+  --ccl-outline-border: rgba(255, 255, 255, .12);
+  --ccl-primary: #1A86EA;
+  --ccl-primary-hover: #0377DF;
+  --ccl-count-bg: rgba(3, 119, 223, .2);
+  --ccl-count-fg: #A9D0FF;
+  --ccl-glow-a: radial-gradient(closest-side, rgba(3, 119, 223, .22), rgba(3, 119, 223, .06) 55%, transparent);
+  --ccl-glow-b: radial-gradient(closest-side, rgba(83, 151, 252, .12), transparent);
+
+  color-scheme: dark;
+}
+
+/* En la portada se omite el fondo inmersivo de ClassCORE (halos y retícula); .ccl pinta el del shell */
+.classcore-workspace[data-screen="landing"]::before,
+.classcore-workspace[data-screen="landing"]::after {
+  content: none;
+}
+
+.ccl *,
+.ccl *::before,
+.ccl *::after {
+  box-sizing: border-box;
+}
+
+.ccl svg {
+  flex: none;
+}
+
+.ccl h1,
+.ccl h2,
+.ccl h3,
+.ccl p {
+  margin: 0;
+  font-family: inherit;
+}
+
+.ccl .ccl-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Fondo ─────────────────────────────────────────────── */
+
+.ccl .ccl__glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.ccl .ccl__glow--a {
+  top: -280px;
+  left: 12%;
+  width: 860px;
+  height: 580px;
+  background: var(--ccl-glow-a);
+}
+
+.ccl .ccl__glow--b {
+  top: -200px;
+  right: -160px;
+  width: 560px;
+  height: 440px;
+  background: var(--ccl-glow-b);
+}
+
+.ccl .ccl__content {
+  position: relative;
+  max-width: 1400px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.ccl .ccl-surface {
+  border-radius: 24px;
+  background: var(--ccl-card-bg);
+  border: 1px solid var(--ccl-card-border);
+  box-shadow: var(--ccl-card-shadow);
+}
+
+.ccl .ccl-eyebrow {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--edc-muted);
+}
+
+/* ── Encabezado ────────────────────────────────────────── */
+
+.ccl .ccl-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 20px 32px;
+}
+
+.ccl .ccl-intro {
+  flex: 1 1 360px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ccl .ccl-date-chip {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--ccl-chip-bg);
+  border: 1px solid var(--ccl-chip-border);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--edc-ink-3);
+  white-space: nowrap;
+}
+
+.ccl .ccl-date-chip svg {
+  width: 15px;
+  height: 15px;
+}
+
+.ccl .ccl-date-chip__dot {
+  color: var(--ccl-dot);
+}
+
+.ccl .ccl-date-chip__period {
+  color: var(--edc-blue-link);
+  font-weight: 600;
+}
+
+.ccl .ccl-title {
+  font-size: 40px;
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: -.025em;
+  color: var(--edc-ink);
+}
+
+.ccl .ccl-lede {
+  max-width: 520px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--edc-muted);
+  text-wrap: pretty;
+}
+
+.ccl .ccl-summary {
+  flex: 1 1 440px;
+  max-width: 580px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 18px 6px;
+}
+
+.ccl .ccl-summary__item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 14px;
+}
+
+.ccl .ccl-summary__item + .ccl-summary__item {
+  border-left: 1px solid var(--edc-hair);
+}
+
+.ccl .ccl-summary__value {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  line-height: 1;
+  color: var(--edc-ink);
+}
+
+.ccl .ccl-summary__value--accent {
+  color: var(--edc-blue-link);
+}
+
+.ccl .ccl-summary__note {
+  font-size: 12.5px;
+  color: var(--edc-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ── Secciones ─────────────────────────────────────────── */
+
+.ccl .ccl-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ccl .ccl-section__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ccl .ccl-section__title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--edc-ink);
+}
+
+.ccl .ccl-count {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ccl-count-bg);
+  color: var(--ccl-count-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ccl .ccl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 400px), 1fr));
+  gap: 16px;
+}
+
+/* ── Botones ───────────────────────────────────────────── */
+
+.ccl .ccl-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px 0 14px;
+  border: 0;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s ease, transform .1s ease;
+}
+
+.ccl .ccl-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ccl .ccl-btn:active {
+  transform: scale(.97);
+}
+
+.ccl .ccl-btn:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+}
+
+.ccl .ccl-btn--dark {
+  background: var(--ccl-dark-bg);
+  color: var(--ccl-dark-fg);
+}
+
+.ccl .ccl-btn--dark:hover {
+  background: var(--ccl-dark-hover);
+}
+
+.ccl .ccl-btn--outline {
+  background: var(--ccl-outline-bg);
+  border: 1px solid var(--ccl-outline-border);
+  color: var(--edc-ink);
+}
+
+.ccl .ccl-btn--outline:hover {
+  background: var(--ccl-outline-hover);
+}
+
+.ccl .ccl-btn--primary {
+  background: var(--ccl-primary);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.ccl .ccl-btn--primary:hover {
+  background: var(--ccl-primary-hover);
+}
+
+.ccl .ccl-btn--create {
+  margin-top: 6px;
+  padding: 0 14px 0 12px;
+}
+
+.ccl .ccl-btn--create svg {
+  stroke-linecap: round;
+}
+
+.ccl .ccl-btn--review {
+  height: 34px;
+  padding: 0 14px;
+}
+
+/* ── Tarjeta de curso ──────────────────────────────────── */
+
+.ccl .ccl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px;
+  transition: box-shadow .2s ease, transform .2s ease;
+}
+
+.ccl .ccl-card:hover {
+  box-shadow: var(--ccl-card-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.ccl .ccl-card__head {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
+}
+
+.ccl .ccl-card__group {
+  grid-row: 1 / span 2;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: var(--ccl-group-bg);
+  color: var(--ccl-group-fg);
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ccl .ccl-card__title {
+  min-width: 0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--edc-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ccl .ccl-card__sub {
+  grid-column: 2 / span 2;
+  font-size: 12.5px;
+  color: var(--edc-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ccl .ccl-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ccl .ccl-pill__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.ccl .ccl-pill--active {
+  background: var(--ccl-active-bg);
+  color: var(--ccl-active-fg);
+}
+
+.ccl .ccl-pill--active .ccl-pill__dot {
+  background: var(--ccl-active-fg);
+}
+
+.ccl .ccl-pill--neutral {
+  background: var(--ccl-neutral-bg);
+  color: var(--ccl-neutral-fg);
+}
+
+.ccl .ccl-pill--neutral .ccl-pill__dot {
+  background: var(--ccl-neutral-dot);
+}
+
+.ccl .ccl-card__tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ccl .ccl-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--ccl-tile-bg);
+  border: 1px solid var(--ccl-tile-border);
+}
+
+.ccl .ccl-tile--highlight {
+  background: var(--ccl-tile-hl-bg);
+  border-color: var(--ccl-tile-hl-border);
+}
+
+.ccl .ccl-tile__label,
+.ccl .ccl-tile__note {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--edc-muted);
+}
+
+.ccl .ccl-tile__value {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--edc-ink);
+}
+
+.ccl .ccl-tile--highlight .ccl-tile__value {
+  color: var(--edc-blue-link);
+}
+
+.ccl .ccl-next {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--ccl-tile-bg);
+  border: 1px solid var(--ccl-tile-border);
+}
+
+.ccl .ccl-next__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ccl .ccl-next__icon {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--ccl-icon-bg);
+  color: var(--ccl-icon-fg);
+  display: grid;
+  place-items: center;
+}
+
+.ccl .ccl-next__icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.ccl .ccl-next__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ccl .ccl-next__label,
+.ccl .ccl-next__in {
+  font-size: 12px;
+  color: var(--edc-muted);
+  white-space: nowrap;
+}
+
+.ccl .ccl-next__title {
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--edc-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ccl .ccl-next__when {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+}
+
+.ccl .ccl-next__date {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--edc-blue-link);
+  white-space: nowrap;
+}
+
+.ccl .ccl-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ccl .ccl-progress__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--edc-muted);
+}
+
+.ccl .ccl-progress__count {
+  font-weight: 600;
+  color: var(--edc-ink);
+}
+
+.ccl .ccl-progress__track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ccl-track);
+  overflow: hidden;
+}
+
+.ccl .ccl-progress__bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ccl-bar);
+  transition: width .4s cubic-bezier(.2, 0, 0, 1);
+}
+
+.ccl .ccl-card__empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px 20px;
+  border-radius: 16px;
+  border: 1.5px dashed var(--ccl-empty-border);
+  background: var(--ccl-empty-bg);
+  text-align: center;
+}
+
+.ccl .ccl-card__empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--ccl-icon-bg);
+  color: var(--ccl-icon-fg);
+  display: grid;
+  place-items: center;
+}
+
+.ccl .ccl-card__empty-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.ccl .ccl-card__empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--edc-ink);
+}
+
+.ccl .ccl-card__empty-note {
+  max-width: 340px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--edc-muted);
+  text-wrap: pretty;
+}
+
+.ccl .ccl-card__foot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ccl .ccl-card__meta {
+  font-size: 12.5px;
+  color: var(--edc-muted-2);
+  white-space: nowrap;
+}
+
+/* ── Entregas por revisar ──────────────────────────────── */
+
+.ccl .ccl-reviews {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ccl .ccl-review {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  transition: background-color .15s ease;
+}
+
+.ccl .ccl-review:hover {
+  background: var(--ccl-row-hover);
+}
+
+.ccl .ccl-review__avatar {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--ccl-avatar-bg);
+  color: var(--ccl-avatar-fg);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ccl .ccl-review__body {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ccl .ccl-review__name {
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--edc-ink);
+}
+
+.ccl .ccl-review__detail {
+  font-size: 12.5px;
+  color: var(--edc-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ccl .ccl-review__when {
+  flex: none;
+  font-size: 12.5px;
+  color: var(--edc-muted-2);
+  white-space: nowrap;
+}
+
+.ccl .ccl-reviews-empty {
+  padding: 18px 20px;
+  font-size: 13.5px;
+  color: var(--edc-muted);
+}
+
+/* ── Sin cursos ────────────────────────────────────────── */
+
+.ccl .ccl-no-courses {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 56px 24px;
+  text-align: center;
+}
+
+.ccl .ccl-no-courses__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--ccl-icon-bg);
+  color: var(--ccl-icon-fg);
+  display: grid;
+  place-items: center;
+}
+
+.ccl .ccl-no-courses__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.ccl .ccl-no-courses__title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--edc-ink);
+}
+
+.ccl .ccl-no-courses__note {
+  max-width: 420px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--edc-muted);
+  text-wrap: pretty;
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  .ccl {
+    padding: 24px 20px 24px;
+  }
+}
+
+@media (max-width: 639px) {
+  .ccl {
+    padding: 20px 16px 24px;
+  }
+
+  .ccl .ccl__content {
+    gap: 24px;
+  }
+
+  .ccl .ccl-title {
+    font-size: 32px;
+  }
+
+  .ccl .ccl-summary {
+    padding: 16px 2px;
+  }
+
+  .ccl .ccl-summary__item {
+    padding: 0 10px;
+  }
+
+  .ccl .ccl-summary__value {
+    font-size: 24px;
+  }
+
+  .ccl .ccl-card {
+    padding: 16px;
+  }
+
+  /* El estado baja bajo el subtítulo para no recortar el nombre de la materia */
+  .ccl .ccl-card__head {
+    grid-template-columns: 46px minmax(0, 1fr);
+  }
+
+  .ccl .ccl-card__sub {
+    grid-column: 2;
+  }
+
+  .ccl .ccl-pill {
+    grid-column: 2;
+    grid-row: 3;
+    justify-self: start;
+    margin-top: 6px;
+  }
+
+  .ccl .ccl-review__body {
+    flex: 1 1 calc(100% - 54px);
+  }
+
+  .ccl .ccl-review__when {
+    order: 3;
+    margin-left: 54px;
+  }
+
+  .ccl .ccl-btn--review {
+    margin-left: auto;
+    order: 4;
+  }
+}
+
+@media (hover: none) {
+  .ccl .ccl-card:hover {
+    transform: none;
+    box-shadow: var(--ccl-card-shadow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ccl .ccl-card,
+  .ccl .ccl-btn,
+  .ccl .ccl-review,
+  .ccl .ccl-progress__bar {
+    transition: none;
+  }
+
+  .ccl .ccl-card:hover {
+    transform: none;
+  }
+}

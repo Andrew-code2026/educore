@@ -20,7 +20,7 @@ export function TeacherAiCallout({
           <Sparkles className="h-3.5 w-3.5" />
         </span>
         <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
+          <span className="text-xs font-bold uppercase tracking-wider text-blue-700">
             Productividad Docente
           </span>
           <h3 className="text-sm font-bold text-slate-900 leading-none">
@@ -35,7 +35,7 @@ export function TeacherAiCallout({
       </p>
 
       <div className="mt-3 pt-2.5 border-t border-blue-100/80 flex items-center justify-between gap-2">
-        <span className="text-[11px] font-medium text-blue-800">
+        <span className="text-xs font-medium text-blue-800">
           Tú revisas, editas y decides
         </span>
         <button

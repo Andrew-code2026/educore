@@ -71,20 +71,20 @@ export function StudentPendingWork({
               {assignments.length > 0 ? (
                 <Badge
                   variant="secondary"
-                  className="rounded-full bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-semibold py-0 px-2"
+                  className="rounded-full bg-amber-50 text-amber-700 border-amber-200 text-xs font-semibold py-0 px-2"
                 >
                   {assignments.length} {assignments.length === 1 ? "entrega" : "entregas"}
                 </Badge>
               ) : (
                 <Badge
                   variant="secondary"
-                  className="rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-semibold py-0 px-2"
+                  className="rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-semibold py-0 px-2"
                 >
                   Al día
                 </Badge>
               )}
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-slate-500">
               Actividades y talleres por entregar en tus asignaturas.
             </p>
           </div>
@@ -115,19 +115,19 @@ export function StudentPendingWork({
                 <div className="min-w-0 flex-1">
                   {/* Top info tags */}
                   <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className="inline-flex items-center rounded-md bg-white border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 shadow-2xs">
+                    <span className="inline-flex items-center rounded-md bg-white border border-slate-200 px-2 py-0.5 text-xs font-bold text-slate-700 shadow-2xs">
                       {item.subject}
                     </span>
 
                     <span
-                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${config.badgeBg}`}
+                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${config.badgeBg}`}
                     >
                       <UrgencyIcon className={`h-2.5 w-2.5 ${config.iconColor}`} />
                       <span>{item.urgencyLabel}</span>
                     </span>
 
                     {item.points && (
-                      <span className="text-[10px] font-medium text-slate-500">
+                      <span className="text-xs font-medium text-slate-500">
                         · Máx {item.points} pts
                       </span>
                     )}
@@ -139,7 +139,7 @@ export function StudentPendingWork({
                   </h3>
 
                   {/* Context footer */}
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
                     <span className="font-medium text-slate-600">
                       Límite: {item.formattedDue}
                     </span>
@@ -179,7 +179,7 @@ export function StudentPendingWork({
               <p className="text-xs font-bold text-slate-900">
                 ¡Todas tus actividades están al día!
               </p>
-              <p className="text-[11px] text-slate-600 truncate">
+              <p className="text-xs text-slate-600 truncate">
                 No tienes tareas pendientes por entregar en ninguna de tus materias.
               </p>
             </div>

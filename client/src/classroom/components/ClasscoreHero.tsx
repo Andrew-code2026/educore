@@ -11,7 +11,7 @@ interface ClasscoreHeroProps {
 }
 
 export function ClasscoreHero({
-  schoolName = 'Gimnasio Moderno del Valle',
+  schoolName = 'EduCore',
   academicPeriodName = 'Periodo 2 · 2026',
   coursesCount,
   reviewCount,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useOptionalShellContext } from '@/components/shell/ShellContext';
 import { trpc } from '@/lib/trpc';
@@ -17,7 +17,6 @@ import {
   adaptEduCoreActivities,
   adaptEduCoreCourses,
   adaptEduCoreStudents,
-  defaultResources,
   defaultRubric,
   emptyActivity,
   emptyStudent,
@@ -34,6 +33,11 @@ import { ResourcesView } from './components/ResourcesView';
 import { ActivityDrawer } from './components/ActivityDrawer';
 import { StudentPreviewModal } from './components/StudentPreviewModal';
 import { Icon } from './components/SharedUI';
+import { ClassroomLanding } from './landing/ClassroomLanding';
+import type { ActivityFilter, ActivitySort } from './course/activities';
+import type { SubmissionFilter } from './course/submissions';
+import { dueDateOf, emptyDraft } from './course/activityDraft';
+import { DEFAULT_SUBJECT, activePeriod, type PendingReview } from './landing/courses';
 
 import './classroom.css';
 
@@ -45,26 +49,9 @@ export interface ClassroomWorkspaceProps {
   initialCourseId?: string;
 }
 
-const dateValue = (dateStr: string) => {
-  const monthIndex: Record<string, number> = {
-    Ene: 0,
-    Feb: 1,
-    Mar: 2,
-    Abr: 3,
-    May: 4,
-    Jun: 5,
-    Jul: 6,
-    Ago: 7,
-    Sep: 8,
-    Oct: 9,
-    Nov: 10,
-    Dic: 11,
-  };
-  const parts = dateStr.split(' ');
-  const day = Number(parts[0]) || 1;
-  const month = parts[1] || 'Oct';
-  return new Date(2026, monthIndex[month] ?? 9, day).getTime();
-};
+/** Actividad con la que abre la pestaña Entregas: la primera con entregas por calificar, si hay. */
+const defaultActivity = (list: Activity[]): Activity =>
+  list.find((a) => a.submissions > a.graded) ?? list[0] ?? emptyActivity;
 
 export function ClassroomWorkspace({
   data,
@@ -73,7 +60,7 @@ export function ClassroomWorkspace({
   onNavigateSection,
   initialCourseId,
 }: ClassroomWorkspaceProps) {
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const shellContext = useOptionalShellContext();
 
   // 1. Adapta cursos de EduCore
@@ -109,12 +96,17 @@ export function ClassroomWorkspace({
   }, [rawActivities]);
 
   const [selectedActivity, setSelectedActivity] = useState<Activity>(
-    activities[0] ?? emptyActivity
+    defaultActivity(activities)
   );
 
+  // Mantiene la actividad elegida al día cuando llegan datos nuevos (p. ej. tras calificar)
   useEffect(() => {
-    if (activities.length > 0 && (!selectedActivity.id || !activities.some(a => a.id === selectedActivity.id))) {
-      setSelectedActivity(activities[0]);
+    const fresh = activities.find((a) => a.id === selectedActivity.id);
+    if (fresh) {
+      if (fresh !== selectedActivity) setSelectedActivity(fresh);
+    } else {
+      // Sin coincidencia (otro curso o curso vacío): nunca se conserva una actividad ajena
+      setSelectedActivity(defaultActivity(activities));
     }
   }, [activities, selectedActivity]);
 
@@ -126,14 +118,16 @@ export function ClassroomWorkspace({
 
   // 4. Estados de navegación interna
   const [view, setView] = useState<ViewKey>('home');
-  const [activityFilter, setActivityFilter] = useState('Todas');
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>('Todas');
   const [query, setQuery] = useState('');
-  const [sortBy, setSortBy] = useState('fecha');
-  const [submissionFilter, setSubmissionFilter] = useState('Todos');
+  const [sortBy, setSortBy] = useState<ActivitySort>('fecha');
+  const [submissionFilter, setSubmissionFilter] = useState<SubmissionFilter>('Todos');
 
   // 5. Modales y drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [reviewIndex, setReviewIndex] = useState<number | null>(null);
+  // Entrega elegida desde la portada; se resuelve cuando la actividad y sus entregas están cargadas
+  const [pendingReview, setPendingReview] = useState<PendingReview | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [uploaded, setUploaded] = useState<Upload[]>([]);
   const [deliverySent, setDeliverySent] = useState(false);
@@ -144,48 +138,14 @@ export function ClassroomWorkspace({
   const [reviewRecords, setReviewRecords] = useState<Record<string, ReviewRecord>>({});
 
   // 7. Creador de actividad
-  const [draft, setDraft] = useState<Draft>({
-    name: '',
-    description: '',
-    due: '2026-10-28',
-    publish: '2026-10-21',
-    maxFiles: 2,
-    maxSize: '25 MB',
-    formats: ['PDF', 'DOCX', 'ZIP'],
-    graded: true,
-    gradeCenter: true,
-    weight: '20%',
-    allowReplacement: true,
-    allowResubmission: true,
-    subject: selectedCourse?.subject || 'Biología',
-    course: selectedCourse?.name || '11-2',
-  });
+  const [draft, setDraft] = useState<Draft>(emptyDraft);
 
   // Mutaciones de tRPC con persistencia real en EduCore
-  const createAssignmentMutation = trpc.educore.createAssignment.useMutation({
-    onSuccess: (newAssignment: any) => {
-      sonnerToast.success('Actividad guardada y registrada en EduCore');
-      setToastMessage('Actividad publicada en ClassCORE');
-      setDrawerOpen(false);
-      onChanged();
-    },
-    onError: (err: any) => {
-      sonnerToast.error(err.message || 'Error al guardar la actividad');
-    },
-  });
+  const createAssignmentMutation = trpc.educore.createAssignment.useMutation();
 
-  const gradeSubmissionMutation = trpc.educore.gradeSubmission.useMutation({
-    onSuccess: () => {
-      sonnerToast.success('Calificación guardada y sincronizada');
-      onChanged();
-    },
-  });
-
-  const updateGradeMutation = trpc.educore.updateGrade.useMutation({
-    onSuccess: () => {
-      onChanged();
-    },
-  });
+  // El calificador avisa del resultado y refresca una sola vez al terminar ambas mutaciones
+  const gradeSubmissionMutation = trpc.educore.gradeSubmission.useMutation();
+  const updateGradeMutation = trpc.educore.updateGrade.useMutation();
 
   const submitAssignmentMutation = trpc.educore.submitAssignment.useMutation({
     onSuccess: () => {
@@ -204,40 +164,13 @@ export function ClassroomWorkspace({
         (sum, a) => sum + Math.max(0, a.submissions - a.graded),
         0
       ),
-      upcoming: activities.filter((a) => a.status === 'Próxima').length,
+      upcoming: activities.filter((a) =>
+        ['Próxima', 'En curso', 'Publicada'].includes(a.status)
+      ).length,
       drafts: activities.filter((a) => a.status === 'Borrador').length,
     }),
     [activities]
   );
-
-  // Filtrado de actividades
-  const filteredActivities = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const result = activities.filter((a) => {
-      const textMatch =
-        !q || `${a.name} ${a.type} ${a.formats.join(' ')}`.toLowerCase().includes(q);
-      const statusMatch =
-        activityFilter === 'Todas' ||
-        (activityFilter === 'Activas' &&
-          ['Publicada', 'En curso', 'Por revisar'].includes(a.status)) ||
-        (activityFilter === 'Por revisar' && a.status === 'Por revisar') ||
-        (activityFilter === 'Próximas' && a.status === 'Próxima') ||
-        (activityFilter === 'Cerradas' && a.status === 'Cerrada') ||
-        (activityFilter === 'Borradores' && a.status === 'Borrador');
-      return textMatch && statusMatch;
-    });
-
-    return [...result].sort((a, b) => {
-      if (sortBy === 'nombre') return a.name.localeCompare(b.name);
-      if (sortBy === 'pendientes') {
-        const penA = Math.max(0, a.submissions - a.graded);
-        const penB = Math.max(0, b.submissions - b.graded);
-        return penB - penA;
-      }
-      if (sortBy === 'estado') return a.status.localeCompare(b.status);
-      return dateValue(a.date) - dateValue(b.date);
-    });
-  }, [activities, activityFilter, query, sortBy]);
 
   // Lista de entregas combinada con registros de revisión
   const submissions = useMemo(() => {
@@ -259,13 +192,10 @@ export function ClassroomWorkspace({
     score: st.status === 'Calificada' ? st.score : undefined,
     scoreMode: 'manual',
     evaluationMode: 'direct',
-    criteria: defaultRubric.map((item) => ({
-      ...item,
-      score: st.status === 'Calificada' ? item.score : 0,
-      expanded: item.id === 'analysis',
-    })),
-    feedback: st.comment || '',
-    comments: st.comment ? [st.comment] : [],
+    // La rúbrica arranca en cero: no hay puntajes por criterio guardados en el servidor
+    criteria: defaultRubric.map((item) => ({ ...item, score: 0 })),
+    // En entregas sin calificar el comentario guardado es la nota del estudiante, no retroalimentación
+    feedback: st.status === 'Calificada' ? st.comment ?? '' : '',
     status: st.status,
   });
 
@@ -278,45 +208,41 @@ export function ClassroomWorkspace({
     });
   };
 
-  const handleSaveGrade = async (
-    student: Student,
-    finalScore: number,
-    commentText?: string
-  ) => {
+  const handleSaveGrade = async (student: Student, finalScore: number, comment: string) => {
     try {
-      // 1. Si existe submissionId registrado en BD, usamos gradeSubmission
       if (student.submissionId) {
         await gradeSubmissionMutation.mutateAsync({
           role,
           submissionId: student.submissionId,
           grade: finalScore,
-          comment: commentText || 'Revisión completada en ClassCORE',
+          comment,
         });
       }
 
-      // 2. Sincronizamos en la libreta general de calificaciones (grades)
-      const cleanCourseName = selectedCourse.name.replace(/^Curso\s*/i, '');
-      await updateGradeMutation.mutateAsync({
-        role,
-        studentName: student.name,
-        course: cleanCourseName,
-        subject: selectedCourse.subject || 'Biología',
-        period: 'Periodo 2',
-        value: finalScore,
-      });
+      // Libreta del Grade Center: periodo activo y asignatura de la actividad, no valores fijos
+      const period = activePeriod(data);
+      const subject = selectedActivity.subject || selectedCourse.subject;
+      if (period && subject) {
+        await updateGradeMutation.mutateAsync({
+          role,
+          studentName: student.name,
+          course: selectedCourse.name.replace(/^Curso\s*/i, ''),
+          subject,
+          period,
+          value: finalScore,
+        });
+      }
 
-      sonnerToast.success(
-        `Nota ${finalScore.toFixed(1)} registrada y sincronizada con Grade Center`
-      );
+      onChanged();
+      sonnerToast.success(`Nota ${finalScore.toFixed(1)} guardada para ${student.name}`);
       return true;
     } catch (err: any) {
-      console.error('Error al sincronizar calificación:', err);
-      sonnerToast.info(
-        `Nota guardada localmente (${finalScore.toFixed(1)}). Se sincronizará al refrescar.`
-      );
+      console.error('Error al guardar la calificación:', err);
+      sonnerToast.error('No se pudo guardar la nota. Revisa tu conexión e intenta de nuevo.');
       return false;
     }
   };
+
 
   // Temporizador para toasts visuales internos
   useEffect(() => {
@@ -328,8 +254,8 @@ export function ClassroomWorkspace({
   // Escape listener para cerrar drawers
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      // El creador de actividades maneja su propio Escape para no perder lo escrito sin avisar
       if (event.key === 'Escape') {
-        setDrawerOpen(false);
         setPreviewOpen(false);
         setReviewIndex(null);
       }
@@ -344,60 +270,93 @@ export function ClassroomWorkspace({
     setView('overview');
   };
 
+  // Acciones de la portada docente (callbacks estables para las tarjetas memoizadas)
+  const handleEnterCourse = useCallback(
+    (courseId: string) => {
+      const course = courses.find((c) => c.id === courseId);
+      if (!course) return;
+      setSelectedCourse(course);
+      setView('overview');
+    },
+    [courses]
+  );
+
+  const handleCreateFromLanding = useCallback(
+    (courseId: string) => {
+      const course = courses.find((c) => c.id === courseId);
+      if (!course) return;
+      setSelectedCourse(course);
+      setView('activities');
+      setDrawerOpen(true);
+    },
+    [courses]
+  );
+
+  const handleReviewFromLanding = useCallback(
+    (item: PendingReview) => {
+      const course = courses.find((c) => c.id === item.courseId);
+      if (!course) return;
+      setSelectedCourse(course);
+      setReviewIndex(null);
+      setView('submissions');
+      setPendingReview(item);
+    },
+    [courses]
+  );
+
+  useEffect(() => {
+    if (!pendingReview) return;
+    const target = activities.find((a) => a.id === String(pendingReview.assignmentId));
+    if (!target) return;
+    if (selectedActivity.id !== target.id) {
+      setSelectedActivity(target);
+      return;
+    }
+    const index = submissions.findIndex((s) => s.name === pendingReview.studentName);
+    if (index >= 0) setReviewIndex(index);
+    setPendingReview(null);
+  }, [pendingReview, activities, selectedActivity.id, submissions]);
+
   const handleSelectActivity = (activity: Activity) => {
     setSelectedActivity(activity);
     setView('submissions');
     setReviewIndex(null);
   };
 
-  // Creación y publicación de actividad
-  const handleCreateActivity = (publish: boolean) => {
-    const name = draft.name.trim() || 'Nueva actividad';
-    const cleanCourseName = selectedCourse.name.replace(/^Curso\s*/i, '');
+  const handleReviewActivity = (activity: Activity) => {
+    setSubmissionFilter('Por revisar');
+    handleSelectActivity(activity);
+  };
 
-    // Mutación al backend de EduCore
-    createAssignmentMutation.mutate({
-      role,
-      title: name,
-      subject: draft.subject || selectedCourse.subject || 'Biología',
-      course: cleanCourseName,
-      description:
-        draft.description.trim() ||
-        'Actividad con entrega digital y evidencia creada en ClassCORE.',
-      dueAt: new Date(draft.due || '2026-10-28T23:59:00'),
-      points: draft.graded ? 100 : 0,
-      teacherName: 'Laura Gómez',
-    });
-
-    // Actualización optimista en UI local
-    const id = `local-${Date.now()}`;
-    const dateFormatted = draft.due ? `${draft.due.slice(8, 10)} Oct` : '28 Oct';
-    const newAct: Activity = {
-      ...emptyActivity,
-      id,
-      name,
-      description:
-        draft.description.trim() ||
-        'Actividad con entrega digital y evidencia creada en ClassCORE.',
-      date: dateFormatted,
-      dueDate: `${dateFormatted} · 23:59`,
-      submissions: 0,
-      graded: 0,
-      status: publish ? 'Publicada' : 'Borrador',
-      affectsGradeCenter: draft.gradeCenter,
-      weight: draft.weight || '20%',
-      formats: draft.formats,
-      maxFiles: draft.maxFiles,
-      maxSize: draft.maxSize,
-      allowReplacement: draft.allowReplacement,
-      allowResubmission: draft.allowResubmission,
-      course: cleanCourseName,
-      subject: draft.subject || selectedCourse.subject || 'Biología',
-    };
-
-    setActivities((prev) => [newAct, ...prev]);
-    setSelectedActivity(newAct);
-    setDraft((d) => ({ ...d, name: '', description: '' }));
+  // Creación de actividad: el curso y la asignatura salen del curso abierto, nunca del borrador
+  const handleCreateActivity = async (publish: boolean): Promise<boolean> => {
+    const subjects = activities.map((a) => a.subject).filter(Boolean) as string[];
+    const subject =
+      subjects.sort((a, b) => subjects.filter((s) => s === b).length - subjects.filter((s) => s === a).length)[0] ??
+      selectedCourse.subject ??
+      DEFAULT_SUBJECT;
+    try {
+      await createAssignmentMutation.mutateAsync({
+        role,
+        title: draft.name.trim(),
+        subject,
+        course: selectedCourse.name.replace(/^Curso\s*/i, ''),
+        description: draft.description.trim(),
+        dueAt: dueDateOf(draft),
+        points: draft.graded ? 100 : 0,
+        status: publish ? 'Publicado' : 'Borrador',
+      });
+      sonnerToast.success(
+        publish ? `"${draft.name.trim()}" publicada para el curso` : `Borrador "${draft.name.trim()}" guardado`
+      );
+      setDraft(emptyDraft());
+      setDrawerOpen(false);
+      onChanged();
+      return true;
+    } catch (err: any) {
+      sonnerToast.error(err?.message || 'No se pudo guardar la actividad. Intenta de nuevo.');
+      return false;
+    }
   };
 
   // Simulación y validación de archivos de estudiante
@@ -451,20 +410,29 @@ export function ClassroomWorkspace({
   };
 
   const isDarkMode = theme === 'dark';
-  const periodLabel = data?.academicPeriods?.[0]?.name || 'Periodo 2 · 2026';
+  const periodLabel = activePeriod(data) ?? data?.academicPeriods?.[0]?.name ?? 'Periodo académico';
   const canManage = role === 'teacher' || role === 'admin';
+  const showTeacherLanding = view === 'home' && canManage;
 
   return (
     <div
       className={`classcore-workspace app-frame ${
         isDarkMode ? 'dark-mode' : 'light-mode'
       }`}
+      data-screen={showTeacherLanding ? 'landing' : view === 'home' ? undefined : 'course'}
     >
       <div className="main-panel w-full flex-1 flex flex-col h-full min-h-0 overflow-hidden">
-        {view === 'home' ? (
+        {showTeacherLanding ? (
+          <ClassroomLanding
+            data={data}
+            onEnterCourse={handleEnterCourse}
+            onCreateActivity={handleCreateFromLanding}
+            onReview={handleReviewFromLanding}
+          />
+        ) : view === 'home' ? (
           <div className="home-content">
             <ClasscoreHero
-              schoolName={data?.school?.name || 'Gimnasio Moderno del Valle'}
+              schoolName={data?.school?.name || 'EduCore'}
               academicPeriodName={periodLabel}
               coursesCount={courses.length}
               reviewCount={courseStats.review}
@@ -481,7 +449,7 @@ export function ClassroomWorkspace({
               onNavigate={setView}
               onBackToCourses={() => setView('home')}
               onNewActivity={() => setDrawerOpen(true)}
-              stats={courseStats}
+              reviewCount={courseStats.review}
               canManage={canManage}
             />
 
@@ -489,17 +457,16 @@ export function ClassroomWorkspace({
               {view === 'overview' && (
                 <OverviewView
                   activities={activities}
-                  stats={courseStats}
-                  selectActivity={handleSelectActivity}
-                  dateRange={periodLabel}
                   totalStudents={selectedCourse.students}
+                  onOpenActivity={handleSelectActivity}
+                  onReview={handleReviewActivity}
+                  onNewActivity={canManage ? () => setDrawerOpen(true) : undefined}
                 />
               )}
 
               {view === 'activities' && (
                 <ActivitiesView
-                  activities={filteredActivities}
-                  total={activities.length}
+                  activities={activities}
                   filter={activityFilter}
                   setFilter={setActivityFilter}
                   query={query}
@@ -508,6 +475,7 @@ export function ClassroomWorkspace({
                   setSortBy={setSortBy}
                   selectActivity={handleSelectActivity}
                   totalStudents={selectedCourse.students}
+                  onNewActivity={canManage ? () => setDrawerOpen(true) : undefined}
                 />
               )}
 
@@ -528,12 +496,15 @@ export function ClassroomWorkspace({
                     />
                   ) : (
                     <SubmissionsView
+                      // Al cambiar de actividad se reinicia la búsqueda local
+                      key={selectedActivity.id}
                       activity={selectedActivity}
+                      activities={activities}
+                      onSelectActivity={setSelectedActivity}
                       students={submissions}
                       filter={submissionFilter}
                       setFilter={setSubmissionFilter}
                       onOpenGrader={(idx) => setReviewIndex(idx)}
-                      onBack={() => setView('activities')}
                       onPreview={() => {
                         setDeliverySent(false);
                         setUploaded([]);
@@ -546,12 +517,10 @@ export function ClassroomWorkspace({
 
               {view === 'resources' && (
                 <ResourcesView
-                  resources={defaultResources}
-                  onAddResource={
-                    canManage
-                      ? () => sonnerToast.info('Añadir recurso vinculado a actividad')
-                      : undefined
-                  }
+                  role={role}
+                  course={selectedCourse.name.replace(/^Curso\s*/i, '')}
+                  activities={activities}
+                  canManage={canManage}
                 />
               )}
             </div>
@@ -564,9 +533,13 @@ export function ClassroomWorkspace({
         <ActivityDrawer
           draft={draft}
           setDraft={setDraft}
+          courseLabel={
+            selectedCourse.subject && selectedCourse.subject !== DEFAULT_SUBJECT
+              ? `${selectedCourse.subject} · ${selectedCourse.name}`
+              : selectedCourse.name
+          }
           onClose={() => setDrawerOpen(false)}
-          onSave={() => handleCreateActivity(false)}
-          onPublish={() => handleCreateActivity(true)}
+          onSubmit={handleCreateActivity}
           isPending={createAssignmentMutation.isPending}
         />
       )}

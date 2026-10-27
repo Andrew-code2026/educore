@@ -30,7 +30,6 @@ describe("EduCore Shell Navigation System", () => {
         "calendar",
         "communications",
         "reports",
-        "ai",
         "users",
         "settings",
       ];
@@ -50,7 +49,7 @@ describe("EduCore Shell Navigation System", () => {
       const labels = groups.map(g => g.label);
       expect(labels).toContain("Enseñanza");
       expect(labels).toContain("Seguimiento");
-      expect(labels).toContain("Comunidad & IA");
+      expect(labels).toContain("Comunidad");
 
       const allItems = groups.flatMap(g => g.items);
       const sectionIds = allItems.map(i => i.id);
@@ -59,6 +58,7 @@ describe("EduCore Shell Navigation System", () => {
       expect(sectionIds).toContain("grades");
       expect(sectionIds).toContain("classroom");
       expect(sectionIds).toContain("attendance");
+      expect(sectionIds).not.toContain("academic");
 
       const gradesItem = allItems.find(i => i.id === "grades");
       expect(gradesItem?.label).toBe("Grade Center");

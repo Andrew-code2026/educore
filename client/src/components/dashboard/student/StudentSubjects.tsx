@@ -71,13 +71,13 @@ export function StudentSubjects({
               {subjects.length > 0 && (
                 <Badge
                   variant="secondary"
-                  className="rounded-full bg-slate-100 text-slate-700 border-slate-200 text-[10px] font-semibold py-0 px-2"
+                  className="rounded-full bg-slate-100 text-slate-700 border-slate-200 text-xs font-semibold py-0 px-2"
                 >
                   {subjects.length} asignaturas
                 </Badge>
               )}
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-xs text-slate-500">
               Desempeño acumulado y docentes a cargo.
             </p>
           </div>
@@ -119,14 +119,14 @@ export function StudentSubjects({
 
                   {/* Teacher name */}
                   {subj.teacherName && (
-                    <p className="mt-0.5 text-[11px] text-slate-500 line-clamp-1">
+                    <p className="mt-0.5 text-xs text-slate-500 line-clamp-1">
                       Prof. {subj.teacherName}
                     </p>
                   )}
                 </div>
 
                 {/* Bottom line: Badges & status */}
-                <div className="mt-3 flex items-center justify-between gap-2 pt-2 border-t border-slate-100/90 text-[10px]">
+                <div className="mt-3 flex items-center justify-between gap-2 pt-2 border-t border-slate-100/90 text-xs">
                   {/* MEN Level badge */}
                   <span
                     className={`inline-flex items-center rounded-full border px-2 py-0.5 font-bold uppercase tracking-wider ${levelConfig.badge}`}

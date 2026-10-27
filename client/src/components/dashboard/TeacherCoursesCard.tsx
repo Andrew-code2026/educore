@@ -1,71 +1,112 @@
 import React from "react";
-import { BookOpen, ArrowRight } from "lucide-react";
 import type { TeacherCourseCardItem } from "./types";
 
 interface TeacherCoursesCardProps {
   courses: TeacherCourseCardItem[];
   onViewAll?: () => void;
+  /** Fecha de cierre de notas ya formateada, p. ej. "jue 29 oct". */
+  closingLabel?: string;
 }
 
-export function TeacherCoursesCard({ courses, onViewAll }: TeacherCoursesCardProps) {
+// Por debajo de este avance el nombre del curso queda sobre la pista clara y debe ir en azul.
+const NAME_ON_FILL_MIN = 35;
+// El porcentaje está a la derecha: solo queda sobre el relleno cuando la barra casi se completa.
+const VALUE_ON_FILL_MIN = 88;
+
+export function TeacherCoursesCard({
+  courses,
+  onViewAll,
+  closingLabel,
+}: TeacherCoursesCardProps) {
+  const totalStudents = courses.reduce((sum, course) => sum + (course.studentCount || 0), 0);
+
   return (
-    <section
-      aria-label="Mis cursos"
-      className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.045)] sm:p-5"
-    >
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-bold text-slate-800">Mis cursos</h2>
-          <p className="text-[10px] text-slate-400">Progreso y estado de tus grupos</p>
+    <section aria-labelledby="h-cursos" className="edc-card edc-courses">
+      <div className="edc-card__head">
+        <span className="edc-card__bubble">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+          </svg>
+        </span>
+        <div className="edc-card__heading">
+          <h2 id="h-cursos" className="edc-card__title">Mis cursos</h2>
+          <div className="edc-card__sub">
+            {courses.length} {courses.length === 1 ? "grupo" : "grupos"} · {totalStudents} estudiantes
+          </div>
         </div>
         {onViewAll && (
-          <button
-            type="button"
-            onClick={onViewAll}
-            className="text-[10px] font-bold text-blue-700 hover:text-blue-800 flex items-center gap-1 transition-colors"
-          >
-            <span>Ver todos</span>
-            <ArrowRight className="inline h-3 w-3" />
+          <button type="button" className="edc-chip-btn" onClick={onViewAll}>
+            Ver todos
           </button>
         )}
       </div>
 
-      <div className="space-y-2">
-        {courses.map((course) => (
-          <button
-            key={course.name}
-            type="button"
-            onClick={course.onClick}
-            className="group flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 text-left transition-all hover:border-blue-200 hover:bg-white hover:shadow-2xs"
-          >
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-700 shrink-0">
-              <BookOpen className="h-4 w-4" />
+      <div className="edc-courses__body">
+        <div className="edc-courses__caption">
+          <span className="edc-courses__eyebrow">Avance de calificación</span>
+          {closingLabel && (
+            <span className="edc-courses__deadline">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <rect width="18" height="18" x="3" y="4" rx="2" />
+                <path d="M16 2v4" />
+                <path d="M8 2v4" />
+                <path d="M3 10h18" />
+              </svg>
+              Cierre {closingLabel}
             </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[10px] font-bold text-slate-700">
-                {course.name}
-              </span>
-              <span className="mt-0.5 block truncate text-[9px] text-slate-400">
-                {course.studentCount} estudiantes · Prom. {course.averageGrade.toFixed(1)} · {course.pendingCount} pendientes
-              </span>
-              <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-slate-200">
-                <span
-                  className={`block h-full rounded-full ${course.tone || "bg-blue-600"} transition-all duration-500`}
-                  style={{ width: `${Math.min(100, Math.max(0, course.progress))}%` }}
-                />
-              </span>
-            </span>
-            <span className="text-[10px] font-extrabold text-slate-600 shrink-0">
-              {course.progress}%
-            </span>
-            <ArrowRight className="h-3 w-3 text-slate-300 transition-transform group-hover:translate-x-0.5 shrink-0" />
-          </button>
-        ))}
+          )}
+        </div>
+
+        {courses.map(course => {
+          const progress = Math.min(100, Math.max(0, course.progress));
+          const isLow = course.averageGrade < 3;
+          return (
+            <button
+              key={course.id ?? course.name}
+              type="button"
+              className="edc-course"
+              onClick={course.onClick}
+            >
+              <div
+                role="progressbar"
+                aria-valuenow={progress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`Avance de calificación ${course.name}`}
+                className="edc-progress"
+              >
+                <div className="edc-progress__fill" style={{ width: `${progress}%` }} />
+                <div className="edc-progress__labels">
+                  <span className={`edc-progress__name ${progress >= NAME_ON_FILL_MIN ? "edc-on-fill" : "edc-on-track"}`}>
+                    {course.name}
+                  </span>
+                  <span className={`edc-progress__value ${progress >= VALUE_ON_FILL_MIN ? "edc-on-fill" : "edc-on-track"}`}>
+                    {progress}%
+                  </span>
+                </div>
+              </div>
+              <div className="edc-course__meta">
+                {course.studentCount} estudiantes · Prom.{" "}
+                {isLow ? (
+                  <span className="edc-course__avg--low">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
+                      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" />
+                      <path d="M12 9v4" />
+                      <path d="M12 17h.01" />
+                    </svg>
+                    {course.averageGrade.toFixed(1)}
+                  </span>
+                ) : (
+                  <span className="edc-course__avg">{course.averageGrade.toFixed(1)}</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
 
         {courses.length === 0 && (
-          <div className="rounded-xl border border-dashed border-slate-200 py-6 text-center">
-            <p className="text-xs text-slate-400">No hay cursos asignados en el periodo actual.</p>
-          </div>
+          <div className="edc-empty-note">No hay cursos asignados en el periodo actual.</div>
         )}
       </div>
     </section>

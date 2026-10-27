@@ -138,8 +138,6 @@ export interface Preferences {
   sort: SortSpec;
   filters: Filters;
   focusMode: boolean;
-  analysisOpen: boolean;
-  showCodes: boolean;
   /** Un clic entra directamente al editor inline en lugar de abrir el popover. */
   quickEdit: boolean;
 }

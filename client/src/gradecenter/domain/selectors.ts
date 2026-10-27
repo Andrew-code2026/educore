@@ -1,6 +1,7 @@
 import { gradeKey, type Dataset, type Evaluation, type Filters, type Preferences, type SortSpec } from "../types";
 import type { Analytics, StudentMetrics } from "./metrics";
 import { normalizeText } from "../lib/format";
+import { LEVELS } from "./scale";
 
 export interface FilterChip {
   id: string;
@@ -92,7 +93,7 @@ export function sortStudents(items: StudentMetrics[], sort: SortSpec): StudentMe
   return sorted;
 }
 
-export function visibleEvaluations(preferences: Preferences, dataset: Dataset): Evaluation[] {
+export function visibleEvaluations(preferences: Pick<Preferences, "hiddenEvaluations">, dataset: Dataset): Evaluation[] {
   return dataset.evaluations.filter((evaluation) => !preferences.hiddenEvaluations.includes(evaluation.id));
 }
 
@@ -116,7 +117,7 @@ export function activeFilterChips(
   filters.levels.forEach((level) => {
     chips.push({
       id: `level-${level}`,
-      label: `Nivel: ${level}`,
+      label: `Nivel ${LEVELS[level].short}`,
       clear: (f) => ({ ...f, levels: f.levels.filter((l) => l !== level) }),
     });
   });

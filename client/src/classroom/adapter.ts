@@ -1,7 +1,6 @@
 import type {
   Activity,
   CourseSummary,
-  Resource,
   RubricCriterion,
   Student,
 } from './types';
@@ -61,41 +60,6 @@ export const defaultRubric: RubricCriterion[] = [
   },
 ];
 
-export const defaultResources: Resource[] = [
-  {
-    title: 'Guía de laboratorio y rúbrica de evaluación',
-    type: 'Guía PDF',
-    meta: '2.4 MB · Actualizado hace 3 días',
-    used: 'Taller de derivadas',
-    icon: '▤',
-    color: 'cyan',
-  },
-  {
-    title: 'Rúbrica institucional para entrega digital',
-    type: 'Rúbrica PDF',
-    meta: '1.1 MB · Vigente ciclo 2026',
-    used: 'Todas las actividades',
-    icon: '✦',
-    color: 'violet',
-  },
-  {
-    title: 'Plantilla de reporte experimental',
-    type: 'Documento DOCX',
-    meta: '850 KB · Formato estándar',
-    used: 'Actividad de física',
-    icon: '↗',
-    color: 'mint',
-  },
-  {
-    title: 'Formatos de entrega y citación APA 7',
-    type: 'Guía de estilo',
-    meta: '620 KB · Biblioteca institucional',
-    used: 'Proyectos académicos',
-    icon: '◇',
-    color: 'amber',
-  },
-];
-
 const STUDENT_COLORS = ['#64e8ff', '#a78bfa', '#fbbf6b', '#70e0b2', '#f88fb2', '#38bdf8', '#c084fc'];
 
 function getInitials(name: string): string {
@@ -124,10 +88,18 @@ function formatDueFull(dateValue: string | Date | null | undefined): string {
   return `${shortDate} · ${hours}:${minutes}`;
 }
 
+/** Id estable de un curso del snapshot; compartido con la portada para enlazar tarjetas y vistas. */
+export function courseKey(course: { id?: number | string | null; name: string }): string {
+  return String(course.id ?? `course-${course.name}`);
+}
+
 export function adaptEduCoreCourses(data: any, academic?: any): CourseSummary[] {
   const rawCourses = data?.courses ?? academic?.courses ?? [];
   const assignments = data?.assignments ?? [];
   const submissions = data?.submissions ?? [];
+  const students: any[] = data?.students ?? [];
+  // Matriculados reales del curso; mismo criterio que la portada "Mis cursos"
+  const enrolledIn = (courseName: string) => students.filter((s) => s?.course === courseName).length;
 
   if (!rawCourses || rawCourses.length === 0) {
     // If no course objects, check if assignments have distinct courses
@@ -142,10 +114,10 @@ export function adaptEduCoreCourses(data: any, academic?: any): CourseSummary[] 
         const tones = ['science', 'biology', 'chemistry'];
         const tone = tones[index % tones.length];
         return {
-          id: `course-${name}`,
+          id: courseKey({ name }),
           code: `${name}-2026`,
           name: `Curso ${name}`,
-          students: 32,
+          students: enrolledIn(name),
           active: courseAssignments.length,
           review: reviewCount,
           next: courseAssignments[0] ? formatDateShort(courseAssignments[0].dueAt) : '28 Oct',
@@ -169,10 +141,10 @@ export function adaptEduCoreCourses(data: any, academic?: any): CourseSummary[] 
     const tone = tones[index % tones.length];
 
     return {
-      id: String(c.id ?? `course-${courseName}`),
+      id: courseKey(c),
       code: c.code ?? `${courseName}-2026`,
       name: courseName.startsWith('Curso') ? courseName : `Curso ${courseName}`,
-      students: c.studentCount ?? 32,
+      students: enrolledIn(courseName) || Number(c.studentCount ?? c.studentsCount ?? 0),
       active: courseAssignments.length,
       review: reviewCount,
       next: courseAssignments[0] ? formatDateShort(courseAssignments[0].dueAt) : '28 Oct',
@@ -187,20 +159,12 @@ export function adaptEduCoreActivities(data: any, selectedCourseName?: string): 
   const rawAssignments = data?.assignments ?? [];
   const submissions = data?.submissions ?? [];
 
-  const filtered = selectedCourseName
-    ? rawAssignments.filter(
-        (a: any) =>
-          !a.course ||
-          a.course === selectedCourseName ||
-          selectedCourseName.includes(a.course) ||
-          a.course.includes(selectedCourseName)
-      )
+  // Igualdad exacta de grupo: con `includes`, "11-1" también coincidía con "11-12"; y un curso
+  // sin actividades nunca debe mostrar las de otro curso
+  const group = selectedCourseName?.replace(/^Curso\s*/i, '');
+  const filtered = group
+    ? rawAssignments.filter((a: any) => !a.course || a.course === group)
     : rawAssignments;
-
-  if (filtered.length === 0 && rawAssignments.length > 0) {
-    // Fall back to all if course filter produced 0
-    return rawAssignments.map((a: any, index: number) => formatActivity(a, submissions, index));
-  }
 
   return filtered.map((a: any, index: number) => formatActivity(a, submissions, index));
 }
@@ -209,17 +173,20 @@ function formatActivity(a: any, submissions: any[], index: number): Activity {
   const taskSubmissions = submissions.filter((s: any) => s.assignmentId === a.id);
   const graded = taskSubmissions.filter((s: any) => s.grade !== null && s.grade !== undefined).length;
   const subsCount = taskSubmissions.length;
-  const isPast = a.dueAt ? new Date(a.dueAt).getTime() < Date.now() : false;
+  const due = a.dueAt ? new Date(a.dueAt) : null;
+  const dueAt = due && !Number.isNaN(due.getTime()) ? due : null;
+  const isPast = dueAt ? dueAt.getTime() < Date.now() : false;
 
-  let status: Activity['status'] = 'Publicada';
+  // Una actividad vencida sin entregas pendientes está cerrada, aunque nadie haya entregado
+  let status: Activity['status'];
   if (a.status === 'Borrador') {
     status = 'Borrador';
-  } else if (isPast && subsCount > graded) {
-    status = 'Por revisar';
-  } else if (isPast && graded >= subsCount && subsCount > 0) {
-    status = 'Cerrada';
   } else if (!isPast) {
     status = 'En curso';
+  } else if (subsCount > graded) {
+    status = 'Por revisar';
+  } else {
+    status = 'Cerrada';
   }
 
   const accents = ['cyan', 'violet', 'mint', 'amber'];
@@ -233,6 +200,7 @@ function formatActivity(a: any, submissions: any[], index: number): Activity {
     type: 'Entrega de archivo',
     date,
     dueDate,
+    dueAt: dueAt?.toISOString(),
     submissions: subsCount,
     graded,
     status,
@@ -262,6 +230,9 @@ export function adaptEduCoreStudents(
   const rawStudents = data?.students ?? [];
   const submissions = data?.submissions ?? [];
   const targetAssignmentId = activityId ? Number(activityId) : undefined;
+  // El curso llega como "Curso 11-2" y los estudiantes traen solo "11-2"
+  const group = selectedCourseName?.replace(/^Curso\s*/i, '');
+  const roster = group ? rawStudents.filter((s: any) => s?.course === group) : rawStudents;
 
   // Filter submissions for this assignment
   const assignmentSubmissions = targetAssignmentId
@@ -291,19 +262,19 @@ export function adaptEduCoreStudents(
       group: selectedCourseName || sub.course || '11-2',
       status: isGraded ? 'Calificada' : 'Por revisar',
       score: isGraded ? Number(sub.grade) : undefined,
-      time: sub.submittedAt ? formatDateShort(sub.submittedAt) : 'recientemente',
+      time: sub.submittedAt ? formatDateShort(sub.submittedAt) : undefined,
+      submittedAt: sub.submittedAt ? new Date(sub.submittedAt).toISOString() : undefined,
       file: fileName,
       fileType: ext,
-      fileSize: '2.4 MB',
       color,
       submissionId: sub.id,
       comment: sub.comment,
     });
   }
 
-  // 2. Process enrolled students who may not have submitted yet
-  for (let i = 0; i < rawStudents.length; i++) {
-    const st = rawStudents[i];
+  // 2. Matriculados del curso que aún no han entregado
+  for (let i = 0; i < roster.length; i++) {
+    const st = roster[i];
     const name = st.name || st.user?.name;
     if (!name || processedNames.has(name)) continue;
     processedNames.add(name);
@@ -316,32 +287,6 @@ export function adaptEduCoreStudents(
       group: selectedCourseName || st.course || '11-2',
       status: 'No entregó',
       color,
-    });
-  }
-
-  // If we have fewer than 5 students in mock/preview, supply a few enrolled students so split-view is rich
-  if (studentsList.length === 0) {
-    const fallbackNames = [
-      'Sofía Martínez',
-      'Alejandro Torres',
-      'Camila Morales',
-      'Sebastián Restrepo',
-      'Valentina Gómez',
-    ];
-    fallbackNames.forEach((name, idx) => {
-      studentsList.push({
-        id: `fallback-student-${idx}`,
-        name,
-        initials: getInitials(name),
-        group: selectedCourseName || '11-2',
-        status: idx === 0 ? 'Calificada' : idx < 3 ? 'Por revisar' : 'No entregó',
-        score: idx === 0 ? 4.5 : undefined,
-        file: idx < 3 ? `taller-derivadas-${idx + 1}.pdf` : undefined,
-        fileType: 'PDF',
-        fileSize: '2.1 MB',
-        time: 'hace 2 horas',
-        color: STUDENT_COLORS[idx % STUDENT_COLORS.length],
-      });
     });
   }
 

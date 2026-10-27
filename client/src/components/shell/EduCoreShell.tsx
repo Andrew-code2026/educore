@@ -4,6 +4,7 @@ import { ShellContextProvider, useShellContext } from "./ShellContext";
 import { EduCoreSidebar } from "./EduCoreSidebar";
 import { EduCoreHeader } from "./EduCoreHeader";
 import { EduCoreMobileNav } from "./EduCoreMobileNav";
+import "./shell.css";
 
 function ShellInner({
   children,
@@ -40,22 +41,24 @@ function ShellInner({
   }, [navGuard, onLogout]);
 
   React.useEffect(() => {
-    if (section === "grades" || section === "attendance" || section === "classroom") {
-      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-      if (document.documentElement) document.documentElement.scrollTop = 0;
-      if (document.body) document.body.scrollTop = 0;
-    }
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+    const mainContent = document.getElementById("educore-main-content");
+    if (mainContent) mainContent.scrollTop = 0;
   }, [section]);
 
-  const isFullBleed = section === "grades" || section === "attendance" || section === "classroom";
+  const isFullBleed =
+    section === "grades" ||
+    section === "attendance" ||
+    section === "classroom" ||
+    section === "analytics" ||
+    section === "calendar" ||
+    section === "communications";
 
   return (
     <div
-      className={
-        isFullBleed
-          ? "h-screen max-h-screen overflow-hidden bg-transparent text-foreground"
-          : "min-h-screen page-shell text-slate-900 selection:bg-blue-100"
-      }
+      className="edc-shell selection:bg-blue-100"
       style={
         {
           "--edc-primary": school?.primaryColor ?? "#2475cf",
@@ -69,61 +72,50 @@ function ShellInner({
         } as React.CSSProperties
       }
     >
-      {/* 1. Sidebar de escritorio colapsable */}
-      <EduCoreSidebar
-        role={role}
-        section={section}
-        setSection={handleSetSection}
-        school={school}
-        schoolName={schoolName}
-        onLogout={handleLogout}
-        notificationCount={notificationCount}
-        user={user}
-      />
+      {/* Marco: riel lateral a la izquierda, topbar y panel principal a la derecha */}
+      <div className="edc-frame" data-collapsed={sidebarCollapsed} data-focus={isFocusMode}>
+        <EduCoreHeader
+          role={role}
+          section={section}
+          setSection={handleSetSection}
+          onRoleChange={onRoleChange}
+          notificationCount={notificationCount}
+          user={user}
+        />
 
-      {/* 2. Contenedor principal desplazable que se adapta al ancho de la barra lateral */}
-      <div
-        className={`flex ${
-          isFullBleed ? "h-screen max-h-screen overflow-hidden" : "min-h-screen"
-        } flex-col transition-all duration-200 ease-out ${
-          isFocusMode ? "lg:pl-0" : (sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-[250px]")
-        }`}
-      >
-        {/* Header contextual y contenido principal */}
-        {isFullBleed ? (
-          <main className="flex-1 flex flex-col min-h-0 h-full overflow-hidden w-full">
-            {children}
-          </main>
-        ) : (
-          <>
-            <EduCoreHeader
-              role={role}
-              section={section}
-              setSection={handleSetSection}
-              onRoleChange={onRoleChange}
-              notificationCount={notificationCount}
-              user={user}
-            />
-
-            {/* Contenido principal de la página */}
-            <main className="page-transition flex-1 mx-auto w-full max-w-[1440px] px-4 pb-24 pt-5 sm:px-6 lg:px-8 lg:pb-10 lg:pt-6">
-              {children}
-            </main>
-          </>
-        )}
-
-        {/* Navegación móvil inferior inteligente + Drawer */}
-        <EduCoreMobileNav
+        <EduCoreSidebar
           role={role}
           section={section}
           setSection={handleSetSection}
           school={school}
           schoolName={schoolName}
-          onRoleChange={onRoleChange}
           onLogout={handleLogout}
           notificationCount={notificationCount}
+          user={user}
         />
+
+        {isFullBleed ? (
+          <main className="edc-main edc-main--bleed">{children}</main>
+        ) : (
+          <main id="educore-main-content" className="edc-main">
+            <div aria-hidden="true" className="edc-main__glow edc-main__glow--a" />
+            <div aria-hidden="true" className="edc-main__glow edc-main__glow--b" />
+            <div className="edc-main__content page-transition">{children}</div>
+          </main>
+        )}
       </div>
+
+      {/* Navegación móvil inferior inteligente + Drawer */}
+      <EduCoreMobileNav
+        role={role}
+        section={section}
+        setSection={handleSetSection}
+        school={school}
+        schoolName={schoolName}
+        onRoleChange={onRoleChange}
+        onLogout={handleLogout}
+        notificationCount={notificationCount}
+      />
     </div>
   );
 }

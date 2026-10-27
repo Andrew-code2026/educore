@@ -1,5 +1,7 @@
+import { ChevronLeft, Plus } from 'lucide-react';
 import type { CourseSummary, ViewKey } from '../types';
-import { Icon } from './SharedUI';
+import { DEFAULT_SUBJECT, plural } from '../landing/courses';
+import '../course/course.css';
 
 interface CourseHeaderProps {
   course: CourseSummary;
@@ -7,104 +9,89 @@ interface CourseHeaderProps {
   onNavigate: (view: ViewKey) => void;
   onBackToCourses: () => void;
   onNewActivity: () => void;
-  stats: {
-    active: number;
-    review: number;
-    upcoming: number;
-    drafts: number;
-  };
+  /** Entregas sin calificar; se muestra como contador en la pestaña Entregas. */
+  reviewCount: number;
   canManage?: boolean;
 }
 
+const TABS: { key: Exclude<ViewKey, 'home'>; label: string }[] = [
+  { key: 'overview', label: 'Resumen' },
+  { key: 'activities', label: 'Actividades' },
+  { key: 'submissions', label: 'Entregas' },
+  { key: 'resources', label: 'Recursos' },
+];
+
+/** Cabecera del curso: misma identidad que su tarjeta en "Mis cursos" y navegación entre secciones. */
 export function CourseHeader({
   course,
   view,
   onNavigate,
   onBackToCourses,
   onNewActivity,
-  stats,
+  reviewCount,
   canManage = true,
 }: CourseHeaderProps) {
+  const group = course.name.replace(/^Curso\s*/i, '');
+  const hasSubject = Boolean(course.subject && course.subject !== DEFAULT_SUBJECT);
+
   return (
-    <>
-      <section className="course-header compact-course-header">
-        <div className="course-identity">
-          <button
-            type="button"
-            className="course-back-btn mr-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 transition cursor-pointer border border-cyan-500/20"
-            onClick={onBackToCourses}
-            title="Volver al catálogo de cursos"
-          >
-            <Icon name="back" size={13} />
-            <span>Cursos</span>
-          </button>
-          <span className="course-identity-mark">
-            <Icon name={course.icon || 'book'} size={18} />
-          </span>
-          <div className="course-identity-copy">
-            <h1>
-              <span className="course-code">{course.code}</span>
-              <span className="course-name">{course.name}</span>
-            </h1>
-            <p>
-              {stats.active} actividades activas · {stats.review} por revisar
-              {course.subject ? ` · ${course.subject}` : ''}
-            </p>
-          </div>
+    <header className="ccw ccw-head">
+      <div className="ccw-head__main">
+        <button
+          type="button"
+          className="ccw-icon-btn"
+          onClick={onBackToCourses}
+          aria-label="Volver a Mis cursos"
+          title="Volver a Mis cursos"
+        >
+          <ChevronLeft aria-hidden="true" strokeWidth={2} />
+        </button>
+
+        <span aria-hidden="true" className="ccw-group">
+          {group}
+        </span>
+
+        <div className="ccw-identity">
+          <h1 className="ccw-title">{hasSubject ? course.subject : course.name}</h1>
+          <p className="ccw-sub">
+            {hasSubject && `${course.name} · `}
+            {plural(course.students, 'estudiante', 'estudiantes')}
+          </p>
         </div>
 
-        <div className="course-header-actions">
-          {canManage && (
-            <button className="primary-button" onClick={onNewActivity}>
-              <Icon name="plus" size={15} /> Nueva actividad
+        {canManage && (
+          <button type="button" className="ccw-btn ccw-btn--primary ccw-head__action" onClick={onNewActivity}>
+            <Plus aria-hidden="true" strokeWidth={2.25} />
+            <span>Nueva actividad</span>
+          </button>
+        )}
+      </div>
+
+      <nav aria-label="Secciones del curso" className="ccw-tabs">
+        {TABS.map((tab) => {
+          const active = view === tab.key;
+          const badge = tab.key === 'submissions' && reviewCount > 0 ? reviewCount : null;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              className="ccw-tab"
+              aria-current={active ? 'page' : undefined}
+              onClick={() => onNavigate(tab.key)}
+            >
+              {tab.label}
+              {badge !== null && (
+                <>
+                  <span aria-hidden="true" className="ccw-count ccw-num">
+                    {badge}
+                  </span>
+                  <span className="ccw-sr">, {plural(badge, 'entrega por revisar', 'entregas por revisar')}</span>
+                </>
+              )}
             </button>
-          )}
-        </div>
-      </section>
-
-      <nav
-        className="course-tabs course-tabs-v3 module-navigation compact-module-navigation"
-        aria-label="Navegación del curso"
-      >
-        <div className="course-nav-bubbles">
-          <button
-            title="Resumen del curso"
-            className={`nav-bubble ${view === 'overview' ? 'active' : ''}`}
-            onClick={() => onNavigate('overview')}
-          >
-            <Icon name="chart" size={16} />
-            <span>Resumen</span>
-          </button>
-
-          <button
-            title="Actividades con entrega"
-            className={`nav-bubble ${view === 'activities' ? 'active' : ''}`}
-            onClick={() => onNavigate('activities')}
-          >
-            <Icon name="layers" size={16} />
-            <span>Actividades</span>
-          </button>
-
-          <button
-            title={`${stats.review} entregas por revisar`}
-            className={`nav-bubble ${view === 'submissions' ? 'active' : ''}`}
-            onClick={() => onNavigate('submissions')}
-          >
-            <Icon name="clipboard" size={16} />
-            <span>Entregas</span>
-            {stats.review > 0 && <em>{stats.review}</em>}
-          </button>
-
-          <button
-            title="Recursos del curso"
-            className={`nav-bubble ${view === 'resources' ? 'active' : ''}`}
-            onClick={() => onNavigate('resources')}
-          >
-            <Icon name="book" size={16} />
-            <span>Recursos</span>
-          </button>
-        </div>
+          );
+        })}
       </nav>
-    </>
+    </header>
   );
 }

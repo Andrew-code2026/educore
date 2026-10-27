@@ -20,7 +20,7 @@ export function StudentAiCallout({
           <Sparkles className="h-4 w-4" />
         </span>
         <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
+          <span className="text-xs font-bold uppercase tracking-wider text-blue-700">
             Tutor y acompañamiento
           </span>
           <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-none">
@@ -36,18 +36,18 @@ export function StudentAiCallout({
 
       {/* Suggested prompts */}
       <div className="mt-3 flex flex-wrap gap-1.5">
-        <span className="inline-flex items-center gap-1 rounded-lg border border-blue-200/60 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-slate-700">
+        <span className="inline-flex items-center gap-1 rounded-lg border border-blue-200/60 bg-white/80 px-2.5 py-1 text-xs font-medium text-slate-700">
           <BookOpen className="h-3 w-3 text-blue-600" />
           "Explícame derivadas paso a paso"
         </span>
-        <span className="inline-flex items-center gap-1 rounded-lg border border-blue-200/60 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-slate-700">
+        <span className="inline-flex items-center gap-1 rounded-lg border border-blue-200/60 bg-white/80 px-2.5 py-1 text-xs font-medium text-slate-700">
           <BrainCircuit className="h-3 w-3 text-indigo-600" />
           "Ideas clave para mi taller pendiente"
         </span>
       </div>
 
       <div className="mt-4 pt-3 border-t border-blue-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-        <span className="text-[11px] font-medium text-slate-500">
+        <span className="text-xs font-medium text-slate-500">
           Acompañamiento didáctico siempre a tu alcance
         </span>
         <button

@@ -1,189 +1,201 @@
+import { useMemo } from 'react';
+import { ArrowRight, CalendarClock, ClipboardCheck, ClipboardList, Plus } from 'lucide-react';
 import type { Activity } from '../types';
-import { Icon, SectionLabel } from './SharedUI';
+import { formatDaysIn, plural } from '../landing/courses';
+import {
+  buildCourseOverview,
+  describeDue,
+  formatMonthShort,
+  formatWeekdayTime,
+  type ReviewItem,
+  type UpcomingItem,
+} from '../course/overview';
 
 interface OverviewViewProps {
   activities: Activity[];
-  stats: {
-    active: number;
-    review: number;
-    upcoming: number;
-  };
-  selectActivity: (activity: Activity) => void;
-  dateRange?: string;
-  totalStudents?: number;
+  totalStudents: number;
+  onOpenActivity: (activity: Activity) => void;
+  onReview: (activity: Activity) => void;
+  /** Solo para quien puede gestionar el curso. */
+  onNewActivity?: () => void;
 }
 
+const UPCOMING_LIMIT = 4;
+
+/** Resumen del curso: lo que espera calificación y las próximas entregas, nada más. */
 export function OverviewView({
   activities,
-  stats,
-  selectActivity,
-  dateRange = 'Ciclo 2026',
-  totalStudents = 32,
+  totalStudents,
+  onOpenActivity,
+  onReview,
+  onNewActivity,
 }: OverviewViewProps) {
-  const recent = activities.slice(0, 5);
-  const upcoming = activities.filter((a) => ['Próxima', 'En curso', 'Publicada'].includes(a.status)).slice(0, 4);
-  const totalSubmissionsThisWeek = activities.reduce((acc, curr) => acc + curr.submissions, 0);
+  // `now` se fija junto con el modelo para que estados y fechas relativas sean coherentes
+  const { model, now } = useMemo(() => {
+    const at = new Date();
+    return { model: buildCourseOverview(activities, at), now: at };
+  }, [activities]);
+
+  if (!activities.some((a) => a.status !== 'Borrador')) {
+    return (
+      <div className="ccw ccw-overview">
+        <div className="ccw-surface ccw-empty ccw-empty--page">
+          <span aria-hidden="true" className="ccw-empty__icon">
+            <ClipboardList strokeWidth={1.75} />
+          </span>
+          <h2 className="ccw-empty__title">Aún no hay actividades publicadas</h2>
+          <p className="ccw-empty__note">
+            Publica una actividad con entrega digital y aquí verás lo que tienes por revisar y lo que vence pronto.
+          </p>
+          {onNewActivity && (
+            <button type="button" className="ccw-btn ccw-btn--primary" onClick={onNewActivity}>
+              <Plus aria-hidden="true" strokeWidth={2.25} />
+              Crear actividad
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const upcoming = model.upcoming.slice(0, UPCOMING_LIMIT);
 
   return (
-    <section className="view-section overview-view">
-      <div className="overview-title">
-        <div>
-          <span className="eyebrow">PANORAMA DEL CURSO</span>
-          <h2>Panorama del curso</h2>
-          <p>Lo que requiere atención y lo que viene después.</p>
-        </div>
-        <span className="date-chip">{dateRange}</span>
-      </div>
-
-      <div className="operational-metrics overview-kpis">
-        <div className="summary-card">
-          <span className="summary-icon amber">
-            <Icon name="clipboard" size={17} />
-          </span>
-          <div>
-            <span className="summary-label">Por revisar</span>
-            <strong>{stats.review}</strong>
-          </div>
+    <div className="ccw ccw-overview">
+      <section aria-labelledby="ccw-review-heading" className="ccw-section">
+        <div className="ccw-section__head">
+          <h2 id="ccw-review-heading" className="ccw-section__title">
+            Por revisar
+          </h2>
+          {model.pendingTotal > 0 && <span className="ccw-count ccw-num">{model.pendingTotal}</span>}
         </div>
 
-        <div className="summary-card">
-          <span className="summary-icon cyan">
-            <Icon name="layers" size={17} />
-          </span>
-          <div>
-            <span className="summary-label">Actividades activas</span>
-            <strong>{stats.active}</strong>
-          </div>
+        {model.toReview.length > 0 ? (
+          <ul className="ccw-surface ccw-list">
+            {model.toReview.map((item) => (
+              <ReviewRow key={item.activity.id} item={item} now={now} onReview={onReview} />
+            ))}
+          </ul>
+        ) : (
+          <p className="ccw-surface ccw-quiet">Estás al día. Las nuevas entregas aparecerán aquí.</p>
+        )}
+      </section>
+
+      <section aria-labelledby="ccw-upcoming-heading" className="ccw-section">
+        <div className="ccw-section__head">
+          <h2 id="ccw-upcoming-heading" className="ccw-section__title">
+            Próximas entregas
+          </h2>
+          {model.upcoming.length > 0 && <span className="ccw-count ccw-num">{model.upcoming.length}</span>}
         </div>
 
-        <div className="summary-card">
-          <span className="summary-icon violet">
-            <Icon name="chart" size={17} />
-          </span>
-          <div>
-            <span className="summary-label">Próximas</span>
-            <strong>{stats.upcoming}</strong>
-          </div>
-        </div>
-
-        <div className="summary-card">
-          <span className="summary-icon mint">
-            <Icon name="download" size={17} />
-          </span>
-          <div>
-            <span className="summary-label">Entregas recibidas</span>
-            <strong>{totalSubmissionsThisWeek}</strong>
-          </div>
-        </div>
-      </div>
-
-      <div className="overview-columns">
-        <section className="glass-card compact-section">
-          <SectionLabel>Actividades recientes</SectionLabel>
-          <div className="recent-list">
-            {recent.map((activity) => {
-              const pending = Math.max(0, activity.submissions - activity.graded);
-              const progress = totalStudents ? Math.round((activity.submissions / totalStudents) * 100) : 0;
-              return (
-                <button
-                  type="button"
-                  className="recent-row"
-                  key={activity.id}
-                  onClick={() => selectActivity(activity)}
-                >
-                  <span className={`activity-icon ${activity.accent}`}>
-                    <Icon name={activity.icon || 'clipboard'} size={16} />
-                  </span>
-                  <span className="recent-main">
-                    <strong>{activity.name}</strong>
-                    <small>
-                      {activity.type} · {activity.submissions}/{totalStudents} entregaron
-                    </small>
-                    <span className="recent-progress">
-                      <i style={{ width: `${Math.min(100, progress)}%` }} />
-                    </span>
-                  </span>
-                  <span
-                    className={
-                      pending
-                        ? 'recent-review'
-                        : activity.submissions === totalStudents && totalStudents > 0
-                        ? 'recent-complete'
-                        : 'recent-empty'
-                    }
-                  >
-                    {pending > 0 ? (
-                      <>
-                        <b>{pending}</b>
-                        <small>pendientes</small>
-                      </>
-                    ) : activity.submissions === totalStudents && totalStudents > 0 ? (
-                      <>
-                        <Icon name="check" size={13} /> Completada
-                      </>
-                    ) : (
-                      <>
-                        <b>{activity.submissions}</b>
-                        <small>entregas</small>
-                      </>
-                    )}
-                  </span>
-                  <span className="recent-date">{activity.date}</span>
-                  <Icon name="chevron" size={15} />
-                </button>
-              );
-            })}
-            {!recent.length && (
-              <div className="empty-state py-8">
-                <Icon name="layers" size={20} />
-                <strong>No hay actividades recientes</strong>
-                <p>Crea tu primera actividad digital para comenzar.</p>
-              </div>
+        {upcoming.length > 0 ? (
+          <ul className="ccw-surface ccw-list">
+            {upcoming.map((item) => (
+              <UpcomingRow
+                key={item.activity.id}
+                item={item}
+                totalStudents={totalStudents}
+                onOpen={onOpenActivity}
+              />
+            ))}
+          </ul>
+        ) : (
+          <div className="ccw-surface ccw-empty">
+            <span aria-hidden="true" className="ccw-empty__icon">
+              <CalendarClock strokeWidth={1.75} />
+            </span>
+            <p className="ccw-empty__title">Sin entregas abiertas</p>
+            <p className="ccw-empty__note">Ninguna actividad del curso tiene una fecha límite por delante.</p>
+            {onNewActivity && (
+              <button type="button" className="ccw-btn ccw-btn--outline" onClick={onNewActivity}>
+                <Plus aria-hidden="true" strokeWidth={2.25} />
+                Nueva actividad
+              </button>
             )}
           </div>
-        </section>
+        )}
+      </section>
+    </div>
+  );
+}
 
-        <section className="glass-card compact-section upcoming-section">
-          <SectionLabel>Próximas entregas</SectionLabel>
-          <div className="recent-list">
-            {upcoming.map((activity) => {
-              const parts = activity.date.split(' ');
-              const day = parts[0] || '28';
-              const month = parts[1] || 'Oct';
-              const dueHour = activity.dueDate.includes('·')
-                ? activity.dueDate.split('·')[1].trim()
-                : '23:59';
-              return (
-                <button
-                  type="button"
-                  className="upcoming-row"
-                  key={activity.id}
-                  onClick={() => selectActivity(activity)}
-                >
-                  <span className="upcoming-date">
-                    <b>{day}</b>
-                    <small>{month}</small>
-                  </span>
-                  <span className="upcoming-main">
-                    <strong>{activity.name}</strong>
-                    <small>
-                      <b>{dueHour}</b> · {activity.type}
-                    </small>
-                  </span>
-                  <Icon name="chevron" size={14} />
-                </button>
-              );
-            })}
-            {!upcoming.length && (
-              <div className="empty-state py-8">
-                <Icon name="clock" size={20} />
-                <strong>Al día</strong>
-                <p>No hay entregas pendientes de fecha límite inmediata.</p>
-              </div>
-            )}
-          </div>
-        </section>
+function ReviewRow({
+  item,
+  now,
+  onReview,
+}: {
+  item: ReviewItem;
+  now: Date;
+  onReview: (activity: Activity) => void;
+}) {
+  const due = describeDue(item.dueAt, now);
+  return (
+    <li className="ccw-row">
+      <span aria-hidden="true" className="ccw-row__icon">
+        <ClipboardCheck strokeWidth={1.75} />
+      </span>
+      <div className="ccw-row__body">
+        <span className="ccw-row__title">{item.activity.name}</span>
+        <span className="ccw-row__detail">
+          {plural(item.pending, 'entrega sin calificar', 'entregas sin calificar')}
+          {due && ` · ${due}`}
+        </span>
       </div>
-    </section>
+      <button
+        type="button"
+        className="ccw-btn ccw-btn--primary ccw-btn--sm"
+        aria-label={`Revisar entregas de ${item.activity.name}`}
+        onClick={() => onReview(item.activity)}
+      >
+        Revisar
+        <ArrowRight aria-hidden="true" strokeWidth={2} />
+      </button>
+    </li>
+  );
+}
+
+function UpcomingRow({
+  item,
+  totalStudents,
+  onOpen,
+}: {
+  item: UpcomingItem;
+  totalStudents: number;
+  onOpen: (activity: Activity) => void;
+}) {
+  const { activity, dueAt, daysLeft } = item;
+  const progress = totalStudents > 0 ? Math.min(100, Math.round((activity.submissions / totalStudents) * 100)) : 0;
+  const soon = daysLeft <= 1;
+
+  return (
+    <li>
+      <button type="button" className="ccw-row ccw-row--link" onClick={() => onOpen(activity)}>
+        <span className="ccw-date">
+          <span className="ccw-date__day ccw-num">{dueAt.getDate()}</span>
+          <span className="ccw-date__month">{formatMonthShort(dueAt)}</span>
+        </span>
+        <span className="ccw-row__body">
+          <span className="ccw-row__title">{activity.name}</span>
+          <span className="ccw-row__detail">
+            {formatWeekdayTime(dueAt)}
+          </span>
+        </span>
+        <span className="ccw-row__aside">
+          <span className={soon ? 'ccw-when ccw-when--soon' : 'ccw-when'}>{formatDaysIn(daysLeft)}</span>
+          {totalStudents > 0 && (
+            <span className="ccw-meter">
+              <span className="ccw-meter__track" aria-hidden="true">
+                <span className="ccw-meter__bar" style={{ width: `${progress}%` }} />
+              </span>
+              <span className="ccw-meter__label ccw-num">
+                {activity.submissions}/{totalStudents}
+                <span className="ccw-sr"> estudiantes entregaron</span>
+              </span>
+            </span>
+          )}
+        </span>
+      </button>
+    </li>
   );
 }
