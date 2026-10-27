@@ -13,7 +13,6 @@ import {
   RotateCcw,
   SlidersHorizontal,
   X,
-  Zap,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -50,10 +49,12 @@ const DENSITIES: { id: Density; label: string; hint: string }[] = [
 const LEVEL_FILTERS: LevelId[] = ["superior", "alto", "basico", "bajo"];
 
 /**
- * Franja de control y comando estilo Academic Liquid Glass.
+ * Franja de control y comando optimizada y compacta.
  *
- * Fila 1: Pestañas de vista, selector directo de densidad, validación de ponderación y acciones clave.
- * Fila 2: Edición rápida, columnas visibles, orden, filtros contextuales y métricas en vivo.
+ * Fila 1 (Navegación & Acciones): Pestañas de vista, validación de ponderación y botones de acción principales.
+ * Fila 2 (Herramientas de Mesa & Métricas): Densidad, columnas visibles, orden, filtros y resumen de métricas en vivo.
+ *
+ * Diseño ultra-compacto que no se desborda ni genera saltos de línea desordenados.
  */
 export function ControlStrip() {
   const {
@@ -67,7 +68,6 @@ export function ControlStrip() {
     setSort,
     setFilters,
     setDensity,
-    setQuickEdit,
     toggleEvaluation,
     showAllEvaluations,
     resetAllPreferences,
@@ -89,52 +89,20 @@ export function ControlStrip() {
   };
 
   return (
-    <div className="@container relative z-30 flex shrink-0 flex-col gap-1.5 border-b border-[var(--gc-hair)] bg-[var(--gc-chrome)] px-3 py-2 transition-all duration-200">
-      {/* ─── FILA 1: Vistas, Densidad, Ponderación y Acciones Principales ─── */}
-      <div className="flex flex-wrap items-center gap-2">
-        <ViewSwitcher />
-
-        {/* Selector de Densidad (Cápsula directa) */}
-        <div
-          role="radiogroup"
-          aria-label="Densidad de la planilla"
-          className="flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.04] p-1 shadow-sm backdrop-blur-md"
-        >
-          {DENSITIES.map((density) => {
-            const active = preferences.density === density.id;
-            return (
-              <button
-                key={density.id}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                title={density.hint}
-                onClick={() => setDensity(density.id)}
-                className={cn(
-                  "flex h-7 shrink-0 items-center rounded-full px-3 text-xs font-medium transition-all duration-150 focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none",
-                  active
-                    ? "border border-white/12 bg-white/12 text-foreground font-semibold shadow-inner"
-                    : "border border-transparent text-muted-foreground hover:text-foreground hover:bg-white/[0.05]",
-                )}
-              >
-                {density.label}
-              </button>
-            );
-          })}
+    <div className="relative z-30 flex shrink-0 flex-col gap-1 border-b border-[var(--gc-hair)] bg-[var(--gc-chrome)] px-3 py-1.5 transition-all duration-150">
+      {/* ─── FILA 1: Vistas, Ponderación y Acciones Clave ─── */}
+      <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 shrink-0">
+          <ViewSwitcher />
+          {dataset.evaluations.length > 0 && <WeightBadge integrity={weightIntegrity} />}
         </div>
 
-        {/* Badge de Ponderación / Validación 100% */}
-        {dataset.evaluations.length > 0 && <WeightBadge integrity={weightIntegrity} />}
-
-        <div className="flex-1" />
-
-        {/* Botones de acción principales */}
         {!readOnly && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={dialogs.openNewEvaluation}
-              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[var(--gc-cobalt)]/40 bg-[var(--gc-cobalt)]/20 px-3.5 text-xs font-semibold text-foreground transition-all duration-150 hover:bg-[var(--gc-cobalt)]/30 hover:border-[var(--gc-cobalt)]/60 shadow-sm active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none"
+              className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-[var(--gc-cobalt)]/40 bg-[var(--gc-cobalt)]/20 px-3 text-xs font-semibold text-foreground transition-colors hover:bg-[var(--gc-cobalt)]/30 hover:border-[var(--gc-cobalt)]/60 shadow-sm focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none"
             >
               <ClipboardPlus className="size-3.5 text-[var(--gc-cobalt)]" aria-hidden />
               <span>Nueva evaluación</span>
@@ -144,12 +112,12 @@ export function ControlStrip() {
               <button
                 type="button"
                 onClick={() => dialogs.openBulkGrade()}
-                className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 text-xs font-semibold text-foreground transition-all duration-150 hover:bg-white/10 hover:border-white/20 shadow-sm active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none"
+                className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 text-xs font-semibold text-foreground transition-colors hover:bg-white/10 hover:border-white/20 shadow-sm focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none"
               >
                 <PenLine className="size-3.5 opacity-80" aria-hidden />
                 <span>Calificación masiva</span>
                 {selectedRows.length > 0 && (
-                  <span className="gc-num rounded-full bg-[var(--gc-cobalt)]/30 px-1.5 py-0.5 text-[10px] font-bold text-foreground">
+                  <span className="gc-num rounded-full bg-[var(--gc-cobalt)]/30 px-1.5 py-0.2 text-[10px] font-bold text-foreground">
                     {selectedRows.length}
                   </span>
                 )}
@@ -159,255 +127,260 @@ export function ControlStrip() {
         )}
       </div>
 
-      {/* ─── FILA 2: Herramientas de Edición, Columnas, Orden, Filtros y Métricas ─── */}
-      <div className="flex flex-wrap items-center gap-2 pt-0.5">
-        {/* Edición rápida toggle */}
-        {!readOnly && isMatrix && (
-          <button
-            type="button"
-            aria-pressed={preferences.quickEdit}
-            onClick={() => setQuickEdit(!preferences.quickEdit)}
-            title={
-              preferences.quickEdit
-                ? "Edición rápida activa: un clic en la celda permite editar directamente."
-                : "Activar edición rápida: edita calificaciones con un solo clic."
-            }
-            className={cn(
-              "flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none",
-              preferences.quickEdit
-                ? "border-[var(--gc-cobalt)]/50 bg-[var(--gc-cobalt)]/20 text-foreground font-semibold shadow-sm"
-                : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10",
-            )}
+      {/* ─── FILA 2: Densidad, Columnas, Orden, Filtros y Métricas en Vivo ─── */}
+      <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Selector de Densidad */}
+          <div
+            role="radiogroup"
+            aria-label="Densidad de la planilla"
+            className="flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.04] p-0.5 shadow-sm"
           >
-            <Zap
-              className={cn("size-3.5", preferences.quickEdit ? "text-[var(--gc-cobalt)] fill-[var(--gc-cobalt)]/20" : "opacity-70")}
-              aria-hidden
-            />
-            <span>Edición rápida</span>
-          </button>
-        )}
+            {DENSITIES.map((density) => {
+              const active = preferences.density === density.id;
+              return (
+                <button
+                  key={density.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  title={density.hint}
+                  onClick={() => setDensity(density.id)}
+                  className={cn(
+                    "flex h-6 shrink-0 items-center rounded-full px-2.5 text-[11px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none",
+                    active
+                      ? "border border-white/12 bg-white/12 text-foreground font-semibold shadow-inner"
+                      : "border border-transparent text-muted-foreground hover:text-foreground hover:bg-white/[0.05]",
+                  )}
+                >
+                  {density.label}
+                </button>
+              );
+            })}
+          </div>
 
-        {/* Selector de Columnas Visibles */}
-        {isMatrix && dataset.evaluations.length > 0 && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className={cn(
-                  "flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none",
-                  hiddenCount > 0
-                    ? "border-[var(--gc-cobalt)]/40 bg-[var(--gc-cobalt)]/12 text-foreground font-semibold"
-                    : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10",
-                )}
-              >
-                <Columns3 className="size-3.5 opacity-70" aria-hidden />
-                <span>Columnas</span>
-                {hiddenCount > 0 && (
-                  <span className="gc-num rounded-full bg-[var(--gc-cobalt)] text-white px-1.5 py-0.2 text-[10px] font-semibold">
-                    {dataset.evaluations.length - hiddenCount}
-                  </span>
-                )}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" sideOffset={6} className="gc-popover w-72 rounded-2xl p-3 border-white/10 shadow-2xl backdrop-blur-xl">
-              <div className="flex items-center justify-between pb-2 border-b border-[var(--gc-hair)]">
-                <div>
-                  <div className="text-xs font-semibold">Columnas visibles</div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {dataset.evaluations.length - hiddenCount} de {dataset.evaluations.length} evaluaciones
+          {/* Selector de Columnas Visibles */}
+          {isMatrix && dataset.evaluations.length > 0 && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none",
+                    hiddenCount > 0
+                      ? "border-[var(--gc-cobalt)]/40 bg-[var(--gc-cobalt)]/12 text-foreground font-semibold"
+                      : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10",
+                  )}
+                >
+                  <Columns3 className="size-3 opacity-70" aria-hidden />
+                  <span>Columnas</span>
+                  {hiddenCount > 0 && (
+                    <span className="gc-num rounded-full bg-[var(--gc-cobalt)] text-white px-1.5 text-[9px] font-semibold">
+                      {dataset.evaluations.length - hiddenCount}
+                    </span>
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" sideOffset={6} className="gc-popover w-72 rounded-2xl p-3 border-white/10 shadow-2xl backdrop-blur-xl">
+                <div className="flex items-center justify-between pb-2 border-b border-[var(--gc-hair)]">
+                  <div>
+                    <div className="text-xs font-semibold">Columnas visibles</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {dataset.evaluations.length - hiddenCount} de {dataset.evaluations.length} evaluaciones
+                    </div>
                   </div>
+                  {hiddenCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={showAllEvaluations}
+                      className="text-[11px] font-medium text-[var(--gc-cobalt)] hover:underline"
+                    >
+                      Mostrar todas
+                    </button>
+                  )}
                 </div>
-                {hiddenCount > 0 && (
+                <div className="gc-scroll max-h-64 space-y-0.5 overflow-y-auto py-2">
+                  {dataset.evaluations.map((evaluation) => {
+                    const visible = !preferences.hiddenEvaluations.includes(evaluation.id);
+                    return (
+                      <button
+                        key={evaluation.id}
+                        type="button"
+                        onClick={() => toggleEvaluation(evaluation.id)}
+                        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-white/6"
+                      >
+                        <span className="gc-num w-8 shrink-0 text-[10px] text-muted-foreground">{evaluation.code}</span>
+                        <span className="min-w-0 flex-1 truncate font-medium">{evaluation.name}</span>
+                        <span className="gc-num shrink-0 text-[10px] text-muted-foreground">{evaluation.weight}%</span>
+                        {visible ? (
+                          <Eye className="size-3.5 shrink-0 text-[var(--gc-cobalt)]" />
+                        ) : (
+                          <EyeOff className="size-3.5 shrink-0 text-muted-foreground/50" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="border-t border-[var(--gc-hair)] pt-2">
                   <button
                     type="button"
-                    onClick={showAllEvaluations}
-                    className="text-[11px] font-medium text-[var(--gc-cobalt)] hover:underline"
+                    onClick={resetAllPreferences}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs text-muted-foreground transition-colors hover:bg-white/6 hover:text-foreground"
                   >
-                    Mostrar todas
+                    <RotateCcw className="size-3" />
+                    Restablecer columnas
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {/* Menú Ordenar */}
+          {listsStudents && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex h-6 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none"
+                >
+                  <ArrowDownUp className="size-3 opacity-70" aria-hidden />
+                  <span>
+                    Ordenar: <strong className="font-semibold text-foreground">{sortLabel}</strong>
+                  </span>
+                  <ChevronDown className="size-3 opacity-60 ml-0.5" aria-hidden />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="gc-popover w-52 rounded-xl">
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Ordenar por</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={preferences.sort.key}
+                  onValueChange={(key) =>
+                    setSort({
+                      key: key as SortKey,
+                      dir: key === "name" ? "asc" : "desc",
+                    })
+                  }
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <DropdownMenuRadioItem key={option.key} value={option.key} className="text-sm">
+                      {option.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup
+                  value={preferences.sort.dir}
+                  onValueChange={(dir) => setSort({ ...preferences.sort, dir: dir as "asc" | "desc" })}
+                >
+                  <DropdownMenuRadioItem value="asc" className="text-sm">
+                    Ascendente
+                  </DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="desc" className="text-sm">
+                    Descendente
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* Menú Filtros */}
+          {listsStudents && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex h-6 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-medium transition-colors focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none",
+                    chips.length > 0
+                      ? "border-[var(--gc-cobalt)]/50 bg-[var(--gc-cobalt)]/18 text-foreground font-semibold shadow-sm"
+                      : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10",
+                  )}
+                >
+                  <Filter className="size-3 opacity-70" aria-hidden />
+                  <span>Filtros</span>
+                  {chips.length > 0 && (
+                    <span className="gc-num rounded-full bg-[var(--gc-cobalt)] px-1.5 text-[9px] font-semibold text-white">
+                      {chips.length}
+                    </span>
+                  )}
+                  <ChevronDown className="size-3 opacity-60 ml-0.5" aria-hidden />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" sideOffset={6} className="gc-popover w-64 rounded-2xl p-3 border-white/10 shadow-2xl backdrop-blur-xl">
+                <div className="mb-1.5 text-xs font-medium text-muted-foreground">Nivel de la definitiva</div>
+                <div className="grid grid-cols-2 gap-1">
+                  {LEVEL_FILTERS.map((level) => (
+                    <FilterOption
+                      key={level}
+                      active={filters.levels.includes(level)}
+                      onClick={() => toggleLevel(level)}
+                      label={LEVELS[level].short}
+                      detail={LEVELS[level].range}
+                      dot={LEVELS[level].color}
+                    />
+                  ))}
+                </div>
+
+                <div className="mt-3 mb-1.5 text-xs font-medium text-muted-foreground">Situación</div>
+                <div className="space-y-1">
+                  <FilterOption
+                    active={filters.onlyPending}
+                    onClick={() => setFilters({ ...filters, onlyPending: !filters.onlyPending })}
+                    label="Con notas pendientes"
+                    detail={String(analytics.group.pending.length)}
+                  />
+                  <FilterOption
+                    active={filters.onlyAttention}
+                    onClick={() => setFilters({ ...filters, onlyAttention: !filters.onlyAttention })}
+                    label="Requieren atención"
+                    detail={String(analytics.group.attention.length)}
+                  />
+                  <FilterOption
+                    active={filters.onlyComplete}
+                    onClick={() => setFilters({ ...filters, onlyComplete: !filters.onlyComplete })}
+                    label="Todo calificado"
+                    detail={String(analytics.students.filter((item) => item.complete).length)}
+                  />
+                </div>
+
+                {chips.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFilters({ ...EMPTY_FILTERS, query: filters.query })}
+                    className="mt-3 w-full rounded-lg py-1.5 text-xs text-muted-foreground transition-colors hover:bg-white/6 hover:text-foreground"
+                  >
+                    Quitar filtros
                   </button>
                 )}
-              </div>
-              <div className="gc-scroll max-h-64 space-y-0.5 overflow-y-auto py-2">
-                {dataset.evaluations.map((evaluation) => {
-                  const visible = !preferences.hiddenEvaluations.includes(evaluation.id);
-                  return (
-                    <button
-                      key={evaluation.id}
-                      type="button"
-                      onClick={() => toggleEvaluation(evaluation.id)}
-                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-white/6"
-                    >
-                      <span className="gc-num w-8 shrink-0 text-[10px] text-muted-foreground">{evaluation.code}</span>
-                      <span className="min-w-0 flex-1 truncate font-medium">{evaluation.name}</span>
-                      <span className="gc-num shrink-0 text-[10px] text-muted-foreground">{evaluation.weight}%</span>
-                      {visible ? (
-                        <Eye className="size-3.5 shrink-0 text-[var(--gc-cobalt)]" />
-                      ) : (
-                        <EyeOff className="size-3.5 shrink-0 text-muted-foreground/50" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="border-t border-[var(--gc-hair)] pt-2">
-                <button
-                  type="button"
-                  onClick={resetAllPreferences}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs text-muted-foreground transition-colors hover:bg-white/6 hover:text-foreground"
-                >
-                  <RotateCcw className="size-3" />
-                  Restablecer columnas
-                </button>
-              </div>
-            </PopoverContent>
-          </Popover>
-        )}
+              </PopoverContent>
+            </Popover>
+          )}
 
-        {/* Menú Ordenar */}
-        {listsStudents && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-white/10 transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none"
-              >
-                <ArrowDownUp className="size-3.5 opacity-70" aria-hidden />
-                <span>
-                  Ordenar: <strong className="font-semibold text-foreground">{sortLabel}</strong>
+          {/* Chips de filtros activos */}
+          {listsStudents && chips.length > 0 && (
+            <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
+              {chips.map((chip) => (
+                <span
+                  key={chip.id}
+                  className="inline-flex items-center gap-1 rounded-full border border-[var(--gc-cobalt)]/30 bg-[var(--gc-cobalt)]/10 px-2 py-0.5 text-[11px] text-foreground/90 font-medium"
+                >
+                  {chip.label}
+                  <button
+                    type="button"
+                    aria-label={`Quitar filtro ${chip.label}`}
+                    onClick={() => setFilters(chip.clear(filters))}
+                    className="flex size-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-white/20 hover:text-foreground transition-colors"
+                  >
+                    <X className="size-2.5" />
+                  </button>
                 </span>
-                <ChevronDown className="size-3 opacity-60 ml-0.5" aria-hidden />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="gc-popover w-52 rounded-xl">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Ordenar por</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={preferences.sort.key}
-                onValueChange={(key) =>
-                  setSort({
-                    key: key as SortKey,
-                    dir: key === "name" ? "asc" : "desc",
-                  })
-                }
-              >
-                {SORT_OPTIONS.map((option) => (
-                  <DropdownMenuRadioItem key={option.key} value={option.key} className="text-sm">
-                    {option.label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuRadioGroup
-                value={preferences.sort.dir}
-                onValueChange={(dir) => setSort({ ...preferences.sort, dir: dir as "asc" | "desc" })}
-              >
-                <DropdownMenuRadioItem value="asc" className="text-sm">
-                  Ascendente
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="desc" className="text-sm">
-                  Descendente
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
 
-        {/* Menú Filtros */}
-        {listsStudents && (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className={cn(
-                  "flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none",
-                  chips.length > 0
-                    ? "border-[var(--gc-cobalt)]/50 bg-[var(--gc-cobalt)]/18 text-foreground font-semibold shadow-sm"
-                    : "border-white/10 bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10",
-                )}
-              >
-                <Filter className="size-3.5 opacity-70" aria-hidden />
-                <span>Filtros</span>
-                {chips.length > 0 && (
-                  <span className="gc-num rounded-full bg-[var(--gc-cobalt)] px-1.5 text-[10px] font-semibold text-white">
-                    {chips.length}
-                  </span>
-                )}
-                <ChevronDown className="size-3 opacity-60 ml-0.5" aria-hidden />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" sideOffset={6} className="gc-popover w-64 rounded-2xl p-3 border-white/10 shadow-2xl backdrop-blur-xl">
-              <div className="mb-1.5 text-xs font-medium text-muted-foreground">Nivel de la definitiva</div>
-              <div className="grid grid-cols-2 gap-1">
-                {LEVEL_FILTERS.map((level) => (
-                  <FilterOption
-                    key={level}
-                    active={filters.levels.includes(level)}
-                    onClick={() => toggleLevel(level)}
-                    label={LEVELS[level].short}
-                    detail={LEVELS[level].range}
-                    dot={LEVELS[level].color}
-                  />
-                ))}
-              </div>
-
-              <div className="mt-3 mb-1.5 text-xs font-medium text-muted-foreground">Situación</div>
-              <div className="space-y-1">
-                <FilterOption
-                  active={filters.onlyPending}
-                  onClick={() => setFilters({ ...filters, onlyPending: !filters.onlyPending })}
-                  label="Con notas pendientes"
-                  detail={String(analytics.group.pending.length)}
-                />
-                <FilterOption
-                  active={filters.onlyAttention}
-                  onClick={() => setFilters({ ...filters, onlyAttention: !filters.onlyAttention })}
-                  label="Requieren atención"
-                  detail={String(analytics.group.attention.length)}
-                />
-                <FilterOption
-                  active={filters.onlyComplete}
-                  onClick={() => setFilters({ ...filters, onlyComplete: !filters.onlyComplete })}
-                  label="Todo calificado"
-                  detail={String(analytics.students.filter((item) => item.complete).length)}
-                />
-              </div>
-
-              {chips.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setFilters({ ...EMPTY_FILTERS, query: filters.query })}
-                  className="mt-3 w-full rounded-lg py-1.5 text-xs text-muted-foreground transition-colors hover:bg-white/6 hover:text-foreground"
-                >
-                  Quitar filtros
-                </button>
-              )}
-            </PopoverContent>
-          </Popover>
-        )}
-
-        {/* Chips de filtros activos */}
-        {listsStudents && chips.length > 0 && (
-          <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
-            {chips.map((chip) => (
-              <span
-                key={chip.id}
-                className="inline-flex items-center gap-1 rounded-full border border-[var(--gc-cobalt)]/30 bg-[var(--gc-cobalt)]/10 px-2.5 py-0.5 text-xs text-foreground/90 font-medium"
-              >
-                {chip.label}
-                <button
-                  type="button"
-                  aria-label={`Quitar filtro ${chip.label}`}
-                  onClick={() => setFilters(chip.clear(filters))}
-                  className="flex size-3.5 items-center justify-center rounded-full text-muted-foreground hover:bg-white/20 hover:text-foreground transition-colors"
-                >
-                  <X className="size-2.5" />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* ─── Terminal de métricas en vivo en la derecha ─── */}
-        <div className="ml-auto hidden items-center gap-2 font-mono text-xs text-muted-foreground @2xl:flex">
+        {/* Resumen de Métricas de Precisión */}
+        <div className="hidden items-center gap-2 font-mono text-[11px] text-muted-foreground sm:flex shrink-0">
           <SlidersHorizontal className="size-3 text-muted-foreground/60" aria-hidden />
           <span>
             <strong className="font-semibold text-foreground/90">{students.length}</strong> de{" "}
@@ -437,7 +410,7 @@ export function ControlStrip() {
   );
 }
 
-/** Píldora de validación de ponderación (esmeralda si 100%, advertencia si no). */
+/** Píldora de validación de ponderación */
 function WeightBadge({
   integrity,
 }: {
@@ -446,7 +419,7 @@ function WeightBadge({
   if (integrity.status === "valid") {
     return (
       <div
-        className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 text-xs font-medium text-emerald-600 dark:text-emerald-400 shadow-sm"
+        className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 shadow-sm"
         title="La suma de ponderaciones de las evaluaciones es exactamente 100%."
       >
         <CheckCircle2 className="size-3.5 shrink-0" aria-hidden />
@@ -458,7 +431,7 @@ function WeightBadge({
   if (integrity.status === "exceeded") {
     return (
       <div
-        className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 text-xs font-medium text-rose-600 dark:text-rose-400 shadow-sm"
+        className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 text-xs font-medium text-rose-600 dark:text-rose-400 shadow-sm"
         title={`Ponderación ${integrity.used}% (supera 100%). Debe ajustar las evaluaciones para que sumen 100%.`}
       >
         <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
@@ -469,7 +442,7 @@ function WeightBadge({
 
   return (
     <div
-      className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 text-xs font-medium text-amber-600 dark:text-amber-400 shadow-sm"
+      className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 text-xs font-medium text-amber-600 dark:text-amber-400 shadow-sm"
       title={`Ponderación ${integrity.used}%. Faltan ${integrity.remaining}% para completar el 100%.`}
     >
       <AlertTriangle className="size-3.5 shrink-0" aria-hidden />

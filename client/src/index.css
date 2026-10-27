@@ -182,6 +182,9 @@
   input, textarea, select { border-radius: var(--edc-radius); }
   tr { transition: background-color 180ms var(--ease-out); }
   tbody tr:hover { background: color-mix(in srgb, var(--edc-secondary) 34%, transparent); }
+  .gc-matrix tbody tr:hover,
+  .gc-matrix .gc-row:hover,
+  .gc-matrix td:hover { background: transparent !important; }
 
   /* Stabilize Grade Center toolbar and table interactive controls */
   .grade-center-toolbar button,
