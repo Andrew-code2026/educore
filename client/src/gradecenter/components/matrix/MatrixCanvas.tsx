@@ -97,7 +97,7 @@ export function MatrixCanvas({ densityOverride, className }: { densityOverride?:
     [baseEvaluationWidths, bonus],
   );
   const usedWidth = studentWidth + definitivaWidth + evaluationWidths.reduce((acc, value) => acc + value, 0);
-  const fillerWidth = Math.max(0, Math.floor(containerWidth - usedWidth - 1));
+  const fillerWidth = Math.max(evaluations.length === 0 ? 340 : 0, Math.floor(containerWidth - usedWidth - 1));
   const totalWidth = usedWidth + fillerWidth;
 
   const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
@@ -176,10 +176,10 @@ export function MatrixCanvas({ densityOverride, className }: { densityOverride?:
     return { studentId, evaluationId, at: pulse.at };
   }, [pulse]);
 
-  if (evaluations.length === 0 || students.length === 0) {
+  if (students.length === 0) {
     return (
       <EmptyMatrix
-        reason={students.length === 0 && filtersActive ? "filtered" : evaluations.length === 0 ? "no-evaluations" : "no-students"}
+        reason={filtersActive ? "filtered" : "no-students"}
         readOnly={readOnly}
         hiddenEvaluations={preferences.hiddenEvaluations.length > 0 && dataset.evaluations.length > 0}
       />
@@ -235,7 +235,7 @@ export function MatrixCanvas({ densityOverride, className }: { densityOverride?:
                   readOnly={readOnly}
                 />
               ))}
-              {fillerWidth > 0 && <FillerHeaderCell width={fillerWidth} headerHeight={headerHeight} readOnly={readOnly} />}
+              {fillerWidth > 0 && <FillerHeaderCell width={fillerWidth} headerHeight={headerHeight} readOnly={readOnly} isZeroEvaluations={evaluations.length === 0} />}
               <DefinitivaHeaderCell width={definitivaWidth} baseWidth={baseDefinitivaWidth} headerHeight={headerHeight} />
             </tr>
           </thead>
@@ -363,28 +363,46 @@ const MatrixRow = memo(function MatrixRow({
           onMoveEditor={onMoveEditor}
         />
       ))}
-      {fillerWidth > 0 && <td aria-hidden className="p-0" style={{ height: rowHeight }} />}
+      {fillerWidth > 0 && <td aria-hidden className={cn("p-0 text-center text-xs text-muted-foreground/30 border-b border-r border-[var(--gc-hair)]", evaluations.length === 0 && "select-none")} style={{ height: rowHeight }}>{evaluations.length === 0 ? "—" : null}</td>}
       <DefinitivaCell metrics={metrics} width={definitivaWidth} height={rowHeight} density={density} />
     </tr>
   );
 });
 
 /** Encabezado del espacio sobrante: invita a crear la siguiente evaluación. */
-function FillerHeaderCell({ width, headerHeight, readOnly }: { width: number; headerHeight: number; readOnly: boolean }) {
+function FillerHeaderCell({ width, headerHeight, readOnly, isZeroEvaluations }: { width: number; headerHeight: number; readOnly: boolean; isZeroEvaluations?: boolean }) {
   const dialogs = useGradeCenterDialogs();
   return (
     <th aria-hidden={readOnly || undefined} className="gc-solid-deep sticky top-0 z-40 p-0" style={{ width, height: headerHeight }}>
-      {!readOnly && width >= 140 && (
-        <div className="flex h-full items-center px-3">
-          <button
-            type="button"
-            onClick={dialogs.openNewEvaluation}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-foreground/20 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-[var(--gc-cobalt)]/60 hover:text-[var(--gc-cobalt)] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none"
-          >
-            <ClipboardPlus className="size-3.5" aria-hidden />
-            Nueva evaluación
-          </button>
+      {isZeroEvaluations ? (
+        <div className="flex h-full items-center justify-between gap-3 px-4">
+          <span className="text-xs text-muted-foreground truncate">
+            Aún no hay evaluaciones creadas en este periodo.
+          </span>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={dialogs.openNewEvaluation}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--gc-cobalt)]/40 bg-[var(--gc-cobalt)]/15 px-3 py-1.5 text-xs font-semibold text-foreground transition-all hover:bg-[var(--gc-cobalt)]/25 focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none shadow-sm"
+            >
+              <ClipboardPlus className="size-3.5 text-[var(--gc-cobalt)]" aria-hidden />
+              Nueva evaluación
+            </button>
+          )}
         </div>
+      ) : (
+        !readOnly && width >= 140 && (
+          <div className="flex h-full items-center px-3">
+            <button
+              type="button"
+              onClick={dialogs.openNewEvaluation}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-foreground/20 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-[var(--gc-cobalt)]/60 hover:text-[var(--gc-cobalt)] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none"
+            >
+              <ClipboardPlus className="size-3.5" aria-hidden />
+              Nueva evaluación
+            </button>
+          </div>
+        )
       )}
     </th>
   );

@@ -34,25 +34,22 @@ export function ViewOptionsMenu() {
         <button
           type="button"
           className={cn(
-            "flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-colors",
-            hidden > 0
-              ? "bg-[var(--gc-cobalt)]/12 text-foreground"
-              : "text-muted-foreground hover:bg-white/6 hover:text-foreground",
+            "flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 text-xs font-medium text-muted-foreground transition-all duration-150 hover:bg-white/10 hover:text-foreground active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none",
+            hidden > 0 &&
+              "border-[var(--gc-cobalt)]/40 bg-[var(--gc-cobalt)]/12 text-foreground font-semibold"
           )}
         >
           <SlidersHorizontal className="size-3.5" aria-hidden />
-          <span className="hidden @2xl:inline">Ajustes</span>
-          <span className="sr-only @2xl:hidden">Ajustes de la planilla</span>
+          <span>Ajustes</span>
           {hidden > 0 && (
-            <span className="gc-num text-xs text-[var(--gc-cobalt)]">
+            <span className="gc-num text-xs text-[var(--gc-cobalt)] font-semibold">
               {dataset.evaluations.length - hidden}/{dataset.evaluations.length}
-              <span className="sr-only"> columnas visibles</span>
             </span>
           )}
-          <ChevronDown className="size-3 opacity-60" aria-hidden />
+          <ChevronDown className="size-3 opacity-60 ml-0.5" aria-hidden />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={6} className="gc-popover w-72 rounded-2xl p-3">
+      <PopoverContent align="start" sideOffset={6} className="gc-popover w-72 rounded-2xl p-3">
         <Section title="Densidad">
           <div role="radiogroup" aria-label="Densidad de la planilla" className="grid grid-cols-3 gap-1 rounded-xl bg-white/5 p-1">
             {DENSITIES.map((density) => {

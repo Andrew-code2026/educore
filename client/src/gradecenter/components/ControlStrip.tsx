@@ -41,14 +41,18 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
 
 const LEVEL_FILTERS: LevelId[] = ["superior", "alto", "basico", "bajo"];
 
+const TOOL_BUTTON =
+  "flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 text-xs font-medium text-muted-foreground transition-all duration-150 hover:bg-white/10 hover:text-foreground active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none";
+
 /**
- * Franja de comando institucional y ultra-profesional.
+ * Franja de comando institucional y ultra-profesional de dos niveles:
  *
- * Basada en la arquitectura de Grade Center y GitHub:
- *  - Fila única sin scroll horizontal (usa container queries responsivas).
- *  - Pestañas de vista fijas en su posición natural a la izquierda.
- *  - Ajustes de mesa agrupados (Densidad, Clic y Columnas en ViewOptionsMenu).
- *  - Acciones principales ancladas a la derecha.
+ * 1. Fila superior: Pestañas de vista (ViewSwitcher) en su propio espacio amplio y limpio.
+ * 2. Fila inferior:
+ *    - Izquierda: Herramientas de visualización (Filtros, Ajustes, Orden y chips activos).
+ *    - Derecha: Acciones operativas (Ponderado del periodo, Calificación masiva en bloque, Nueva evaluación).
+ *
+ * Cero desbordes, cero scroll horizontal y total claridad visual y ergonómica.
  */
 export function ControlStrip() {
   const {
@@ -75,10 +79,6 @@ export function ControlStrip() {
     SORT_OPTIONS.find((option) => option.key === preferences.sort.key)?.label ??
     "Nombre";
   const filtered = students.length !== analytics.students.length;
-  const weightLabel =
-    weightIntegrity.status === "exceeded"
-      ? `Ponderación ${weightIntegrity.used}% (supera 100%)`
-      : `Ponderación ${weightIntegrity.used}% · faltan ${weightIntegrity.remaining}%`;
 
   const toggleLevel = (level: LevelId) => {
     const levels = filters.levels.includes(level)
@@ -88,253 +88,266 @@ export function ControlStrip() {
   };
 
   return (
-    <div className="@container relative z-30 flex h-10 shrink-0 items-center gap-1.5 border-b border-[var(--gc-hair)] bg-[var(--gc-chrome)] px-3">
-      {/* ─── 1. Pestañas de Vista (a la izquierda en su lugar original) ─── */}
-      <ViewSwitcher />
+    <div className="relative z-30 shrink-0 border-b border-[var(--gc-hair)] bg-[var(--gc-chrome)]">
+      {/* ─── FILA 1: PESTAÑAS DE VISTA (ViewSwitcher con su propia fila limpia) ─── */}
+      <div className="flex h-10 items-center justify-between border-b border-[var(--gc-hair)]/70 px-3">
+        <ViewSwitcher />
+      </div>
 
-      {listsStudents && (
-        <>
-          <span
-            className="mx-1 h-4 w-px shrink-0 bg-[var(--gc-hair)]"
-            aria-hidden
-          />
+      {/* ─── FILA 2: BARRA DE HERRAMIENTAS (Abajo de las pestañas) ─── */}
+      <div className="flex h-10 items-center justify-between gap-3 px-3 text-xs bg-[var(--gc-chrome)]/60">
+        {/* LADO IZQUIERDO: Filtros, Ajustes y Orden */}
+        <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+          {listsStudents && (
+            <>
+              {/* 1. Filtros */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      TOOL_BUTTON,
+                      chips.length > 0 &&
+                        "border-[var(--gc-cobalt)]/40 bg-[var(--gc-cobalt)]/12 text-foreground font-semibold"
+                    )}
+                  >
+                    <Filter className="size-3.5" aria-hidden />
+                    <span>Filtros</span>
+                    {chips.length > 0 && (
+                      <span className="gc-num rounded-full bg-[var(--gc-cobalt)] px-1.5 text-[10px] leading-4 text-white font-semibold">
+                        {chips.length}
+                      </span>
+                    )}
+                    <ChevronDown className="size-3 opacity-60 ml-0.5" aria-hidden />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="start"
+                  sideOffset={6}
+                  className="gc-popover w-64 rounded-2xl p-3 border-white/10 shadow-2xl backdrop-blur-xl"
+                >
+                  <div className="mb-1.5 text-xs font-medium text-muted-foreground">
+                    Nivel de la definitiva
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {LEVEL_FILTERS.map((level) => (
+                      <FilterOption
+                        key={level}
+                        active={filters.levels.includes(level)}
+                        onClick={() => toggleLevel(level)}
+                        label={LEVELS[level].short}
+                        detail={LEVELS[level].range}
+                        dot={LEVELS[level].color}
+                      />
+                    ))}
+                  </div>
 
-          {/* ─── 2. Ordenamiento ─── */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button type="button" className={TOOL_BUTTON}>
-                <ArrowDownUp className="size-3.5" aria-hidden />
-                <span className="hidden @2xl:inline">
-                  <span className="text-muted-foreground">Orden:</span>{" "}
-                  <span className="text-foreground/90 font-medium">{sortLabel}</span>
-                </span>
-                <span className="sr-only @2xl:hidden">Ordenar por {sortLabel}</span>
-                <ChevronDown className="size-3 opacity-60 ml-0.5" aria-hidden />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="gc-popover w-52 rounded-xl">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
-                Ordenar por
-              </DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={preferences.sort.key}
-                onValueChange={(key) =>
-                  setSort({
-                    key: key as SortKey,
-                    dir: key === "name" ? "asc" : "desc",
-                  })
-                }
-              >
-                {SORT_OPTIONS.map((option) => (
-                  <DropdownMenuRadioItem key={option.key} value={option.key} className="text-sm">
-                    {option.label}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuRadioGroup
-                value={preferences.sort.dir}
-                onValueChange={(dir) =>
-                  setSort({ ...preferences.sort, dir: dir as "asc" | "desc" })
-                }
-              >
-                <DropdownMenuRadioItem value="asc" className="text-sm">
-                  Ascendente
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="desc" className="text-sm">
-                  Descendente
-                </DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <div className="mt-3 mb-1.5 text-xs font-medium text-muted-foreground">
+                    Situación
+                  </div>
+                  <div className="space-y-1">
+                    <FilterOption
+                      active={filters.onlyPending}
+                      onClick={() =>
+                        setFilters({ ...filters, onlyPending: !filters.onlyPending })
+                      }
+                      label="Con notas pendientes"
+                      detail={String(analytics.group.pending.length)}
+                    />
+                    <FilterOption
+                      active={filters.onlyAttention}
+                      onClick={() =>
+                        setFilters({ ...filters, onlyAttention: !filters.onlyAttention })
+                      }
+                      label="Requieren atención"
+                      detail={String(analytics.group.attention.length)}
+                    />
+                    <FilterOption
+                      active={filters.onlyComplete}
+                      onClick={() =>
+                        setFilters({ ...filters, onlyComplete: !filters.onlyComplete })
+                      }
+                      label="Todo calificado"
+                      detail={String(
+                        analytics.students.filter((item) => item.complete).length
+                      )}
+                    />
+                  </div>
 
-          {/* ─── 3. Filtros ─── */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className={cn(
-                  TOOL_BUTTON,
-                  chips.length > 0 &&
-                    "border-[var(--gc-cobalt)]/40 bg-[var(--gc-cobalt)]/12 text-foreground font-semibold"
-                )}
-              >
-                <Filter className="size-3.5" aria-hidden />
-                <span className="hidden @2xl:inline">Filtros</span>
-                <span className="sr-only @2xl:hidden">Filtros</span>
-                {chips.length > 0 && (
-                  <span className="gc-num rounded-full bg-[var(--gc-cobalt)] px-1.5 text-[10px] leading-4 text-white font-semibold">
-                    {chips.length}
-                  </span>
-                )}
-                <ChevronDown className="size-3 opacity-60 ml-0.5" aria-hidden />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="start"
-              sideOffset={6}
-              className="gc-popover w-64 rounded-2xl p-3 border-white/10 shadow-2xl backdrop-blur-xl"
-            >
-              <div className="mb-1.5 text-xs font-medium text-muted-foreground">
-                Nivel de la definitiva
-              </div>
-              <div className="grid grid-cols-2 gap-1">
-                {LEVEL_FILTERS.map((level) => (
-                  <FilterOption
-                    key={level}
-                    active={filters.levels.includes(level)}
-                    onClick={() => toggleLevel(level)}
-                    label={LEVELS[level].short}
-                    detail={LEVELS[level].range}
-                    dot={LEVELS[level].color}
-                  />
-                ))}
-              </div>
-
-              <div className="mt-3 mb-1.5 text-xs font-medium text-muted-foreground">
-                Situación
-              </div>
-              <div className="space-y-1">
-                <FilterOption
-                  active={filters.onlyPending}
-                  onClick={() =>
-                    setFilters({ ...filters, onlyPending: !filters.onlyPending })
-                  }
-                  label="Con notas pendientes"
-                  detail={String(analytics.group.pending.length)}
-                />
-                <FilterOption
-                  active={filters.onlyAttention}
-                  onClick={() =>
-                    setFilters({ ...filters, onlyAttention: !filters.onlyAttention })
-                  }
-                  label="Requieren atención"
-                  detail={String(analytics.group.attention.length)}
-                />
-                <FilterOption
-                  active={filters.onlyComplete}
-                  onClick={() =>
-                    setFilters({ ...filters, onlyComplete: !filters.onlyComplete })
-                  }
-                  label="Todo calificado"
-                  detail={String(
-                    analytics.students.filter((item) => item.complete).length
+                  {chips.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFilters({ ...EMPTY_FILTERS, query: filters.query })
+                      }
+                      className="mt-3 w-full rounded-lg py-1.5 text-xs text-muted-foreground transition-colors hover:bg-white/6 hover:text-foreground"
+                    >
+                      Quitar filtros
+                    </button>
                   )}
-                />
-              </div>
+                </PopoverContent>
+              </Popover>
 
+              {/* 2. Ajustes */}
+              {isMatrix && <ViewOptionsMenu />}
+
+              {/* 3. Orden */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className={TOOL_BUTTON}>
+                    <ArrowDownUp className="size-3.5" aria-hidden />
+                    <span>
+                      <span className="text-muted-foreground">Orden:</span>{" "}
+                      <span className="text-foreground/90 font-medium">{sortLabel}</span>
+                    </span>
+                    <ChevronDown className="size-3 opacity-60 ml-0.5" aria-hidden />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="gc-popover w-52 rounded-xl">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">
+                    Ordenar por
+                  </DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={preferences.sort.key}
+                    onValueChange={(key) =>
+                      setSort({
+                        key: key as SortKey,
+                        dir: key === "name" ? "asc" : "desc",
+                      })
+                    }
+                  >
+                    {SORT_OPTIONS.map((option) => (
+                      <DropdownMenuRadioItem key={option.key} value={option.key} className="text-sm">
+                        {option.label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuRadioGroup
+                    value={preferences.sort.dir}
+                    onValueChange={(dir) =>
+                      setSort({ ...preferences.sort, dir: dir as "asc" | "desc" })
+                    }
+                  >
+                    <DropdownMenuRadioItem value="asc" className="text-sm">
+                      Ascendente
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="desc" className="text-sm">
+                      Descendente
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Chips de filtros activos */}
               {chips.length > 0 && (
+                <div className="flex min-w-0 items-center gap-1 overflow-x-auto no-scrollbar">
+                  {chips.map((chip) => (
+                    <span
+                      key={chip.id}
+                      className="gc-chip shrink-0 py-0.5 pr-1 pl-2 text-[11px] text-foreground/90"
+                    >
+                      {chip.label}
+                      <button
+                        type="button"
+                        aria-label={`Quitar filtro ${chip.label}`}
+                        onClick={() => setFilters(chip.clear(filters))}
+                        className="flex size-3.5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/15 hover:text-foreground"
+                      >
+                        <X className="size-2.5" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Conteo si hay filtro */}
+              {filtered && (
+                <span
+                  className="gc-num ml-1 shrink-0 text-xs text-muted-foreground"
+                  aria-live="polite"
+                >
+                  {students.length} de {analytics.students.length}
+                </span>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* LADO DERECHO: Ponderado, Calificación masiva (en bloque) y Nueva evaluación */}
+        <div className="flex shrink-0 items-center gap-2 ml-auto">
+          {/* Ponderado */}
+          {dataset.evaluations.length > 0 && (
+            <span
+              className={cn(
+                "flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs whitespace-nowrap border shadow-sm transition-colors",
+                weightIntegrity.status === "valid"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : weightIntegrity.status === "exceeded"
+                  ? "border-rose-500/30 bg-rose-500/10 text-rose-500 dark:text-rose-400"
+                  : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              )}
+              title={
+                weightIntegrity.status === "valid"
+                  ? "Ponderación completa (100%)"
+                  : weightIntegrity.status === "exceeded"
+                  ? `Ponderación ${weightIntegrity.used}% (supera el 100% por ${weightIntegrity.used - 100}%)`
+                  : `Ponderación ${weightIntegrity.used}% (faltan ${weightIntegrity.remaining}% para el 100%)`
+              }
+            >
+              {weightIntegrity.status === "valid" ? (
+                <Check className="size-3.5 shrink-0" aria-hidden />
+              ) : (
+                <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
+              )}
+              <span className="font-medium">
+                Ponderado: <span className="gc-num font-semibold">{weightIntegrity.used}%</span>
+              </span>
+              {weightIntegrity.status !== "valid" && (
+                <span className="hidden lg:inline text-[11px] opacity-80">
+                  {weightIntegrity.status === "exceeded"
+                    ? "(supera 100%)"
+                    : `(faltan ${weightIntegrity.remaining}%)`}
+                </span>
+              )}
+            </span>
+          )}
+
+          {!readOnly && (
+            <>
+              {/* Calificación masiva / en bloque */}
+              {isMatrix && dataset.evaluations.length > 0 && (
                 <button
                   type="button"
-                  onClick={() =>
-                    setFilters({ ...EMPTY_FILTERS, query: filters.query })
-                  }
-                  className="mt-3 w-full rounded-lg py-1.5 text-xs text-muted-foreground transition-colors hover:bg-white/6 hover:text-foreground"
+                  onClick={() => dialogs.openBulkGrade()}
+                  className={TOOL_BUTTON}
                 >
-                  Quitar filtros
+                  <PenLine className="size-3.5" aria-hidden />
+                  <span>Calificación masiva</span>
+                  {selectedRows.length > 0 && (
+                    <span className="gc-num rounded-full bg-[var(--gc-cobalt)]/25 px-1.5 text-[10px] font-semibold text-foreground">
+                      {selectedRows.length}
+                    </span>
+                  )}
                 </button>
               )}
-            </PopoverContent>
-          </Popover>
-        </>
-      )}
 
-      {/* ─── 4. Ajustes (Densidad, Clic y Columnas agrupados profesionalmente) ─── */}
-      {isMatrix && <ViewOptionsMenu />}
-
-      {/* Chips de filtros activos */}
-      {listsStudents && chips.length > 0 && (
-        <div className="hidden @3xl:flex min-w-0 items-center gap-1">
-          {chips.map((chip) => (
-            <span
-              key={chip.id}
-              className="gc-chip shrink-0 py-0.5 pr-1 pl-2 text-[11px] text-foreground/90"
-            >
-              {chip.label}
+              {/* Nueva evaluación */}
               <button
                 type="button"
-                aria-label={`Quitar filtro ${chip.label}`}
-                onClick={() => setFilters(chip.clear(filters))}
-                className="flex size-3.5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/15 hover:text-foreground"
+                onClick={dialogs.openNewEvaluation}
+                className="flex h-7 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--gc-cobalt)]/40 bg-[var(--gc-cobalt)]/20 px-3 text-xs font-semibold text-foreground transition-all duration-150 hover:bg-[var(--gc-cobalt)]/30 hover:border-[var(--gc-cobalt)]/60 shadow-sm active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none"
               >
-                <X className="size-2.5" />
+                <ClipboardPlus className="size-3.5 text-[var(--gc-cobalt)]" aria-hidden />
+                <span>Nueva evaluación</span>
               </button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Conteo si hay filtro */}
-      {listsStudents && filtered && (
-        <span
-          className="gc-num ml-1 shrink-0 text-xs text-muted-foreground hidden @4xl:inline"
-          aria-live="polite"
-        >
-          {students.length} de {analytics.students.length}
-        </span>
-      )}
-
-      {/* Espaciador flexible para empujar acciones al extremo derecho */}
-      <div className="flex-1 min-w-[8px]" />
-
-      {/* ─── 5. Ponderación (solo si no es 100% válida) ─── */}
-      {weightIntegrity.status !== "valid" && dataset.evaluations.length > 0 && (
-        <span
-          className={cn(
-            "hidden @3xl:flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs whitespace-nowrap border shadow-sm",
-            weightIntegrity.status === "exceeded"
-              ? "border-rose-500/30 bg-rose-500/10 text-rose-500 dark:text-rose-400"
-              : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+            </>
           )}
-          title={`${weightLabel}. La suma de ponderaciones de las evaluaciones del periodo debe ser 100%.`}
-        >
-          <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
-          <span className="gc-num font-medium">
-            {weightIntegrity.used}%
-          </span>
-          <span className="hidden @6xl:inline text-[11px] opacity-80">
-            · {weightIntegrity.status === "exceeded" ? "supera 100%" : `faltan ${weightIntegrity.remaining}%`}
-          </span>
-        </span>
-      )}
-
-      {/* ─── 6. Acciones Principales a la Derecha ─── */}
-      {!readOnly && (
-        <div className="flex items-center gap-1.5 shrink-0">
-          {isMatrix && dataset.evaluations.length > 0 && (
-            <button
-              type="button"
-              onClick={() => dialogs.openBulkGrade()}
-              className={TOOL_BUTTON}
-            >
-              <PenLine className="size-3.5" aria-hidden />
-              <span className="hidden @4xl:inline">Calificar en bloque</span>
-              <span className="sr-only @4xl:hidden">Calificar en bloque</span>
-              {selectedRows.length > 0 && (
-                <span className="gc-num rounded-full bg-[var(--gc-cobalt)]/25 px-1.5 text-[10px] font-semibold text-foreground">
-                  {selectedRows.length}
-                </span>
-              )}
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={dialogs.openNewEvaluation}
-            className="flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-[var(--gc-cobalt)]/40 bg-[var(--gc-cobalt)]/20 px-3 text-xs font-semibold text-foreground transition-all duration-150 hover:bg-[var(--gc-cobalt)]/30 hover:border-[var(--gc-cobalt)]/60 shadow-sm active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none"
-          >
-            <ClipboardPlus className="size-3.5 text-[var(--gc-cobalt)]" aria-hidden />
-            <span className="hidden @sm:inline">Nueva evaluación</span>
-            <span className="sr-only @sm:hidden">Nueva evaluación</span>
-          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
-
-const TOOL_BUTTON =
-  "flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 text-xs font-medium text-muted-foreground transition-all duration-150 hover:bg-white/10 hover:text-foreground active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none";
 
 function FilterOption({
   active,

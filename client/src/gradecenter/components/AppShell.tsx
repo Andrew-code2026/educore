@@ -223,7 +223,7 @@ export function AppShell({
         )}
 
         {!isLanding && <TopRail onOpenHelp={openHelp} onBack={backToLanding} />}
-        {!isLanding && !focus && <ControlStrip />}
+        {!isLanding && <ControlStrip />}
 
         <main className="relative flex min-h-0 flex-1 flex-col">
           {isLanding ? (
@@ -234,10 +234,12 @@ export function AppShell({
                 <div
                   role="status"
                   aria-live="polite"
-                  className="pointer-events-none absolute top-3 right-4 z-30 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[var(--card)] px-3 py-1.5 text-xs font-medium shadow-lg"
+                  className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-[var(--gc-chrome)]/85 backdrop-blur-sm transition-opacity duration-200"
                 >
-                  <Loader2 className="size-3.5 animate-spin text-[var(--gc-cobalt)]" />
-                  Abriendo planilla…
+                  <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-[var(--card)]/95 px-6 py-5 shadow-2xl">
+                    <Loader2 className="size-7 animate-spin text-[var(--gc-cobalt)]" />
+                    <span className="text-sm font-medium text-foreground">Cargando planilla académica…</span>
+                  </div>
                 </div>
               )}
               <ViewRouter />
