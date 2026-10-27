@@ -611,16 +611,20 @@
   background: var(--gcl-card-bg);
   border: 1px solid var(--gcl-card-border);
   box-shadow: var(--gcl-card-shadow);
-  transition: border-color .15s ease, box-shadow .15s ease;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease;
+  will-change: transform, box-shadow;
 }
 
 .gcl-card:hover {
+  transform: translateY(-4px);
   border-color: rgba(2, 127, 238, .45);
   box-shadow: var(--gcl-card-shadow-hover);
 }
 
 .dark .gcl-card:hover {
+  transform: translateY(-4px);
   border-color: rgba(47, 142, 252, .55);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35), 0 20px 42px -16px rgba(0, 0, 0, 0.7);
 }
 
 .gcl-card__head {

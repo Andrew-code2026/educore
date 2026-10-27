@@ -7,7 +7,7 @@ export function PlanillaCard({ planilla, onOpen }: { planilla: Planilla; onOpen:
 
   return (
     <article
-      className="gcl-surface gcl-card cursor-pointer"
+      className="gcl-surface gcl-card group cursor-pointer"
       onClick={() => onOpen(planilla)}
     >
       <div className="gcl-card__head">
@@ -54,7 +54,7 @@ export function PlanillaCard({ planilla, onOpen }: { planilla: Planilla; onOpen:
           }}
         >
           {copy.action}
-          <ArrowRight aria-hidden="true" strokeWidth={2} className="size-3.5" />
+          <ArrowRight aria-hidden="true" strokeWidth={2} className="size-3.5 transition-transform duration-200 group-hover:translate-x-1.5" />
         </button>
       </div>
     </article>
