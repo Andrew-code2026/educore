@@ -6,7 +6,7 @@ export function PlanillaCard({ planilla, onOpen }: { planilla: Planilla; onOpen:
   const copy = planillaCopy(planilla);
 
   return (
-    <article className="gcl-surface gcl-card">
+    <article className="gcl-surface gcl-card group cursor-pointer" onClick={() => onOpen(planilla)}>
       <div className="gcl-card__head">
         <span className="gcl-group-badge" aria-hidden="true">{planilla.grupo}</span>
         <h2 className="gcl-card__title">{planilla.materia}</h2>
@@ -37,9 +37,17 @@ export function PlanillaCard({ planilla, onOpen }: { planilla: Planilla; onOpen:
 
       <div className="gcl-card__foot">
         <span className="gcl-card__edited">{formatLastActivity(planilla.lastActivityAt)}</span>
-        <button type="button" className="gcl-action" aria-label={copy.actionLabel} onClick={() => onOpen(planilla)}>
+        <button
+          type="button"
+          className="gcl-action"
+          aria-label={copy.actionLabel}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen(planilla);
+          }}
+        >
           {copy.action}
-          <ArrowRight aria-hidden="true" strokeWidth={2} />
+          <ArrowRight aria-hidden="true" strokeWidth={2} className="transition-transform duration-200 group-hover:translate-x-1" />
         </button>
       </div>
     </article>

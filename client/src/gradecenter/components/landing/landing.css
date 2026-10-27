@@ -607,12 +607,19 @@
   flex-direction: column;
   gap: 18px;
   padding: 20px;
-  transition: box-shadow .2s, transform .2s;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: box-shadow .22s cubic-bezier(0.16, 1, 0.3, 1), transform .22s cubic-bezier(0.16, 1, 0.3, 1), border-color .22s;
 }
 
 .gcl-card:hover {
   box-shadow: var(--gcl-card-shadow-hover);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  border-color: rgba(2, 127, 238, .35);
+}
+
+.dark .gcl-card:hover {
+  border-color: rgba(47, 142, 252, .45);
 }
 
 .gcl-card__head {

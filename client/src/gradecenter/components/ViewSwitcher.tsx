@@ -11,17 +11,17 @@ interface ViewOption {
 }
 
 export const VIEW_OPTIONS: ViewOption[] = [
-  { id: "standard", label: "Planilla", description: "Registro de notas por estudiante y evaluación.", icon: LayoutGrid },
+  { id: "standard", label: "Estándar", description: "Registro de notas por estudiante y evaluación.", icon: LayoutGrid },
   { id: "student", label: "Estudiante", description: "Información individual y evolución del estudiante.", icon: User },
-  { id: "evaluations", label: "Evaluaciones", description: "Comparación entre actividades y evaluaciones.", icon: BarChart3 },
-  { id: "performance", label: "Desempeño", description: "Resultados, niveles y tendencias del grupo.", icon: Target },
+  { id: "evaluations", label: "Evaluac.", description: "Comparación entre actividades y evaluaciones.", icon: BarChart3 },
+  { id: "performance", label: "Desemp.", description: "Resultados, niveles y tendencias del grupo.", icon: Target },
   { id: "dba", label: "DBA", description: "Evidencias y logro de los Derechos Básicos de Aprendizaje.", icon: GraduationCap },
 ];
 
-/** Pestañas de vista: mismas notas, distintas lecturas. */
+/** Pestañas de vista con estética de cápsula líquida: mismas notas, distintas lecturas. */
 export function ViewSwitcher({ className }: { className?: string }) {
   const { preferences, setView, dataset } = useGradeCenter();
-  // DBA solo aparece cuando la planilla tiene DBA cargados; hoy no hay dónde crearlos.
+  // DBA solo aparece cuando la planilla tiene DBA cargados.
   const hasDba = dataset.dba.length > 0;
   const options = hasDba ? VIEW_OPTIONS : VIEW_OPTIONS.filter((option) => option.id !== "dba");
   const current =
@@ -39,7 +39,6 @@ export function ViewSwitcher({ className }: { className?: string }) {
       : -1;
     if (next < 0) return;
     event.preventDefault();
-    // React anula currentTarget al terminar el evento: se guarda antes del frame.
     const list = event.currentTarget;
     setView(options[next].id);
     requestAnimationFrame(() => {
@@ -52,7 +51,10 @@ export function ViewSwitcher({ className }: { className?: string }) {
       role="tablist"
       aria-label="Vista de la planilla"
       onKeyDown={onKeyDown}
-      className={cn("flex shrink-0 items-center gap-0.5 rounded-lg bg-foreground/[0.05] p-0.5", className)}
+      className={cn(
+        "flex shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.04] p-1 shadow-sm backdrop-blur-md",
+        className,
+      )}
     >
       {options.map((option) => {
         const active = current === option.id;
@@ -68,15 +70,14 @@ export function ViewSwitcher({ className }: { className?: string }) {
             title={option.description}
             onClick={() => setView(option.id)}
             className={cn(
-              "flex h-7 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none",
+              "flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-all duration-150 focus-visible:ring-2 focus-visible:ring-[var(--gc-cobalt)]/50 focus-visible:outline-none",
               active
-                ? "bg-[var(--gc-ink)] text-foreground shadow-sm ring-1 ring-[var(--gc-hair)]"
-                : "text-muted-foreground hover:text-foreground",
+                ? "border border-white/12 bg-white/12 text-foreground font-semibold shadow-inner"
+                : "border border-transparent text-muted-foreground hover:text-foreground hover:bg-white/[0.05]",
             )}
           >
             <Icon className="size-3.5 shrink-0" aria-hidden />
-            <span className={cn(!active && "hidden @5xl:inline")}>{option.label}</span>
-            {!active && <span className="sr-only @5xl:hidden">{option.label}</span>}
+            <span>{option.label}</span>
           </button>
         );
       })}
