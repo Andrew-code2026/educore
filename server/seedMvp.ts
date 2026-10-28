@@ -44,6 +44,7 @@ import {
 } from "../drizzle/schema";
 import { DEMO_SCHOOL_ID, ensureAttendanceTables, ensureCourseResourcesTable, ensureEduCoreSeeded, getDb } from "./db";
 import { ensureGradeCenterSeeded } from "./gradeCenterDb";
+import { resetDemoPiar } from "./piarDb";
 import { DEMO_ACTIVITIES, DEMO_COURSES, DEMO_STUDENTS } from "./demoSeed";
 
 /** Tablas con datos del colegio demo; roles y permisos se conservan porque son catálogo. */
@@ -68,6 +69,7 @@ export async function resetDemoData(schoolId = DEMO_SCHOOL_ID) {
   }
   await ensureEduCoreSeeded();
   await ensureGradeCenterSeeded(schoolId);
+  await resetDemoPiar(schoolId);
 }
 
 async function runCli() {

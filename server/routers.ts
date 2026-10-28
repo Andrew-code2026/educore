@@ -85,6 +85,8 @@ import {
   updateGradeCenterAssessment,
 } from "./gradeCenterDb";
 import { hasPermission, IDENTITY_ROLES, type IdentityRole } from "./identityModel";
+import { canUsePiar, createPiarRecord, deletePiarRecord, getPiarCourse, getPiarRecord, listPiarCourses, savePiarRecord } from "./piarDb";
+import { PIAR_MAX_KEYS, PIAR_VALUE_MAX } from "@shared/piar";
 import type { TrpcContext } from "./_core/context";
 
 const attendanceStatus = z.enum(["present", "absent", "late", "excused"]);
@@ -171,6 +173,26 @@ async function requireAcademicActor(ctx: TrpcContext, role: EduRole, permission?
   if (permission && !hasPermission(actor.roleKey, permission)) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes permisos para gestionar la estructura académica." });
   return actor;
 }
+
+/** PIAR: solo docentes y directivos; los errores de acceso o de datos llegan al cliente con su mensaje. */
+async function requirePiarActor(ctx: TrpcContext, role: EduRole, isMutation = false) {
+  const actor = await requireAcademicActor(ctx, role, undefined, isMutation);
+  if (!canUsePiar(actor)) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes permisos para consultar los PIAR." });
+  return actor;
+}
+
+async function piarCall<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof TRPCError) throw error;
+    throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "No se pudo completar la operación del PIAR." });
+  }
+}
+
+const piarValuesSchema = z
+  .record(z.string().max(40), z.string().max(PIAR_VALUE_MAX))
+  .refine(values => Object.keys(values).length <= PIAR_MAX_KEYS, { message: "El PIAR tiene demasiados campos." });
 
 export const appRouter = router({
   system: systemRouter,
@@ -760,6 +782,32 @@ export const appRouter = router({
       if (!(await deleteAnnouncement(actor.schoolId, input.id))) throw new TRPCError({ code: "NOT_FOUND", message: "El comunicado ya no existe." });
       await writeAuditLog(input.role, "delete_announcement", `Comunicado ${input.id}`, actor.schoolId);
       return { id: input.id };
+    }),
+  }),
+  piar: router({
+    courses: publicProcedure.input(z.object({ role: roleSchema })).query(async ({ input, ctx }) => {
+      const actor = await requirePiarActor(ctx, input.role);
+      return piarCall(() => listPiarCourses(actor));
+    }),
+    course: publicProcedure.input(z.object({ role: roleSchema, courseId: z.number().int() })).query(async ({ input, ctx }) => {
+      const actor = await requirePiarActor(ctx, input.role);
+      return piarCall(() => getPiarCourse(actor, { courseId: input.courseId }));
+    }),
+    record: publicProcedure.input(z.object({ role: roleSchema, recordId: z.number().int() })).query(async ({ input, ctx }) => {
+      const actor = await requirePiarActor(ctx, input.role);
+      return piarCall(() => getPiarRecord(actor, { recordId: input.recordId }));
+    }),
+    create: publicProcedure.input(z.object({ role: roleSchema, courseId: z.number().int(), studentId: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePiarActor(ctx, input.role, true);
+      return piarCall(() => createPiarRecord(actor, { courseId: input.courseId, studentId: input.studentId }));
+    }),
+    save: publicProcedure.input(z.object({ role: roleSchema, recordId: z.number().int(), values: piarValuesSchema, finalize: z.boolean().default(false) })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePiarActor(ctx, input.role, true);
+      return piarCall(() => savePiarRecord(actor, { recordId: input.recordId, values: input.values, finalize: input.finalize }));
+    }),
+    remove: publicProcedure.input(z.object({ role: roleSchema, recordId: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requirePiarActor(ctx, input.role, true);
+      return piarCall(() => deletePiarRecord(actor, { recordId: input.recordId }));
     }),
   }),
   followUp: router({

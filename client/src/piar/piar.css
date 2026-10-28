@@ -1,0 +1,1999 @@
+/*
+ * PIAR — cursos, estudiantes con PIAR y diligenciamiento de los anexos (diseño "EduCore Docente").
+ * Hereda los tokens de color de .edc-shell y añade los de listas, avance y formularios.
+ * Mismo lenguaje visual que Reportes (.rpt), Asistencia (.atl) y Análisis (.anl).
+ */
+
+.pia {
+  --pia-card-bg: linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(255, 255, 255, .62));
+  --pia-card-border: rgba(255, 255, 255, .95);
+  --pia-card-shadow: 0 1px 2px rgba(24, 53, 90, .04), 0 14px 34px -16px rgba(16, 60, 113, .18);
+  --pia-solid: #FFFFFF;
+  --pia-chip-bg: rgba(255, 255, 255, .7);
+  --pia-chip-border: rgba(255, 255, 255, .95);
+  --pia-dot: #B9C1C9;
+  --pia-row-hover: #FFFFFF;
+  --pia-group-bg: #111B24;
+  --pia-group-fg: #FFFFFF;
+  --pia-alert-bg: #FDEEF1;
+  --pia-alert-fg: #B42343;
+  --pia-late-bg: #FFF3DF;
+  --pia-late-fg: #8A5300;
+  --pia-late-bar: #D98A12;
+  --pia-ok-bg: #E6F2EA;
+  --pia-ok-fg: #2F7D4F;
+  --pia-ok-bar: #3E9B63;
+  --pia-icon-bg: #DEEDFE;
+  --pia-icon-fg: #0C62B5;
+  --pia-accent: #0377DF;
+  --pia-accent-soft: #EEF6FF;
+  --pia-accent-fg: #FFFFFF;
+  --pia-track: #E6EEF6;
+  --pia-primary-bg: #111B24;
+  --pia-primary-hover: #26323E;
+  --pia-primary-fg: #FFFFFF;
+  --pia-outline-bg: #FFFFFF;
+  --pia-outline-hover: #F5FAFF;
+  --pia-outline-border: rgba(17, 27, 36, .1);
+  --pia-input-bg: #FBFCFE;
+  --pia-input-border: rgba(17, 27, 36, .14);
+  --pia-linked-bg: #F3F6F9;
+  --pia-linked-border: rgba(17, 27, 36, .16);
+  --pia-skeleton: rgba(17, 27, 36, .06);
+  --pia-skeleton-shine: rgba(255, 255, 255, .7);
+  --pia-sticky-bg: rgba(239, 243, 247, .8);
+  --pia-glow-a: radial-gradient(closest-side, rgba(101, 170, 248, .42), rgba(176, 210, 255, .18) 55%, transparent);
+  --pia-glow-b: radial-gradient(closest-side, rgba(198, 218, 253, .5), transparent);
+
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  container: pia / inline-size;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--edc-scroll) transparent;
+  --pia-pad-top: 30px;
+  padding: var(--pia-pad-top) 28px 28px;
+  background: var(--edc-main-bg);
+  color: var(--edc-ink);
+  font-family: 'Outfit', system-ui, sans-serif;
+  line-height: normal;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+
+/* El editor compensa a mano el espacio de la barra compacta: sin anclaje automático del scroll */
+.pia.pia--editor {
+  overflow-anchor: none;
+}
+
+.dark .pia {
+  --pia-card-bg: linear-gradient(180deg, rgba(27, 38, 51, .92), rgba(22, 32, 44, .78));
+  --pia-card-border: rgba(255, 255, 255, .06);
+  --pia-card-shadow: 0 1px 2px rgba(0, 0, 0, .2), 0 14px 34px -16px rgba(0, 0, 0, .55);
+  --pia-solid: #17212D;
+  --pia-chip-bg: rgba(255, 255, 255, .05);
+  --pia-chip-border: rgba(255, 255, 255, .08);
+  --pia-dot: #4B5868;
+  --pia-row-hover: rgba(255, 255, 255, .05);
+  --pia-group-bg: #EEF3F8;
+  --pia-group-fg: #111B24;
+  --pia-alert-bg: rgba(180, 35, 67, .22);
+  --pia-alert-fg: #FF9BB0;
+  --pia-late-bg: rgba(217, 138, 18, .2);
+  --pia-late-fg: #F4C27A;
+  --pia-late-bar: #E9A846;
+  --pia-ok-bg: rgba(47, 125, 79, .22);
+  --pia-ok-fg: #7FD3A0;
+  --pia-ok-bar: #5CC487;
+  --pia-icon-bg: rgba(3, 119, 223, .2);
+  --pia-icon-fg: #6FB1FA;
+  --pia-accent: #2F8EFC;
+  --pia-accent-soft: rgba(3, 119, 223, .14);
+  --pia-accent-fg: #FFFFFF;
+  --pia-track: rgba(255, 255, 255, .08);
+  --pia-primary-bg: #EEF3F8;
+  --pia-primary-hover: #FFFFFF;
+  --pia-primary-fg: #111B24;
+  --pia-outline-bg: rgba(255, 255, 255, .04);
+  --pia-outline-hover: rgba(255, 255, 255, .08);
+  --pia-outline-border: rgba(255, 255, 255, .12);
+  --pia-input-bg: rgba(255, 255, 255, .03);
+  --pia-input-border: rgba(255, 255, 255, .14);
+  --pia-linked-bg: rgba(255, 255, 255, .04);
+  --pia-linked-border: rgba(255, 255, 255, .16);
+  --pia-skeleton: rgba(255, 255, 255, .06);
+  --pia-skeleton-shine: rgba(255, 255, 255, .08);
+  --pia-sticky-bg: rgba(15, 23, 32, .8);
+  --pia-glow-a: radial-gradient(closest-side, rgba(3, 119, 223, .22), rgba(3, 119, 223, .06) 55%, transparent);
+  --pia-glow-b: radial-gradient(closest-side, rgba(83, 151, 252, .12), transparent);
+
+  color-scheme: dark;
+}
+
+.pia *,
+.pia *::before,
+.pia *::after {
+  box-sizing: border-box;
+}
+
+.pia svg {
+  flex: none;
+}
+
+.pia h1,
+.pia h2,
+.pia h3,
+.pia p,
+.pia ul {
+  margin: 0;
+  font-family: inherit;
+}
+
+.pia .pia-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.pia .pia-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Fondo ─────────────────────────────────────────────── */
+
+.pia .pia__glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.pia .pia__glow--a {
+  top: -280px;
+  left: 12%;
+  width: 860px;
+  height: 580px;
+  background: var(--pia-glow-a);
+}
+
+.pia .pia__glow--b {
+  top: -200px;
+  right: -160px;
+  width: 560px;
+  height: 440px;
+  background: var(--pia-glow-b);
+}
+
+.pia .pia__content {
+  position: relative;
+  max-width: 1400px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.pia .pia-surface {
+  border-radius: 24px;
+  background: var(--pia-card-bg);
+  border: 1px solid var(--pia-card-border);
+  box-shadow: var(--pia-card-shadow);
+}
+
+.pia .pia-eyebrow {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--edc-muted);
+}
+
+/* ── Encabezado de la portada ──────────────────────────── */
+
+.pia .pia-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 20px 32px;
+}
+
+.pia .pia-intro {
+  flex: 1 1 360px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pia .pia-chip {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--pia-chip-bg);
+  border: 1px solid var(--pia-chip-border);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--edc-ink-3);
+  white-space: nowrap;
+}
+
+.pia .pia-chip svg {
+  width: 15px;
+  height: 15px;
+}
+
+.pia .pia-chip__dot {
+  color: var(--pia-dot);
+}
+
+.pia .pia-chip__accent {
+  color: var(--edc-blue-link);
+  font-weight: 600;
+}
+
+.pia .pia-title {
+  font-size: 40px;
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: -.025em;
+  color: var(--edc-ink);
+}
+
+.pia .pia-lede {
+  max-width: 560px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--edc-muted);
+  text-wrap: pretty;
+}
+
+.pia .pia-summary {
+  flex: 1 1 440px;
+  max-width: 580px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 18px 6px;
+}
+
+.pia .pia-summary__item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 14px;
+}
+
+.pia .pia-summary__item + .pia-summary__item {
+  border-left: 1px solid var(--edc-hair);
+}
+
+.pia .pia-summary__value {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--edc-ink);
+}
+
+.pia .pia-summary__value--empty {
+  color: var(--edc-muted-3);
+}
+
+.pia .pia-summary__note {
+  font-size: 12.5px;
+  color: var(--edc-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ── Avance ────────────────────────────────────────────── */
+
+.pia .pia-meter {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--pia-track);
+  overflow: hidden;
+}
+
+/* También dentro de botones, donde la barra va en un <span> */
+.pia .pia-meter,
+.pia .pia-meter__bar {
+  display: block;
+}
+
+.pia .pia-meter--thin {
+  height: 4px;
+}
+
+.pia .pia-meter__bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--pia-accent);
+  transition: width .4s cubic-bezier(.2, 0, 0, 1);
+}
+
+.pia .pia-meter__bar--complete {
+  background: var(--pia-ok-bar);
+}
+
+/* Tres barras cortas, una por anexo */
+.pia .pia-annex-bars {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pia .pia-annex-bars__item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.pia .pia-annex-bars__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--edc-muted);
+  white-space: nowrap;
+}
+
+/* ── Secciones y listas ────────────────────────────────── */
+
+.pia .pia-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pia .pia-section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.pia .pia-section__title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--edc-ink);
+}
+
+.pia .pia-section__hint {
+  font-size: 12.5px;
+  color: var(--edc-muted);
+}
+
+.pia .pia-list {
+  padding: 6px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pia .pia-group {
+  flex: none;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: var(--pia-group-bg);
+  color: var(--pia-group-fg);
+  display: inline-grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pia .pia-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.pia .pia-meta svg {
+  width: 14px;
+  height: 14px;
+}
+
+.pia .pia-state {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--pia-track);
+  color: var(--edc-ink-3);
+}
+
+.pia .pia-state--finalized {
+  background: var(--pia-ok-bg);
+  color: var(--pia-ok-fg);
+}
+
+.pia .pia-state--complete {
+  background: var(--pia-icon-bg);
+  color: var(--pia-icon-fg);
+}
+
+.pia .pia-state--progress {
+  background: var(--pia-late-bg);
+  color: var(--pia-late-fg);
+}
+
+/* Fila de curso */
+.pia .pia-course {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px auto;
+  column-gap: 24px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.pia .pia-course:hover {
+  background: var(--pia-row-hover);
+}
+
+.pia .pia-course:focus-visible,
+.pia .pia-student:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: -2px;
+}
+
+.pia .pia-course__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pia .pia-course__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--edc-ink);
+}
+
+.pia .pia-course__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  font-size: 12.5px;
+  color: var(--edc-muted);
+}
+
+.pia .pia-course__stat {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pia .pia-course__stat-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--edc-muted);
+}
+
+.pia .pia-course__stat-head strong {
+  font-weight: 600;
+  color: var(--edc-ink);
+}
+
+.pia .pia-course__go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--edc-ink);
+  white-space: nowrap;
+}
+
+.pia .pia-course__go svg {
+  width: 16px;
+  height: 16px;
+  color: var(--edc-muted);
+}
+
+/* Fila de estudiante */
+.pia .pia-student {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) minmax(180px, 260px) 18px;
+  align-items: center;
+  column-gap: 16px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.pia .pia-student:hover {
+  background: var(--pia-row-hover);
+}
+
+.pia .pia-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--pia-icon-bg);
+  color: var(--pia-icon-fg);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pia .pia-student__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pia .pia-student__name {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--edc-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pia .pia-student__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  font-size: 12.5px;
+  color: var(--edc-muted);
+}
+
+.pia .pia-chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--edc-muted);
+}
+
+/* ── Curso: encabezado y búsqueda ──────────────────────── */
+
+.pia .pia-detail {
+  gap: 22px;
+}
+
+.pia .pia-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px 24px;
+}
+
+.pia .pia-detail-header__intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.pia .pia-detail-header__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 32px;
+  line-height: 1.15;
+  font-weight: 500;
+  letter-spacing: -.02em;
+  color: var(--edc-ink);
+}
+
+.pia .pia-detail-header__title .pia-group {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 17px;
+}
+
+.pia .pia-detail-header__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 13px;
+  color: var(--edc-muted);
+}
+
+.pia .pia-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  max-width: 360px;
+}
+
+.pia .pia-search svg {
+  position: absolute;
+  left: 14px;
+  width: 16px;
+  height: 16px;
+  color: var(--edc-muted);
+  pointer-events: none;
+}
+
+.pia .pia-search input {
+  width: 100%;
+  height: 40px;
+  padding: 0 14px 0 40px;
+  border-radius: 999px;
+  border: 1px solid var(--pia-outline-border);
+  background: var(--pia-outline-bg);
+  color: var(--edc-ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.pia .pia-search input::placeholder {
+  color: var(--edc-muted);
+}
+
+.pia .pia-search input:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+}
+
+.pia .pia-no-results {
+  padding: 4px 16px;
+  font-size: 13.5px;
+  color: var(--edc-muted);
+}
+
+.pia .pia-privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0 4px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--edc-muted);
+  text-wrap: pretty;
+}
+
+.pia .pia-privacy svg {
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+}
+
+/* ── Botones ───────────────────────────────────────────── */
+
+.pia .pia-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s ease, transform .1s ease, opacity .15s ease;
+}
+
+.pia .pia-btn:active:not(:disabled) {
+  transform: scale(.97);
+}
+
+.pia .pia-btn:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+}
+
+.pia .pia-btn:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.pia .pia-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.pia .pia-btn--outline {
+  padding: 0 14px;
+  background: var(--pia-outline-bg);
+  border: 1px solid var(--pia-outline-border);
+  color: var(--edc-ink);
+  font-weight: 500;
+}
+
+.pia .pia-btn--outline:hover:not(:disabled) {
+  background: var(--pia-outline-hover);
+}
+
+.pia .pia-btn--primary {
+  padding: 0 16px;
+  background: var(--pia-primary-bg);
+  color: var(--pia-primary-fg);
+  font-weight: 600;
+}
+
+.pia .pia-btn--primary:hover:not(:disabled) {
+  background: var(--pia-primary-hover);
+}
+
+.pia .pia-btn--lg {
+  height: 42px;
+  padding: 0 18px;
+  font-size: 14px;
+}
+
+.pia .pia-btn--ghost {
+  padding: 0 10px;
+  background: transparent;
+  color: var(--edc-muted);
+  font-weight: 500;
+}
+
+.pia .pia-btn--ghost:hover:not(:disabled) {
+  background: var(--edc-hover);
+  color: var(--edc-ink);
+}
+
+.pia .pia-btn--danger:hover:not(:disabled) {
+  background: var(--pia-alert-bg);
+  color: var(--pia-alert-fg);
+}
+
+.pia .pia-spin {
+  animation: pia-spin 1s linear infinite;
+}
+
+@keyframes pia-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Vacío, error y carga ──────────────────────────────── */
+
+.pia .pia-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+}
+
+.pia .pia-empty__icon {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--pia-icon-bg);
+  color: var(--pia-icon-fg);
+  display: grid;
+  place-items: center;
+}
+
+.pia .pia-empty__icon--error {
+  background: var(--pia-alert-bg);
+  color: var(--pia-alert-fg);
+}
+
+.pia .pia-empty__icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.pia .pia-empty__body {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pia .pia-empty__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--edc-ink);
+}
+
+.pia .pia-empty__text {
+  font-size: 13px;
+  color: var(--edc-muted);
+  text-wrap: pretty;
+}
+
+.pia .pia-skeleton {
+  display: block;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--pia-skeleton) 25%, var(--pia-skeleton-shine) 50%, var(--pia-skeleton) 75%);
+  background-size: 200% 100%;
+  animation: pia-shimmer 1.4s ease-in-out infinite;
+}
+
+.pia .pia-skeleton--row {
+  height: 60px;
+  margin: 4px;
+}
+
+.pia .pia-skeleton--card {
+  height: 110px;
+  border-radius: 20px;
+}
+
+.pia .pia-skeleton--form {
+  height: 420px;
+  border-radius: 24px;
+}
+
+@keyframes pia-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+/* ── Editor del PIAR ───────────────────────────────────── */
+
+.pia .pia-editor {
+  gap: 22px;
+}
+
+.pia .pia-ed-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 18px;
+}
+
+.pia .pia-ed-student {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pia .pia-ed-student .pia-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+
+.pia .pia-ed-student__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pia .pia-ed-student__name {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -.015em;
+  line-height: 1.2;
+  color: var(--edc-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pia .pia-ed-student__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  font-size: 12.5px;
+  color: var(--edc-muted);
+}
+
+.pia .pia-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--pia-chip-bg);
+  border: 1px solid var(--pia-chip-border);
+  font-size: 12.5px;
+  color: var(--edc-muted);
+  white-space: nowrap;
+}
+
+.pia .pia-save__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pia-ok-bar);
+}
+
+.pia .pia-save--saving .pia-save__dot {
+  background: var(--pia-late-bar);
+}
+
+.pia .pia-save--error {
+  color: var(--pia-alert-fg);
+}
+
+.pia .pia-save--error .pia-save__dot {
+  background: var(--pia-alert-fg);
+}
+
+.pia .pia-save button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Tarjetas de los tres anexos; al bajar quedan fijas arriba en versión compacta */
+.pia .pia-annex-bar {
+  position: sticky;
+  /* El sticky cuenta desde el padding del área con scroll: queda a 10px del borde */
+  top: calc(10px - var(--pia-pad-top));
+  z-index: 3;
+  border-radius: 22px;
+  transition: background-color .2s ease, box-shadow .2s ease;
+}
+
+.pia .pia-annex-bar--compact {
+  padding: 6px;
+  background: var(--pia-sticky-bg);
+  box-shadow: var(--pia-card-shadow), inset 0 0 0 1px var(--pia-card-border);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+}
+
+.pia .pia-annex-bar--compact .pia-annexes {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pia .pia-annex-bar--compact .pia-annex {
+  gap: 6px;
+  padding: 7px 12px 8px;
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.pia .pia-annex-bar--compact .pia-annex__num {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+}
+
+.pia .pia-annex-bar--compact .pia-annex__num svg {
+  width: 12px;
+  height: 12px;
+}
+
+.pia .pia-annex-bar--compact .pia-annex__title {
+  font-size: 13px;
+}
+
+.pia .pia-annex-bar--compact .pia-annex__sub {
+  display: none;
+}
+
+.pia .pia-annex-bar--compact .pia-annex__pct {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.pia .pia-annex-bar--compact .pia-meter--thin {
+  height: 3px;
+}
+
+.pia .pia-annexes {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pia .pia-annex {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--pia-card-border);
+  background: var(--pia-card-bg);
+  box-shadow: var(--pia-card-shadow);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+
+.pia .pia-annex:hover {
+  border-color: var(--pia-outline-border);
+}
+
+.pia .pia-annex:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+}
+
+.pia .pia-annex[aria-current="step"] {
+  border-color: var(--pia-accent);
+  background: var(--pia-solid);
+}
+
+.pia .pia-annex__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pia .pia-annex__num {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--pia-track);
+  color: var(--edc-ink-3);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.pia .pia-annex[aria-current="step"] .pia-annex__num {
+  background: var(--pia-accent);
+  color: var(--pia-accent-fg);
+}
+
+.pia .pia-annex__num--done {
+  background: var(--pia-ok-bar);
+  color: #FFFFFF;
+}
+
+.pia .pia-annex__num svg {
+  width: 14px;
+  height: 14px;
+}
+
+.pia .pia-annex__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pia .pia-annex__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--edc-ink);
+}
+
+.pia .pia-annex__sub {
+  font-size: 12.5px;
+  color: var(--edc-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pia .pia-annex__pct {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--edc-ink-3);
+}
+
+/* Navegación por secciones + formulario */
+.pia .pia-ed-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 272px) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.pia .pia-ed-aside {
+  position: sticky;
+  /* Debajo de la barra compacta de anexos */
+  top: calc(80px - var(--pia-pad-top));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pia .pia-steps {
+  list-style: none;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pia .pia-steps__label {
+  padding: 14px 18px 0;
+}
+
+.pia .pia-step {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--edc-ink-2);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.pia .pia-step:hover {
+  background: var(--edc-hover);
+}
+
+.pia .pia-step:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: -2px;
+}
+
+.pia .pia-step[aria-current="true"] {
+  background: var(--pia-solid);
+  color: var(--edc-ink);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(24, 53, 90, .06);
+}
+
+.pia .pia-step__mark {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--pia-outline-border);
+  display: grid;
+  place-items: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--edc-muted);
+}
+
+.pia .pia-step__mark--partial {
+  border-color: var(--pia-accent);
+  background: var(--pia-accent-soft);
+  color: var(--pia-accent);
+}
+
+.pia .pia-step__mark--done {
+  border-color: var(--pia-ok-bar);
+  background: var(--pia-ok-bar);
+  color: #FFFFFF;
+}
+
+.pia .pia-step__mark svg {
+  width: 12px;
+  height: 12px;
+}
+
+.pia .pia-step__title {
+  flex: 1;
+  min-width: 0;
+}
+
+.pia .pia-step__count {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--edc-muted-3);
+}
+
+.pia .pia-aside-note {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--pia-accent-soft);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--edc-ink-3);
+  text-wrap: pretty;
+}
+
+.pia .pia-ed-remove {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--edc-hair);
+  font-size: 12.5px;
+  color: var(--edc-muted);
+}
+
+.pia .pia-ed-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.pia .pia-ed-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pia .pia-ed-section-head .pia-eyebrow {
+  color: var(--edc-blue-link);
+  text-transform: none;
+  letter-spacing: .01em;
+  font-size: 13px;
+}
+
+.pia .pia-ed-section-title {
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -.02em;
+  color: var(--edc-ink);
+  text-wrap: pretty;
+}
+
+.pia .pia-ed-section-count {
+  font-size: 13.5px;
+  color: var(--edc-muted);
+}
+
+.pia .pia-subs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pia .pia-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--pia-outline-border);
+  background: var(--pia-outline-bg);
+  color: var(--edc-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.pia .pia-sub:hover {
+  background: var(--pia-outline-hover);
+}
+
+.pia .pia-sub:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+}
+
+.pia .pia-sub[aria-pressed="true"] {
+  border-color: var(--pia-primary-bg);
+  background: var(--pia-primary-bg);
+  color: var(--pia-primary-fg);
+}
+
+.pia .pia-sub__count {
+  font-size: 11.5px;
+  opacity: .75;
+}
+
+/* Grilla de campos (6 columnas) */
+.pia .pia-form {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 20px 18px;
+  padding: 26px;
+}
+
+.pia .pia-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* Etiquetas de distinto largo en una fila: los controles quedan alineados */
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.pia .pia-label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--edc-ink-2);
+  text-wrap: pretty;
+}
+
+.pia .pia-hint {
+  margin-top: -3px;
+  font-size: 12px;
+  color: var(--edc-muted);
+}
+
+.pia .pia-input,
+.pia .pia-select,
+.pia .pia-textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--pia-input-border);
+  border-radius: 12px;
+  background: var(--pia-input-bg);
+  color: var(--edc-ink);
+  font: inherit;
+  font-size: 14px;
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+}
+
+.pia .pia-input,
+.pia .pia-select {
+  height: 42px;
+  padding: 0 12px;
+}
+
+.pia .pia-textarea {
+  padding: 10px 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.pia .pia-input::placeholder,
+.pia .pia-textarea::placeholder {
+  color: var(--edc-muted-3);
+}
+
+.pia .pia-input:focus,
+.pia .pia-select:focus,
+.pia .pia-textarea:focus {
+  outline: none;
+  border-color: var(--pia-accent);
+  background: var(--pia-solid);
+  box-shadow: 0 0 0 3px var(--pia-accent-soft);
+}
+
+.pia .pia-input:disabled,
+.pia .pia-select:disabled,
+.pia .pia-textarea:disabled {
+  cursor: not-allowed;
+  opacity: .7;
+}
+
+.pia .pia-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pia .pia-option {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--pia-input-border);
+  background: var(--pia-outline-bg);
+  color: var(--edc-ink-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+.pia .pia-option:hover:not(:disabled) {
+  background: var(--pia-outline-hover);
+}
+
+.pia .pia-option:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+}
+
+.pia .pia-option[aria-pressed="true"] {
+  border-color: var(--pia-accent);
+  background: var(--pia-accent);
+  color: var(--pia-accent-fg);
+}
+
+.pia .pia-option:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.pia .pia-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pia .pia-heading--rule {
+  padding-top: 20px;
+  border-top: 1px solid var(--edc-hair);
+}
+
+.pia .pia-heading__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--edc-ink);
+}
+
+.pia .pia-heading__hint {
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--edc-muted);
+}
+
+.pia .pia-dim {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--pia-accent-soft);
+}
+
+.pia .pia-dim .pia-eyebrow {
+  font-size: 11px;
+  color: var(--edc-blue-link);
+}
+
+.pia .pia-dim__title {
+  margin-top: -4px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--edc-ink);
+}
+
+.pia .pia-dim__guide {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--edc-ink-3);
+  text-wrap: pretty;
+}
+
+.pia .pia-dim__guide--clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pia .pia-link-btn {
+  align-self: flex-start;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--edc-blue-link);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pia .pia-link-btn:hover {
+  text-decoration: underline;
+}
+
+.pia .pia-link-btn:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.pia .pia-dim .pia-textarea {
+  background: var(--pia-solid);
+}
+
+.pia .pia-notice {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--pia-accent-soft);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--edc-ink-3);
+  text-wrap: pretty;
+}
+
+.pia .pia-linked {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 9px 12px;
+  border: 1px dashed var(--pia-linked-border);
+  border-radius: 12px;
+  background: var(--pia-linked-bg);
+  font-size: 14px;
+  color: var(--edc-ink);
+}
+
+.pia .pia-linked--empty {
+  color: var(--edc-muted-3);
+}
+
+.pia .pia-source {
+  align-self: flex-start;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--edc-muted-3);
+}
+
+.pia button.pia-source {
+  color: var(--edc-blue-link);
+  cursor: pointer;
+}
+
+.pia button.pia-source:hover {
+  text-decoration: underline;
+}
+
+.pia .pia-sig {
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed var(--pia-linked-border);
+  border-radius: 14px;
+  background: var(--pia-input-bg);
+  text-align: center;
+}
+
+.pia .pia-sig--signed {
+  border-color: var(--pia-ok-bar);
+  background: var(--pia-ok-bg);
+}
+
+.pia .pia-sig__text {
+  font-size: 13px;
+  color: var(--edc-ink-3);
+}
+
+.pia .pia-sig__text svg {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  vertical-align: -2px;
+  color: var(--pia-ok-fg);
+}
+
+.pia .pia-add {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px dashed var(--pia-linked-border);
+  background: var(--pia-input-bg);
+  color: var(--edc-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pia .pia-add:hover:not(:disabled) {
+  background: var(--pia-outline-hover);
+}
+
+.pia .pia-add svg {
+  width: 15px;
+  height: 15px;
+}
+
+.pia .pia-ed-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pia .pia-ed-nav__next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+}
+
+.pia .pia-ed-nav__msg {
+  font-size: 13px;
+  color: var(--edc-muted);
+}
+
+.pia .pia-ed-nav__msg--ok {
+  color: var(--pia-ok-fg);
+  font-weight: 500;
+}
+
+.pia .pia-readonly {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--pia-ok-bg);
+  font-size: 13px;
+  color: var(--pia-ok-fg);
+}
+
+.pia .pia-readonly svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Documento para imprimir o guardar en PDF ──────────── */
+
+.pia-print {
+  display: none;
+}
+
+@media print {
+  /* Mientras existe la copia de impresión, es lo único que se imprime */
+  body:has(> .pia-print) > :not(.pia-print) {
+    display: none !important;
+  }
+
+  /* Sin alto mínimo heredado: evita una página final en blanco */
+  html:has(body > .pia-print),
+  body:has(> .pia-print) {
+    height: auto !important;
+    min-height: 0 !important;
+    background: #FFFFFF !important;
+  }
+
+  .pia-print {
+    display: block;
+    background: #FFFFFF;
+    color: #111B24;
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-size: 11px;
+    line-height: 1.45;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+.pia-print .pia-doc__annex + .pia-doc__annex {
+  break-before: page;
+}
+
+.pia-print .pia-doc__head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 2px solid #111B24;
+}
+
+.pia-print .pia-doc__kicker {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #5B6672;
+}
+
+.pia-print .pia-doc__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.pia-print .pia-doc__meta {
+  margin: 0;
+  font-size: 11px;
+  color: #36404A;
+}
+
+.pia-print .pia-doc__section {
+  margin-bottom: 14px;
+}
+
+.pia-print .pia-doc__section-title {
+  margin: 0 0 8px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: #EEF1F4;
+  font-size: 12.5px;
+  font-weight: 600;
+  break-after: avoid;
+}
+
+.pia-print .pia-doc__section-title span {
+  font-weight: 500;
+  color: #5B6672;
+}
+
+.pia-print .pia-doc__fields {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+
+.pia-print .pia-doc__fields + .pia-doc__fields {
+  margin-top: 10px;
+}
+
+.pia-print .pia-doc__heading,
+.pia-print .pia-doc__notice,
+.pia-print .pia-doc__block {
+  grid-column: 1 / -1;
+}
+
+.pia-print .pia-doc__heading {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  break-after: avoid;
+}
+
+.pia-print .pia-doc__heading span {
+  font-weight: 400;
+  color: #5B6672;
+}
+
+.pia-print .pia-doc__notice {
+  margin: 0;
+  font-size: 10.5px;
+  font-style: italic;
+  color: #36404A;
+}
+
+.pia-print .pia-doc__row,
+.pia-print .pia-doc__block,
+.pia-print .pia-doc__sig {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  break-inside: avoid;
+}
+
+.pia-print .pia-doc__label {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #5B6672;
+}
+
+.pia-print .pia-doc__value {
+  min-height: 16px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #D5DBE1;
+}
+
+.pia-print .pia-doc__text {
+  margin: 0;
+  min-height: 28px;
+  padding: 5px 7px;
+  border: 1px solid #D5DBE1;
+  border-radius: 4px;
+  white-space: pre-wrap;
+}
+
+.pia-print .pia-doc__sig {
+  grid-column: span 2;
+  padding-top: 26px;
+}
+
+.pia-print .pia-doc__line {
+  border-top: 1px solid #111B24;
+}
+
+.pia-print .pia-doc__stamp {
+  font-size: 9.5px;
+  color: #2F7D4F;
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  .pia {
+    --pia-pad-top: 24px;
+    padding: var(--pia-pad-top) 20px 24px;
+  }
+}
+
+/* El editor pasa a una columna según el ancho del módulo (con o sin barra lateral) */
+@container pia (max-width: 960px) {
+  .pia .pia-ed-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .pia .pia-ed-aside {
+    position: static;
+  }
+
+  /* Secciones en carrusel horizontal sobre el formulario */
+  .pia .pia-steps {
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .pia .pia-steps__label,
+  .pia .pia-aside-note {
+    display: none;
+  }
+
+  .pia .pia-step {
+    width: auto;
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
+/* Filas y anexos según el ancho del módulo */
+@container pia (max-width: 680px) {
+  .pia .pia-course {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 12px;
+  }
+
+  .pia .pia-course__stat {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .pia .pia-student {
+    grid-template-columns: 40px minmax(0, 1fr) 18px;
+    row-gap: 12px;
+  }
+
+  .pia .pia-student .pia-annex-bars {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+
+  .pia .pia-annexes {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+}
+
+/* Muy angosto: la barra compacta muestra solo número y avance de cada anexo */
+@container pia (max-width: 520px) {
+  .pia .pia-annex-bar--compact .pia-annex__text {
+    display: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .pia {
+    --pia-pad-top: 20px;
+    padding: var(--pia-pad-top) 16px 24px;
+  }
+
+  .pia .pia__content {
+    gap: 24px;
+  }
+
+  .pia .pia-title {
+    font-size: 32px;
+  }
+
+  .pia .pia-detail-header__title {
+    font-size: 26px;
+  }
+
+  .pia .pia-summary {
+    padding: 16px 2px;
+  }
+
+  .pia .pia-summary__item {
+    padding: 0 10px;
+  }
+
+  .pia .pia-summary__value {
+    font-size: 22px;
+  }
+
+  .pia .pia-form {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 18px;
+  }
+
+  .pia .pia-form > .pia-field {
+    grid-column: 1 / -1 !important;
+  }
+
+  .pia .pia-ed-section-title {
+    font-size: 22px;
+  }
+
+  .pia .pia-ed-student__name {
+    font-size: 19px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pia .pia-course,
+  .pia .pia-student,
+  .pia .pia-btn,
+  .pia .pia-step,
+  .pia .pia-sub,
+  .pia .pia-option,
+  .pia .pia-annex,
+  .pia .pia-meter__bar {
+    transition: none;
+  }
+
+  .pia .pia-btn:active:not(:disabled) {
+    transform: none;
+  }
+
+  .pia .pia-skeleton,
+  .pia .pia-spin {
+    animation: none;
+  }
+}

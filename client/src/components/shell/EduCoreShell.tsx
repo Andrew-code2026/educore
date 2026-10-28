@@ -55,7 +55,8 @@ function ShellInner({
     section === "analytics" ||
     section === "calendar" ||
     section === "communications" ||
-    section === "reports";
+    section === "reports" ||
+    section === "piar";
 
   return (
     <div
