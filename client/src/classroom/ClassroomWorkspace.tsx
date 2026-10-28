@@ -196,6 +196,7 @@ export function ClassroomWorkspace({
     criteria: defaultRubric.map((item) => ({ ...item, score: 0 })),
     // En entregas sin calificar el comentario guardado es la nota del estudiante, no retroalimentación
     feedback: st.status === 'Calificada' ? st.comment ?? '' : '',
+    comments: st.comment ? [st.comment] : [],
     status: st.status,
   });
 

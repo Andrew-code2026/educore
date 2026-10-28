@@ -34,7 +34,8 @@
   --home-success-fg: #2F7D4F;
 
   position: relative;
-  max-width: 1400px;
+  width: 100%;
+  max-width: none;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -317,7 +318,7 @@
   top: 50%;
   transform: translate(-50%, -50%);
   width: calc(100% - 40px);
-  max-width: 460px;
+  max-width: min(100% - 40px, 560px);
   padding: 20px;
   border-radius: 20px;
   color: #fff;
@@ -701,8 +702,8 @@
 /* ── Mi jornada ────────────────────────────────────────────────────────── */
 
 .edc-day {
-  flex: 1 1 320px;
-  max-width: 400px;
+  flex: 1 1 340px;
+  max-width: none;
   min-width: 0;
   gap: 16px;
   backdrop-filter: none;

@@ -1,90 +1,21 @@
-import { memo, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import {
-  AlertCircle,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  LoaderCircle,
-  Maximize2,
-  Minimize2,
-  Search,
-  UserX,
-} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Activity, ReviewRecord, RubricCriterion, Student } from '../types';
-import { emptyStudent } from '../adapter';
-import { describeDue, formatDayMonth, formatTime } from '../course/overview';
-import { phaseOfSubmission, selectSubmissions, type SubmissionPhase } from '../course/submissions';
-import { MAX_GRADE, gradingQueue, nextPending, parseGrade, rubricTotals } from '../course/grading';
-import '../course/grader.css';
+import { Icon, SectionLabel } from './SharedUI';
 
-interface ReviewSplitViewProps {
+export interface ReviewSplitViewProps {
   activity: Activity;
   students: Student[];
   index: number;
-  setIndex: (idx: number | null) => void;
+  setIndex: (value: number | null) => void;
   record: ReviewRecord;
   onRecordChange: (patch: Partial<ReviewRecord>) => void;
-  /** Devuelve true si la nota quedó guardada en el servidor. */
+  /** Persistencia real con el backend de EduCore */
   onSaveGrade?: (student: Student, grade: number, comment: string) => Promise<boolean>;
   onBack: () => void;
   isShellFocusMode?: boolean;
   onToggleShellFocus?: (focus: boolean) => void;
 }
 
-/** Lo que el docente lleva escrito para un estudiante y aún no guardó. */
-interface Draft {
-  mode: ReviewRecord['evaluationMode'];
-  gradeText: string;
-  criteria: RubricCriterion[];
-  feedback: string;
-  dirty: boolean;
-}
-
-type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
-
-const SAVE_LABEL: Record<SaveState, string> = {
-  idle: 'Sin cambios',
-  dirty: 'Cambios sin guardar',
-  saving: 'Guardando…',
-  saved: 'Nota guardada',
-  error: 'No se pudo guardar. Intenta de nuevo.',
-};
-
-const PHASE_LABEL: Record<SubmissionPhase, string> = {
-  review: 'Por revisar',
-  graded: 'Calificada',
-  missing: 'Sin entrega',
-};
-
-const PHASE_PILL: Record<SubmissionPhase, string> = { review: 'review', graded: 'open', missing: 'closed' };
-
-const GROUP_LABEL: Record<SubmissionPhase, string> = {
-  review: 'Por revisar',
-  graded: 'Calificadas',
-  missing: 'Sin entrega',
-};
-
-const QUICK_FEEDBACK = [
-  'Excelente trabajo, bien fundamentado.',
-  'Justifica mejor tus conclusiones.',
-  'Incluye el procedimiento completo.',
-  'Revisa el orden y la presentación.',
-];
-
-const isTyping = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
-
-const draftFrom = (record: ReviewRecord): Draft => ({
-  mode: record.evaluationMode,
-  gradeText: record.score === undefined ? '' : record.score.toFixed(1),
-  criteria: record.criteria,
-  feedback: record.feedback,
-  dirty: false,
-});
-
-/** Calificador: la entrega con su nota a la izquierda y la lista de estudiantes a la derecha. */
 export function ReviewSplitView({
   activity,
   students,
@@ -94,537 +25,857 @@ export function ReviewSplitView({
   onRecordChange,
   onSaveGrade,
   onBack,
-  isShellFocusMode = false,
+  isShellFocusMode,
   onToggleShellFocus,
 }: ReviewSplitViewProps) {
-  const student = students[index] ?? emptyStudent;
-  const queue = useMemo(() => gradingQueue(students), [students]);
-  const position = queue.indexOf(index);
-  // Borradores por estudiante mientras el calificador está abierto: escribir no re-renderiza el curso
-  const drafts = useRef(new Map<string, Draft>());
-
-  // Al salir del calificador el shell vuelve a mostrar su navegación
-  const toggleFocusRef = useRef(onToggleShellFocus);
-  toggleFocusRef.current = onToggleShellFocus;
-  useEffect(() => () => toggleFocusRef.current?.(false), []);
-
-  const goTo = (offset: 1 | -1) => {
-    if (!queue.length) return;
-    const from = position >= 0 ? position : offset === 1 ? -1 : 0;
-    setIndex(queue[(from + offset + queue.length) % queue.length]);
+  const student = students[index] ?? {
+    id: '',
+    name: 'Estudiante',
+    initials: '--',
+    group: '',
+    status: 'No entregó' as const,
+    color: '#567083',
   };
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (isTyping(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
-      const key = event.key.toLowerCase();
-      if (key !== 'j' && key !== 'k') return;
-      // Sin esto la letra se escribe en la nota del siguiente estudiante, que recibe el foco
-      event.preventDefault();
-      goTo(key === 'j' ? 1 : -1);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  });
+  const [studentQuery, setStudentQuery] = useState('');
+  const [studentFilter, setStudentFilter] = useState<'Todos' | 'Pendientes' | 'Calificados' | 'No entregaron'>('Todos');
+  const [zoom, setZoom] = useState(87);
+  const [page, setPage] = useState(1);
+  const [focusMode, setFocusMode] = useState(Boolean(isShellFocusMode));
+  const [mobilePanel, setMobilePanel] = useState<'students' | 'evidence' | 'review'>('evidence');
+  const [gradeText, setGradeText] = useState(record.score === undefined ? '' : String(record.score));
+  const [gradeError, setGradeError] = useState('');
+  const [comment, setComment] = useState('');
+  const [showCommentComposer, setShowCommentComposer] = useState(false);
+  const [showQuickComments, setShowQuickComments] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [syncState, setSyncState] = useState(record.status === 'Calificada' ? 'Sincronizado' : 'Sin cambios');
 
-  return (
-    <div className="ccw ccw-grader">
-      <div className="ccw-grader__bar">
-        <button type="button" className="ccw-back" onClick={onBack}>
-          <ChevronLeft aria-hidden="true" strokeWidth={2} />
-          Entregas
-        </button>
-        <span className="ccw-grader__activity">{activity.name}</span>
+  const quickComments = [
+    'Conecta la evidencia con la conclusión.',
+    'Justifica mejor tu conclusión.',
+    'Incluye datos concretos del experimento.',
+    'Revisa la presentación y el orden de la evidencia.',
+  ];
 
-        <div className="ccw-grader__nav">
-          <span className="ccw-grader__position ccw-num">
-            {queue.length ? `${position >= 0 ? position + 1 : '—'} de ${queue.length}` : 'Sin entregas'}
-          </span>
-          <button
-            type="button"
-            className="ccw-icon-btn"
-            onClick={() => goTo(-1)}
-            disabled={queue.length < 2 && position >= 0}
-            aria-label="Entrega anterior (K)"
-            title="Entrega anterior (K)"
-          >
-            <ChevronLeft aria-hidden="true" strokeWidth={2} />
-          </button>
-          <button
-            type="button"
-            className="ccw-icon-btn"
-            onClick={() => goTo(1)}
-            disabled={queue.length < 2 && position >= 0}
-            aria-label="Siguiente entrega (J)"
-            title="Siguiente entrega (J)"
-          >
-            <ChevronRight aria-hidden="true" strokeWidth={2} />
-          </button>
-          {onToggleShellFocus && (
-            <button
-              type="button"
-              className="ccw-icon-btn ccw-grader__focus"
-              onClick={() => onToggleShellFocus(!isShellFocusMode)}
-              aria-pressed={isShellFocusMode}
-              aria-label={isShellFocusMode ? 'Salir de pantalla amplia' : 'Pantalla amplia'}
-              title={isShellFocusMode ? 'Salir de pantalla amplia' : 'Pantalla amplia'}
-            >
-              {isShellFocusMode ? (
-                <Minimize2 aria-hidden="true" strokeWidth={2} />
-              ) : (
-                <Maximize2 aria-hidden="true" strokeWidth={2} />
-              )}
-            </button>
-          )}
-        </div>
-      </div>
+  // Cálculo de rúbrica
+  const total = (record.criteria || []).reduce((sum, item) => sum + item.score, 0);
+  const max = (record.criteria || []).reduce((sum, item) => sum + item.max, 0);
+  const rubricScore = max > 0 ? Number(((total / max) * 5).toFixed(1)) : 0;
 
-      <div className="ccw-grader__grid">
-        {/* La key reinicia el panel por estudiante: arranca de su borrador o de lo guardado */}
-        <ReviewPanel
-          key={student.id}
-          activity={activity}
-          student={student}
-          students={students}
-          index={index}
-          initialDraft={drafts.current.get(student.id) ?? draftFrom(record)}
-          onDraftChange={(draft) => drafts.current.set(student.id, draft)}
-          onCommit={(patch) => {
-            drafts.current.delete(student.id);
-            onRecordChange(patch);
-          }}
-          onSaveGrade={onSaveGrade}
-          onGoTo={setIndex}
-        />
-
-        <Roster students={students} current={index} onSelect={setIndex} />
-      </div>
-    </div>
+  // Índices de estudiantes pendientes
+  const pendingIndexes = useMemo(
+    () =>
+      students
+        .map((item, itemIndex) => (item.status === 'Por revisar' ? itemIndex : -1))
+        .filter((itemIndex) => itemIndex >= 0),
+    [students]
   );
-}
+  const pendingPosition = pendingIndexes.indexOf(index);
 
-function ReviewPanel({
-  activity,
-  student,
-  students,
-  index,
-  initialDraft,
-  onDraftChange,
-  onCommit,
-  onSaveGrade,
-  onGoTo,
-}: {
-  activity: Activity;
-  student: Student;
-  students: Student[];
-  index: number;
-  initialDraft: Draft;
-  onDraftChange: (draft: Draft) => void;
-  onCommit: (patch: Partial<ReviewRecord>) => void;
-  onSaveGrade?: ReviewSplitViewProps['onSaveGrade'];
-  onGoTo: (index: number) => void;
-}) {
-  const phase = phaseOfSubmission(student);
-  const now = useMemo(() => new Date(), []);
-  const dueAt = activity.dueAt ? new Date(activity.dueAt) : null;
+  // Lista filtrada de estudiantes para el panel izquierdo
+  const filteredStudents = useMemo(() => {
+    return students.filter((item) => {
+      const filterMatch =
+        studentFilter === 'Todos' ||
+        (studentFilter === 'Pendientes' && item.status === 'Por revisar') ||
+        (studentFilter === 'Calificados' && item.status === 'Calificada') ||
+        (studentFilter === 'No entregaron' && item.status === 'No entregó');
+      const queryMatch =
+        !studentQuery.trim() ||
+        `${item.name} ${item.group} ${item.file ?? ''}`.toLowerCase().includes(studentQuery.trim().toLowerCase());
+      return filterMatch && queryMatch;
+    });
+  }, [students, studentFilter, studentQuery]);
 
-  const [draft, setDraft] = useState(initialDraft);
-  const [saveState, setSaveState] = useState<SaveState>(initialDraft.dirty ? 'dirty' : 'idle');
-  const [showError, setShowError] = useState(false);
-  const gradeInput = useRef<HTMLInputElement>(null);
+  // Siguiente / anterior pendiente
+  const nextPending = (direction: 1 | -1 = 1) => {
+    if (!pendingIndexes.length) return index;
+    const current = pendingIndexes.indexOf(index);
+    if (current < 0) {
+      return direction === 1 ? pendingIndexes[0] : pendingIndexes[pendingIndexes.length - 1];
+    }
+    const target = current + direction;
+    if (target < 0) return pendingIndexes[pendingIndexes.length - 1];
+    if (target >= pendingIndexes.length) return pendingIndexes[0];
+    return pendingIndexes[target];
+  };
 
-  const pendingCount = students.filter((s) => phaseOfSubmission(s) === 'review').length;
-  const usingRubric = draft.mode === 'rubric';
-  const rubric = rubricTotals(draft.criteria);
-  const grade = usingRubric ? (rubric.earned > 0 ? rubric.grade : null) : parseGrade(draft.gradeText);
+  // Buscar el siguiente pendiente después de guardar la entrega actual
+  const getNextPendingAfterSave = () => {
+    const otherPending = students
+      .map((item, i) => (item.status === 'Por revisar' && i !== index ? i : -1))
+      .filter((i) => i >= 0);
+    if (!otherPending.length) return null;
+    const after = otherPending.find((i) => i > index);
+    return after !== undefined ? after : otherPending[0];
+  };
 
-  // Solo con puntero fino: en táctil el foco abriría el teclado en cada cambio de estudiante
+  const markChanged = (patch: Partial<ReviewRecord>) => {
+    onRecordChange({ ...patch, status: 'Por revisar' });
+    setSyncState('Cambios sin guardar');
+  };
+
+  const updateCriterionScore = (criterionIndex: number, value: string) => {
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) return;
+    const nextCriteria = (record.criteria || []).map((item, idx) =>
+      idx === criterionIndex ? { ...item, score: Math.max(0, Math.min(item.max, parsed)), expanded: true } : item
+    );
+    const nextTotal = nextCriteria.reduce((sum, item) => sum + item.score, 0);
+    const nextCalculatedScore = max > 0 ? Number(((nextTotal / max) * 5).toFixed(1)) : 0;
+    onRecordChange({
+      criteria: nextCriteria,
+      score: nextCalculatedScore,
+      scoreMode: 'rubric',
+      evaluationMode: 'rubric',
+      status: 'Por revisar',
+    });
+    setGradeText(String(nextCalculatedScore));
+    setGradeError('');
+    setSyncState('Cambios sin guardar');
+  };
+
+  const changeGrade = (value: string) => {
+    setGradeText(value);
+    const normalized = value.trim().replace(',', '.');
+    const parsed = Number(normalized);
+    if (!value.trim() || Number.isNaN(parsed) || parsed < 0 || parsed > 5) {
+      setGradeError('Usa un valor entre 0.0 y 5.0');
+      setSyncState('Cambios sin guardar');
+      return;
+    }
+    setGradeError('');
+    markChanged({ score: parsed, scoreMode: 'manual' });
+  };
+
+  const setEvaluationMode = (mode: 'rubric' | 'direct') => {
+    if (mode === 'rubric') {
+      const nextScore = total > 0 ? rubricScore : undefined;
+      onRecordChange({ evaluationMode: 'rubric', scoreMode: 'rubric', score: nextScore, status: 'Por revisar' });
+      setGradeText(nextScore === undefined ? '' : String(nextScore));
+    } else {
+      onRecordChange({ evaluationMode: 'direct', scoreMode: 'manual', status: 'Por revisar' });
+    }
+    setGradeError('');
+    setSyncState('Cambios sin guardar');
+  };
+
+  const saveReview = async (): Promise<boolean> => {
+    if (!student.file && student.status === 'No entregó') {
+      setGradeError('No hay evidencia digital para calificar.');
+      return false;
+    }
+    const normalized = gradeText.trim().replace(',', '.');
+    const parsed = Number(normalized);
+    if (record.evaluationMode === 'rubric' && total === 0) {
+      setGradeError('Evalúa al menos un criterio de la rúbrica antes de continuar.');
+      return false;
+    }
+    if (
+      record.evaluationMode === 'direct' &&
+      (!gradeText.trim() || Number.isNaN(parsed) || parsed < 0 || parsed > 5)
+    ) {
+      setGradeError('Asigna una calificación entre 0.0 y 5.0 antes de continuar.');
+      return false;
+    }
+    const finalScore = record.evaluationMode === 'rubric' ? rubricScore : parsed;
+
+    setIsSaving(true);
+    setSyncState('Guardando…');
+
+    const allComments = record.comments || [];
+    const feedbackText = allComments.join('\n\n') || record.feedback || '';
+
+    let ok = true;
+    if (onSaveGrade) {
+      ok = await onSaveGrade(student, finalScore, feedbackText);
+    }
+
+    setIsSaving(false);
+
+    if (ok) {
+      onRecordChange({
+        score: finalScore,
+        scoreMode: record.evaluationMode === 'rubric' ? 'rubric' : 'manual',
+        status: 'Calificada',
+        feedback: feedbackText,
+      });
+      setGradeText(String(finalScore));
+      setGradeError('');
+      setSyncState('Guardado · Sincronizado');
+      return true;
+    } else {
+      setSyncState('Error al sincronizar');
+      setGradeError('No se pudo guardar la nota en el servidor. Intenta de nuevo.');
+      return false;
+    }
+  };
+
+  const saveAndNext = async () => {
+    if (isSaving) return;
+    const ok = await saveReview();
+    if (!ok) return;
+    const next = getNextPendingAfterSave();
+    if (next === null || next === index) {
+      setSyncState('Guardado · todo revisado');
+      return;
+    }
+    setIndex(next);
+  };
+
+  const publishComment = () => {
+    const text = comment.trim();
+    if (!text) return;
+    const nextComments = [...(record.comments || []), text];
+    onRecordChange({
+      comments: nextComments,
+      feedback: nextComments.join('\n\n'),
+      status: record.status,
+    });
+    setComment('');
+    setShowCommentComposer(false);
+    setShowQuickComments(false);
+    setSyncState('Cambios sin guardar');
+  };
+
+  const chooseQuickComment = (text: string) => {
+    setComment((current) => (current ? `${current} ${text}` : text));
+    setShowCommentComposer(true);
+    setShowQuickComments(false);
+  };
+
+  const handleToggleFocus = () => {
+    const nextFocus = !focusMode;
+    setFocusMode(nextFocus);
+    onToggleShellFocus?.(nextFocus);
+  };
+
+  // Revertir el enfoque de shell al desmontar
+  const toggleShellFocusRef = useRef(onToggleShellFocus);
+  toggleShellFocusRef.current = onToggleShellFocus;
+  useEffect(() => () => toggleShellFocusRef.current?.(false), []);
+
+  // Reiniciar estado local al cambiar de estudiante
   useEffect(() => {
-    if (phase === 'review' && window.matchMedia('(pointer: fine)').matches) {
-      gradeInput.current?.focus({ preventScroll: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setGradeText(record.score === undefined ? '' : String(record.score));
+    setGradeError('');
+    setSyncState(record.status === 'Calificada' ? 'Sincronizado' : 'Sin cambios');
+    setZoom(87);
+    setPage(1);
+    setComment('');
+    setShowCommentComposer(false);
+    setShowQuickComments(false);
+  }, [student.id, record.score, record.status]);
 
-  const update = (patch: Partial<Draft>) => {
-    const next = { ...draft, ...patch, dirty: true };
-    setDraft(next);
-    onDraftChange(next);
-    setSaveState('dirty');
-    setShowError(false);
-  };
-
-  const changeCriterion = (criterionIndex: number, text: string) =>
-    update({
-      criteria: draft.criteria.map((c, i) =>
-        i === criterionIndex ? { ...c, score: Math.max(0, Math.min(c.max, Math.round(Number(text) || 0))) } : c
-      ),
-    });
-
-  const addQuickFeedback = (text: string) =>
-    update({ feedback: draft.feedback.trim() ? `${draft.feedback.trim()} ${text}` : text });
-
-  /** Guarda en el servidor; el estado local solo pasa a "Calificada" si el guardado funcionó. */
-  const save = async (): Promise<boolean> => {
-    if (phase === 'missing' || saveState === 'saving') return false;
-    if (grade === null) {
-      setShowError(true);
-      if (!usingRubric) gradeInput.current?.focus();
-      return false;
-    }
-    const feedback = draft.feedback.trim();
-    // El campo de comentario guarda la nota del estudiante hasta que hay retroalimentación del docente
-    const comment = feedback || (phase === 'review' ? student.comment ?? '' : '');
-    setSaveState('saving');
-    const ok = onSaveGrade ? await onSaveGrade(student, grade, comment) : true;
-    if (!ok) {
-      setSaveState('error');
-      return false;
-    }
-    onCommit({
-      score: grade,
-      feedback,
-      criteria: draft.criteria,
-      evaluationMode: draft.mode,
-      scoreMode: usingRubric ? 'rubric' : 'manual',
-      status: 'Calificada',
-    });
-    setDraft({ ...draft, gradeText: grade.toFixed(1), feedback, dirty: false });
-    setSaveState('saved');
-    return true;
-  };
-
-  const saveAndNext = async (event?: FormEvent) => {
-    event?.preventDefault();
-    const next = nextPending(students, index);
-    if ((await save()) && next >= 0) onGoTo(next);
-  };
-
+  // Atajos de teclado
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // Ctrl/Cmd + S guarda en cualquier momento
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
-        void save();
+        void saveReview();
+        return;
+      }
+
+      // No interceptar J/K si el usuario está escribiendo
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        (event.target instanceof HTMLElement && event.target.isContentEditable)
+      ) {
+        if (event.key === 'Enter' && !event.shiftKey && event.target instanceof HTMLInputElement) {
+          event.preventDefault();
+          void saveAndNext();
+        }
+        return;
+      }
+
+      if (event.key.toLowerCase() === 'j' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        setIndex(nextPending(1));
+      } else if (event.key.toLowerCase() === 'k' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        setIndex(nextPending(-1));
+      } else if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        void saveAndNext();
+      } else if (event.key === 'Enter' && event.shiftKey) {
+        event.preventDefault();
+        setIndex(nextPending(-1));
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        onBack();
       }
     };
+
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  });
+  }, [index, gradeText, record, gradeError, students, pendingIndexes, isSaving]);
 
-  const submittedAt = student.submittedAt ? new Date(student.submittedAt) : null;
-  const late = Boolean(submittedAt && dueAt && submittedAt > dueAt);
-  const studentNote = phase === 'review' ? student.comment : undefined;
+  const deliveredCount = students.filter((s) => s.status !== 'No entregó').length;
 
   return (
-    <section aria-label={`Entrega de ${student.name}`} className="ccw-surface ccw-review">
-      <header className="ccw-review__head">
-        <span aria-hidden="true" className="ccw-avatar">
-          {student.initials}
+    <section
+      className={`review-view ${focusMode ? 'review-classroom-focus' : ''}`}
+      data-panel={mobilePanel}
+      aria-label="Calificador de entregas"
+    >
+      {/* ── Toolbar Superior ────────────────────────────────────── */}
+      <div className="review-toolbar">
+        <button type="button" className="backline" onClick={onBack}>
+          <Icon name="chevron" size={14} /> Entregas
+        </button>
+        <button
+          type="button"
+          className={`focus-toggle classroom-focus-button ${focusMode ? 'active' : ''}`}
+          onClick={handleToggleFocus}
+          aria-label={focusMode ? 'Cerrar enfoque del classroom' : 'Expandir classroom'}
+        >
+          <Icon name="expand" size={14} /> {focusMode ? 'Cerrar enfoque' : 'Expandir classroom'}
+        </button>
+        <span className="key-hint">
+          <kbd>J</kbd>/<kbd>K</kbd> navegar · <kbd>Ctrl/Cmd S</kbd> guardar · <kbd>Enter</kbd> siguiente
         </span>
-        <div className="ccw-review__who">
-          <h2 className="ccw-review__name">{student.name}</h2>
-          <span className={`ccw-pill ccw-pill--${PHASE_PILL[phase]}`}>
-            <span aria-hidden="true" className="ccw-pill__dot" />
-            {PHASE_LABEL[phase]}
-          </span>
-        </div>
-      </header>
+      </div>
 
-      {phase === 'missing' ? (
-        <div className="ccw-empty">
-          <span aria-hidden="true" className="ccw-empty__icon">
-            <UserX strokeWidth={1.75} />
-          </span>
-          <p className="ccw-empty__title">{student.name} no entregó esta actividad</p>
-          <p className="ccw-empty__note">
-            {dueAt
-              ? dueAt < now
-                ? `${describeDue(dueAt, now)} a las ${formatTime(dueAt)}. No hay nada que calificar.`
-                : `${describeDue(dueAt, now)}. Podrás calificar cuando envíe su archivo.`
-              : 'Podrás calificar cuando envíe su archivo.'}
-          </p>
-          {pendingCount > 0 && (
-            <button type="button" className="ccw-btn ccw-btn--outline" onClick={() => onGoTo(nextPending(students, index))}>
-              Ir a la siguiente por revisar
-            </button>
-          )}
+      {/* ── Barra de Contexto del Estudiante ────────────────────── */}
+      <div className="review-context-bar">
+        <div className="context-identity">
+          <i className="context-avatar" style={{ background: student.color }}>
+            {student.initials}
+          </i>
+          <div>
+            <strong>
+              {student.name} · {student.group}
+            </strong>
+            <span>{activity.name}</span>
+            <small
+              className={`context-status ${
+                student.status === 'Por revisar' ? 'needs' : student.status === 'Calificada' ? 'done' : 'missing'
+              }`}
+            >
+              <i />
+              {student.status === 'No entregó'
+                ? 'No entregó'
+                : `${student.status} · ${student.time ?? 'entrega registrada'}`}
+            </small>
+          </div>
         </div>
-      ) : (
-        <form className="ccw-review__body" onSubmit={saveAndNext} noValidate>
-          <div className="ccw-evidence">
-            <span aria-hidden="true" className="ccw-row__icon">
-              <FileText strokeWidth={1.75} />
-            </span>
-            <div className="ccw-row__body">
-              <span className="ccw-row__title">{student.file ?? 'Entrega registrada'}</span>
-              <span className="ccw-row__detail">
-                {student.fileType ? `${student.fileType} · ` : ''}
-                {submittedAt
-                  ? `Entregó el ${formatDayMonth(submittedAt)} a las ${formatTime(submittedAt)}`
-                  : 'Fecha de entrega no registrada'}
-                {late && <span className="ccw-row__late"> · Tarde</span>}
+
+        <div className="review-context-progress">
+          <b>
+            {pendingPosition >= 0 ? pendingPosition + 1 : '—'}{' '}
+            <small>de {pendingIndexes.length} pendientes</small>
+          </b>
+          <button
+            type="button"
+            onClick={() => setIndex(nextPending(-1))}
+            disabled={!pendingIndexes.length}
+            aria-label="Pendiente anterior"
+          >
+            <Icon name="chevron" size={14} /> Anterior
+          </button>
+          <button
+            type="button"
+            onClick={() => setIndex(nextPending(1))}
+            disabled={!pendingIndexes.length}
+            aria-label="Siguiente pendiente"
+          >
+            Siguiente <Icon name="arrow" size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Pestañas Mobile / Tablet ────────────────────────────── */}
+      <nav className="review-mobile-tabs" aria-label="Panel del calificador">
+        <button
+          type="button"
+          className={mobilePanel === 'students' ? 'active' : ''}
+          onClick={() => setMobilePanel('students')}
+        >
+          <Icon name="users" size={15} /> Estudiantes · {students.length}
+        </button>
+        <button
+          type="button"
+          className={mobilePanel === 'evidence' ? 'active' : ''}
+          onClick={() => setMobilePanel('evidence')}
+        >
+          <Icon name="file" size={15} /> Evidencia
+        </button>
+        <button
+          type="button"
+          className={mobilePanel === 'review' ? 'active' : ''}
+          onClick={() => setMobilePanel('review')}
+        >
+          <Icon name="check" size={15} /> Revisión ·{' '}
+          {record.score === undefined ? '—' : Number(record.score).toFixed(1)}
+        </button>
+      </nav>
+
+      {/* ── Grid Principal de 3 Zonas ───────────────────────────── */}
+      <div className="review-grid">
+        {/* ── Zona 1: Lista de Estudiantes ──────────────────────── */}
+        <aside className="review-students glass-card" aria-label="Lista de estudiantes">
+          <div className="panel-heading">
+            <div>
+              <strong>Estudiantes</strong>
+              <span>
+                {deliveredCount} con entrega · {pendingIndexes.length} pendientes
               </span>
             </div>
           </div>
 
-          {studentNote && (
-            <figure className="ccw-note">
-              <figcaption>Comentario del estudiante</figcaption>
-              <blockquote>{studentNote}</blockquote>
-            </figure>
-          )}
-
-          <fieldset className="ccw-field">
-            <legend className="ccw-field__label">Calificación</legend>
-            <div role="group" aria-label="Forma de calificar" className="ccw-segmented" data-index={draft.mode === 'rubric' ? 1 : 0}>
-              <span aria-hidden="true" className="ccw-segmented__thumb" />
-              <button type="button" aria-pressed={!usingRubric} onClick={() => usingRubric && update({ mode: 'direct' })}>
-                Nota directa
-              </button>
-              <button type="button" aria-pressed={usingRubric} onClick={() => !usingRubric && update({ mode: 'rubric' })}>
-                Rúbrica
-              </button>
-            </div>
-
-            {usingRubric ? (
-              <RubricEditor criteria={draft.criteria} onChange={changeCriterion} />
-            ) : (
-              <div className="ccw-grade-input">
-                <input
-                  ref={gradeInput}
-                  id="ccw-grade"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={draft.gradeText}
-                  onChange={(e) => update({ gradeText: e.target.value })}
-                  placeholder="—"
-                  aria-label={`Nota de ${student.name}, de 0 a ${MAX_GRADE}`}
-                  aria-invalid={showError && grade === null}
-                  aria-describedby="ccw-grade-help"
-                />
-                <span className="ccw-grade-input__scale">/ {MAX_GRADE.toFixed(1)}</span>
-              </div>
-            )}
-            <p id="ccw-grade-help" className={showError && grade === null ? 'ccw-help ccw-help--error' : 'ccw-help'}>
-              {showError && grade === null
-                ? usingRubric
-                  ? 'Asigna puntos a al menos un criterio.'
-                  : `Escribe una nota entre 0.0 y ${MAX_GRADE.toFixed(1)}.`
-                : usingRubric
-                  ? 'La nota se calcula con los puntos de cada criterio.'
-                  : 'Usa punto o coma para los decimales. Enter guarda y pasa a la siguiente.'}
-            </p>
-          </fieldset>
-
-          <div className="ccw-field">
-            <label htmlFor="ccw-feedback" className="ccw-field__label">
-              Retroalimentación <span className="ccw-field__optional">opcional</span>
-            </label>
-            <textarea
-              id="ccw-feedback"
-              className="ccw-textarea"
-              rows={3}
-              value={draft.feedback}
-              onChange={(e) => update({ feedback: e.target.value })}
-              placeholder={`Escribe un comentario para ${student.name.split(' ')[0]}`}
+          <div className="grader-search">
+            <Icon name="search" size={14} />
+            <input
+              value={studentQuery}
+              onChange={(event) => setStudentQuery(event.target.value)}
+              placeholder="Buscar estudiante, grupo…"
+              aria-label="Buscar estudiante o grupo"
             />
-            <div className="ccw-suggestions" role="group" aria-label="Comentarios sugeridos">
-              {QUICK_FEEDBACK.map((text) => (
-                <button key={text} type="button" className="ccw-suggestion" onClick={() => addQuickFeedback(text)}>
-                  {text}
+          </div>
+
+          <div className="grader-filters" role="group" aria-label="Filtrar estudiantes">
+            {(['Todos', 'Pendientes', 'Calificados', 'No entregaron'] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={studentFilter === item ? 'active' : ''}
+                onClick={() => setStudentFilter(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+
+          <div className="student-scroll">
+            {filteredStudents.map((item) => {
+              const itemIndex = students.findIndex((entry) => entry.id === item.id);
+              const isSelected = itemIndex === index;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`grader-student ${isSelected ? 'active' : ''} ${
+                    item.status === 'Por revisar'
+                      ? 'student-needs-review'
+                      : item.status === 'No entregó'
+                      ? 'student-missing'
+                      : 'student-graded'
+                  }`}
+                  onClick={() => {
+                    setIndex(itemIndex);
+                    setMobilePanel('evidence');
+                  }}
+                >
+                  <i style={{ background: item.color }}>{item.initials}</i>
+                  <span>
+                    <strong>{item.name}</strong>
+                    <small>
+                      {item.group} · {item.status === 'No entregó' ? 'Sin entrega' : item.file ?? 'Entrega recibida'}
+                    </small>
+                  </span>
+                  <em>
+                    {item.status === 'Por revisar'
+                      ? 'Pendiente'
+                      : item.status === 'No entregó'
+                      ? 'No entregó'
+                      : item.score !== undefined
+                      ? Number(item.score).toFixed(1)
+                      : 'Lista'}
+                  </em>
                 </button>
-              ))}
+              );
+            })}
+          </div>
+        </aside>
+
+        {/* ── Zona 2: Visor de Evidencia ────────────────────────── */}
+        <main className="file-viewer glass-card" aria-label="Evidencia entregada">
+          <div className="viewer-top">
+            <div>
+              <span className="file-icon">
+                <Icon name={student.file ? 'file' : 'clock'} size={17} />
+              </span>
+              <span>
+                <strong>{student.file ?? 'Sin entrega recibida'}</strong>
+                <small>
+                  {student.file
+                    ? `${student.fileType ?? (activity.formats?.[0] || 'PDF')} · ${
+                        student.fileSize ?? '2.4 MB'
+                      } · ${student.time ?? 'Entrega registrada'}`
+                    : 'Este estudiante no registra un archivo'}
+                </small>
+              </span>
+            </div>
+            <div className="viewer-actions" aria-label="Herramientas de evidencia">
+              <span className="viewer-mode-label">Evidencia vinculada</span>
             </div>
           </div>
 
-          <footer className="ccw-review__foot">
-            <span className={`ccw-save ccw-save--${saveState}`} role="status" aria-live="polite">
-              {saveState === 'saving' ? (
-                <LoaderCircle aria-hidden="true" strokeWidth={2} className="ccw-spin" />
-              ) : saveState === 'saved' ? (
-                <Check aria-hidden="true" strokeWidth={2.25} />
-              ) : saveState === 'error' ? (
-                <AlertCircle aria-hidden="true" strokeWidth={2} />
-              ) : null}
-              {saveState === 'saved' && pendingCount === 0 ? 'Nota guardada · todo calificado' : SAVE_LABEL[saveState]}
-            </span>
-            <div className="ccw-review__actions">
+          <div className={`document-canvas ${student.file ? '' : 'empty-evidence'}`}>
+            <div
+              className="document-sheet"
+              style={{ transform: `rotate(-.8deg) scale(${zoom / 87})` }}
+            >
+              {student.file ? (
+                <>
+                  <div className="doc-brand">
+                    <span>{activity.course ?? 'CURSO'}</span>
+                    <span>{activity.subject ?? 'ASIGNATURA'}</span>
+                  </div>
+                  <div className="doc-line short" />
+                  <h2>{activity.name}</h2>
+                  <p className="doc-lead">
+                    Vista previa del archivo enviado por {student.name}. El contenido se mostrará aquí según el formato recibido.
+                  </p>
+                  {student.comment && (
+                    <div className="doc-highlight" style={{ margin: '12px 0', borderLeftColor: 'var(--cyan)' }}>
+                      <strong>Nota del estudiante:</strong> {student.comment}
+                    </div>
+                  )}
+                  <div className="doc-placeholder">
+                    <Icon name="file" size={28} />
+                    <strong>{student.file}</strong>
+                    <small>Visor conceptual · página {page} de 3</small>
+                  </div>
+                  <div className="doc-highlight">
+                    La evidencia digital queda vinculada a las instrucciones y a la revisión docente.
+                  </div>
+                </>
+              ) : (
+                <div className="evidence-empty-content">
+                  <Icon name="clock" size={34} />
+                  <strong>No entregó esta actividad</strong>
+                  <span>No hay evidencia digital para revisar.</span>
+                  <small>La fecha límite es {activity.dueDate || 'la indicada en el curso'}.</small>
+                </div>
+              )}
+            </div>
+
+            <div className="viewer-zoom">
               <button
                 type="button"
-                className="ccw-btn ccw-btn--outline"
-                onClick={() => void save()}
-                disabled={saveState === 'saving'}
-                title="Guardar (Ctrl + S)"
+                onClick={() => setZoom(Math.max(60, zoom - 10))}
+                aria-label="Reducir zoom"
               >
-                Guardar
+                −
               </button>
-              <button type="submit" className="ccw-btn ccw-btn--primary" disabled={saveState === 'saving'}>
-                Guardar y siguiente
-                <ChevronRight aria-hidden="true" strokeWidth={2} />
+              <span>{zoom}%</span>
+              <button
+                type="button"
+                onClick={() => setZoom(Math.min(130, zoom + 10))}
+                aria-label="Aumentar zoom"
+              >
+                +
               </button>
             </div>
-          </footer>
-        </form>
-      )}
-    </section>
-  );
-}
+          </div>
 
-function RubricEditor({
-  criteria,
-  onChange,
-}: {
-  criteria: RubricCriterion[];
-  onChange: (index: number, value: string) => void;
-}) {
-  const { earned, max, grade } = rubricTotals(criteria);
-  return (
-    <div className="ccw-rubric">
-      <ul className="ccw-rubric__list">
-        {criteria.map((criterion, i) => (
-          <li key={criterion.id} className="ccw-rubric__item">
-            <div className="ccw-rubric__copy">
-              <label htmlFor={`ccw-crit-${criterion.id}`} className="ccw-rubric__title">
-                {criterion.title}
-              </label>
-              <span className="ccw-rubric__desc">{criterion.description}</span>
-            </div>
-            <span className="ccw-rubric__score">
-              <input
-                id={`ccw-crit-${criterion.id}`}
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={criterion.max}
-                step={1}
-                value={criterion.score}
-                onChange={(e) => onChange(i, e.target.value)}
-              />
-              <span className="ccw-num">/ {criterion.max}</span>
+          <div className="viewer-footer">
+            <span>
+              <i className="online-dot" /> Visor de evidencia
             </span>
-          </li>
-        ))}
-      </ul>
-      <div className="ccw-rubric__total">
-        <span className="ccw-num">
-          {earned} de {max} puntos
-        </span>
-        <strong className="ccw-num">
-          {earned > 0 ? grade.toFixed(1) : '—'}
-          <span> / {MAX_GRADE.toFixed(1)}</span>
-        </strong>
-      </div>
-    </div>
-  );
-}
+            <span>
+              {student.file ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                    aria-label="Página anterior"
+                  >
+                    ‹
+                  </button>{' '}
+                  Página {page} de 3{' '}
+                  <button
+                    type="button"
+                    onClick={() => setPage(Math.min(3, page + 1))}
+                    disabled={page === 3}
+                    aria-label="Página siguiente"
+                  >
+                    ›
+                  </button>
+                </>
+              ) : (
+                'Sin páginas disponibles'
+              )}
+            </span>
+          </div>
+        </main>
 
-/** Memoizada: solo cambia al guardar una nota o al moverse de estudiante, no al escribir. */
-const Roster = memo(function Roster({
-  students,
-  current,
-  onSelect,
-}: {
-  students: Student[];
-  current: number;
-  onSelect: (index: number) => void;
-}) {
-  const [query, setQuery] = useState('');
-  const indexById = useMemo(() => new Map(students.map((s, i) => [s.id, i])), [students]);
-  const visible = useMemo(() => selectSubmissions(students, 'Todos', query), [students, query]);
-  const groups = (['review', 'graded', 'missing'] as const).map((phase) => ({
-    phase,
-    items: visible.filter((s) => phaseOfSubmission(s) === phase),
-  }));
-  const currentId = students[current]?.id;
+        {/* ── Zona 3: Panel de Revisión y Calificación ──────────── */}
+        <aside className="review-panel glass-card" aria-label="Panel de calificación">
+          <div className="score-header">
+            <div>
+              <strong>Revisión</strong>
+              <span>{activity.name}</span>
+            </div>
+            <span className={`score-state ${activity.affectsGradeCenter ? 'grade-linked' : ''}`}>
+              {activity.affectsGradeCenter ? `Grade Center · ${activity.weight ?? '20%'}` : 'Solo ClassCORE'}
+            </span>
+          </div>
 
-  return (
-    <aside aria-label="Estudiantes" className="ccw-surface ccw-roster">
-      <label className="ccw-search ccw-roster__search">
-        <Search aria-hidden="true" strokeWidth={2} />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar estudiante"
-          aria-label="Buscar estudiante"
-        />
-      </label>
+          <div className="evaluation-mode">
+            <span>Método de evaluación</span>
+            <div>
+              <button
+                type="button"
+                className={record.evaluationMode === 'rubric' ? 'active' : ''}
+                onClick={() => setEvaluationMode('rubric')}
+                disabled={!student.file}
+              >
+                Rúbrica
+              </button>
+              <button
+                type="button"
+                className={record.evaluationMode === 'direct' ? 'active' : ''}
+                onClick={() => setEvaluationMode('direct')}
+                disabled={!student.file}
+              >
+                Nota directa
+              </button>
+            </div>
+          </div>
 
-      <div className="ccw-roster__scroll">
-        {groups.map(({ phase, items }) =>
-          items.length === 0 ? null : (
-            <RosterGroup
-              key={phase}
-              title={GROUP_LABEL[phase]}
-              count={items.length}
-              // Quien no entregó se pliega para no tapar el trabajo pendiente
-              collapsible={phase === 'missing' && !query && !items.some((s) => s.id === currentId)}
-            >
-              {items.map((s) => {
-                const active = s.id === currentId;
-                const itemPhase = phaseOfSubmission(s);
-                return (
-                  <li key={s.id}>
+          <div className="score-input-wrap">
+            <input
+              aria-label="Calificación de 0.0 a 5.0"
+              value={gradeText}
+              disabled={!student.file || record.evaluationMode === 'rubric'}
+              onChange={(event) => changeGrade(event.target.value)}
+              placeholder="—"
+            />
+            <span>/ 5.0</span>
+          </div>
+
+          {gradeError && (
+            <div className="grade-error">
+              <Icon name="alert" size={13} /> {gradeError}
+            </div>
+          )}
+
+          <div className="score-bar">
+            <span
+              style={{
+                width: `${Math.max(0, Math.min(100, ((record.score ?? 0) / 5) * 100))}%`,
+              }}
+            />
+          </div>
+
+          <div className="score-meta">
+            <span>
+              {record.evaluationMode === 'rubric'
+                ? 'Nota calculada por criterios'
+                : 'Nota directa · rúbrica no aplicada'}
+            </span>
+            <small>
+              {record.evaluationMode === 'rubric'
+                ? 'Edita los puntos de cada criterio para actualizar la nota.'
+                : 'La nota se registra sin utilizar la rúbrica.'}
+            </small>
+          </div>
+
+          {record.evaluationMode === 'rubric' ? (
+            <>
+              <div className="rubric-heading">
+                <SectionLabel action={<span className="tiny-label">{total}/{max}</span>}>
+                  Rúbrica
+                </SectionLabel>
+              </div>
+              <div className="rubric-list">
+                {(record.criteria || []).map((criterion, i) => (
+                  <div className={`rubric-item ${criterion.expanded ? 'expanded' : ''}`} key={criterion.id}>
                     <button
                       type="button"
-                      className="ccw-roster__item"
-                      aria-current={active ? 'true' : undefined}
-                      onClick={() => onSelect(indexById.get(s.id) ?? 0)}
+                      className="rubric-trigger"
+                      disabled={!student.file}
+                      onClick={() =>
+                        onRecordChange({
+                          criteria: (record.criteria || []).map((item, idx) =>
+                            idx === i ? { ...item, expanded: !item.expanded } : item
+                          ),
+                        })
+                      }
                     >
-                      <span aria-hidden="true" className={`ccw-avatar ccw-avatar--sm ccw-avatar--${itemPhase}`}>
-                        {s.initials}
+                      <span>
+                        <i className="rubric-dot" />
+                        {criterion.title}
                       </span>
-                      <span className="ccw-roster__name">{s.name}</span>
-                      {itemPhase === 'graded' && s.score !== undefined && (
-                        <span className="ccw-roster__score ccw-num">{s.score.toFixed(1)}</span>
-                      )}
-                      {itemPhase === 'review' && <span aria-hidden="true" className="ccw-roster__dot" />}
+                      <b>
+                        {criterion.score}/{criterion.max}
+                        <Icon name={criterion.expanded ? 'down' : 'chevron'} size={12} />
+                      </b>
                     </button>
-                  </li>
-                );
-              })}
-            </RosterGroup>
-          )
-        )}
-        {visible.length === 0 && <p className="ccw-roster__empty">Ningún estudiante coincide.</p>}
-      </div>
-    </aside>
-  );
-});
+                    {criterion.expanded && (
+                      <div className="rubric-detail">
+                        <p>{criterion.description}</p>
+                        <label>
+                          <span>Puntos obtenidos</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={criterion.max}
+                            step={1}
+                            value={criterion.score}
+                            disabled={!student.file}
+                            aria-label={`Puntos de ${criterion.title}`}
+                            onChange={(event) => updateCriterionScore(i, event.target.value)}
+                          />
+                        </label>
+                      </div>
+                    )}
+                    <div className="rubric-progress">
+                      <span
+                        style={{
+                          width: `${Math.max(
+                            0,
+                            Math.min(100, (criterion.score / (criterion.max || 1)) * 100)
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="rubric-disabled-note">
+              <span>
+                <Icon name="layers" size={15} />
+                <strong>Rúbrica no aplicada</strong>
+                <small>La evaluación se realizará con una nota directa.</small>
+              </span>
+              <button
+                type="button"
+                onClick={() => setEvaluationMode('rubric')}
+                disabled={!student.file}
+              >
+                Integrar rúbrica
+              </button>
+            </div>
+          )}
 
-function RosterGroup({
-  title,
-  count,
-  collapsible,
-  children,
-}: {
-  title: string;
-  count: number;
-  collapsible: boolean;
-  children: ReactNode;
-}) {
-  const list = <ul className="ccw-roster__list">{children}</ul>;
-  const heading = (
-    <span className="ccw-roster__heading">
-      {title}
-      <span className="ccw-num">{count}</span>
-    </span>
-  );
-  if (!collapsible) {
-    return (
-      <div className="ccw-roster__group">
-        {heading}
-        {list}
+          {/* ── Sección de Comentarios ────────────────────────────── */}
+          <div className="comment-section comment-only">
+            <div className="comment-section-head">
+              <strong>
+                <Icon name="message" size={15} /> Comentarios
+              </strong>
+              <span>{record.comments?.length ?? 0}</span>
+              <button
+                type="button"
+                className="comment-add-toggle"
+                disabled={!student.file}
+                onClick={() => setShowCommentComposer((open) => !open)}
+              >
+                {showCommentComposer ? 'Cerrar editor' : 'Agregar comentario'}{' '}
+                <Icon name={showCommentComposer ? 'close' : 'plus'} size={13} />
+              </button>
+            </div>
+
+            {showCommentComposer && (
+              <div className="comment-composer-shell">
+                <p className="comment-helper">
+                  Agrega una observación breve para dejar contexto de la revisión.
+                </p>
+                <div className="quick-comments-toggle-row">
+                  <span>¿Necesitas una frase?</span>
+                  <button type="button" onClick={() => setShowQuickComments((open) => !open)}>
+                    <Icon name="layers" size={13} />{' '}
+                    {showQuickComments ? 'Ocultar comentarios rápidos' : 'Ver comentarios rápidos'}{' '}
+                    <Icon name={showQuickComments ? 'down' : 'chevron'} size={11} />
+                  </button>
+                </div>
+                {showQuickComments && (
+                  <div className="quick-comments">
+                    <span>Selecciona una opción para editarla</span>
+                    <div>
+                      {quickComments.map((item) => (
+                        <button type="button" key={item} onClick={() => chooseQuickComment(item)}>
+                          {item}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="comment-compose">
+                  <textarea
+                    value={comment}
+                    disabled={!student.file}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Escribe un comentario…"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Agregar comentario"
+                    disabled={!comment.trim() || !student.file}
+                    onClick={publishComment}
+                  >
+                    <Icon name="arrow" size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="comment-list">
+              {record.comments?.length ? (
+                record.comments.map((item, commentIndex) => (
+                  <div className="comment-item new-comment" key={`${item}-${commentIndex}`}>
+                    <i>JD</i>
+                    <div>
+                      <strong>
+                        Docente <small>Ahora</small>
+                      </strong>
+                      <p>{item}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="comment-empty">
+                  <Icon name="message" size={16} />
+                  <span>Aún no hay comentarios. Agrega una observación para dejar contexto.</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Pie de Panel de Revisión ──────────────────────────── */}
+          <div className="panel-footer">
+            <span
+              className={`saved ${
+                syncState.includes('Sincronizado') || syncState.includes('revisado')
+                  ? 'is-synced'
+                  : syncState.includes('Cambios') || syncState.includes('Guardando')
+                  ? 'is-dirty'
+                  : ''
+              }`}
+            >
+              <Icon
+                name={
+                  syncState.includes('Sincronizado') || syncState.includes('revisado')
+                    ? 'check'
+                    : syncState.includes('Cambios')
+                    ? 'alert'
+                    : 'clock'
+                }
+                size={13}
+              />{' '}
+              {syncState}
+            </span>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={saveAndNext}
+              disabled={!student.file || !!gradeError || isSaving}
+            >
+              {isSaving ? 'Guardando…' : 'Guardar y siguiente pendiente'}{' '}
+              <Icon name="arrow" size={14} />
+            </button>
+          </div>
+        </aside>
       </div>
-    );
-  }
-  return (
-    <details className="ccw-roster__group">
-      <summary>
-        {heading}
-        <ChevronRight aria-hidden="true" strokeWidth={2} className="ccw-roster__chev" />
-      </summary>
-      {list}
-    </details>
+    </section>
   );
 }

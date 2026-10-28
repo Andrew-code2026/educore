@@ -54,7 +54,7 @@
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--edc-scroll) transparent;
-  padding: 30px 28px 28px;
+  padding: 28px 28px 36px;
   background: var(--edc-main-bg);
   color: var(--edc-ink);
   font-family: 'Outfit', system-ui, sans-serif;
@@ -161,7 +161,8 @@
 
 .ccl .ccl__content {
   position: relative;
-  max-width: 1400px;
+  width: 100%;
+  max-width: none;
   display: flex;
   flex-direction: column;
   gap: 30px;

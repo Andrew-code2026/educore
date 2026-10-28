@@ -368,7 +368,8 @@
 /* ── Resumen ───────────────────────────────────────────── */
 
 .ccw.ccw-overview {
-  max-width: 1400px;
+  width: 100%;
+  max-width: none;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
   align-items: start;
@@ -629,7 +630,8 @@
 /* ── Actividades ───────────────────────────────────────── */
 
 .ccw.ccw-activities {
-  max-width: 1400px;
+  width: 100%;
+  max-width: none;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -849,7 +851,8 @@
 /* ── Entregas ──────────────────────────────────────────── */
 
 .ccw.ccw-submissions {
-  max-width: 1400px;
+  width: 100%;
+  max-width: none;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1188,7 +1191,8 @@
 /* ── Recursos ──────────────────────────────────────────── */
 
 .ccw.ccw-resources {
-  max-width: 1400px;
+  width: 100%;
+  max-width: none;
   display: flex;
   flex-direction: column;
   gap: 16px;

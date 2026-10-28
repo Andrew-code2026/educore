@@ -53,6 +53,15 @@ export const Icon = ({ name, size = 18, stroke = 1.8 }: { name: string; size?: n
   );
 };
 
+export function SectionLabel({ children, action }: { children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="section-label">
+      <span>{children}</span>
+      {action}
+    </div>
+  );
+}
+
 export function StatusPill({ status }: { status: ActivityStatus | SubmissionStatus | string }) {
   const tone =
     status === 'Por revisar' || status === 'Por calificar'

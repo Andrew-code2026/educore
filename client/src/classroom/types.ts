@@ -78,6 +78,7 @@ export interface ReviewRecord {
   criteria: RubricCriterion[];
   /** Retroalimentación del docente para el estudiante. */
   feedback: string;
+  comments: string[];
   status: SubmissionStatus;
 }
 
