@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Check, CloudOff, Copy, History, Loader2, MessageSquare, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, CloudOff, Copy, History, Loader2, Maximize2, MessageSquare, Minimize2, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { emptyDoc, type CreatorChatMessage, type CreatorEvent, type ResourceDoc } from "@shared/creator";
 import { applyDocOp, type DocOp, type OpResult } from "@shared/creatorOps";
-import type { EduRole } from "@/components/shell";
+import { useOptionalShellContext, type EduRole } from "@/components/shell";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +41,9 @@ interface CreatorWorkspaceProps {
 
 const errorMessage = (error: unknown, fallback: string) => (error instanceof Error && error.message ? error.message : fallback);
 
+/** El docente que prefiere trabajar con la hoja a pantalla completa lo conserva entre recursos. */
+const FOCUS_STORAGE_KEY = "educore.creator.focus";
+
 const SUGGESTIONS = ["Añade dos ejercicios de contexto real", "Haz una versión más corta", "Agrega un reto opcional al final"];
 
 function useNarrow(query = "(max-width: 960px)") {
@@ -74,6 +77,30 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [pane, setPane] = useState<"doc" | "chat">("doc");
   const narrow = useNarrow();
+
+  // Modo enfoque: el mismo del resto de EduCore (oculta el menú y la barra superior de la app)
+  const shell = useOptionalShellContext();
+  const setShellFocus = shell?.setIsFocusMode;
+  const focusMode = shell?.isFocusMode ?? false;
+  useEffect(() => {
+    if (!setShellFocus) return;
+    try {
+      if (window.localStorage.getItem(FOCUS_STORAGE_KEY) === "1") setShellFocus(true);
+    } catch {
+      // Sin almacenamiento local, el modo enfoque dura lo que la sesión
+    }
+    return () => setShellFocus(false);
+  }, [setShellFocus]);
+  const toggleFocus = () => {
+    if (!setShellFocus) return;
+    const next = !focusMode;
+    setShellFocus(next);
+    try {
+      window.localStorage.setItem(FOCUS_STORAGE_KEY, next ? "1" : "0");
+    } catch {
+      // Ver arriba
+    }
+  };
 
   const detailQuery = trpc.creator.get.useQuery(input, {
     retry: 1,
@@ -341,6 +368,18 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
             <button type="button" className="crt-btn crt-btn--outline" aria-pressed={pane === "chat"} onClick={() => setPane(current => (current === "chat" ? "doc" : "chat"))}>
               <MessageSquare aria-hidden="true" />
               {pane === "chat" ? "Ver recurso" : "Asistente"}
+            </button>
+          )}
+          {shell && (
+            <button
+              type="button"
+              className="crt-btn crt-btn--ghost"
+              aria-pressed={focusMode}
+              aria-label={focusMode ? "Salir del modo enfoque" : "Modo enfoque"}
+              title={focusMode ? "Salir del modo enfoque" : "Modo enfoque: el recurso ocupa toda la pantalla"}
+              onClick={toggleFocus}
+            >
+              {focusMode ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
             </button>
           )}
           <DropdownMenu open={versionsOpen} onOpenChange={setVersionsOpen}>
