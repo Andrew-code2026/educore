@@ -99,6 +99,7 @@ import {
   beginCreatorTurn,
   canUseCreator,
   countCreatorTurnsToday,
+  CreatorSaveRejected,
   createCreatorResource,
   deleteCreatorResource,
   duplicateCreatorResource,
@@ -242,6 +243,7 @@ async function creatorCall<T>(run: () => Promise<T>): Promise<T> {
     return await run();
   } catch (error) {
     if (error instanceof TRPCError) throw error;
+    if (error instanceof CreatorSaveRejected) throw new TRPCError({ code: error.reason === "conflict" ? "CONFLICT" : "PRECONDITION_FAILED", message: error.message });
     throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "No se pudo completar la operación." });
   }
 }
@@ -1092,10 +1094,10 @@ export const appRouter = router({
       yield* subscribeCreatorRun(input.id, signal);
     }),
     saveDoc: publicProcedure
-      .input(z.object({ role: roleSchema, id: z.number().int(), baseVersion: z.number().int(), doc: resourceDocSchema }))
+      .input(z.object({ role: roleSchema, id: z.number().int(), baseVersion: z.number().int(), doc: resourceDocSchema, overwrite: z.boolean().optional() }))
       .mutation(async ({ input, ctx }) => {
         const actor = await requireCreatorActor(ctx, input.role, true);
-        return creatorCall(() => saveCreatorDoc(actor, { id: input.id, doc: input.doc, baseVersion: input.baseVersion }));
+        return creatorCall(() => saveCreatorDoc(actor, { id: input.id, doc: input.doc, baseVersion: input.baseVersion, overwrite: input.overwrite }));
       }),
     duplicate: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int() })).mutation(async ({ input, ctx }) => {
       const actor = await requireCreatorActor(ctx, input.role, true);
