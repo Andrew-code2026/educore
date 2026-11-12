@@ -2,6 +2,7 @@ import katex from "katex";
 import { blockTexts, CREATOR_LIMITS, extractMath, type BlockInput, type GraphSpec } from "./creator";
 import { isMultipleOfFraction, polygonArea } from "./creatorFigures";
 import { formatNumber, nearlyEqual, tryCompile, type CompileResult } from "./creatorMath";
+import { histogramClassIssues, histogramCounts, linearRegression, resolveAxis, type AxisOverride } from "./creatorStats";
 
 /**
  * Comprobaciones que un bloque debe pasar antes de entrar al documento.
@@ -225,6 +226,37 @@ export function validateBlock(block: BlockInput): string[] {
     case "pie_chart":
       // El esquema ya exige valores positivos: no hay nada más que pueda fallar al dibujar
       break;
+    case "histogram":
+      issues.push(...validateHistogram(block));
+      break;
+    case "box_plot": {
+      const all = block.series.flatMap(series => series.data);
+      if (block.series.length > 1 && block.series.some(series => !series.label)) issues.push("Caja y bigotes: con varios grupos, cada uno necesita su nombre (label).");
+      block.series.forEach((series, index) => {
+        if (Math.min(...series.data) === Math.max(...series.data)) issues.push(`Caja y bigotes: todos los datos del grupo ${index + 1} son iguales; no hay nada que resumir.`);
+      });
+      issues.push(...axisIssues("Caja y bigotes", "el eje", ["xMin", "xMax", "xStep"], all, { min: block.xMin, max: block.xMax, step: block.xStep }, 8));
+      break;
+    }
+    case "line_chart": {
+      block.series.forEach((series, index) => {
+        if (series.values.length !== block.categories.length) {
+          issues.push(`Gráfica de líneas: la serie ${series.label ? `«${series.label}»` : index + 1} tiene ${series.values.length} valores y hay ${block.categories.length} categorías. Debe haber un valor por categoría.`);
+        }
+      });
+      if (block.series.length > 1 && block.series.some(series => !series.label)) issues.push("Gráfica de líneas: con varias series, cada una necesita su nombre (label) para la leyenda.");
+      const values = block.series.flatMap(series => series.values);
+      issues.push(...axisIssues("Gráfica de líneas", "el eje vertical", ["yMin", "yMax", "yStep"], values, { min: block.yMin, max: block.yMax, step: block.yStep }));
+      break;
+    }
+    case "scatter_plot": {
+      const xs = block.points.map(point => point.x);
+      const ys = block.points.map(point => point.y);
+      issues.push(...axisIssues("Dispersión", "el eje horizontal", ["xMin", "xMax", "xStep"], xs, { min: block.xMin, max: block.xMax, step: block.xStep }, 8));
+      issues.push(...axisIssues("Dispersión", "el eje vertical", ["yMin", "yMax", "yStep"], ys, { min: block.yMin, max: block.yMax, step: block.yStep }));
+      if (block.trendLine && !linearRegression(block.points)) issues.push("Dispersión: todos los puntos tienen la misma x, así que no hay recta de tendencia. Quita trendLine o corrige los puntos.");
+      break;
+    }
     case "shapes":
       block.figures.forEach((figure, index) => {
         if (figure.kind !== "polygon") return;
@@ -241,6 +273,52 @@ export function validateBlock(block: BlockInput): string[] {
       break;
   }
 
+  return issues;
+}
+
+/** Divisiones que caben en un eje de estas figuras sin que los números se monten. */
+const CHART_TICKS_MAX = 20;
+
+/** Problemas de un eje fijado a mano: rango invertido, datos que se salen, o demasiadas marcas. */
+function axisIssues(figure: string, axisName: string, fields: readonly [string, string, string], data: number[], override: AxisOverride, target = 6): string[] {
+  const [minField, maxField, stepField] = fields;
+  const lowest = Math.min(...data);
+  const highest = Math.max(...data);
+  if (override.min !== undefined && override.max !== undefined && !(override.min < override.max)) {
+    return [`${figure}: en ${axisName}, el inicio (${minField}) debe ser menor que el final (${maxField}).`];
+  }
+  const issues: string[] = [];
+  if (override.min !== undefined && lowest < override.min) issues.push(`${figure}: ${axisName} empieza en ${formatNumber(override.min, 4)} (${minField}) y hay un dato menor, ${formatNumber(lowest, 4)}.`);
+  if (override.max !== undefined && highest > override.max) issues.push(`${figure}: ${axisName} termina en ${formatNumber(override.max, 4)} (${maxField}) y hay un dato mayor, ${formatNumber(highest, 4)}.`);
+  const axis = resolveAxis(lowest, highest, override, target);
+  if ((axis.max - axis.min) / axis.step > CHART_TICKS_MAX) issues.push(`${figure}: demasiadas divisiones en ${axisName}; aumenta el paso (${stepField}).`);
+  return issues;
+}
+
+function validateHistogram(block: Extract<BlockInput, { type: "histogram" }>): string[] {
+  const shape = histogramClassIssues(block.classes);
+  if (shape.length > 0) return shape.map(issue => `Histograma: ${issue}`);
+
+  const issues: string[] = [];
+  const highest = Math.max(...block.classes.map(item => item.frequency));
+  if (!block.blank && !(highest > 0)) issues.push("Histograma: todas las frecuencias valen cero.");
+  if (block.yMax !== undefined && block.yMax < highest) issues.push(`Histograma: el tope del eje (yMax = ${formatNumber(block.yMax)}) es menor que la frecuencia más alta (${highest}).`);
+  if (block.yStep !== undefined && (block.yMax ?? highest) / block.yStep > CHART_TICKS_MAX) issues.push("Histograma: demasiadas divisiones en el eje vertical; aumenta el paso del eje (yStep).");
+
+  // Con los datos crudos a la vista, las frecuencias no se creen: se cuentan
+  if (block.data && block.data.length > 0) {
+    const { counts, outside } = histogramCounts(block.data, block.classes);
+    const first = block.classes[0].from;
+    const last = block.classes[block.classes.length - 1].to;
+    if (outside.length > 0) {
+      const shown = outside.slice(0, 5).map(value => formatNumber(value, 4)).join(", ");
+      issues.push(`Histograma: ${outside.length === 1 ? "un dato queda" : `${outside.length} datos quedan`} fuera de las clases, que van de ${formatNumber(first, 4)} a ${formatNumber(last, 4)}: ${shown}${outside.length > 5 ? "…" : ""}.`);
+    } else if (counts.some((count, index) => count !== block.classes[index].frequency)) {
+      issues.push(
+        `Histograma: las frecuencias no coinciden con los datos (data). Al contarlos, las clases tienen ${counts.join(", ")} y el bloque dice ${block.classes.map(item => item.frequency).join(", ")}. Una clase incluye su límite inferior y no el superior, salvo la última.`,
+      );
+    }
+  }
   return issues;
 }
 
@@ -273,10 +351,10 @@ function validateNumberLine(block: Extract<BlockInput, { type: "number_line" }>)
   return issues;
 }
 
-const FIGURE_TYPES: ReadonlySet<string> = new Set(["graph", "number_line", "fraction_model", "bar_chart", "pie_chart", "shapes", "balance"]);
+const FIGURE_TYPES: ReadonlySet<string> = new Set(["graph", "number_line", "fraction_model", "bar_chart", "pie_chart", "histogram", "box_plot", "line_chart", "scatter_plot", "shapes", "balance"]);
 
 /** Palabras con las que un enunciado se refiere a una figura. */
-const FIGURE_MENTION = /\b(gr[aá]fic[ao]s?|figuras?|planos?|diagramas?|balanzas?|rectas?\s+num[eé]ricas?|dibujos?|modelos?)\b/i;
+const FIGURE_MENTION = /\b(gr[aá]fic[ao]s?|figuras?|planos?|diagramas?|histogramas?|balanzas?|rectas?\s+num[eé]ricas?|dibujos?|modelos?)\b/i;
 
 const isFigure = (block: BlockInput | undefined): boolean => block !== undefined && FIGURE_TYPES.has(block.type);
 const solvedOnFigure = (block: BlockInput | undefined): boolean => block?.type === "exercise" && block.answerSpace === "none";

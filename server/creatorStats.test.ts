@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { BLOCK_TYPE_LABELS, blockInputSchema, blockPreview, emptyDoc, resourceDocSchema, type BlockInput } from "@shared/creator";
 import {
   buildHistogramClasses,
   fiveNumberSummary,
@@ -12,6 +13,10 @@ import {
   trendLineLatex,
   trendLineText,
 } from "@shared/creatorStats";
+import { validateBlock, validateBlockOrder } from "@shared/creatorValidate";
+
+const block = (input: unknown): BlockInput => blockInputSchema.parse(input);
+const STAT_TYPES = ["histogram", "box_plot", "line_chart", "scatter_plot"] as const;
 
 describe("resumen de cinco números", () => {
   it("saca la mediana de una lista ordenada", () => {
@@ -164,5 +169,105 @@ describe("rótulos sobre una recta", () => {
     expect((centers[0] + centers[1] + centers[2]) / 3).toBeCloseTo((50 + 52 + 55) / 3, 6);
     const edge = spreadLabels([{ x: 2, w: 20 }, { x: 4, w: 20 }], 4, 0, 220);
     expect(edge[0] - 10).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("figuras estadísticas: esquema y validación", () => {
+  const classes = [
+    { from: 140, to: 150, frequency: 3 },
+    { from: 150, to: 160, frequency: 5 },
+    { from: 160, to: 170, frequency: 2 },
+  ];
+  const heights = [141, 145, 149, 150, 152, 155, 158, 159, 160, 170];
+
+  it("acepta un histograma bien formado y rechaza clases mal armadas", () => {
+    expect(validateBlock(block({ type: "histogram", classes }))).toEqual([]);
+    const gap = validateBlock(block({ type: "histogram", classes: [classes[0], { from: 151, to: 161, frequency: 5 }] }));
+    expect(gap).toHaveLength(1);
+    expect(gap[0]).toContain("contiguas");
+    expect(validateBlock(block({ type: "histogram", classes: [classes[0], { from: 150, to: 170, frequency: 5 }] }))[0]).toContain("mismo ancho");
+    expect(blockInputSchema.safeParse({ type: "histogram", classes: [classes[0], { from: 150, to: 160, frequency: 2.5 }] }).success).toBe(false);
+    expect(blockInputSchema.safeParse({ type: "histogram", classes: [classes[0], { from: 150, to: 160, frequency: -1 }] }).success).toBe(false);
+    expect(blockInputSchema.safeParse({ type: "histogram", classes: [classes[0]] }).success).toBe(false);
+  });
+
+  it("revisa las frecuencias y el eje del histograma", () => {
+    const empty = classes.map(item => ({ ...item, frequency: 0 }));
+    expect(validateBlock(block({ type: "histogram", classes: empty }))).toHaveLength(1);
+    expect(validateBlock(block({ type: "histogram", classes: empty, blank: true, yMax: 10 }))).toEqual([]);
+    expect(validateBlock(block({ type: "histogram", classes, yMax: 4 }))).toHaveLength(1);
+    expect(validateBlock(block({ type: "histogram", classes, yStep: 0.1 }))).toHaveLength(1);
+  });
+
+  it("cuenta los datos crudos del histograma y devuelve las frecuencias correctas", () => {
+    expect(validateBlock(block({ type: "histogram", classes, data: heights }))).toEqual([]);
+    const wrong = validateBlock(block({ type: "histogram", classes: [{ ...classes[0], frequency: 4 }, { ...classes[1], frequency: 4 }, classes[2]], data: heights }));
+    expect(wrong).toHaveLength(1);
+    expect(wrong[0]).toContain("3, 5, 2");
+    const outside = validateBlock(block({ type: "histogram", classes, data: [...heights, 171] }));
+    expect(outside).toHaveLength(1);
+    expect(outside[0]).toContain("171");
+  });
+
+  it("revisa la caja y bigotes", () => {
+    const data = [2.5, 3, 3.5, 3.8, 4, 4.2, 4.5, 5];
+    expect(validateBlock(block({ type: "box_plot", series: [{ data }] }))).toEqual([]);
+    expect(validateBlock(block({ type: "box_plot", series: [{ label: "9A", data }, { label: "9B", data: [1, 2, 3, 4, 5] }] }))).toEqual([]);
+    expect(validateBlock(block({ type: "box_plot", series: [{ label: "9A", data }, { data: [1, 2, 3, 4, 5] }] }))).toHaveLength(1);
+    expect(validateBlock(block({ type: "box_plot", series: [{ data: [4, 4, 4, 4, 4] }] }))).toHaveLength(1);
+    expect(validateBlock(block({ type: "box_plot", series: [{ data }], xMin: 3 }))[0]).toContain("xMin");
+    expect(validateBlock(block({ type: "box_plot", series: [{ data }], xMin: 0, xMax: 5, xStep: 0.1 }))[0]).toContain("xStep");
+    expect(validateBlock(block({ type: "box_plot", series: [{ data }], xMin: 5, xMax: 0 }))).toHaveLength(1);
+    expect(blockInputSchema.safeParse({ type: "box_plot", series: [{ data: [1, 2, 3] }] }).success).toBe(false);
+  });
+
+  it("revisa la gráfica de líneas", () => {
+    const categories = ["Lun", "Mar", "Mié", "Jue"];
+    expect(validateBlock(block({ type: "line_chart", categories, series: [{ values: [18, 21, 19, 23] }] }))).toEqual([]);
+    const short = validateBlock(block({ type: "line_chart", categories, series: [{ values: [18, 21, 19] }] }));
+    expect(short).toHaveLength(1);
+    expect(short[0]).toContain("3 valores");
+    expect(validateBlock(block({ type: "line_chart", categories, series: [{ label: "Cali", values: [28, 29, 30, 29] }, { values: [14, 15, 13, 14] }] }))).toHaveLength(1);
+    expect(validateBlock(block({ type: "line_chart", categories, series: [{ values: [18, 21, 19, 23] }], yMax: 20 }))[0]).toContain("yMax");
+    expect(validateBlock(block({ type: "line_chart", categories, series: [{ values: [-3, 2, 0, 5] }] }))).toEqual([]);
+  });
+
+  it("revisa el diagrama de dispersión", () => {
+    const points = [{ x: 1, y: 2 }, { x: 2, y: 3 }, { x: 3, y: 5 }, { x: 4, y: 4 }, { x: 5, y: 6 }];
+    expect(validateBlock(block({ type: "scatter_plot", points, trendLine: true, showEquation: true }))).toEqual([]);
+    const vertical = [{ x: 2, y: 1 }, { x: 2, y: 5 }, { x: 2, y: 9 }];
+    expect(validateBlock(block({ type: "scatter_plot", points: vertical }))).toEqual([]);
+    expect(validateBlock(block({ type: "scatter_plot", points: vertical, trendLine: true }))).toHaveLength(1);
+    expect(validateBlock(block({ type: "scatter_plot", points, xMax: 4 }))[0]).toContain("xMax");
+    expect(validateBlock(block({ type: "scatter_plot", points, yMin: 0, yMax: 10, yStep: 0.2 }))[0]).toContain("yStep");
+    expect(blockInputSchema.safeParse({ type: "scatter_plot", points: points.slice(0, 2) }).success).toBe(false);
+  });
+
+  it("nombra, resume y guarda los cuatro tipos", () => {
+    const samples: BlockInput[] = [
+      block({ type: "histogram", classes }),
+      block({ type: "box_plot", series: [{ data: [1, 2, 3, 4, 5] }] }),
+      block({ type: "line_chart", categories: ["Ene", "Feb"], series: [{ values: [3, 4] }] }),
+      block({ type: "scatter_plot", points: [{ x: 1, y: 2 }, { x: 2, y: 3 }, { x: 3, y: 5 }] }),
+    ];
+    expect(samples.map(sample => sample.type)).toEqual([...STAT_TYPES]);
+    for (const sample of samples) {
+      expect(BLOCK_TYPE_LABELS[sample.type].length).toBeGreaterThan(3);
+      expect(blockPreview(sample).length).toBeGreaterThan(0);
+    }
+    const doc = { ...emptyDoc("Estadística"), sections: [{ id: "s1", title: "Guía", role: "student", blocks: samples.map((sample, index) => ({ ...sample, id: `b${index}` })) }] };
+    expect(resourceDocSchema.safeParse(doc).success).toBe(true);
+  });
+
+  it("trata las cuatro como figuras al revisar el orden de los bloques", () => {
+    const exercise = block({ type: "exercise", label: "Ejercicio 1", md: "Calcula la mediana." });
+    for (const figure of [
+      { type: "histogram", classes },
+      { type: "box_plot", series: [{ data: [1, 2, 3, 4, 5] }] },
+      { type: "line_chart", categories: ["Ene", "Feb"], series: [{ values: [3, 4] }] },
+      { type: "scatter_plot", points: [{ x: 1, y: 2 }, { x: 2, y: 3 }, { x: 3, y: 5 }] },
+    ]) {
+      expect(validateBlockOrder([{ title: "Guía", blocks: [exercise, block(figure)] }]), figure.type).toHaveLength(1);
+    }
   });
 });
