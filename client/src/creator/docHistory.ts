@@ -1,0 +1,127 @@
+import { useCallback, useMemo, useRef, useState } from "react";
+import type { ResourceDoc } from "@shared/creator";
+import type { DocOp } from "@shared/creatorOps";
+
+/**
+ * Deshacer y rehacer de todo el documento. Cada paso guarda el documento completo, que es
+ * barato porque `applyDocOp` conserva la identidad de las secciones y bloques que no cambian.
+ */
+export const HISTORY_LIMIT = 100;
+
+/** Ediciones seguidas del mismo bloque (o del título) en este margen cuentan como un solo paso. */
+export const HISTORY_MERGE_MS = 1000;
+
+interface Step {
+  doc: ResourceDoc;
+  /** Qué se editó, para fundir ediciones seguidas de lo mismo. */
+  key?: string;
+  at: number;
+}
+
+export interface DocHistory {
+  past: Step[];
+  future: Step[];
+}
+
+export const emptyHistory: DocHistory = { past: [], future: [] };
+
+/** Las ediciones de texto de un mismo bloque se funden; mover, insertar o borrar son pasos propios. */
+export function historyKey(op: DocOp): string | undefined {
+  if (op.op === "update_block") return `block:${op.blockId}`;
+  if (op.op === "set_meta") return "meta";
+  return undefined;
+}
+
+/** Antes de aplicar una edición: el documento anterior entra a la pila de deshacer y se pierde lo rehecho. */
+export function recordStep(history: DocHistory, before: ResourceDoc, options: { key?: string; at: number; limit?: number; mergeMs?: number }): DocHistory {
+  const { key, at, limit = HISTORY_LIMIT, mergeMs = HISTORY_MERGE_MS } = options;
+  const last = history.past[history.past.length - 1];
+  if (key && last?.key === key && at - last.at < mergeMs) {
+    // Se conserva el documento de antes de la primera edición del grupo
+    return { past: [...history.past.slice(0, -1), { ...last, at }], future: [] };
+  }
+  const past = [...history.past, { doc: before, key, at }];
+  return { past: past.length > limit ? past.slice(past.length - limit) : past, future: [] };
+}
+
+export function undoStep(history: DocHistory, current: ResourceDoc, at = 0): { history: DocHistory; doc: ResourceDoc } | null {
+  const last = history.past[history.past.length - 1];
+  if (!last) return null;
+  return { doc: last.doc, history: { past: history.past.slice(0, -1), future: [...history.future, { doc: current, at }] } };
+}
+
+export function redoStep(history: DocHistory, current: ResourceDoc, at = 0): { history: DocHistory; doc: ResourceDoc } | null {
+  const next = history.future[history.future.length - 1];
+  if (!next) return null;
+  return { doc: next.doc, history: { past: [...history.past, { doc: current, at }], future: history.future.slice(0, -1) } };
+}
+
+/** Dónde quedó el cambio entre dos documentos, medido en `to`. `sectionId: null` es el título. */
+export type ChangeLocation = { sectionId: string | null; blockIndex: number | null };
+
+export function locateChange(from: ResourceDoc, to: ResourceDoc): ChangeLocation | null {
+  for (const section of to.sections) {
+    const previous = from.sections.find(candidate => candidate.id === section.id);
+    if (!previous) return { sectionId: section.id, blockIndex: null };
+    // Borrar bloques copia todas las secciones: lo que cuenta es si cambiaron sus bloques o su encabezado
+    const sameBlocks = previous.blocks.length === section.blocks.length && previous.blocks.every((block, position) => block === section.blocks[position]);
+    if (previous === section || (sameBlocks && previous.title === section.title && previous.role === section.role)) continue;
+    const index = section.blocks.findIndex((block, position) => block !== previous.blocks[position]);
+    if (index !== -1) return { sectionId: section.id, blockIndex: index };
+    // Se quitaron bloques del final: el cambio queda junto al último que sigue. Si no, cambió el encabezado.
+    const shorter = section.blocks.length < previous.blocks.length && section.blocks.length > 0;
+    return { sectionId: section.id, blockIndex: shorter ? section.blocks.length - 1 : null };
+  }
+  const removed = from.sections.findIndex(section => !to.sections.some(candidate => candidate.id === section.id));
+  if (removed !== -1 && to.sections.length > 0) return { sectionId: to.sections[Math.min(removed, to.sections.length - 1)].id, blockIndex: null };
+  if (from.title !== to.title || from.subtitle !== to.subtitle) return { sectionId: null, blockIndex: null };
+  return null;
+}
+
+export type HistoryCommand = "undo" | "redo";
+
+/** Ctrl/Cmd+Z deshace; Ctrl/Cmd+Shift+Z y Ctrl+Y rehacen. */
+export function historyShortcut(event: Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "shiftKey" | "altKey">): HistoryCommand | null {
+  if (event.altKey || !(event.ctrlKey || event.metaKey)) return null;
+  const key = event.key.toLowerCase();
+  if (key === "z") return event.shiftKey ? "redo" : "undo";
+  if (key === "y" && event.ctrlKey && !event.shiftKey) return "redo";
+  return null;
+}
+
+/** Pilas de deshacer y rehacer del editor. Las funciones son estables entre renders. */
+export function useDocHistory() {
+  const history = useRef<DocHistory>(emptyHistory);
+  const [sizes, setSizes] = useState({ past: 0, future: 0 });
+
+  const commit = useCallback((next: DocHistory) => {
+    history.current = next;
+    setSizes(current => (current.past === next.past.length && current.future === next.future.length ? current : { past: next.past.length, future: next.future.length }));
+  }, []);
+
+  const record = useCallback((before: ResourceDoc, key?: string) => commit(recordStep(history.current, before, { key, at: Date.now() })), [commit]);
+
+  const undo = useCallback(
+    (current: ResourceDoc) => {
+      const result = undoStep(history.current, current, Date.now());
+      if (!result) return null;
+      commit(result.history);
+      return result.doc;
+    },
+    [commit],
+  );
+
+  const redo = useCallback(
+    (current: ResourceDoc) => {
+      const result = redoStep(history.current, current, Date.now());
+      if (!result) return null;
+      commit(result.history);
+      return result.doc;
+    },
+    [commit],
+  );
+
+  const clear = useCallback(() => commit(emptyHistory), [commit]);
+
+  return useMemo(() => ({ canUndo: sizes.past > 0, canRedo: sizes.future > 0, record, undo, redo, clear }), [clear, record, redo, sizes, undo]);
+}
