@@ -260,6 +260,7 @@ export async function commitCreatorDoc(
   doc: ResourceDoc,
   reason: VersionReason,
   label: string,
+  options: { coalesce?: boolean } = {},
 ): Promise<{ version: number; updatedAt: Date }> {
   const db = await requireDb();
   const json = serializeDoc(doc);
@@ -271,7 +272,7 @@ export async function commitCreatorDoc(
     .where(eq(creatorResources.id, resource.id));
 
   const latest = (await db.select().from(creatorVersions).where(eq(creatorVersions.resourceId, resource.id)).orderBy(desc(creatorVersions.id)).limit(1))[0];
-  const coalesce = reason === "manual" && latest?.reason === "manual" && updatedAt.getTime() - latest.createdAt.getTime() < MANUAL_VERSION_WINDOW_MS;
+  const coalesce = options.coalesce !== false && reason === "manual" && latest?.reason === "manual" && updatedAt.getTime() - latest.createdAt.getTime() < MANUAL_VERSION_WINDOW_MS;
   if (coalesce) {
     await db.update(creatorVersions).set({ doc: json, version }).where(eq(creatorVersions.id, latest.id));
   } else {
@@ -294,12 +295,28 @@ async function pruneVersions(resourceId: number) {
   await db.delete(creatorVersions).where(and(eq(creatorVersions.resourceId, resourceId), lt(creatorVersions.id, oldest)));
 }
 
-/** Edición manual del docente. `baseVersion` evita pisar cambios hechos desde otra pestaña o por la IA. */
-export async function saveCreatorDoc(actor: AcademicActor, input: { id: number; doc: ResourceDoc; baseVersion: number }) {
+/** Por qué no se aceptó un guardado manual. El cliente decide con esto si reintenta (ver `client/src/creator/autosavePolicy.ts`). */
+export class CreatorSaveRejected extends Error {
+  constructor(
+    readonly reason: "conflict" | "generating",
+    message: string,
+  ) {
+    super(message);
+    this.name = "CreatorSaveRejected";
+  }
+}
+
+/**
+ * Edición manual del docente. `baseVersion` evita pisar cambios hechos desde otra pestaña o por la IA.
+ * Con `overwrite` el docente eligió guardar su versión encima de otra: va en una versión aparte,
+ * sin fundirse con la anterior, para que la que reemplaza siga en el historial.
+ */
+export async function saveCreatorDoc(actor: AcademicActor, input: { id: number; doc: ResourceDoc; baseVersion: number; overwrite?: boolean }) {
   assertCreatorActor(actor);
   const row = await loadOwned(actor, input.id);
-  if (row.status === "generating") throw new Error("La IA está trabajando en este recurso. Espera a que termine para editarlo.");
-  if (row.version !== input.baseVersion) throw new Error("El recurso cambió en otra ventana. Recarga para ver la última versión.");
+  if (row.status === "generating") throw new CreatorSaveRejected("generating", "La IA está trabajando en este recurso. Espera a que termine para editarlo.");
+  if (row.version !== input.baseVersion) throw new CreatorSaveRejected("conflict", "El recurso cambió en otra ventana. Recarga para ver la última versión.");
+  if (input.overwrite) return commitCreatorDoc(row, input.doc, "manual", "Edición manual (sobre otra ventana)", { coalesce: false });
   return commitCreatorDoc(row, input.doc, "manual", "Edición manual");
 }
 
