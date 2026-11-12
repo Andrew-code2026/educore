@@ -151,6 +151,80 @@ export function serializeInline(inlines: Inline[]): string {
   return out;
 }
 
+/** Quita los espacios de los extremos de un párrafo y los trozos que quedan vacíos. */
+function trimInlines(inlines: Inline[]): Inline[] {
+  const out = inlines.map(inline => ({ ...inline }));
+  const first = out[0];
+  if (first?.t === "text") first.text = first.text.replace(/^\s+/, "");
+  const last = out[out.length - 1];
+  if (last?.t === "text") last.text = last.text.replace(/\s+$/, "");
+  return out.filter(inline => inline.t === "formula" || inline.text !== "");
+}
+
+/**
+ * Deja cada fórmula destacada (`$$…$$`) en un párrafo propio, que es como la dibuja la hoja.
+ * El editor en sitio parte de aquí para que el texto no cambie de forma al entrar a editarlo.
+ */
+export function isolateDisplayFormulas(blocks: MdBlock[]): MdBlock[] {
+  const out: MdBlock[] = [];
+  for (const block of blocks) {
+    if (block.t !== "p" || !block.inlines.some(inline => inline.t === "formula" && inline.display)) {
+      out.push(block);
+      continue;
+    }
+    let run: Inline[] = [];
+    const flush = () => {
+      const inlines = trimInlines(run);
+      if (inlines.length > 0) out.push({ t: "p", inlines });
+      run = [];
+    };
+    for (const inline of block.inlines) {
+      if (inline.t === "formula" && inline.display) {
+        flush();
+        out.push({ t: "p", inlines: [inline] });
+      } else {
+        run.push(inline);
+      }
+    }
+    flush();
+  }
+  return out;
+}
+
+/**
+ * Deja un solo espacio donde hay varios y ninguno en los extremos de cada párrafo. La hoja ya los
+ * dibuja así; el editor, que respeta cada espacio escrito, los enseñaría todos y correría el texto.
+ */
+export function collapseSpaces(blocks: MdBlock[]): MdBlock[] {
+  const tidy = (inlines: Inline[]): Inline[] => {
+    const out: Inline[] = [];
+    for (const inline of inlines) {
+      if (inline.t === "formula") {
+        out.push(inline);
+        continue;
+      }
+      let text = inline.text.replace(/[ \t\n]+/g, " ");
+      const previous = out[out.length - 1];
+      if (previous?.t === "text" && previous.text.endsWith(" ") && text.startsWith(" ")) text = text.slice(1);
+      if (text) out.push({ ...inline, text });
+    }
+    return trimInlines(out);
+  };
+  return blocks.map(block => (block.t === "p" ? { ...block, inlines: tidy(block.inlines) } : { ...block, items: block.items.map(tidy) }));
+}
+
+/** El texto de un bloque tal como lo carga y lo devuelve el editor en sitio. */
+export const inPlaceBlocks = (blocks: MdBlock[]) => collapseSpaces(isolateDisplayFormulas(blocks));
+
+/** Texto de un solo renglón (títulos, incisos): si hay varios párrafos o una lista, se unen con espacios. */
+export function serializeSingleLine(blocks: MdBlock[]): string {
+  return blocks
+    .flatMap(block => (block.t === "p" ? [block.inlines] : block.items))
+    .map(inlines => serializeInline(inlines).trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function serializeMd(blocks: MdBlock[]): string {
   return blocks
     .map(block => {
