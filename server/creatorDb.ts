@@ -6,11 +6,14 @@ import {
   RESOURCE_KINDS,
   RESOURCE_STATUS,
   type CreatorActivity,
+  type CreatorAttachment,
   type CreatorChatMessage,
+  type CreatorTurn,
   type ResourceDoc,
   type ResourceKind,
   type ResourceStatus,
 } from "@shared/creator";
+import { decideTurnUndo, parseMessageExtras, resolveAttachments, serializeMessageExtras } from "@shared/creatorTurn";
 import { getDb, type AcademicActor, writeAcademicAudit } from "./db";
 
 /**
@@ -135,16 +138,6 @@ const summarize = (row: Omit<CreatorResourceRow, "doc" | "prompt" | "version">):
   updatedAt: row.updatedAt,
 });
 
-function parseActivity(raw: string | null): CreatorActivity[] {
-  if (!raw) return [];
-  try {
-    const value = JSON.parse(raw);
-    return Array.isArray(value) ? value.filter(item => item && typeof item.label === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
 function serializeDoc(doc: ResourceDoc): string {
   const json = JSON.stringify(doc);
   if (json.length > CREATOR_LIMITS.docBytesMax) throw new Error("El recurso es demasiado largo. Divídelo en dos recursos.");
@@ -199,7 +192,8 @@ export async function listCreatorMessages(resourceId: number, limit = 80): Promi
     id: row.id,
     role: row.role === "assistant" ? "assistant" : "user",
     content: row.content,
-    activity: parseActivity(row.activity),
+    // La columna guarda todo lo que acompaña al mensaje: fichas, bloques señalados, cambios del turno y sugerencias
+    ...parseMessageExtras(row.activity),
     createdAt: row.createdAt,
   }));
 }
@@ -332,6 +326,9 @@ export async function addCreatorMessage(input: {
   role: "user" | "assistant";
   content: string;
   activity?: CreatorActivity[];
+  attachments?: CreatorAttachment[];
+  turn?: CreatorTurn;
+  suggestions?: string[];
   inputTokens?: number;
   outputTokens?: number;
 }) {
@@ -342,7 +339,7 @@ export async function addCreatorMessage(input: {
     userId: input.userId,
     role: input.role,
     content: input.content.slice(0, 20_000),
-    activity: input.activity && input.activity.length > 0 ? JSON.stringify(input.activity.slice(0, 40)) : null,
+    activity: serializeMessageExtras(input),
     inputTokens: input.inputTokens ?? 0,
     outputTokens: input.outputTokens ?? 0,
   });
@@ -439,14 +436,61 @@ export async function getCreatorSchoolName(schoolId: number): Promise<string> {
 }
 
 /** Marca el recurso como en proceso y registra lo que pidió el docente, antes de lanzar el turno de IA. */
-export async function beginCreatorTurn(actor: AcademicActor, input: { id: number; request: string }) {
+export async function beginCreatorTurn(actor: AcademicActor, input: { id: number; request: string; blockIds?: string[] }) {
   assertCreatorActor(actor);
   const row = await loadOwned(actor, input.id);
   if (row.status === "generating") throw new Error("La IA ya está trabajando en este recurso.");
+  const doc = parseDoc(row.doc);
+  // Un bloque señalado que ya no existe no se pasa por alto: la IA trabajaría sobre otra cosa
+  const focus = resolveAttachments(doc, input.blockIds ?? []);
+  if (!focus.ok) {
+    throw new Error(
+      focus.missing.length === 1
+        ? "Uno de los bloques que adjuntaste ya no está en el recurso. Quítalo del mensaje e inténtalo de nuevo."
+        : "Algunos de los bloques que adjuntaste ya no están en el recurso. Quítalos del mensaje e inténtalo de nuevo.",
+    );
+  }
   const history = await listCreatorMessages(row.id);
-  await addCreatorMessage({ resourceId: row.id, schoolId: row.schoolId, userId: actor.userId, role: "user", content: input.request });
+  await addCreatorMessage({ resourceId: row.id, schoolId: row.schoolId, userId: actor.userId, role: "user", content: input.request, attachments: focus.attachments });
   await setCreatorStatus(row.id, "generating");
-  return { row, doc: parseDoc(row.doc), history };
+  return { row, doc, history, focusBlockIds: focus.attachments.map(attachment => attachment.id) };
+}
+
+/**
+ * Deshace un turno de la IA: el recurso vuelve a la versión sobre la que trabajó ese turno, guardada
+ * como versión nueva (la que dejó la IA y todo lo posterior siguen en «Versiones»). Si el recurso
+ * cambió después del turno no se toca hasta que el docente lo confirme (`force`).
+ */
+export type TurnUndoResult = { status: "already" | "confirm" } | { status: "undone"; doc: ResourceDoc; version: number };
+
+export async function undoCreatorTurn(actor: AcademicActor, input: { id: number; messageId: number; force?: boolean }): Promise<TurnUndoResult> {
+  assertCreatorActor(actor);
+  const row = await loadOwned(actor, input.id);
+  if (row.status === "generating") throw new Error("La IA está trabajando en este recurso. Espera a que termine para deshacer.");
+  const db = await requireDb();
+  const message = (
+    await db
+      .select({ activity: creatorMessages.activity })
+      .from(creatorMessages)
+      .where(and(eq(creatorMessages.id, input.messageId), eq(creatorMessages.resourceId, row.id), eq(creatorMessages.role, "assistant")))
+      .limit(1)
+  )[0];
+  const turn = message ? parseMessageExtras(message.activity).turn : undefined;
+  if (!turn) throw new Error("Esa respuesta no cambió el recurso.");
+
+  const versions = await db
+    .select()
+    .from(creatorVersions)
+    .where(and(eq(creatorVersions.resourceId, row.id), inArray(creatorVersions.version, [turn.baseVersion, turn.baseVersion + 1])));
+  const before = versions.find(version => version.version === turn.baseVersion);
+  const after = versions.find(version => version.version === turn.baseVersion + 1);
+  const beforeDoc = before ? parseDoc(before.doc) : null;
+  if (!beforeDoc || beforeDoc.sections.length === 0) throw new Error("Ya no se conserva el recurso de antes de esa respuesta. Búscalo en «Versiones».");
+
+  const decision = decideTurnUndo({ current: parseDoc(row.doc), before: beforeDoc, after: after ? parseDoc(after.doc) : null, force: input.force });
+  if (decision !== "restore") return { status: decision };
+  const saved = await commitCreatorDoc(row, beforeDoc, "restore", `Deshecho: ${after?.label || "cambio de la IA"}`);
+  return { status: "undone", doc: beforeDoc, version: saved.version };
 }
 
 /** Recursos que quedaron "generando" porque el servidor se reinició a mitad de un turno. */

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, ArrowLeft, Check, CloudOff, Copy, History, Loader2, Maximize2, MessageSquare, Minimize2, Printer, Redo2, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
-import { emptyDoc, type CreatorChatMessage, type CreatorEvent, type ResourceDoc } from "@shared/creator";
+import { emptyDoc, findBlock, type CreatorAttachment, type CreatorChatMessage, type CreatorEvent, type ResourceDoc } from "@shared/creator";
 import { applyDocOp, type DocOp, type OpResult } from "@shared/creatorOps";
+import { ATTACH_MAX, describeAttachment, describeTurn, reuseUnchanged } from "@shared/creatorTurn";
 import { useOptionalShellContext, type EduRole } from "@/components/shell";
 import {
   AlertDialog,
@@ -19,10 +20,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { trpc } from "@/lib/trpc";
 import { CreatorChat, type LiveTurn } from "./CreatorChat";
-import { historyKey, historyShortcut, locateChange, useDocHistory, type ChangeLocation } from "./docHistory";
+import { historyKey, historyShortcut, locateChange, useDocHistory } from "./docHistory";
 import { EditableDocument, type EditableDocumentHandle } from "./EditableDocument";
 import { ErrorCard, formatWhen } from "./parts";
 import { ResourceSheet } from "./ResourceSheet";
+import { revealChange, revealTarget, type RevealTarget } from "./reveal";
+import { acceptMark, isReviewVisible, lastTurnMessage, pendingMarks, readStoredReview, startReview, storeReview, type TurnReview } from "./turnReview";
+import { TurnReviewBar } from "./TurnReviewBar";
 import { useCreatorAutosave, type SaveState } from "./useCreatorAutosave";
 import "./creator.css";
 
@@ -31,6 +35,19 @@ type Preview = Extract<CreatorEvent, { type: "preview" }>;
 /** Un solo aviso de guardado a la vez: el siguiente reemplaza al anterior en vez de apilarse. */
 const SAVE_TOAST = "crt-save";
 const DELETE_TOAST = "crt-deleted";
+const TURN_TOAST = "crt-turn";
+const ATTACH_TOAST = "crt-attach";
+
+/** La revisión del último turno sobrevive a recargar la página, pero no a cerrar la pestaña. */
+const reviewKey = (resourceId: number) => `educore.creator.review.${resourceId}`;
+
+function loadStoredReview(resourceId: number) {
+  try {
+    return readStoredReview(window.sessionStorage.getItem(reviewKey(resourceId)));
+  } catch {
+    return null;
+  }
+}
 
 const SAVE_LABELS: Record<SaveState, string> = {
   saved: "Guardado",
@@ -51,19 +68,6 @@ function isEditingTarget(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
   if (target instanceof HTMLElement && target.isContentEditable) return true;
   return target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), .crt-inplace, [role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]') !== null;
-}
-
-/** Tras deshacer o rehacer, lo que cambió se trae a la vista si quedó fuera de pantalla. */
-function revealChange(location: ChangeLocation | null) {
-  if (!location) return;
-  window.requestAnimationFrame(() => {
-    const block = location.blockId ? document.querySelector<HTMLElement>(`.crt-stage [data-block-id="${CSS.escape(location.blockId)}"]`) : null;
-    const target = block ?? (location.sectionId ? document.getElementById(`crt-${location.sectionId}`) : document.querySelector<HTMLElement>(".crt-stage .crt-paper"));
-    if (!target) return;
-    const box = (target.closest(".crt-stage") ?? document.documentElement).getBoundingClientRect();
-    const rect = target.getBoundingClientRect();
-    if (rect.bottom < box.top + 24 || rect.top > box.bottom - 24) target.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
 }
 
 interface CreatorWorkspaceProps {
@@ -110,6 +114,8 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   const [live, setLive] = useState<LiveTurn | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  /** Los bloques señalados del mensaje en curso: el chat los muestra hasta que el mensaje llega guardado. */
+  const [pendingAttachments, setPendingAttachments] = useState<CreatorAttachment[]>([]);
   const [streamFailed, setStreamFailed] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -117,6 +123,27 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   const [pane, setPane] = useState<"doc" | "chat">("doc");
   const narrow = useNarrow();
   const sheetRef = useRef<EditableDocumentHandle>(null);
+  const narrowRef = useRef(narrow);
+  narrowRef.current = narrow;
+  /** Bloques señalados para el próximo mensaje al asistente. */
+  const [attached, setAttached] = useState<string[]>([]);
+  const attachedRef = useRef(attached);
+  attachedRef.current = attached;
+  /** Cuenta las veces que el docente señaló un bloque: con cada una, el cursor pasa al cuadro del chat. */
+  const [attachCount, setAttachCount] = useState(0);
+  /** Lo que el último turno de la IA dejó marcado en la hoja; `null` cuando el docente ya lo dio por visto. */
+  const [review, setReview] = useState<TurnReview | null>(null);
+  /** El último turno tal como lo vio esta ventana: el documento de antes (si lo tuvo) y el de después. */
+  const [lastTurn, setLastTurn] = useState<{ messageId: number; before: ResourceDoc | null; after: ResourceDoc } | null>(null);
+  const lastTurnRef = useRef(lastTurn);
+  lastTurnRef.current = lastTurn;
+  /** El documento sobre el que se envió el mensaje en curso: al terminar el turno entra al historial como un paso. */
+  const turnBase = useRef<ResourceDoc | null>(null);
+  const sawWorking = useRef(false);
+  const [undoingTurn, setUndoingTurn] = useState(false);
+  const undoingTurnRef = useRef(false);
+  /** Respuesta cuyo «deshacer» espera confirmación porque el recurso cambió después. */
+  const [confirmUndo, setConfirmUndo] = useState<number | null>(null);
 
   // Modo enfoque: el mismo del resto de EduCore (oculta el menú y la barra superior de la app)
   const shell = useOptionalShellContext();
@@ -154,6 +181,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   // Sin red, React Query pausaría estas acciones sin avisar: mejor que fallen y lo diga cada una
   const { mutateAsync: saveDoc } = trpc.creator.saveDoc.useMutation({ networkMode: "always" });
   const { mutateAsync: sendMessage } = trpc.creator.sendMessage.useMutation({ networkMode: "always" });
+  const { mutateAsync: requestTurnUndo } = trpc.creator.undoTurn.useMutation({ networkMode: "always" });
   const restoreMutation = trpc.creator.restoreVersion.useMutation({ networkMode: "always" });
   const duplicateMutation = trpc.creator.duplicate.useMutation({ networkMode: "always" });
   const removeMutation = trpc.creator.remove.useMutation({ networkMode: "always" });
@@ -172,7 +200,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   );
   const { saveState, reset: resetAutosave, isDirty, update: updateAutosave, flush: flushAutosave, keepMine, retry: retryAutosave, lastFailure, lastRejection } = autosave;
   const history = useDocHistory();
-  const { record: recordHistory, undo: popUndo, redo: popRedo, clear: clearHistory } = history;
+  const { record: recordHistory, undo: popUndo, redo: popRedo, clear: clearHistory, turn: recordTurn, peek: peekHistory, ahead: isAhead } = history;
   const [conflictOpen, setConflictOpen] = useState(false);
   const [resolving, setResolving] = useState(false);
 
@@ -193,16 +221,59 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     } else {
       setLive(current => current ?? { phase: "thinking", text: "", activities: [] });
     }
+    if (working) sawWorking.current = true;
     if (isDirty()) return;
     // Durante un turno, el documento lo llevan los eventos en vivo: lo guardado aún es la versión anterior
     if (working && loadedRef.current) return;
-    setDoc(detail.doc);
-    resetAutosave(detail.doc, detail.version);
-    // Un documento que llega de fuera no se deshace paso a paso: para eso están las versiones
-    clearHistory();
+
+    const first = !loadedRef.current;
+    const base = working ? null : turnBase.current;
+    // Terminó un turno: el que pidió esta ventana, o uno que encontró en marcha al abrir el recurso
+    const turnEnded = !working && (base !== null || sawWorking.current);
+    if (!working) {
+      sawWorking.current = false;
+      turnBase.current = null;
+    }
+
+    let next: ResourceDoc;
+    if (base) {
+      // El turno que pidió esta ventana entra al historial como un solo paso: Ctrl+Z lo deshace entero
+      next = recordTurn(base, detail.doc);
+    } else {
+      next = reuseUnchanged(docRef.current, detail.doc);
+      // Un documento que llega de fuera no se deshace paso a paso: para eso están las versiones
+      if (next !== docRef.current) clearHistory();
+    }
+    docRef.current = next;
+    setDoc(next);
+    resetAutosave(next, detail.version);
     loadedRef.current = true;
     setLoaded(true);
-  }, [clearHistory, detail, isDirty, resetAutosave]);
+
+    const answer = detail.messages[detail.messages.length - 1];
+    if (turnEnded && answer?.role === "assistant" && answer.turn) {
+      // Lo que la IA añadió o cambió queda marcado en la hoja hasta que el docente lo dé por visto
+      setReview(startReview(answer.id, answer.turn, next));
+      setLastTurn({ messageId: answer.id, before: base && base !== next ? base : null, after: next });
+    } else if (first) {
+      const stored = loadStoredReview(resourceId);
+      const turn = lastTurnMessage(detail.messages);
+      if (stored && turn?.turn && turn.id === stored.messageId) setReview(startReview(turn.id, turn.turn, next, stored));
+    }
+  }, [clearHistory, detail, isDirty, recordTurn, resetAutosave, resourceId]);
+
+  const pendingReview = useMemo(() => pendingMarks(review, doc), [doc, review]);
+  const marks = useMemo(() => new Map(pendingReview.map(mark => [mark.id, mark.kind])), [pendingReview]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      if (review) window.sessionStorage.setItem(reviewKey(resourceId), JSON.stringify(storeReview(review, doc, pendingReview)));
+      else window.sessionStorage.removeItem(reviewKey(resourceId));
+    } catch {
+      // Sin almacenamiento de sesión, las marcas duran hasta recargar
+    }
+  }, [doc, loaded, pendingReview, resourceId, review]);
 
   // Un aviso por causa, no uno por intento: los reintentos no cambian el estado
   const previousSave = useRef<SaveState>(saveState);
@@ -264,8 +335,10 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
           break;
         case "doc":
           setPreview(null);
-          setDoc(event.doc);
-          clearHistory();
+          // Los bloques que no cambian conservan su objeto: no se vuelven a dibujar con cada paso de la IA
+          setDoc(current => reuseUnchanged(current, event.doc));
+          // El turno que pidió esta ventana se registra al terminar; uno que llega de fuera invalida el historial
+          if (!turnBase.current) clearHistory();
           break;
         case "done":
           finishTurn(event);
@@ -287,7 +360,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
 
   const stepHistory = useCallback(
     (command: "undo" | "redo") => {
-      if (workingRef.current) return;
+      if (workingRef.current || undoingTurnRef.current) return;
       const current = docRef.current;
       const next = command === "undo" ? popUndo(current) : popRedo(current);
       if (!next) return;
@@ -349,6 +422,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
       resetAutosave(fresh.data.doc, fresh.data.version);
       setDoc(fresh.data.doc);
       clearHistory();
+      setReview(null);
       setConflictOpen(false);
       toast.success("Cargaste la versión más reciente.", { id: SAVE_TOAST });
     } catch {
@@ -385,9 +459,18 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
         explainUnsaved("escribirle al asistente");
         throw new Error("unsaved");
       }
+      // Solo viajan los bloques señalados que siguen en la hoja
+      const sent = attachedRef.current.flatMap(id => findBlock(docRef.current, id)?.block ?? []).slice(0, ATTACH_MAX).map(describeAttachment);
+      setPendingAttachments(sent);
       setPendingMessage(message);
       try {
-        await sendMessage({ role, id: resourceId, message });
+        await sendMessage({ role, id: resourceId, message, blockIds: sent.map(attachment => attachment.id) });
+        // Al terminar el turno, este documento entra al historial como el paso anterior
+        turnBase.current = docRef.current;
+        setAttached([]);
+        // Las marcas del turno anterior ya cumplieron: empieza otro
+        setReview(null);
+        toast.dismiss(TURN_TOAST);
         setStreamFailed(false);
         setLive({ phase: "thinking", text: "", activities: [] });
         setRunning(true);
@@ -407,6 +490,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
       setDoc(restored.doc);
       resetAutosave(restored.doc, restored.version);
       clearHistory();
+      setReview(null);
       toast.success("Versión restaurada.");
       void detailQuery.refetch();
     } catch (error) {
@@ -475,8 +559,113 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     // El mensaje recién enviado se muestra de inmediato, hasta que llega guardado desde el servidor
     const last = saved[saved.length - 1];
     if (!pendingMessage || (last?.role === "user" && last.content === pendingMessage)) return saved;
-    return [...saved, { id: -1, role: "user", content: pendingMessage, activity: [], createdAt: new Date() }];
-  }, [detail?.messages, pendingMessage]);
+    return [...saved, { id: -1, role: "user", content: pendingMessage, activity: [], attachments: pendingAttachments, createdAt: new Date() }];
+  }, [detail?.messages, pendingAttachments, pendingMessage]);
+
+  // Solo cuentan los bloques señalados que siguen en la hoja: uno borrado deja de mostrarse y de viajar
+  const attachments = useMemo(
+    () =>
+      attached.flatMap(id => {
+        const found = findBlock(doc, id);
+        return found ? [describeAttachment(found.block)] : [];
+      }),
+    [attached, doc],
+  );
+  const attachedIds = useMemo(() => new Set(attachments.map(attachment => attachment.id)), [attachments]);
+
+  const toggleAttach = useCallback((blockId: string) => {
+    const current = attachedRef.current.filter(id => findBlock(docRef.current, id) !== null);
+    if (current.includes(blockId)) {
+      setAttached(current.filter(id => id !== blockId));
+      return;
+    }
+    if (current.length >= ATTACH_MAX) {
+      toast.error(`Puedes señalar hasta ${ATTACH_MAX} bloques por mensaje.`, { id: ATTACH_TOAST });
+      return;
+    }
+    setAttached([...current, blockId]);
+    setAttachCount(count => count + 1);
+    // En pantalla angosta el chat no está a la vista: se dice dónde quedó
+    if (narrowRef.current) toast("Bloque señalado para el asistente.", { id: ATTACH_TOAST, action: { label: "Abrir asistente", onClick: () => setPane("chat") } });
+  }, []);
+
+  /** Desde una ficha del chat o desde el resumen del turno: la hoja va hasta el bloque y lo destaca. */
+  const reveal = useCallback((target: RevealTarget) => {
+    const run = () => {
+      if (!revealTarget(target)) toast("Eso ya no está en el recurso.", { id: "crt-reveal" });
+    };
+    if (!narrowRef.current) return run();
+    // En pantalla angosta la hoja se monta al cambiar de panel
+    setPane("doc");
+    window.requestAnimationFrame(() => window.requestAnimationFrame(run));
+  }, []);
+
+  /**
+   * Deshace un turno de la IA. Si es el último paso del historial de esta ventana, es lo mismo que Ctrl+Z.
+   * Si no (se recargó la página o hubo ediciones después), el servidor devuelve la versión anterior al turno.
+   */
+  const undoTurn = useCallback(
+    async (messageId: number, force = false) => {
+      if (workingRef.current || undoingTurnRef.current) return;
+      if (sheetRef.current && !sheetRef.current.settle()) {
+        toast.error("Hay un bloque abierto con un dato por corregir. Corrígelo o descarta el cambio antes de deshacer.");
+        return;
+      }
+      const turn = lastTurnRef.current?.messageId === messageId ? lastTurnRef.current : null;
+      if (!force && turn?.before && docRef.current === turn.after && peekHistory() === turn.before) {
+        const before = turn.before;
+        stepHistory("undo");
+        toast("Se deshizo lo que hizo la IA.", { id: TURN_TOAST, action: { label: "Rehacer", onClick: () => docRef.current === before && stepHistory("redo") } });
+        return;
+      }
+
+      undoingTurnRef.current = true;
+      setUndoingTurn(true);
+      try {
+        // Lo de ahora se guarda antes de volver atrás: lo que se deshace siempre queda en «Versiones»
+        if (!(await flushAutosave())) {
+          explainUnsaved("deshacer lo que hizo la IA");
+          return;
+        }
+        const result = await requestTurnUndo({ role, id: resourceId, messageId, ...(force ? { force } : {}) });
+        if (result.status !== "undone") {
+          // El recurso cambió después de esa respuesta: deshacerla se lleva también esos cambios, y eso lo decide el docente
+          if (result.status === "confirm") setConfirmUndo(messageId);
+          else toast("El recurso ya está como antes de esa respuesta.", { id: TURN_TOAST });
+          return;
+        }
+        const current = docRef.current;
+        const next = reuseUnchanged(current, result.doc);
+        // Lo que se deja atrás queda a un Ctrl+Z de distancia
+        recordHistory(current);
+        docRef.current = next;
+        setDoc(next);
+        resetAutosave(next, result.version);
+        setLastTurn({ messageId, before: next, after: turn?.after ?? current });
+        toast.dismiss(DELETE_TOAST);
+        toast.success("El recurso volvió a como estaba antes de esa respuesta.", { id: TURN_TOAST });
+        revealChange(locateChange(current, next));
+      } catch (error) {
+        toast.error(errorMessage(error, "No pudimos deshacer ese cambio."), { id: TURN_TOAST });
+      } finally {
+        undoingTurnRef.current = false;
+        setUndoingTurn(false);
+      }
+    },
+    [explainUnsaved, flushAutosave, peekHistory, recordHistory, requestTurnUndo, resetAutosave, resourceId, role, stepHistory],
+  );
+
+  const turnMessage = useMemo(() => lastTurnMessage(messages), [messages]);
+
+  // Las sugerencias las propone la IA al cerrar su última respuesta; si no trajo ninguna, quedan las de siempre
+  const suggestions = useMemo(() => {
+    if (doc.sections.length === 0) return [];
+    for (let index = messages.length - 1; index >= 0; index--) {
+      const message = messages[index];
+      if (message.role === "assistant") return message.suggestions?.length ? message.suggestions : SUGGESTIONS;
+    }
+    return SUGGESTIONS;
+  }, [doc.sections.length, messages]);
 
   if (detailQuery.isError && !detail) {
     return (
@@ -510,10 +699,31 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
       <Check aria-hidden="true" />
     );
 
-  const chat = <CreatorChat messages={messages} live={working ? (live ?? { phase: "thinking", text: "", activities: [] }) : null} blocked={blocked} suggestions={doc.sections.length > 0 ? SUGGESTIONS : []} onSend={handleSend} />;
+  // El turno está deshecho si la hoja muestra el documento de antes de él, o uno anterior (rehacer traería de vuelta lo que dejó la IA)
+  const turnUndone = turnMessage !== null && lastTurn?.messageId === turnMessage.id && (lastTurn.before === doc || isAhead(lastTurn.after));
+  const undoable = turnMessage && !working ? { messageId: turnMessage.id, undone: turnUndone, busy: undoingTurn } : null;
+  // El próximo «deshacer» de la barra se lleva el turno entero de la IA: se dice en el botón
+  const undoIsTurn = history.canUndo && lastTurn !== null && lastTurn.before !== null && doc === lastTurn.after && peekHistory() === lastTurn.before;
+  const reviewVisible = loaded && !working && isReviewVisible(review, doc, pendingReview);
+
+  const chat = (
+    <CreatorChat
+      messages={messages}
+      live={working ? (live ?? { phase: "thinking", text: "", activities: [] }) : null}
+      blocked={blocked}
+      suggestions={suggestions}
+      attachments={attachments}
+      focusSignal={attachCount}
+      onDetach={toggleAttach}
+      onReveal={reveal}
+      undoable={undoable}
+      onUndoTurn={messageId => void undoTurn(messageId)}
+      onSend={handleSend}
+    />
+  );
 
   const sheet = (
-    <div className="crt-stage">
+    <div className={reviewVisible ? "crt-stage has-review" : "crt-stage"}>
       {doc.sections.length > 1 && (
         <nav className="crt-outline" aria-label="Secciones del recurso">
           {doc.sections.map(section => (
@@ -522,6 +732,17 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
             </button>
           ))}
         </nav>
+      )}
+      {reviewVisible && review && (
+        <TurnReviewBar
+          key={review.messageId}
+          summary={describeTurn(review.changes)}
+          pending={pendingReview}
+          undoing={undoingTurn}
+          onReveal={blockId => reveal({ blockIds: [blockId] })}
+          onUndo={() => void undoTurn(review.messageId)}
+          onSeen={() => setReview(null)}
+        />
       )}
       {detail?.status === "error" && detail.errorMessage && !working && (
         <p className="crt-notice crt-notice--error" role="alert">
@@ -537,7 +758,21 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
           </div>
         </div>
       ) : (
-        <EditableDocument ref={sheetRef} doc={doc} readOnly={working} applyOp={applyOp} schoolName={schoolName} logoUrl={logoUrl} preview={preview} working={working} />
+        <EditableDocument
+          ref={sheetRef}
+          doc={doc}
+          // Mientras el servidor deshace un turno la hoja espera: lo que se editara en ese instante se perdería
+          readOnly={working || undoingTurn}
+          applyOp={applyOp}
+          schoolName={schoolName}
+          logoUrl={logoUrl}
+          preview={preview}
+          working={working}
+          attachedIds={attachedIds}
+          onToggleAttach={blocked ? undefined : toggleAttach}
+          marks={marks}
+          onAcceptMark={blockId => setReview(current => current && acceptMark(current, blockId))}
+        />
       )}
     </div>
   );
@@ -562,10 +797,10 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
           </button>
         )}
         <div className="crt-bar__actions" role="group" aria-label="Historial de cambios">
-          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || !history.canUndo} aria-label="Deshacer" title={`Deshacer (${UNDO_HINT})`} onClick={undo}>
+          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || undoingTurn || !history.canUndo} aria-label="Deshacer" title={undoIsTurn ? `Deshacer lo que hizo la IA (${UNDO_HINT})` : `Deshacer (${UNDO_HINT})`} onClick={undo}>
             <Undo2 aria-hidden="true" />
           </button>
-          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || !history.canRedo} aria-label="Rehacer" title={`Rehacer (${REDO_HINT})`} onClick={redo}>
+          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || undoingTurn || !history.canRedo} aria-label="Rehacer" title={`Rehacer (${REDO_HINT})`} onClick={redo}>
             <Redo2 aria-hidden="true" />
           </button>
         </div>
@@ -574,6 +809,11 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
             <button type="button" className="crt-btn crt-btn--outline" aria-pressed={pane === "chat"} onClick={() => setPane(current => (current === "chat" ? "doc" : "chat"))}>
               <MessageSquare aria-hidden="true" />
               {pane === "chat" ? "Ver recurso" : "Asistente"}
+              {pane !== "chat" && attachments.length > 0 && (
+                <span className="crt-count" aria-label={`${attachments.length} ${attachments.length === 1 ? "bloque señalado" : "bloques señalados"}`}>
+                  {attachments.length}
+                </span>
+              )}
             </button>
           )}
           {shell && (
@@ -680,6 +920,29 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
               }}
             >
               Conservar la mía
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmUndo !== null} onOpenChange={open => !open && setConfirmUndo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>El recurso cambió después de esa respuesta</AlertDialogTitle>
+            <AlertDialogDescription>
+              Si la deshaces, el recurso vuelve a como estaba justo antes de ella y los cambios posteriores también se van. Lo que tienes ahora queda guardado en «Versiones».
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Dejarlo como está</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const messageId = confirmUndo;
+                setConfirmUndo(null);
+                if (messageId !== null) void undoTurn(messageId, true);
+              }}
+            >
+              Deshacer de todos modos
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

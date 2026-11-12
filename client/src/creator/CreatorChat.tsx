@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { ArrowUp, Check, Loader2, Minus, Sparkles, TriangleAlert } from "lucide-react";
-import { CREATOR_LIMITS, type CreatorActivity, type CreatorChatMessage } from "@shared/creator";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { ArrowUp, ArrowUpRight, Check, Loader2, Minus, Sparkles, TriangleAlert, Undo2, X } from "lucide-react";
+import { BLOCK_TYPE_LABELS, CREATOR_LIMITS, type CreatorActivity, type CreatorAttachment, type CreatorChatMessage } from "@shared/creator";
 import { RichText } from "./blocks/RichText";
+import type { RevealTarget } from "./reveal";
 
 export interface LiveTurn {
   phase: "thinking" | "writing";
@@ -16,33 +17,87 @@ interface CreatorChatProps {
   /** Por qué no se puede escribir a la IA (sin clave, límite diario…); null si se puede. */
   blocked: string | null;
   suggestions: string[];
+  /** Bloques que el docente señaló en la hoja para su próximo mensaje. */
+  attachments: CreatorAttachment[];
+  /** Cambia cada vez que el docente señala un bloque: el cursor pasa al cuadro de escritura. */
+  focusSignal: number;
+  onDetach: (blockId: string) => void;
+  onReveal: (target: RevealTarget) => void;
+  /** La respuesta de la IA que se puede deshacer desde aquí, y si ya se deshizo. */
+  undoable: { messageId: number; undone: boolean; busy: boolean } | null;
+  onUndoTurn: (messageId: number) => void;
   onSend: (message: string) => Promise<void>;
 }
 
-function ActivityList({ activities }: { activities: CreatorActivity[] }) {
+function ActivityList({ activities, onReveal }: { activities: CreatorActivity[]; onReveal: (target: RevealTarget) => void }) {
   if (activities.length === 0) return null;
   return (
     <ul className="crt-chat__activity">
-      {activities.map((activity, index) => (
-        <li key={index} className={activity.ok ? (activity.changed ? "is-changed" : "is-same") : "is-error"}>
-          {activity.ok ? activity.changed ? <Check aria-hidden="true" /> : <Minus aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />}
-          <span>{activity.label}</span>
-        </li>
-      ))}
+      {activities.map((activity, index) => {
+        const tone = activity.ok ? (activity.changed ? "is-changed" : "is-same") : "is-error";
+        const icon = activity.ok ? activity.changed ? <Check aria-hidden="true" /> : <Minus aria-hidden="true" /> : <TriangleAlert aria-hidden="true" />;
+        // La ficha de algo que quedó en la hoja lleva hasta allí
+        const linked = activity.changed && Boolean(activity.blockIds?.length || activity.sectionId);
+        return linked ? (
+          <li key={index} className={`${tone} is-link`}>
+            <button type="button" title="Ver en la hoja" onClick={() => onReveal(activity)}>
+              {icon}
+              <span>{activity.label}</span>
+              <ArrowUpRight className="crt-chat__go" aria-hidden="true" />
+            </button>
+          </li>
+        ) : (
+          <li key={index} className={tone}>
+            {icon}
+            <span>{activity.label}</span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
-/** Conversación con la IA sobre el recurso abierto. Cada respuesta dice exactamente qué cambió en el documento. */
-export function CreatorChat({ messages, live, blocked, suggestions, onSend }: CreatorChatProps) {
+/** Un bloque señalado: su tipo y un fragmento. Lleva a él en la hoja; en el cuadro de escritura además se puede quitar. */
+function BlockRef({ attachment, onReveal, onRemove }: { attachment: CreatorAttachment; onReveal: (target: RevealTarget) => void; onRemove?: () => void }) {
+  const type = BLOCK_TYPE_LABELS[attachment.type];
+  // Un ejercicio ya empieza por su rótulo («Ejercicio 2. …»): ese rótulo hace de tipo, sin repetirlo
+  const own = attachment.preview.startsWith(type) ? /^([^.:]{1,28})[.:]\s+(.+)$/.exec(attachment.preview) : null;
+  const head = own ? own[1] : type;
+  const text = own ? own[2] : attachment.preview === type ? "" : attachment.preview;
+  return (
+    <span className="crt-ref">
+      <button type="button" className="crt-ref__main" title="Ver en la hoja" onClick={() => onReveal({ blockIds: [attachment.id] })}>
+        <span className="crt-ref__type">{head}</span>
+        {text && <span className="crt-ref__text">{text}</span>}
+      </button>
+      {onRemove && (
+        <button type="button" className="crt-ref__remove" aria-label={`Quitar del mensaje: ${type}`} title="Quitar" onClick={onRemove}>
+          <X aria-hidden="true" />
+        </button>
+      )}
+    </span>
+  );
+}
+
+/** Conversación con la IA sobre el recurso abierto. Cada respuesta dice qué cambió en el documento, lleva hasta el cambio y lo deja deshacer. */
+export function CreatorChat({ messages, live, blocked, suggestions, attachments, focusSignal, onDetach, onReveal, undoable, onUndoTurn, onSend }: CreatorChatProps) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const busy = sending || live !== null;
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length, live?.text, live?.activities.length, live?.phase]);
+
+  // Señalar un bloque es empezar a escribirle al asistente: el cursor pasa al cuadro. Solo entonces:
+  // una ficha que reaparece al deshacer un borrado no se lleva el foco de la hoja.
+  const seenSignal = useRef(focusSignal);
+  useEffect(() => {
+    if (focusSignal !== seenSignal.current) inputRef.current?.focus({ preventScroll: true });
+    seenSignal.current = focusSignal;
+  }, [focusSignal]);
 
   const send = async (text: string) => {
     const message = text.trim();
@@ -67,17 +122,40 @@ export function CreatorChat({ messages, live, blocked, suggestions, onSend }: Cr
 
       <div className="crt-chat__list" role="log" aria-live="polite">
         {messages.length === 0 && !live && (
-          <p className="crt-chat__empty">Pídele cambios al asistente: «añade dos ejercicios de contexto», «haz más fácil el ejercicio 3», «agrega la gráfica al ejercicio 6».</p>
+          <p className="crt-chat__empty">
+            Pídele cambios al asistente: «añade dos ejercicios de contexto», «agrega la gráfica al ejercicio 6». Para que trabaje sobre un bloque concreto, señálalo en la hoja con «Llevar al chat».
+          </p>
         )}
         {messages.map(message => (
-          <div key={message.id} className={`crt-chat__msg crt-chat__msg--${message.role}`}>
-            {message.role === "assistant" && <ActivityList activities={message.activity} />}
-            {message.role === "assistant" ? <RichText md={message.content} /> : <p>{message.content}</p>}
-          </div>
+          <Fragment key={message.id}>
+            {message.role === "user" && message.attachments && message.attachments.length > 0 && (
+              <div className="crt-chat__refs" aria-label="Bloques señalados en este mensaje">
+                {message.attachments.map(attachment => (
+                  <BlockRef key={attachment.id} attachment={attachment} onReveal={onReveal} />
+                ))}
+              </div>
+            )}
+            <div className={`crt-chat__msg crt-chat__msg--${message.role}`}>
+              {message.role === "assistant" && <ActivityList activities={message.activity} onReveal={onReveal} />}
+              {message.role === "assistant" ? <RichText md={message.content} /> : <p>{message.content}</p>}
+              {undoable?.messageId === message.id &&
+                (undoable.undone ? (
+                  <span className="crt-chat__undone">
+                    <Undo2 aria-hidden="true" />
+                    Cambios deshechos
+                  </span>
+                ) : (
+                  <button type="button" className="crt-chat__undo" disabled={undoable.busy} title="El recurso vuelve a como estaba antes de esta respuesta" onClick={() => onUndoTurn(message.id)}>
+                    {undoable.busy ? <Loader2 className="crt-spin" aria-hidden="true" /> : <Undo2 aria-hidden="true" />}
+                    Deshacer estos cambios
+                  </button>
+                ))}
+            </div>
+          </Fragment>
         ))}
         {live && (
           <div className="crt-chat__msg crt-chat__msg--assistant" aria-busy="true">
-            <ActivityList activities={live.activities} />
+            <ActivityList activities={live.activities} onReveal={onReveal} />
             {live.text && <RichText md={live.text} />}
             <span className="crt-chat__working">
               <Loader2 className="crt-spin" aria-hidden="true" />
@@ -107,24 +185,34 @@ export function CreatorChat({ messages, live, blocked, suggestions, onSend }: Cr
       >
         {blocked && <p className="crt-chat__blocked">{blocked}</p>}
         <div className="crt-chat__input">
-          <textarea
-            aria-label="Mensaje para el asistente"
-            rows={2}
-            maxLength={CREATOR_LIMITS.messageMax}
-            placeholder={blocked ? "El asistente no está disponible" : "Pide un cambio…"}
-            value={draft}
-            disabled={Boolean(blocked)}
-            onChange={event => setDraft(event.target.value)}
-            onKeyDown={event => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                void send(draft);
-              }
-            }}
-          />
-          <button type="submit" className="crt-chat__send" aria-label="Enviar mensaje" disabled={busy || Boolean(blocked) || draft.trim().length < 2}>
-            {busy ? <Loader2 className="crt-spin" aria-hidden="true" /> : <ArrowUp aria-hidden="true" />}
-          </button>
+          {attachments.length > 0 && (
+            <div className="crt-chat__attached" role="group" aria-label="Bloques señalados para este mensaje">
+              {attachments.map(attachment => (
+                <BlockRef key={attachment.id} attachment={attachment} onReveal={onReveal} onRemove={() => onDetach(attachment.id)} />
+              ))}
+            </div>
+          )}
+          <div className="crt-chat__entry">
+            <textarea
+              ref={inputRef}
+              aria-label="Mensaje para el asistente"
+              rows={2}
+              maxLength={CREATOR_LIMITS.messageMax}
+              placeholder={blocked ? "El asistente no está disponible" : attachments.length > 0 ? (attachments.length === 1 ? "¿Qué quieres cambiar en este bloque?" : "¿Qué quieres cambiar en estos bloques?") : "Pide un cambio…"}
+              value={draft}
+              disabled={Boolean(blocked)}
+              onChange={event => setDraft(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  void send(draft);
+                }
+              }}
+            />
+            <button type="submit" className="crt-chat__send" aria-label="Enviar mensaje" disabled={busy || Boolean(blocked) || draft.trim().length < 2}>
+              {busy ? <Loader2 className="crt-spin" aria-hidden="true" /> : <ArrowUp aria-hidden="true" />}
+            </button>
+          </div>
         </div>
       </form>
     </aside>

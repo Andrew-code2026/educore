@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { ResourceDoc } from "@shared/creator";
+import { countBlocks, type ResourceDoc } from "@shared/creator";
 import type { DocOp } from "@shared/creatorOps";
+import { reuseUnchanged } from "@shared/creatorTurn";
 
 /**
  * Deshacer y rehacer de todo el documento. Cada paso guarda el documento completo, que es
@@ -55,6 +56,25 @@ export function redoStep(history: DocHistory, current: ResourceDoc, at = 0): { h
   const next = history.future[history.future.length - 1];
   if (!next) return null;
   return { doc: next.doc, history: { past: [...history.past, { doc: current, at }], future: history.future.slice(0, -1) } };
+}
+
+/** El documento al que volvería el próximo «deshacer», sin sacarlo de la pila. */
+export const peekUndo = (history: DocHistory): ResourceDoc | null => history.past[history.past.length - 1]?.doc ?? null;
+
+/**
+ * Al terminar un turno de la IA, el documento de antes entra al historial como un solo paso: deshacer
+ * devuelve la hoja a como estaba antes del turno, por muchas operaciones que haya hecho la IA.
+ * `after` llega del servidor como copia nueva; se devuelve con los objetos de `before` en lo que no
+ * cambió, y si no cambió nada el historial queda igual.
+ *
+ * Un recurso que la IA escribió desde cero no deja paso: deshacer lo vaciaría, y para eso no hay
+ * un «antes» al que tenga sentido volver (el servidor tampoco lo ofrece).
+ */
+export function recordTurn(history: DocHistory, before: ResourceDoc, after: ResourceDoc, at: number): { history: DocHistory; doc: ResourceDoc } {
+  const doc = reuseUnchanged(before, after);
+  if (doc === before) return { history, doc };
+  if (countBlocks(before) === 0) return { history: emptyHistory, doc };
+  return { doc, history: recordStep(history, before, { at }) };
 }
 
 /** Dónde quedó el cambio entre dos documentos, medido en `to`. `sectionId: null` es el título; `blockId: null`, la sección entera. */
@@ -123,5 +143,20 @@ export function useDocHistory() {
 
   const clear = useCallback(() => commit(emptyHistory), [commit]);
 
-  return useMemo(() => ({ canUndo: sizes.past > 0, canRedo: sizes.future > 0, record, undo, redo, clear }), [clear, record, redo, sizes, undo]);
+  /** Registra un turno de la IA como un paso y devuelve el documento que debe mostrarse. */
+  const turn = useCallback(
+    (before: ResourceDoc, after: ResourceDoc) => {
+      const result = recordTurn(history.current, before, after, Date.now());
+      commit(result.history);
+      return result.doc;
+    },
+    [commit],
+  );
+
+  const peek = useCallback(() => peekUndo(history.current), []);
+
+  /** ¿Se llegaría a este documento rehaciendo? Es decir: ya se deshizo más allá de él. */
+  const ahead = useCallback((doc: ResourceDoc) => history.current.future.some(step => step.doc === doc), []);
+
+  return useMemo(() => ({ canUndo: sizes.past > 0, canRedo: sizes.future > 0, record, undo, redo, clear, turn, peek, ahead }), [ahead, clear, peek, record, redo, sizes, turn, undo]);
 }
