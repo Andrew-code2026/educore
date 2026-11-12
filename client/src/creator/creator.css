@@ -1146,6 +1146,7 @@
 .crt-rte__formula, .crt-rte__chip-wrap { position: relative; display: inline-block; }
 
 .crt-rte__chip {
+  display: inline-block;
   padding: 0 4px;
   border: 1px solid transparent;
   border-radius: 6px;
@@ -1173,6 +1174,12 @@
   border: 1px solid var(--sheet-hair);
   box-shadow: 0 16px 36px -14px rgba(17, 27, 36, .45);
   font-size: 13px;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-align: left;
+  color: var(--sheet-ink);
   white-space: normal;
 }
 
@@ -1180,6 +1187,105 @@
 .crt-rte__popover-label { font-size: 12px; font-weight: 500; color: var(--sheet-muted); }
 .crt-rte__popover-preview { min-height: 28px; display: flex; align-items: center; overflow-x: auto; }
 .crt-rte__popover-error { color: #B42343; font-size: 12.5px; }
+
+/* Edición en sitio: el texto se edita donde está, con la letra, los márgenes y el ancho de la vista.
+   Nada de lo que sigue puede ocupar sitio en el flujo: el bloque siguiente no se mueve al entrar. */
+
+.crt-block.is-inplace { outline: 1.5px solid var(--sheet-accent-line); cursor: text; }
+
+.crt-inplace__field { position: relative; outline: none; }
+/* Dentro de un recuadro, cada campo repite su fondo. Chrome solo suaviza la letra por subpíxel sobre un fondo
+   opaco que conoce; sin esto la letra del recuadro cambia de aspecto mientras se edita. */
+.crt-callout > :is(.crt-inplace__field, .crt-inplace__plain) { background-color: inherit; }
+.crt-inplace__field[data-placeholder]:has(> p:only-child > br:only-child)::before { content: attr(data-placeholder); position: absolute; top: 0; left: 0; color: #8A929B; font-weight: 400; pointer-events: none; }
+/* El rótulo del ejercicio va delante del enunciado, en su mismo renglón */
+.crt-inplace__labelled > p:first-child::before { content: var(--crt-label); font-weight: 600; margin-right: var(--crt-label-gap, 0px); }
+.crt-exercise__parts .crt-inplace__field, .crt-solution__answer .crt-inplace__field { flex: 1; min-width: 0; }
+
+/* Títulos y rótulos sin formato: el mismo elemento de la vista, vuelto editable */
+.crt-inplace__plain { outline: none; white-space: pre-wrap; }
+.crt-inplace__plain:empty::before { content: attr(data-placeholder); color: #8A929B; font-weight: 400; }
+
+/* Las fórmulas se ven como en la hoja: KaTeX en el renglón, sin ficha */
+.crt-inplace :is(.crt-rte__formula, .crt-rte__chip-wrap, .crt-rte__chip) { display: inline; }
+.crt-inplace .crt-rte__chip { padding: 0; border: 0; border-radius: 4px; background: none; }
+.crt-inplace .crt-rte__chip:hover { background: var(--sheet-accent-soft); box-shadow: 0 0 0 2px var(--sheet-accent-soft); }
+.crt-inplace .crt-rte__formula--display, .crt-inplace .crt-rte__formula--display :is(.crt-rte__chip-wrap, .crt-rte__chip) { display: block; }
+/* El editor cierra con un salto de línea el párrafo que termina en fórmula; tras una destacada sería un renglón de más */
+.crt-inplace .crt-rte__formula--display + br { display: none; }
+
+/* Barra de formato: una sola, flotando sobre el bloque que se edita. El ancla mide cero de alto y es
+   pegajosa, así la barra sigue a la vista cuando el principio de un bloque largo sale por arriba. */
+.crt-inplace__anchor { position: sticky; top: 36px; z-index: 3; height: 0; }
+
+.crt-inplace__bar {
+  position: absolute;
+  bottom: 10px;
+  left: -7px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  width: max-content;
+  /* Puede asomar al margen derecho de la hoja: mientras se edita, ahí no hay barra de acciones */
+  max-width: calc(100% + 50px);
+  padding: 3px 4px;
+  border-radius: 12px;
+  background: #FFFFFF;
+  border: 1px solid var(--sheet-hair);
+  box-shadow: 0 8px 20px -10px rgba(17, 27, 36, .45);
+  color: var(--sheet-ink-2);
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: normal;
+  cursor: default;
+  animation: crt-tools-in .12s ease both;
+}
+
+.crt-inplace__bar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sheet-ink-2);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color .12s ease, color .12s ease;
+}
+
+.crt-inplace__bar button svg { width: 14px; height: 14px; }
+.crt-inplace__bar button:hover:not(:disabled), .crt-inplace__bar button[aria-pressed="true"] { background: var(--sheet-accent-soft); color: var(--sheet-accent); }
+.crt-inplace__bar button.is-danger:hover:not(:disabled) { background: #FDEEF1; color: #B42343; }
+.crt-inplace__bar button:disabled { opacity: .35; cursor: default; }
+.crt-inplace__sep { flex: none; width: 1px; height: 16px; margin: 0 4px; background: var(--sheet-hair); }
+.crt-inplace__seg { display: inline-flex; gap: 1px; }
+.crt-inplace__opt { display: inline-flex; align-items: center; gap: 5px; padding: 0 3px; color: var(--sheet-muted); font-weight: 500; white-space: nowrap; }
+
+.crt-inplace__opt :is(select, input) {
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--sheet-hair);
+  border-radius: 7px;
+  background: #FFFFFF;
+  color: var(--sheet-ink);
+  font: inherit;
+}
+
+.crt-inplace__opt input[type="text"] { width: 104px; }
+.crt-inplace__opt input[type="number"] { width: 50px; }
+
+/* Lo que no valida deja el editor abierto, con el aviso debajo y lo escrito intacto */
+.crt-inplace__issues { margin-top: 8px; padding: 9px 12px; border-radius: 10px; background: #FDEEF1; color: #B42343; font-size: 13px; font-weight: 400; line-height: 1.4; cursor: default; }
+.crt-inplace__issues ul { margin: 0 0 4px; padding-left: 16px; list-style: disc; }
+.crt-inplace__discard { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
 
 /* ── Pantallas angostas ────────────────────────────────── */
 
@@ -1196,8 +1302,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .crt .crt-idea:hover, .crt .crt-card:hover { transform: none; }
-  .crt-block__tools { animation: none; }
-  .crt-block.is-editable, .crt-block__tools button { transition: none; }
+  .crt-block__tools, .crt-inplace__bar { animation: none; }
+  .crt-block.is-editable, .crt-block__tools button, .crt-inplace__bar button { transition: none; }
 }
 
 /* ── Copia para imprimir o guardar en PDF ──────────────── */

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 import { LexicalComposer, type InitialConfigType } from "@lexical/react/LexicalComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
@@ -33,6 +33,7 @@ import {
   FORMAT_TEXT_COMMAND,
   type EditorState,
   type ElementNode,
+  type LexicalEditor,
   type LexicalNode,
   type NodeKey,
   type SerializedLexicalNode,
@@ -46,6 +47,12 @@ import { parseMd, serializeMd, type Inline, type MdBlock } from "./mdModel";
 /* ───────────────────────── Nodo de fórmula ───────────────────────── */
 
 type SerializedFormulaNode = Spread<{ latex: string; display: boolean }, SerializedLexicalNode>;
+
+/**
+ * Verdadero dentro del editor en sitio: la fórmula se dibuja igual que en la hoja (sin ficha,
+ * y la destacada en su propia línea) para que el texto no cambie de forma al editarlo.
+ */
+export const InPlaceContext = createContext(false);
 
 /** Fórmulas recién insertadas desde la barra: abren su editor al aparecer. */
 const openOnMount = new Set<NodeKey>();
@@ -79,7 +86,7 @@ export class FormulaNode extends DecoratorNode<ReactNode> {
 
   createDOM(): HTMLElement {
     const element = document.createElement("span");
-    element.className = "crt-rte__formula";
+    element.className = this.__display ? "crt-rte__formula crt-rte__formula--display" : "crt-rte__formula";
     return element;
   }
 
@@ -108,17 +115,19 @@ export class FormulaNode extends DecoratorNode<ReactNode> {
   }
 
   decorate(): ReactNode {
-    return <FormulaChip nodeKey={this.__key} latex={this.__latex} />;
+    return <FormulaChip nodeKey={this.__key} latex={this.__latex} display={this.__display} />;
   }
 }
 
 const $isFormulaNode = (node: LexicalNode | null | undefined): node is FormulaNode => node instanceof FormulaNode;
 
-function FormulaChip({ nodeKey, latex }: { nodeKey: NodeKey; latex: string }) {
+function FormulaChip({ nodeKey, latex, display }: { nodeKey: NodeKey; latex: string; display: boolean }) {
   const [editor] = useLexicalComposerContext();
+  const inPlace = useContext(InPlaceContext);
   const [open, setOpen] = useState(() => openOnMount.delete(nodeKey));
   const [draft, setDraft] = useState(latex);
   const containerRef = useRef<HTMLSpanElement>(null);
+  const chipRef = useRef<HTMLSpanElement>(null);
   const error = draft.trim() ? checkLatex(draft) : null;
 
   useEffect(() => {
@@ -141,7 +150,7 @@ function FormulaChip({ nodeKey, latex }: { nodeKey: NodeKey; latex: string }) {
   useEffect(() => {
     if (!open) return;
     const chip = containerRef.current;
-    const host = chip?.closest(".crt-rte");
+    const host = chip?.closest(".crt-rte, .crt-inplace");
     if (chip && host) setAlignRight(host.getBoundingClientRect().right - chip.getBoundingClientRect().left < 348);
   }, [open]);
 
@@ -154,11 +163,27 @@ function FormulaChip({ nodeKey, latex }: { nodeKey: NodeKey; latex: string }) {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [commit, open]);
 
+  // Con el foco en la fórmula, Intro o Espacio abren su cuadro. El editor de texto escucha el teclado
+  // en su raíz, antes que React: la tecla se detiene aquí para que no parta el párrafo.
+  useEffect(() => {
+    const chip = chipRef.current;
+    if (!chip) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.target !== chip || (event.key !== "Enter" && event.key !== " ")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(true);
+    };
+    chip.addEventListener("keydown", onKeyDown);
+    return () => chip.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
     <span ref={containerRef} className="crt-rte__chip-wrap">
-      <button type="button" className="crt-rte__chip" aria-label={`Editar fórmula ${latex}`} onClick={() => setOpen(true)}>
-        {latex ? <Formula latex={latex} /> : <span className="crt-rte__chip-empty">fórmula</span>}
-      </button>
+      {/* Un <span> y no un <button>: en el editor en sitio la fórmula fluye con el renglón, como en la hoja */}
+      <span ref={chipRef} role="button" tabIndex={0} className="crt-rte__chip" aria-label={`Editar fórmula ${latex}`} onClick={() => setOpen(true)}>
+        {latex ? <Formula latex={latex} display={inPlace && display} /> : <span className="crt-rte__chip-empty">fórmula</span>}
+      </span>
       {open && (
         <span className={alignRight ? "crt-rte__popover crt-rte__popover--right" : "crt-rte__popover"} role="dialog" aria-label="Editar fórmula">
           <label className="crt-rte__popover-label" htmlFor={`formula-${nodeKey}`}>
@@ -205,7 +230,7 @@ function appendInlines(parent: ElementNode, inlines: Inline[]) {
   }
 }
 
-function $load(blocks: MdBlock[]) {
+export function $loadMd(blocks: MdBlock[]) {
   const root = $getRoot();
   root.clear();
   for (const block of blocks) {
@@ -247,7 +272,7 @@ function $inlines(node: ElementNode): Inline[] {
   return out;
 }
 
-function $read(): MdBlock[] {
+export function $readMd(): MdBlock[] {
   const blocks: MdBlock[] = [];
   for (const node of $getRoot().getChildren()) {
     if ($isListNode(node)) {
@@ -262,22 +287,23 @@ function $read(): MdBlock[] {
 
 /* ───────────────────────── Barra de formato ───────────────────────── */
 
+/** Inserta una fórmula vacía donde está el cursor y abre su cuadro para escribirla. */
+export function insertFormula(editor: LexicalEditor) {
+  editor.update(() => {
+    const node = new FormulaNode("");
+    openOnMount.add(node.getKey());
+    const selection = $getSelection();
+    if ($isRangeSelection(selection)) {
+      $insertNodes([node]);
+      return;
+    }
+    const last = $getRoot().getLastChild();
+    if ($isElementNode(last)) last.append(node);
+  });
+}
+
 function Toolbar() {
   const [editor] = useLexicalComposerContext();
-
-  const insertFormula = () => {
-    editor.update(() => {
-      const node = new FormulaNode("");
-      openOnMount.add(node.getKey());
-      const selection = $getSelection();
-      if ($isRangeSelection(selection)) {
-        $insertNodes([node]);
-        return;
-      }
-      const last = $getRoot().getLastChild();
-      if ($isElementNode(last)) last.append(node);
-    });
-  };
 
   // onMouseDown sin perder el foco: el formato se aplica sobre la selección actual
   const keepFocus = (event: React.MouseEvent) => event.preventDefault();
@@ -297,7 +323,7 @@ function Toolbar() {
         <ListOrdered aria-hidden="true" />
       </button>
       <span className="crt-rte__sep" aria-hidden="true" />
-      <button type="button" className="crt-rte__formula-btn" onMouseDown={keepFocus} onClick={insertFormula}>
+      <button type="button" className="crt-rte__formula-btn" onMouseDown={keepFocus} onClick={() => insertFormula(editor)}>
         <Sigma aria-hidden="true" />
         Fórmula
       </button>
@@ -332,13 +358,13 @@ export function RichTextEditor({ value, onChange, label, placeholder, autoFocus,
       namespace: "educore-creator",
       theme: THEME,
       nodes: [ListNode, ListItemNode, FormulaNode],
-      editorState: () => $load(parseMd(initial.current)),
+      editorState: () => $loadMd(parseMd(initial.current)),
       onError: error => console.error("[Creator] Error del editor de texto:", error),
     }),
     [],
   );
 
-  const handleChange = useCallback((state: EditorState) => state.read(() => onChange(serializeMd($read()))), [onChange]);
+  const handleChange = useCallback((state: EditorState) => state.read(() => onChange(serializeMd($readMd()))), [onChange]);
 
   return (
     <LexicalComposer initialConfig={config}>

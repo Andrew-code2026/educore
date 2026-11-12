@@ -19,7 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { trpc } from "@/lib/trpc";
 import { CreatorChat, type LiveTurn } from "./CreatorChat";
-import { EditableDocument } from "./EditableDocument";
+import { EditableDocument, type EditableDocumentHandle } from "./EditableDocument";
 import { ErrorCard, formatWhen } from "./parts";
 import { ResourceSheet } from "./ResourceSheet";
 import { useCreatorAutosave } from "./useCreatorAutosave";
@@ -77,6 +77,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [pane, setPane] = useState<"doc" | "chat">("doc");
   const narrow = useNarrow();
+  const sheetRef = useRef<EditableDocumentHandle>(null);
 
   // Modo enfoque: el mismo del resto de EduCore (oculta el menú y la barra superior de la app)
   const shell = useOptionalShellContext();
@@ -204,6 +205,11 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
 
   const handleSend = useCallback(
     async (message: string) => {
+      // Mientras la IA trabaja la hoja no se edita: lo que haya abierto se guarda antes, y si no es válido no se pierde
+      if (sheetRef.current && !sheetRef.current.settle()) {
+        toast.error("Hay un bloque abierto con un dato por corregir. Corrígelo o descarta el cambio antes de escribirle al asistente.");
+        throw new Error("editing");
+      }
       // La IA debe partir de lo último que escribió el docente
       if (!(await autosave.flush())) {
         toast.error("Guarda tus cambios antes de escribirle al asistente. Revisa la conexión.");
@@ -344,7 +350,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
           </div>
         </div>
       ) : (
-        <EditableDocument doc={doc} readOnly={working} applyOp={applyOp} schoolName={schoolName} logoUrl={logoUrl} preview={preview} working={working} />
+        <EditableDocument ref={sheetRef} doc={doc} readOnly={working} applyOp={applyOp} schoolName={schoolName} logoUrl={logoUrl} preview={preview} working={working} />
       )}
     </div>
   );
