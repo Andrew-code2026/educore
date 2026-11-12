@@ -22,7 +22,7 @@ import { fractionLatex, isMultipleOfFraction, niceMax, niceStep, pieAngles, poly
 import { buildSampleDoc, SAMPLE_IDS, SAMPLES } from "@shared/creatorSample";
 import { compileExpression, formatNumber, MathSyntaxError, nearlyEqual, parseExpression, sampleCurve, tryCompile } from "@shared/creatorMath";
 import { applyDocOp } from "@shared/creatorOps";
-import { checkLatex, computeValueTable, validateBlock, validateGraphSpec, validateText } from "@shared/creatorValidate";
+import { checkLatex, computeValueTable, findBareSubscript, validateBlock, validateBlockOrder, validateGraphSpec, validateText } from "@shared/creatorValidate";
 
 const block = (input: unknown): BlockInput => blockInputSchema.parse(input);
 
@@ -144,6 +144,31 @@ describe("validación de bloques", () => {
     expect(checkLatex("x = \\frac{-b \\pm \\sqrt{b^{2} - 4ac}}{2a}")).toBeNull();
     expect(checkLatex("\\frac{1}{")).toBeTruthy();
     expect(validateText("la raíz $\\frac{1}{$ falla", "Texto")).toHaveLength(1);
+  });
+
+  it("detecta subíndices escritos sin guion bajo", () => {
+    expect(findBareSubscript("(x1, y1)")).toBe("x1");
+    expect(findBareSubscript("m = \\frac{y2 - y1}{x2 - x1}")).toBe("y2");
+    expect(findBareSubscript("a10 + 3")).toBe("a10");
+    for (const fine of ["(x_1, y_1)", "y = 2x - 1", "C(d) = 4500 + 1800d", "x^2 - 4x + 3", "\\log 2", "\\sqrt2", "\\text{paso 1}", "3 \\times 2", "m = \\frac{10 - 4}{3 - 1}", "\\text{CO}_2", "x_{12}"]) {
+      expect(findBareSubscript(fine), fine).toBeNull();
+    }
+    const issues = validateText("Si conoces dos puntos $(x1, y1)$ y $(x_2, y_2)$", "Texto");
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain("x_1");
+    expect(validateBlock(block({ type: "math", latex: "m = \\frac{y2 - y1}{x2 - x1}" }))).toHaveLength(1);
+  });
+
+  it("avisa cuando el espacio de respuesta queda antes de la figura", () => {
+    const graph = { type: "graph", spec: { xMin: -2, xMax: 4, yMin: -4, yMax: 8, functions: [{ expr: "-2*x + 4" }], points: [] } };
+    const exercise = (extra: Record<string, unknown> = {}) => ({ type: "exercise", label: "Ejercicio 4", md: "La gráfica muestra la recta.", ...extra });
+    const order = (blocks: unknown[]) => validateBlockOrder([{ title: "Guía", blocks: blocks.map(block) }]);
+    expect(order([exercise(), graph])).toHaveLength(1);
+    expect(order([exercise(), graph])[0]).toContain("Ejercicio 4");
+    expect(order([exercise({ answerSpace: "none" }), graph])).toEqual([]);
+    expect(order([graph, exercise()])).toEqual([]);
+    expect(order([exercise(), { type: "paragraph", md: "Observa la gráfica." }, graph])).toEqual([]);
+    expect(order([exercise(), { type: "balance", left: { variables: 3, units: 2 }, right: { variables: 0, units: 11 } }])).toHaveLength(1);
   });
 
   it("detecta LaTeX fuera de una fórmula", () => {
@@ -341,6 +366,10 @@ describe("recursos de ejemplo", () => {
     for (const section of SAMPLES[id].sections) {
       for (const sample of section.blocks) expect(validateBlock(sample), JSON.stringify(sample).slice(0, 80)).toEqual([]);
     }
+  });
+
+  it.each(SAMPLE_IDS)("%s no deja renglones entre un enunciado y su figura", id => {
+    expect(validateBlockOrder(buildSampleDoc(id, seeded()).sections)).toEqual([]);
   });
 
   it.each(SAMPLE_IDS)("%s se construye como documento válido con clave de respuestas", id => {

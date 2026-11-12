@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { blockInputSchema, CREATOR_LIMITS, SECTION_ROLES, type BlockInput, type CreatorActivity, type ResourceDoc } from "@shared/creator";
 import { applyDocOp, normalizeBlock, type DocOp } from "@shared/creatorOps";
-import { validateBlocks } from "@shared/creatorValidate";
+import { validateBlockOrder, validateBlocks } from "@shared/creatorValidate";
 
 /**
  * Herramientas con las que la IA escribe y edita un recurso. Cada una se traduce a una
@@ -140,6 +140,18 @@ export function executeCreatorTool(doc: ResourceDoc, name: string, rawInput: unk
 
   const applied = applyDocOp(doc, op, random);
   if (!applied.ok) return failure(doc, "Sin cambios", applied.error);
+
+  // El orden se revisa sobre el documento resultante y solo cuenta lo que este cambio introduce:
+  // lo que el docente ya había dejado así no bloquea una edición ajena.
+  const known = new Set(validateBlockOrder(doc.sections));
+  const orderIssues = validateBlockOrder(applied.doc.sections).filter(issue => !known.has(issue));
+  if (orderIssues.length > 0) {
+    return failure(
+      doc,
+      "Revisando el orden",
+      `No se aplicó ningún cambio porque el orden de los bloques deja mal ubicado un espacio de respuesta. Corrígelo y vuelve a llamar la herramienta:\n- ${orderIssues.slice(0, 8).join("\n- ")}`,
+    );
+  }
 
   const ids = applied.ids.length > 0 ? ` Ids: ${applied.ids.join(", ")}.` : "";
   return {

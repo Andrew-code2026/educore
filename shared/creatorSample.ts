@@ -108,11 +108,10 @@ const STUDENT: unknown[] = [
     ],
     lines: 6,
   },
+  // La gráfica es un dato del reto: va antes del enunciado, presentada por un párrafo, y los renglones quedan al final
   {
-    type: "exercise",
-    label: "Ejercicio 6 (reto opcional)",
-    md: "Determina los puntos donde se cortan la recta $y = x + 1$ y la parábola $y = x^{2} - 2x + 1$. Iguala las dos expresiones, resuelve la ecuación que resulta y comprueba tus respuestas en la gráfica.",
-    lines: 6,
+    type: "paragraph",
+    md: "**Reto opcional.** La gráfica muestra una recta y una parábola dibujadas en el mismo plano.",
   },
   {
     type: "graph",
@@ -127,6 +126,12 @@ const STUDENT: unknown[] = [
         { expr: "x^2 - 2*x + 1", label: "y = x^{2} - 2x + 1" },
       ],
     },
+  },
+  {
+    type: "exercise",
+    label: "Ejercicio 6 (reto opcional)",
+    md: "Determina los puntos donde se cortan la recta $y = x + 1$ y la parábola $y = x^{2} - 2x + 1$. Iguala las dos expresiones, resuelve la ecuación que resulta y comprueba tus respuestas en la gráfica de arriba.",
+    lines: 6,
   },
 ];
 
