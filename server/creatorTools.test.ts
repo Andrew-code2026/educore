@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { emptyDoc, RESOURCE_KIND_LABELS, type ResourceDoc } from "@shared/creator";
+import { applyDocOp } from "@shared/creatorOps";
 import { SAMPLE_IDS, SAMPLES } from "@shared/creatorSample";
 import { buildCreatorMessages, CREATOR_SYSTEM_PROMPT } from "./creatorAgent";
 import { buildClarifyMessage, CLARIFY_SYSTEM_PROMPT } from "./creatorClarify";
@@ -60,6 +61,42 @@ describe("herramientas del agente", () => {
     expect(outcome.isError).toBe(true);
     expect(outcome.result).toContain("la función vale 1");
     expect(outcome.doc.sections).toHaveLength(0);
+  });
+
+  it("devuelve al modelo un ejercicio cuyos renglones separan el enunciado de su figura", () => {
+    const graph = { type: "graph", spec: { xMin: -2, xMax: 4, yMin: -4, yMax: 8, functions: [{ expr: "-2*x + 4" }], points: [] } };
+    const exercise = { type: "exercise", label: "Ejercicio 4", md: "La gráfica muestra la recta. ¿Cuál es su pendiente?" };
+
+    const rejected = write(emptyDoc(), [exercise, graph]);
+    expect(rejected.isError).toBe(true);
+    expect(rejected.result).toContain("Ejercicio 4");
+    expect(rejected.doc.sections).toHaveLength(0);
+
+    expect(write(emptyDoc(), [graph, exercise]).isError).toBe(false);
+    expect(write(emptyDoc(), [{ ...exercise, answerSpace: "none" }, graph]).isError).toBe(false);
+
+    // Insertar una figura justo después de un ejercicio con renglones también se revisa
+    const base = write(emptyDoc(), [exercise, { type: "paragraph", md: "Cierre." }]);
+    const section = base.doc.sections[0];
+    const inserted = executeCreatorTool(base.doc, "insert_blocks", { section_id: section.id, after_block_id: section.blocks[0].id, blocks: [graph] });
+    expect(inserted.isError).toBe(true);
+  });
+
+  it("no bloquea una edición ajena por un orden que ya venía así", () => {
+    const graph = { type: "graph", spec: { xMin: -2, xMax: 4, yMin: -4, yMax: 8, functions: [{ expr: "-2*x + 4" }], points: [] } };
+    // Documento que el docente dejó así a mano (las operaciones directas no validan el orden)
+    const created = write(emptyDoc(), [{ type: "exercise", label: "Ejercicio 1", md: "Observa.", answerSpace: "none" }, graph, { type: "paragraph", md: "Fin" }]);
+    const [first, , last] = created.doc.sections[0].blocks;
+    const manual = applyDocOp(created.doc, { op: "update_block", blockId: first.id, block: { type: "exercise", label: "Ejercicio 1", md: "Observa.", parts: [], answerSpace: "lines", lines: 3 } as never });
+    if (!manual.ok) throw new Error(manual.error);
+    const edited = executeCreatorTool(manual.doc, "update_block", { block_id: last.id, block: { type: "paragraph", md: "Fin de la guía" } });
+    expect(edited.isError, edited.result).toBe(false);
+  });
+
+  it("pide subíndices con guion bajo", () => {
+    const outcome = write(emptyDoc(), [{ type: "paragraph", md: "Dados dos puntos $(x1, y1)$ y $(x2, y2)$." }]);
+    expect(outcome.isError).toBe(true);
+    expect(outcome.result).toContain("x_1");
   });
 
   it("rechaza LaTeX roto antes de que llegue al docente", () => {

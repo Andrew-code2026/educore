@@ -30,11 +30,33 @@ function outsideMath(md: string): string {
   return md.replace(/\\\$/g, "").replace(/\$\$[\s\S]*?\$\$/g, " ").replace(/\$[^$\n]*\$/g, " ");
 }
 
+/**
+ * Subíndice escrito sin guion bajo: `x1` compila, pero se lee "x por 1" y no "x sub 1".
+ * Devuelve el fragmento sospechoso, o null. No mira dentro de \text{...} ni los comandos.
+ */
+export function findBareSubscript(latex: string): string | null {
+  const bare = latex.replace(/\\(text|mathrm|textbf|operatorname)\s*\{[^{}]*\}/g, " ").replace(/\\[a-zA-Z]+/g, " ");
+  const match = /(?<![A-Za-z])([A-Za-z])(\d+)/.exec(bare);
+  return match ? match[0] : null;
+}
+
+const bareSubscriptIssue = (latex: string, where: string): string | null => {
+  const found = findBareSubscript(latex);
+  if (!found) return null;
+  const letter = found[0];
+  const digits = found.slice(1);
+  return `${where}: en la fórmula $${latex}$, «${found}» parece un subíndice sin guion bajo. Escribe ${letter}_${digits.length > 1 ? `{${digits}}` : digits}; si es una multiplicación, usa \\cdot.`;
+};
+
 export function validateText(md: string, where: string): string[] {
   const issues: string[] = [];
   for (const formula of extractMath(md)) {
     const error = checkLatex(formula);
     if (error) issues.push(`${where}: la fórmula $${formula}$ no es LaTeX válido (${error}).`);
+    else {
+      const subscript = bareSubscriptIssue(formula, where);
+      if (subscript) issues.push(subscript);
+    }
   }
   if (LATEX_OUTSIDE_MATH.test(outsideMath(md))) {
     issues.push(`${where}: hay notación LaTeX fuera de una fórmula. Envuélvela en $...$.`);
@@ -119,6 +141,10 @@ export function validateBlock(block: BlockInput): string[] {
     case "math": {
       const error = checkLatex(block.latex);
       if (error) issues.push(`Fórmula: "${block.latex}" no es LaTeX válido (${error}).`);
+      else {
+        const subscript = bareSubscriptIssue(block.latex, "Fórmula");
+        if (subscript) issues.push(subscript);
+      }
       if (block.latex.includes("$")) issues.push("Fórmula: escribe solo LaTeX, sin signos $.");
       break;
     }
@@ -217,6 +243,30 @@ function validateNumberLine(block: Extract<BlockInput, { type: "number_line" }>)
       if (error) issues.push(`Recta numérica: el rótulo de un salto no es LaTeX válido (${error}).`);
     }
   });
+  return issues;
+}
+
+const FIGURE_TYPES: ReadonlySet<string> = new Set(["graph", "number_line", "fraction_model", "bar_chart", "pie_chart", "shapes", "balance"]);
+
+/**
+ * Problemas de orden entre bloques vecinos. Un ejercicio dibuja su espacio de respuesta
+ * justo debajo del enunciado; si lo que sigue es una figura, los renglones quedan en medio
+ * y separan el enunciado de la figura. Cada aviso identifica el ejercicio, de modo que se
+ * pueda comparar el documento antes y después de un cambio.
+ */
+export function validateBlockOrder(sections: Array<{ title: string; blocks: BlockInput[] }>): string[] {
+  const issues: string[] = [];
+  for (const section of sections) {
+    section.blocks.forEach((block, index) => {
+      const next = section.blocks[index + 1];
+      if (block.type !== "exercise" || block.answerSpace === "none" || !next || !FIGURE_TYPES.has(next.type)) return;
+      issues.push(
+        `Sección «${section.title}», ${block.label}: su espacio de respuesta queda entre el enunciado y la figura que sigue (${next.type}). ` +
+          `Si el ejercicio se resuelve sobre esa figura, usa answerSpace "none". Si la figura es un dato que el estudiante debe leer, ponla antes del enunciado. ` +
+          `Si la figura pertenece a lo que viene después, sepárala del ejercicio con un título o un párrafo que la presente.`,
+      );
+    });
+  }
   return issues;
 }
 

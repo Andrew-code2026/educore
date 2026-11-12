@@ -102,12 +102,51 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     const occupied: Box[] = spec.points.map(point => ({ x: sx(point.x) - 6, y: sy(point.y) - 6, w: 12, h: 12 }));
     const labels: PlacedLabel[] = [];
 
+    // Lo que una etiqueta no debería tapar: los números de los ejes, los ejes y las curvas
+    const originShown = axisX === 0 && axisY === 0;
+    const numberBox = (text: string, anchorX: number, baseline: number, anchor: "middle" | "end"): Box => {
+      const boxW = text.length * 6 + 4;
+      return { x: anchor === "middle" ? anchorX - boxW / 2 : anchorX - boxW, y: baseline - 10, w: boxW, h: 13 };
+    };
+    const numberBoxes: Box[] = [
+      ...xTicks.filter((x, index) => index % everyX === 0 && !(originShown && x === 0)).map(x => numberBox(formatNumber(x), sx(x), sy(axisX) + 14, "middle")),
+      ...yTicks.filter((y, index) => index % everyY === 0 && !(originShown && y === 0)).map(y => numberBox(formatNumber(y), sx(axisY) - 7, sy(y) + 3.5, "end")),
+      ...(originShown ? [numberBox("0", sx(axisY) - 7, sy(axisX) + 14, "end")] : []),
+    ];
+    const axisBoxes: Box[] = [
+      { x: PAD.left, y: sy(axisX) - 2, w, h: 4 },
+      { x: sx(axisY) - 2, y: PAD.top, w: 4, h },
+    ];
+    const curvePixels = curves.flatMap(curve => curve.samples.map(([x, y]) => [sx(x), sy(y)] as const));
+
+    /** Cuánto estorba una etiqueta en esa posición; cero es un sitio limpio. */
+    const cost = (box: Box) => {
+      let total = 0;
+      for (const other of occupied) if (overlaps(box, other)) total += 100;
+      for (const number of numberBoxes) if (overlaps(box, number)) total += 14;
+      for (const axis of axisBoxes) if (overlaps(box, axis)) total += 6;
+      let onCurve = 0;
+      for (const [px, py] of curvePixels) if (px >= box.x && px <= box.x + box.w && py >= box.y && py <= box.y + box.h) onCurve++;
+      return total + Math.min(24, onCurve * 3);
+    };
+
     const place = (latex: string, tone: string, candidates: Array<{ x: number; y: number }>) => {
       const labelW = estimateWidth(latex);
       const fits = (box: Box) =>
         box.x >= plot.x - 4 && box.x + box.w <= plot.x + plot.w + PAD.right - 2 && box.y >= plot.y - 8 && box.y + box.h <= plot.y + plot.h + 8;
       const boxes = candidates.map(candidate => ({ x: candidate.x, y: candidate.y, w: labelW, h: LABEL_H }));
-      const chosen = boxes.find(box => fits(box) && !occupied.some(other => overlaps(box, other))) ?? boxes.find(fits) ?? boxes[0];
+      const fitting = boxes.filter(fits);
+      const pool = fitting.length > 0 ? fitting : boxes;
+      // Gana el sitio que menos estorba; a igual costo, el primero de la lista (el preferido)
+      let chosen = pool[0];
+      let best = cost(chosen);
+      for (const box of pool.slice(1)) {
+        const value = cost(box);
+        if (value < best) {
+          chosen = box;
+          best = value;
+        }
+      }
       occupied.push(chosen);
       labels.push({ ...chosen, latex, tone });
     };
@@ -122,6 +161,10 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
         { x: px + 8, y: py + 4 },
         { x: px - labelW - 8, y: py - LABEL_H - 2 },
         { x: px - labelW - 8, y: py + 4 },
+        { x: px - labelW / 2, y: py - LABEL_H - 8 },
+        { x: px - labelW / 2, y: py + 10 },
+        { x: px + 12, y: py - LABEL_H / 2 },
+        { x: px - labelW - 12, y: py - LABEL_H / 2 },
       ]);
     }
 
