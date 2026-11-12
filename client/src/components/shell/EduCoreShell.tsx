@@ -57,6 +57,7 @@ function ShellInner({
     section === "communications" ||
     section === "reports" ||
     section === "piar" ||
+    section === "creator" ||
     // Páginas del portal directivo (traen su propio padding y fondos)
     section === "users" ||
     section === "academic" ||

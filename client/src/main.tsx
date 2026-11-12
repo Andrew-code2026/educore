@@ -1,7 +1,7 @@
 import { trpc } from "@/lib/trpc";
 import { COOKIE_NAME, UNAUTHED_ERR_MSG } from '@shared/const';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { httpBatchLink, TRPCClientError } from "@trpc/client";
+import { httpBatchLink, httpSubscriptionLink, splitLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
@@ -39,7 +39,15 @@ queryClient.getMutationCache().subscribe(event => {
 
 const trpcClient = trpc.createClient({
   links: [
-    httpBatchLink({
+    splitLink({
+      // Las suscripciones (progreso en vivo de la IA) viajan por SSE; el resto, en lote por HTTP
+      condition: op => op.type === "subscription",
+      true: httpSubscriptionLink({
+        url: "/api/trpc",
+        transformer: superjson,
+        eventSourceOptions: () => ({ withCredentials: true }),
+      }),
+      false: httpBatchLink({
       url: "/api/trpc",
       transformer: superjson,
       headers() {
@@ -68,6 +76,7 @@ const trpcClient = trpc.createClient({
           credentials: "include",
         });
       },
+      }),
     }),
   ],
 });
