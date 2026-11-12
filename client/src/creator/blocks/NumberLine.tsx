@@ -8,6 +8,8 @@ type NumberLineSpec = Extract<BlockInput, { type: "number_line" }>;
 
 const WIDTH = 560;
 const PAD_X = 36;
+/** Un color por intervalo: la unión de dos soluciones se distingue de una sola. */
+const INTERVAL_COLORS = ["#1F5FE0", "#0F8A5F", "#7A3FD1"];
 
 /** Recta numérica con marcas, puntos y saltos en arco para sumas y restas. */
 export const NumberLine = memo(function NumberLine({ spec }: { spec: NumberLineSpec }) {
@@ -17,7 +19,7 @@ export const NumberLine = memo(function NumberLine({ spec }: { spec: NumberLineS
     const hasJumps = spec.jumps.length > 0;
     const hasPointLabels = spec.points.some(point => point.label);
     // Una recta sin puntos ni saltos es para que el estudiante trabaje: deja sitio para dibujar los arcos
-    const blank = !hasJumps && spec.points.length === 0;
+    const blank = !hasJumps && spec.points.length === 0 && spec.intervals.length === 0;
     const lineY = hasJumps ? 108 : hasPointLabels ? 62 : blank ? 58 : 34;
     const fraction = spec.fractionDenominator;
     const height = lineY + (spec.showNumbers ? (fraction ? 58 : 34) : 20);
@@ -53,13 +55,37 @@ export const NumberLine = memo(function NumberLine({ spec }: { spec: NumberLineS
       return { d: `M${x1.toFixed(1)} ${base} Q${mid.toFixed(1)} ${base - rise} ${x2.toFixed(1)} ${base}`, head: `${x2.toFixed(1)},${base} ${head.join(" ")}` };
     });
 
-    return { lineY, height, x, marks, labels, jumps, fraction };
+    // Un intervalo sin extremo sigue hasta la punta de la recta: es una semirrecta
+    const intervals = spec.intervals.map((interval, index) => {
+      const from = interval.from ?? null;
+      const to = interval.to ?? null;
+      return {
+        color: INTERVAL_COLORS[index % INTERVAL_COLORS.length],
+        x1: from === null ? PAD_X - 18 : x(from),
+        x2: to === null ? WIDTH - PAD_X + 18 : x(to),
+        ends: [
+          { at: from, closed: interval.fromClosed },
+          { at: to, closed: interval.toClosed },
+        ],
+      };
+    });
+
+    return { lineY, height, x, marks, labels, jumps, fraction, intervals };
   }, [spec]);
 
   if (!view) return <div className="crt-figure crt-figure--invalid">Rango de la recta no válido.</div>;
-  const { lineY, height, x, marks, labels, jumps, fraction } = view;
+  const { lineY, height, x, marks, labels, jumps, fraction, intervals } = view;
   const points = spec.points.map(point => `${formatNumberEs(point.value)}`).join(", ");
-  const description = `Recta numérica de ${formatNumberEs(spec.min)} a ${formatNumberEs(spec.max)}${points ? `. Puntos marcados: ${points}` : ""}.`;
+  const shaded = spec.intervals
+    .map(interval => {
+      const from = interval.from ?? null;
+      const to = interval.to ?? null;
+      const left = from === null ? "sin límite por la izquierda" : `desde ${formatNumberEs(from)} ${interval.fromClosed ? "incluido" : "sin incluir"}`;
+      const right = to === null ? "sin límite por la derecha" : `hasta ${formatNumberEs(to)} ${interval.toClosed ? "incluido" : "sin incluir"}`;
+      return `${left}, ${right}`;
+    })
+    .join("; ");
+  const description = `Recta numérica de ${formatNumberEs(spec.min)} a ${formatNumberEs(spec.max)}${points ? `. Puntos marcados: ${points}` : ""}${shaded ? `. Intervalos resaltados: ${shaded}` : ""}.`;
 
   return (
     <FigureFrame width={WIDTH} height={height} description={description} labels={labels}>
@@ -82,6 +108,16 @@ export const NumberLine = memo(function NumberLine({ spec }: { spec: NumberLineS
           )}
         </g>
       )}
+      {intervals.map((interval, index) => (
+        <g key={index}>
+          <line x1={interval.x1} x2={interval.x2} y1={lineY} y2={lineY} stroke={interval.color} strokeWidth={4.5} />
+          {interval.ends[0].at === null && <path d={`M${PAD_X - 26} ${lineY} l10 -5.5 v11 z`} fill={interval.color} />}
+          {interval.ends[1].at === null && <path d={`M${WIDTH - PAD_X + 26} ${lineY} l-10 -5.5 v11 z`} fill={interval.color} />}
+          {interval.ends.map((end, at) =>
+            end.at === null ? null : <circle key={at} cx={x(end.at)} cy={lineY} r={5.6} fill={end.closed ? interval.color : "#FFFFFF"} stroke={interval.color} strokeWidth={2.2} />,
+          )}
+        </g>
+      ))}
       <g className="crt-figure__jumps">
         {jumps.map((jump, index) => (
           <g key={index}>

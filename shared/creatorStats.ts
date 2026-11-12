@@ -1,5 +1,5 @@
 import type { BlockInput } from "./creator";
-import { niceStep } from "./creatorFigures";
+import { niceStep, tickValues } from "./creatorFigures";
 import { formatNumber, formatNumberEs } from "./creatorMath";
 
 /**
@@ -212,6 +212,18 @@ export function resolveAxis(dataMin: number, dataMax: number, override: AxisOver
   // Un rango invertido lo señala el validador; aquí solo se evita dividir por cero al dibujar
   if (!(max > min)) max = clean(min + step);
   return { min, max, step };
+}
+
+/** Marcas que se llegan a dibujar en un eje; el validador admite muchas menos. */
+const TICKS_DRAWN_MAX = 200;
+
+/**
+ * Marcas de un eje para dibujarlo. Un paso absurdo (un 0.0001 a medio escribir en el formulario)
+ * no genera miles de marcas: se dibuja con un paso redondo y el validador se encarga del aviso.
+ */
+export function axisTicks(axis: Axis): number[] {
+  const step = (axis.max - axis.min) / axis.step > TICKS_DRAWN_MAX ? niceStep(axis.max - axis.min) : axis.step;
+  return tickValues(axis.min, axis.max, step);
 }
 
 /* ── Rótulos sobre una recta ── */

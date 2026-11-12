@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { VENN_REGIONS } from "./creatorDiagrams";
 import { MATH_EXPR_MAX } from "./creatorMath";
 
 /**
@@ -196,6 +197,18 @@ const numberLineBlock = z.object({
     .max(6)
     .default([])
     .describe("Saltos en arco de un valor a otro, para mostrar sumas y restas."),
+  intervals: z
+    .array(
+      z.object({
+        from: z.number().nullable().optional().describe("Extremo izquierdo. Omítelo (o null) para una semirrecta que sigue hacia la izquierda, como en x < 3."),
+        to: z.number().nullable().optional().describe("Extremo derecho. Omítelo (o null) para una semirrecta que sigue hacia la derecha, como en x ≥ 2."),
+        fromClosed: z.boolean().default(false).describe("true si el extremo izquierdo está incluido (≥ o corchete): círculo relleno. false: círculo vacío."),
+        toClosed: z.boolean().default(false).describe("true si el extremo derecho está incluido (≤ o corchete)."),
+      }),
+    )
+    .max(3)
+    .default([])
+    .describe("Intervalos o soluciones de inecuaciones, resaltados sobre la recta con sus extremos abiertos o cerrados."),
 });
 
 const fractionModelBlock = z.object({
@@ -339,15 +352,142 @@ const scatterPlotBlock = z.object({
     .min(3)
     .max(CREATOR_LIMITS.scatterPointsMax)
     .describe("Pares (x, y) observados. Se dibujan sueltos, sin unirlos con líneas."),
-  xMin: axisBound,
-  xMax: axisBound,
-  xStep: axisStep,
-  yMin: axisBound,
-  yMax: axisBound,
-  yStep: axisStep.describe("Los seis límites de los ejes son opcionales: si se omiten se calculan a partir de los puntos."),
+  xMin: axisBound.describe("Inicio del eje horizontal. Si se omite se calcula a partir de los puntos."),
+  xMax: axisBound.describe("Fin del eje horizontal. Si se omite se calcula."),
+  xStep: axisStep.describe("Separación de las marcas del eje horizontal. Si se omite se calcula."),
+  yMin: axisBound.describe("Inicio del eje vertical. Si se omite se calcula a partir de los puntos."),
+  yMax: axisBound.describe("Fin del eje vertical. Si se omite se calcula."),
+  yStep: axisStep.describe("Separación de las marcas del eje vertical. Si se omite se calcula."),
   trendLine: z.boolean().default(false).describe("Dibuja la recta de mejor ajuste. El sistema la calcula por mínimos cuadrados a partir de los puntos: no la escribas tú."),
   showEquation: z.boolean().default(false).describe("Con trendLine, escribe la ecuación de la recta dentro de la figura."),
   blank: z.boolean().default(false).describe("true dibuja los ejes y la cuadrícula sin puntos, para que el estudiante los ubique."),
+});
+
+/* ── Figuras de aula: lo que se calcula (probabilidad de un camino, manecillas, número de dibujos) está en creatorDiagrams.ts ── */
+
+const angleBlock = z.object({
+  type: z.literal("angle"),
+  caption,
+  angles: z
+    .array(
+      z.object({
+        degrees: z.number().min(1).max(359).describe("Medida en grados."),
+        label: z.string().trim().max(24).optional().describe('Rótulo junto al arco en Markdown, p. ej. "$\\alpha$" o "x". Con showMeasures se escribe junto a la medida (α = 45°); sin showMeasures, solo el rótulo.'),
+      }),
+    )
+    .min(1)
+    .max(3),
+  showMeasures: z.boolean().default(true).describe("false oculta las medidas, para que el estudiante las mida o las calcule."),
+  protractor: z.boolean().default(false).describe("Dibuja un transportador sobre cada ángulo, para medirlo. Solo para ángulos de hasta 180° y como máximo dos."),
+});
+
+const vennBlock = z.object({
+  type: z.literal("venn"),
+  caption,
+  title: chartText,
+  sets: z.array(shortLabel).min(2).max(3).describe('Nombre de cada conjunto: el primero es A, el segundo B y el tercero, si lo hay, C. P. ej. ["Fútbol", "Baloncesto"].'),
+  regions: z
+    .array(
+      z.object({
+        region: z
+          .enum(VENN_REGIONS)
+          .describe('Zona del diagrama: "a" = solo el primer conjunto; "ab" = los dos primeros a la vez (y no el tercero); "abc" = los tres; "outside" = fuera de todos.'),
+        text: z.string().trim().max(28).optional().describe('Lo que se escribe en la zona: una cantidad ("12") o elementos ("2, 4, 6").'),
+        shaded: z.boolean().default(false).describe("true sombrea la zona, para mostrar una unión, una intersección o una diferencia."),
+      }),
+    )
+    .max(8)
+    .default([])
+    .describe("Zonas con contenido o sombreadas, cada una una sola vez. Las que no se mencionan quedan vacías para que el estudiante las complete."),
+  universe: z.string().trim().max(24).optional().describe('Rótulo del conjunto universal, que se dibuja como un rectángulo: "U" o "Grado 6A".'),
+});
+
+const treeLabel = z.string().trim().min(1).max(24);
+const treeProbability = z
+  .string()
+  .trim()
+  .max(12)
+  .optional()
+  .describe('Probabilidad de la rama: fracción "1/2", decimal "0.25" o porcentaje "25%". Omítela si el árbol solo cuenta casos o si el estudiante debe escribirla.');
+const treeLeaf = z.object({ label: treeLabel, probability: treeProbability });
+const treeBranch = treeLeaf.extend({ children: z.array(treeLeaf).max(4).default([]) });
+
+const treeDiagramBlock = z.object({
+  type: z.literal("tree_diagram"),
+  caption,
+  root: z.string().trim().max(24).optional().describe('Rótulo del punto de partida, p. ej. "Inicio". Opcional.'),
+  branches: z
+    .array(treeLeaf.extend({ children: z.array(treeBranch).max(4).default([]) }))
+    .min(2)
+    .max(4)
+    .describe("Primer nivel de ramas. Cada rama puede abrirse en hasta dos niveles más con children. Las probabilidades de las ramas que salen de un mismo punto deben sumar 1."),
+  showResults: z.boolean().default(false).describe("Escribe al final de cada camino su probabilidad. El sistema la calcula multiplicando las de sus ramas: no la escribas tú."),
+});
+
+const barModelBlock = z.object({
+  type: z.literal("bar_model"),
+  caption,
+  bars: z
+    .array(
+      z.object({
+        label: z.string().trim().max(24).optional().describe('Nombre a la izquierda de la barra, p. ej. "Ana".'),
+        parts: z
+          .array(
+            z.object({
+              value: z.number().positive().describe("Tamaño de la parte: fija su ancho, a la misma escala en todas las barras."),
+              label: z.string().trim().max(16).optional().describe('Texto dentro de la parte. Si se omite se escribe el valor; usa "?" para la incógnita.'),
+            }),
+          )
+          .min(1)
+          .max(10),
+        total: z.string().trim().max(16).optional().describe('Rótulo de la llave que abarca toda la barra, p. ej. "36" o "?".'),
+      }),
+    )
+    .min(1)
+    .max(4),
+});
+
+export const PICTOGRAM_ICONS = ["circle", "star", "person", "heart", "square"] as const;
+
+const pictogramBlock = z.object({
+  type: z.literal("pictogram"),
+  caption,
+  title: chartText,
+  icon: z.enum(PICTOGRAM_ICONS).default("circle").describe("Dibujo que se repite."),
+  iconValue: z.number().positive().default(1).describe("Cuánto vale cada dibujo, p. ej. 2. Medio dibujo vale la mitad."),
+  unit: z.string().trim().max(30).optional().describe('Qué cuenta cada dibujo, para la clave del pictograma: "estudiantes", "libros".'),
+  rows: z
+    .array(z.object({ label: shortLabel, value: z.number().min(0) }))
+    .min(2)
+    .max(8)
+    .describe("Cada categoría con su cantidad real. El número de dibujos se calcula solo: la cantidad debe ser múltiplo de medio dibujo."),
+  blank: z.boolean().default(false).describe("true deja las filas sin dibujos, para que el estudiante los dibuje."),
+});
+
+const clockBlock = z.object({
+  type: z.literal("clock"),
+  caption,
+  clocks: z
+    .array(
+      z.object({
+        hour: z.number().int().min(0).max(23),
+        minute: z.number().int().min(0).max(59).default(0),
+        label: z.string().trim().max(24).optional().describe('Texto bajo el reloj, p. ej. "a." o "Salida del bus".'),
+      }),
+    )
+    .min(1)
+    .max(4),
+  showHands: z.boolean().default(true).describe("false dibuja los relojes sin manecillas, para que el estudiante las dibuje."),
+  showTime: z.boolean().default(false).describe("Escribe la hora en números bajo cada reloj (7:30)."),
+});
+
+const baseTenBlock = z.object({
+  type: z.literal("base_ten"),
+  caption,
+  hundreds: z.number().int().min(0).max(9).default(0).describe("Placas de 100."),
+  tens: z.number().int().min(0).max(19).default(0).describe("Barras de 10. Más de 9 sirve para mostrar un reagrupamiento."),
+  ones: z.number().int().min(0).max(19).default(0).describe("Cubos de 1."),
+  showNumber: z.boolean().default(false).describe("Escribe cuántas centenas, decenas y unidades hay y el número que forman, calculado por el sistema."),
 });
 
 const shapeSchema = z.discriminatedUnion("kind", [
@@ -390,6 +530,11 @@ const shapesBlock = z.object({
 const balanceSide = z.object({
   variables: z.number().int().min(0).max(6).default(0).describe("Cuántas incógnitas hay en este platillo."),
   units: z.number().int().min(0).max(15).default(0).describe("Cuántas unidades (fichas de valor 1) hay en este platillo."),
+  weights: z
+    .array(z.number().positive().max(9999))
+    .max(3)
+    .default([])
+    .describe("Pesas rotuladas con su valor, p. ej. [15] o [20, 5]. Úsalas cuando el número es demasiado grande para dibujarlo ficha por ficha."),
 });
 
 const balanceBlock = z.object({
@@ -434,6 +579,13 @@ export const blockInputSchema = z.discriminatedUnion("type", [
   boxPlotBlock,
   lineChartBlock,
   scatterPlotBlock,
+  angleBlock,
+  vennBlock,
+  treeDiagramBlock,
+  barModelBlock,
+  pictogramBlock,
+  clockBlock,
+  baseTenBlock,
   shapesBlock,
   balanceBlock,
   solutionBlock,
@@ -461,6 +613,13 @@ export const blockSchema = z.discriminatedUnion("type", [
   boxPlotBlock.extend({ id }),
   lineChartBlock.extend({ id }),
   scatterPlotBlock.extend({ id }),
+  angleBlock.extend({ id }),
+  vennBlock.extend({ id }),
+  treeDiagramBlock.extend({ id }),
+  barModelBlock.extend({ id }),
+  pictogramBlock.extend({ id }),
+  clockBlock.extend({ id }),
+  baseTenBlock.extend({ id }),
   shapesBlock.extend({ id }),
   balanceBlock.extend({ id }),
   solutionBlock.extend({ id }),
@@ -509,6 +668,13 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   box_plot: "Caja y bigotes",
   line_chart: "Gráfica de líneas",
   scatter_plot: "Diagrama de dispersión",
+  angle: "Ángulos",
+  venn: "Diagrama de Venn",
+  tree_diagram: "Diagrama de árbol",
+  bar_model: "Modelo de barras",
+  pictogram: "Pictograma",
+  clock: "Reloj",
+  base_ten: "Bloques de base 10",
   shapes: "Figuras geométricas",
   balance: "Balanza",
   solution: "Solución",
@@ -800,6 +966,8 @@ function ownTexts(block: BlockInput): string[] {
       return [block.text];
     case "shapes":
       return block.figures.flatMap(shapeLabels);
+    case "angle":
+      return block.angles.map(angle => angle.label ?? "");
     default:
       return [];
   }
@@ -824,6 +992,8 @@ function mapOwnTexts<T extends BlockInput>(block: T, fn: (md: string) => string)
       return { ...block, steps: block.steps.map(fn), answer: block.answer ? fn(block.answer) : block.answer };
     case "shapes":
       return { ...block, figures: block.figures.map(figure => mapShapeLabels(figure, fn)) };
+    case "angle":
+      return { ...block, angles: block.angles.map(angle => (angle.label ? { ...angle, label: fn(angle.label) } : angle)) };
     default:
       return block;
   }
@@ -872,6 +1042,20 @@ export function blockPreview(block: BlockInput): string {
       return block.caption || block.title || `Líneas: ${block.categories.join(", ")}`;
     case "scatter_plot":
       return block.caption || block.title || `Dispersión de ${block.points.length} puntos${block.trendLine ? " con recta de tendencia" : ""}`;
+    case "angle":
+      return block.caption || `Ángulos de ${block.angles.map(angle => `${angle.degrees}°`).join(", ")}`;
+    case "venn":
+      return block.caption || block.title || `Venn: ${block.sets.join(", ")}`;
+    case "tree_diagram":
+      return block.caption || `Árbol: ${block.branches.map(branch => branch.label).join(", ")}`;
+    case "bar_model":
+      return block.caption || `Modelo de barras${block.bars.some(bar => bar.label) ? `: ${block.bars.map(bar => bar.label).filter(Boolean).join(", ")}` : ""}`;
+    case "pictogram":
+      return block.caption || block.title || `Pictograma: ${block.rows.map(row => row.label).join(", ")}`;
+    case "clock":
+      return block.caption || `Reloj: ${block.clocks.map(clock => `${clock.hour}:${String(clock.minute).padStart(2, "0")}`).join(", ")}`;
+    case "base_ten":
+      return block.caption || `Bloques de base 10: ${block.hundreds * 100 + block.tens * 10 + block.ones}`;
     case "shapes":
       return block.caption || `Figuras: ${block.figures.map(figure => SHAPE_KIND_LABELS[figure.kind]).join(", ")}`;
     case "balance":

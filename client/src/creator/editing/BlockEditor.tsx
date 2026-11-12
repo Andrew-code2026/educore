@@ -2,10 +2,12 @@ import { forwardRef, useImperativeHandle, useRef, useState, type ReactNode } fro
 import { Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { BLOCK_TYPE_LABELS, blockInputSchema, CREATOR_LIMITS, graphSpecSchema, type Block, type BlockInput, type BlockType } from "@shared/creator";
+import { parseNumberList } from "@shared/creatorFigures";
 import { normalizeBlock } from "@shared/creatorOps";
 import { validateBlock, valueTableVariable } from "@shared/creatorValidate";
 import { CoordinatePlane } from "../blocks/CoordinatePlane";
 import { Formula } from "../blocks/Formula";
+import { AngleForm, BarModelForm, BaseTenForm, CLASSROOM_TEMPLATES, ClockForm, PictogramForm, TreeDiagramForm, VennForm } from "./ClassroomForms";
 import { Field, NumberInput, type Draft, type FormProps } from "./fields";
 import { BalanceForm, BarChartForm, FractionModelForm, NumberLineForm, PieChartForm, ShapesForm } from "./FigureForms";
 import type { BlockEditorHandle } from "./InlineBlockEditor";
@@ -22,7 +24,7 @@ export const BLOCK_TEMPLATES: Record<BlockType, BlockInput> = {
   table: { type: "table", header: ["Columna 1", "Columna 2"], rows: [["", ""], ["", ""]], firstColumnHeader: false },
   value_table: { type: "value_table", expr: "2*x + 1", exprLatex: "y = 2x + 1", xs: [-2, -1, 0, 1, 2], blankY: false },
   graph: { type: "graph", spec: { xMin: -5, xMax: 5, yMin: -5, yMax: 5, xStep: 1, yStep: 1, functions: [], points: [] } },
-  number_line: { type: "number_line", min: 0, max: 10, step: 1, labelEvery: 1, showNumbers: true, points: [], jumps: [] },
+  number_line: { type: "number_line", min: 0, max: 10, step: 1, labelEvery: 1, showNumbers: true, points: [], jumps: [], intervals: [] },
   fraction_model: {
     type: "fraction_model",
     shape: "circle",
@@ -55,8 +57,9 @@ export const BLOCK_TEMPLATES: Record<BlockType, BlockInput> = {
     blank: false,
   },
   ...STAT_TEMPLATES,
+  ...CLASSROOM_TEMPLATES,
   shapes: { type: "shapes", figures: [{ kind: "rectangle", width: 5, height: 3, widthLabel: "5 cm", heightLabel: "3 cm" }], toScale: true },
-  balance: { type: "balance", variable: "x", left: { variables: 2, units: 1 }, right: { variables: 0, units: 7 } },
+  balance: { type: "balance", variable: "x", left: { variables: 2, units: 1, weights: [] }, right: { variables: 0, units: 7, weights: [] } },
   solution: { type: "solution", label: "Ejercicio", steps: ["Escribe aquí el primer paso."] },
   header_fields: { type: "header_fields", fields: ["Nombre", "Fecha", "Grado"] },
   page_break: { type: "page_break" },
@@ -80,6 +83,13 @@ export const ADDABLE_BLOCKS: BlockType[] = [
   "box_plot",
   "line_chart",
   "scatter_plot",
+  "angle",
+  "venn",
+  "tree_diagram",
+  "bar_model",
+  "pictogram",
+  "clock",
+  "base_ten",
   "shapes",
   "balance",
   "solution",
@@ -279,12 +289,6 @@ function TableForm({ draft, onChange }: FormProps<"table">) {
   );
 }
 
-const parseNumbers = (text: string) =>
-  text
-    .split(/[,;\s]+/)
-    .filter(Boolean)
-    .map(value => Number(value.replace("−", "-")));
-
 function ValueTableForm({ draft, onChange }: FormProps<"value_table">) {
   // Sin variable escrita se usa la del encabezado ("A(s) = …" → s), y si no, x
   const fallback = valueTableVariable({ exprLatex: draft.exprLatex });
@@ -312,7 +316,7 @@ function ValueTableForm({ draft, onChange }: FormProps<"value_table">) {
           />
         </Field>
         <Field label={`Valores de ${shown}, separados por comas`} wide>
-          <input className="crt-input" defaultValue={draft.xs.join(", ")} onChange={event => onChange({ ...draft, xs: parseNumbers(event.target.value) })} />
+          <input className="crt-input" defaultValue={draft.xs.join(", ")} onChange={event => onChange({ ...draft, xs: parseNumberList(event.target.value) })} />
         </Field>
         <label className="crt-check">
           <input type="checkbox" checked={draft.blankY} onChange={event => onChange({ ...draft, blankY: event.target.checked })} />
@@ -509,6 +513,20 @@ function renderForm(draft: BlockInput, onChange: (next: BlockInput) => void): Re
       return <LineChartForm draft={draft} onChange={onChange} />;
     case "scatter_plot":
       return <ScatterPlotForm draft={draft} onChange={onChange} />;
+    case "angle":
+      return <AngleForm draft={draft} onChange={onChange} />;
+    case "venn":
+      return <VennForm draft={draft} onChange={onChange} />;
+    case "tree_diagram":
+      return <TreeDiagramForm draft={draft} onChange={onChange} />;
+    case "bar_model":
+      return <BarModelForm draft={draft} onChange={onChange} />;
+    case "pictogram":
+      return <PictogramForm draft={draft} onChange={onChange} />;
+    case "clock":
+      return <ClockForm draft={draft} onChange={onChange} />;
+    case "base_ten":
+      return <BaseTenForm draft={draft} onChange={onChange} />;
     case "shapes":
       return <ShapesForm draft={draft} onChange={onChange} />;
     case "balance":

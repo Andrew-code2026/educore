@@ -84,6 +84,21 @@ export function wrapLabel(text: string, maxChars: number): string[] {
   return lines.slice(0, 2);
 }
 
+/** true si el texto cabe entero en los dos renglones de wrapLabel, sin recortarse. */
+export function labelFits(text: string, maxChars: number): boolean {
+  const compact = (value: string) => value.replace(/\s+/g, "");
+  const lines = wrapLabel(text, maxChars);
+  return lines.every(line => line.length <= maxChars + 2) && compact(lines.join("")) === compact(text);
+}
+
+/** Números de una lista escrita a mano en un formulario: separados por comas, punto y coma o espacios, con punto decimal. */
+export function parseNumberList(text: string): number[] {
+  return text
+    .split(/[,;\s]+/)
+    .filter(Boolean)
+    .map(value => Number(value.replace("−", "-")));
+}
+
 /** Enteros que ocupa un modelo de fracción: 5/4 necesita dos figuras. */
 export function wholesNeeded(numerator: number, denominator: number): number {
   return Math.max(1, Math.ceil(numerator / denominator));

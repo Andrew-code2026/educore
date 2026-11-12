@@ -1,6 +1,7 @@
 import { memo, useMemo, type ReactNode } from "react";
 import { SHAPE_KIND_LABELS, type BlockInput, type ShapeFigure } from "@shared/creator";
 import { placeSideLabels, type SideLabelPlacement } from "@shared/creatorFigures";
+import { formatNumberEs } from "@shared/creatorMath";
 import { FigureFrame, figureColor, type FigureLabel } from "./FigureFrame";
 
 type ShapesSpec = Extract<BlockInput, { type: "shapes" }>;
@@ -124,10 +125,12 @@ const VARIABLE_ROW = 32;
 const UNIT_ROW = 23;
 
 /** Alto de la pila de un platillo: tres incógnitas o cinco unidades por renglón. */
-const stackHeight = (side: BalanceSpec["left"]) => Math.ceil(side.variables / 3) * VARIABLE_ROW + Math.ceil(side.units / 5) * UNIT_ROW + 3;
+const WEIGHT_ROW = 30;
+const stackHeight = (side: BalanceSpec["left"]) => Math.ceil(side.variables / 3) * VARIABLE_ROW + (side.weights.length > 0 ? WEIGHT_ROW : 0) + Math.ceil(side.units / 5) * UNIT_ROW + 3;
 
-/** Fichas de un platillo, apiladas desde la bandeja hacia arriba: primero las incógnitas, luego las unidades. */
-function trayItems(cx: number, trayY: number, variables: number, units: number, variable: string, keyPrefix: string): ReactNode[] {
+/** Fichas de un platillo, apiladas desde la bandeja hacia arriba: primero las incógnitas, luego las pesas con número y las unidades. */
+function trayItems(cx: number, trayY: number, side: BalanceSpec["left"], variable: string, keyPrefix: string): ReactNode[] {
+  const { variables, units, weights } = side;
   const nodes: ReactNode[] = [];
   let y = trayY - 3;
   const row = (count: number, pitch: number, draw: (x: number, index: number) => ReactNode) => {
@@ -147,6 +150,22 @@ function trayItems(cx: number, trayY: number, variables: number, units: number, 
     ));
     y = top - 4;
   }
+  if (weights.length > 0) {
+    const top = y - 26;
+    const start = cx - (weights.length * 42) / 2 + 21;
+    weights.forEach((weight, index) => {
+      const x = start + index * 42;
+      nodes.push(
+        <g key={`${keyPrefix}w${index}`}>
+          <rect x={x - 19} y={top} width={38} height={26} rx={5} fill={figureColor(4).fill} stroke="#111B24" strokeWidth={1.4} />
+          <text x={x} y={top + 17.5} textAnchor="middle" className="crt-figure__unit">
+            {formatNumberEs(weight)}
+          </text>
+        </g>,
+      );
+    });
+    y = top - 4;
+  }
   for (let remaining = units; remaining > 0; remaining -= 5) {
     const count = Math.min(5, remaining);
     const cy = y - 10;
@@ -164,7 +183,7 @@ function trayItems(cx: number, trayY: number, variables: number, units: number, 
 }
 
 const describeSide = (side: BalanceSpec["left"], variable: string) =>
-  [side.variables ? `${side.variables} ${variable}` : "", side.units ? `${side.units} unidades` : ""].filter(Boolean).join(" y ") || "nada";
+  [side.variables ? `${side.variables} ${variable}` : "", ...side.weights.map(weight => `una pesa de ${formatNumberEs(weight)}`), side.units ? `${side.units} unidades` : ""].filter(Boolean).join(" y ") || "nada";
 
 /** Balanza en equilibrio para plantear ecuaciones: cuadros para la incógnita y fichas de valor 1. */
 export const Balance = memo(function Balance({ spec }: { spec: BalanceSpec }) {
@@ -186,7 +205,7 @@ export const Balance = memo(function Balance({ spec }: { spec: BalanceSpec }) {
         <g key={key}>
           <line x1={cx} x2={cx} y1={trayY} y2={beamY} className="crt-figure__segment" />
           <path d={`M${cx - 66} ${trayY - 9} V${trayY} H${cx + 66} V${trayY - 9}`} className="crt-figure__tray" />
-          {trayItems(cx, trayY, side.variables, side.units, spec.variable, key)}
+          {trayItems(cx, trayY, side, spec.variable, key)}
         </g>
       ))}
     </FigureFrame>

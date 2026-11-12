@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { BLOCK_TYPE_LABELS, blockInputSchema, blockPreview, emptyDoc, resourceDocSchema, type BlockInput } from "@shared/creator";
+import { labelFits, parseNumberList } from "@shared/creatorFigures";
 import {
+  axisTicks,
   buildHistogramClasses,
   describeComputed,
   fiveNumberSummary,
@@ -313,5 +315,39 @@ describe("figuras estadísticas: lo que ve la IA", () => {
     });
     expect(outcome.isError).toBe(true);
     expect(outcome.result).toContain("2, 3");
+  });
+});
+
+describe("lo que encontró la revisión de las figuras estadísticas", () => {
+  it("lee listas de números separadas por comas, punto y coma o espacios", () => {
+    expect(parseNumberList("15 4")).toEqual([15, 4]);
+    expect(parseNumberList(" 1, 2;3\n−4.5 ")).toEqual([1, 2, 3, -4.5]);
+    expect(parseNumberList("")).toEqual([]);
+    // Una letra no es un separador: «s» era el fallo del campo de pesas de la balanza
+    expect(parseNumberList("12s3")).toEqual([NaN]);
+  });
+
+  it("sabe si un texto cabe en dos renglones sin recortarse", () => {
+    expect(labelFits("12", 5)).toBe(true);
+    expect(labelFits("10, 20", 6)).toBe(true);
+    expect(labelFits("2, 4, 6, 8", 6)).toBe(true);
+    expect(labelFits("10, 20, 40, 50, 70", 6)).toBe(false);
+    expect(labelFits("Supercalifragilístico", 6)).toBe(false);
+  });
+
+  it("no dibuja miles de marcas con un paso escrito a medias", () => {
+    expect(axisTicks({ min: 0, max: 5, step: 0.5 })).toHaveLength(11);
+    const guarded = axisTicks({ min: 0, max: 5, step: 0.00001 });
+    expect(guarded.length).toBeGreaterThan(1);
+    expect(guarded.length).toBeLessThanOrEqual(200);
+  });
+
+  it("rechaza fórmulas en los rótulos de texto plano y deja pasar el dinero", () => {
+    const line = (extra: Record<string, unknown>) => validateBlock(block({ type: "line_chart", categories: ["Ene", "Feb"], series: [{ values: [3, 4] }], ...extra }));
+    expect(line({ xLabel: "Tiempo ($s$)" })[0]).toContain("texto plano");
+    expect(line({ categories: ["$x_1$", "Feb"] })).toHaveLength(1);
+    expect(line({ title: "Ventas en miles ($12.000 a $20.000)" })).toEqual([]);
+    expect(line({ yLabel: "Precio ($)" })).toEqual([]);
+    expect(validateBlock(block({ type: "box_plot", series: [{ label: "\\text{9A}", data: [1, 2, 3, 4, 5] }] }))).toHaveLength(1);
   });
 });
