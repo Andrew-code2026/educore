@@ -9,6 +9,7 @@ import { FractionModel } from "./FractionModel";
 import { NumberLine } from "./NumberLine";
 import { RichText } from "./RichText";
 import { Balance, Shapes } from "./Shapes";
+import { BoxPlot, Histogram, LineChart, ScatterPlot } from "./StatCharts";
 
 /** Una figura centrada con su pie. */
 function Figure({ caption, children }: { caption?: string; children: ReactNode }) {
@@ -228,6 +229,30 @@ export const BlockView = memo(function BlockView({ block }: { block: Block }) {
       return (
         <Figure caption={block.caption}>
           <PieChart spec={block} />
+        </Figure>
+      );
+    case "histogram":
+      return (
+        <Figure caption={block.caption}>
+          <Histogram spec={block} />
+        </Figure>
+      );
+    case "box_plot":
+      return (
+        <Figure caption={block.caption}>
+          <BoxPlot spec={block} />
+        </Figure>
+      );
+    case "line_chart":
+      return (
+        <Figure caption={block.caption}>
+          <LineChart spec={block} />
+        </Figure>
+      );
+    case "scatter_plot":
+      return (
+        <Figure caption={block.caption}>
+          <ScatterPlot spec={block} />
         </Figure>
       );
     case "shapes":

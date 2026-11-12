@@ -7,12 +7,12 @@ import { BlockPreview, CaptionField, Check, Field, NumberInput, OptionalNumberIn
  * Formularios de las figuras. Las listas usan campos numéricos sin controlar, así que
  * al quitar un elemento se cambia la clave de la lista para que los demás se vuelvan a pintar.
  */
-function useListVersion() {
+export function useListVersion() {
   const [version, setVersion] = useState(0);
   return [version, () => setVersion(current => current + 1)] as const;
 }
 
-function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
+export function RemoveButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button type="button" className="crt-icon-btn crt-icon-btn--danger" aria-label={label} onClick={onClick}>
       <Trash2 aria-hidden="true" />
@@ -20,7 +20,7 @@ function RemoveButton({ label, onClick }: { label: string; onClick: () => void }
   );
 }
 
-function AddButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+export function AddButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
   return (
     <button type="button" className="crt-btn crt-btn--ghost crt-btn--sm" onClick={onClick}>
       <Plus aria-hidden="true" />

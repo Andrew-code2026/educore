@@ -10,6 +10,7 @@ import { Field, NumberInput, type Draft, type FormProps } from "./fields";
 import { BalanceForm, BarChartForm, FractionModelForm, NumberLineForm, PieChartForm, ShapesForm } from "./FigureForms";
 import type { BlockEditorHandle } from "./InlineBlockEditor";
 import { RichTextEditor } from "./RichTextEditor";
+import { BoxPlotForm, HistogramForm, LineChartForm, ScatterPlotForm, STAT_TEMPLATES } from "./StatForms";
 
 /** Contenido inicial de un bloque nuevo, listo para que el docente lo complete. */
 export const BLOCK_TEMPLATES: Record<BlockType, BlockInput> = {
@@ -53,6 +54,7 @@ export const BLOCK_TEMPLATES: Record<BlockType, BlockInput> = {
     showPercent: true,
     blank: false,
   },
+  ...STAT_TEMPLATES,
   shapes: { type: "shapes", figures: [{ kind: "rectangle", width: 5, height: 3, widthLabel: "5 cm", heightLabel: "3 cm" }], toScale: true },
   balance: { type: "balance", variable: "x", left: { variables: 2, units: 1 }, right: { variables: 0, units: 7 } },
   solution: { type: "solution", label: "Ejercicio", steps: ["Escribe aquí el primer paso."] },
@@ -74,6 +76,10 @@ export const ADDABLE_BLOCKS: BlockType[] = [
   "fraction_model",
   "bar_chart",
   "pie_chart",
+  "histogram",
+  "box_plot",
+  "line_chart",
+  "scatter_plot",
   "shapes",
   "balance",
   "solution",
@@ -495,6 +501,14 @@ function renderForm(draft: BlockInput, onChange: (next: BlockInput) => void): Re
       return <BarChartForm draft={draft} onChange={onChange} />;
     case "pie_chart":
       return <PieChartForm draft={draft} onChange={onChange} />;
+    case "histogram":
+      return <HistogramForm draft={draft} onChange={onChange} />;
+    case "box_plot":
+      return <BoxPlotForm draft={draft} onChange={onChange} />;
+    case "line_chart":
+      return <LineChartForm draft={draft} onChange={onChange} />;
+    case "scatter_plot":
+      return <ScatterPlotForm draft={draft} onChange={onChange} />;
     case "shapes":
       return <ShapesForm draft={draft} onChange={onChange} />;
     case "balance":

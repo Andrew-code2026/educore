@@ -27,6 +27,10 @@ export const CREATOR_LIMITS = {
   pointsMax: 12,
   /** Marcas por eje: más que esto deja la cuadrícula ilegible al imprimir. */
   ticksMax: 40,
+  /** Datos crudos de un histograma o de una caja y bigotes: hasta cinco cursos de 40 estudiantes. */
+  statDataMax: 200,
+  histogramClassesMax: 12,
+  scatterPointsMax: 40,
   docBytesMax: 400_000,
   versionsKept: 20,
 } as const;
@@ -237,6 +241,115 @@ const pieChartBlock = z.object({
   blank: z.boolean().default(false).describe("true dibuja el círculo con marcas cada 10° y sin sectores, para que el estudiante lo construya."),
 });
 
+/* ── Figuras estadísticas: lo que se dibuja (frecuencias, cuartiles, recta de tendencia) se calcula en creatorStats.ts ── */
+
+const axisName = z.string().trim().max(60).optional();
+const axisBound = z.number().optional();
+const axisStep = z.number().positive().optional();
+
+const histogramBlock = z.object({
+  type: z.literal("histogram"),
+  caption,
+  title: chartText,
+  xLabel: axisName.describe('Nombre de la variable, p. ej. "Estatura (cm)".'),
+  yLabel: axisName.describe('Nombre del eje vertical, p. ej. "Número de estudiantes".'),
+  classes: z
+    .array(
+      z.object({
+        from: z.number().describe("Límite inferior de la clase (incluido)."),
+        to: z.number().describe("Límite superior de la clase (excluido, salvo en la última clase)."),
+        frequency: z.number().int().min(0).describe("Cuántos datos caen en la clase."),
+      }),
+    )
+    .min(2)
+    .max(CREATOR_LIMITS.histogramClassesMax)
+    .describe("Clases en orden, contiguas y del mismo ancho: cada una empieza donde termina la anterior."),
+  data: z
+    .array(z.number())
+    .max(CREATOR_LIMITS.statDataMax)
+    .optional()
+    .describe("Datos crudos, si el enunciado los da. El sistema cuenta cuántos caen en cada clase y rechaza las frecuencias que no coincidan."),
+  yMax: axisStep.describe("Tope del eje vertical. Si se omite se calcula a partir de las frecuencias."),
+  yStep: axisStep.describe("Separación de las marcas del eje vertical. Si se omite se calcula."),
+  showValues: z.boolean().default(true).describe("Escribe la frecuencia sobre cada barra."),
+  blank: z.boolean().default(false).describe("true dibuja los ejes y los límites de las clases sin barras, para que el estudiante las trace."),
+});
+
+const boxPlotBlock = z.object({
+  type: z.literal("box_plot"),
+  caption,
+  title: chartText,
+  xLabel: axisName.describe('Nombre de la variable bajo el eje, p. ej. "Nota (de 0 a 5)".'),
+  series: z
+    .array(
+      z.object({
+        label: shortLabel.optional().describe('Nombre del grupo, p. ej. "9A". Obligatorio cuando hay más de un grupo.'),
+        data: z
+          .array(z.number())
+          .min(5)
+          .max(CREATOR_LIMITS.statDataMax)
+          .describe("Datos crudos, en cualquier orden. El mínimo, los cuartiles, la mediana y el máximo se calculan solos: no los escribas."),
+      }),
+    )
+    .min(1)
+    .max(3)
+    .describe("Un diagrama por grupo, todos sobre el mismo eje para poder compararlos."),
+  xMin: axisBound.describe("Inicio del eje. Si se omite se calcula a partir de los datos."),
+  xMax: axisBound.describe("Fin del eje. Si se omite se calcula."),
+  xStep: axisStep.describe("Separación de las marcas del eje. Si se omite se calcula."),
+  showValues: z.boolean().default(true).describe("Escribe sobre el diagrama el mínimo, Q1, la mediana, Q3 y el máximo."),
+  blank: z.boolean().default(false).describe("true dibuja solo el eje numerado, para que el estudiante construya el diagrama."),
+});
+
+const lineChartBlock = z.object({
+  type: z.literal("line_chart"),
+  caption,
+  title: chartText,
+  xLabel: axisName,
+  yLabel: axisName,
+  categories: z
+    .array(shortLabel)
+    .min(2)
+    .max(12)
+    .describe('Rótulos del eje horizontal en orden, p. ej. ["Ene", "Feb", "Mar"]. Quedan a la misma distancia uno de otro.'),
+  series: z
+    .array(
+      z.object({
+        label: shortLabel.optional().describe("Nombre de la serie para la leyenda. Obligatorio cuando hay más de una serie."),
+        values: z.array(z.number()).min(2).max(12).describe("Un valor por cada rótulo de categories, en el mismo orden."),
+      }),
+    )
+    .min(1)
+    .max(4),
+  yMin: axisBound.describe("Inicio del eje vertical. Si se omite se calcula: cero cuando los datos están cerca de él."),
+  yMax: axisBound.describe("Tope del eje vertical. Si se omite se calcula."),
+  yStep: axisStep.describe("Separación de las marcas del eje vertical. Si se omite se calcula."),
+  showValues: z.boolean().default(false).describe("Escribe el valor junto a cada punto."),
+  blank: z.boolean().default(false).describe("true dibuja los ejes y las categorías sin puntos ni líneas, para que el estudiante trace la gráfica."),
+});
+
+const scatterPlotBlock = z.object({
+  type: z.literal("scatter_plot"),
+  caption,
+  title: chartText,
+  xLabel: axisName,
+  yLabel: axisName,
+  points: z
+    .array(z.object({ x: z.number(), y: z.number() }))
+    .min(3)
+    .max(CREATOR_LIMITS.scatterPointsMax)
+    .describe("Pares (x, y) observados. Se dibujan sueltos, sin unirlos con líneas."),
+  xMin: axisBound,
+  xMax: axisBound,
+  xStep: axisStep,
+  yMin: axisBound,
+  yMax: axisBound,
+  yStep: axisStep.describe("Los seis límites de los ejes son opcionales: si se omiten se calculan a partir de los puntos."),
+  trendLine: z.boolean().default(false).describe("Dibuja la recta de mejor ajuste. El sistema la calcula por mínimos cuadrados a partir de los puntos: no la escribas tú."),
+  showEquation: z.boolean().default(false).describe("Con trendLine, escribe la ecuación de la recta dentro de la figura."),
+  blank: z.boolean().default(false).describe("true dibuja los ejes y la cuadrícula sin puntos, para que el estudiante los ubique."),
+});
+
 const shapeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("rectangle"),
@@ -317,6 +430,10 @@ export const blockInputSchema = z.discriminatedUnion("type", [
   fractionModelBlock,
   barChartBlock,
   pieChartBlock,
+  histogramBlock,
+  boxPlotBlock,
+  lineChartBlock,
+  scatterPlotBlock,
   shapesBlock,
   balanceBlock,
   solutionBlock,
@@ -340,6 +457,10 @@ export const blockSchema = z.discriminatedUnion("type", [
   fractionModelBlock.extend({ id }),
   barChartBlock.extend({ id }),
   pieChartBlock.extend({ id }),
+  histogramBlock.extend({ id }),
+  boxPlotBlock.extend({ id }),
+  lineChartBlock.extend({ id }),
+  scatterPlotBlock.extend({ id }),
   shapesBlock.extend({ id }),
   balanceBlock.extend({ id }),
   solutionBlock.extend({ id }),
@@ -384,6 +505,10 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   fraction_model: "Modelo de fracciones",
   bar_chart: "Diagrama de barras",
   pie_chart: "Diagrama circular",
+  histogram: "Histograma",
+  box_plot: "Caja y bigotes",
+  line_chart: "Gráfica de líneas",
+  scatter_plot: "Diagrama de dispersión",
   shapes: "Figuras geométricas",
   balance: "Balanza",
   solution: "Solución",
@@ -739,6 +864,14 @@ export function blockPreview(block: BlockInput): string {
       return block.caption || block.title || `Barras: ${block.bars.map(bar => bar.label).join(", ")}`;
     case "pie_chart":
       return block.caption || block.title || `Sectores: ${block.slices.map(slice => slice.label).join(", ")}`;
+    case "histogram":
+      return block.caption || block.title || `Histograma de ${block.classes[0].from} a ${block.classes[block.classes.length - 1].to}`;
+    case "box_plot":
+      return block.caption || block.title || `Caja y bigotes${block.series.some(series => series.label) ? `: ${block.series.map(series => series.label).filter(Boolean).join(", ")}` : ` de ${block.series[0].data.length} datos`}`;
+    case "line_chart":
+      return block.caption || block.title || `Líneas: ${block.categories.join(", ")}`;
+    case "scatter_plot":
+      return block.caption || block.title || `Dispersión de ${block.points.length} puntos${block.trendLine ? " con recta de tendencia" : ""}`;
     case "shapes":
       return block.caption || `Figuras: ${block.figures.map(figure => SHAPE_KIND_LABELS[figure.kind]).join(", ")}`;
     case "balance":
