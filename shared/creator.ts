@@ -372,7 +372,7 @@ const angleBlock = z.object({
     .array(
       z.object({
         degrees: z.number().min(1).max(359).describe("Medida en grados."),
-        label: z.string().trim().max(24).optional().describe('Rótulo junto al arco en Markdown, p. ej. "$\\alpha$" o "x". Si se omite se escribe la medida.'),
+        label: z.string().trim().max(24).optional().describe('Rótulo junto al arco en Markdown, p. ej. "$\\alpha$" o "x". Con showMeasures se escribe junto a la medida (α = 45°); sin showMeasures, solo el rótulo.'),
       }),
     )
     .min(1)

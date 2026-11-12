@@ -73,7 +73,7 @@ export function AngleForm({ draft, onChange }: FormProps<"angle">) {
         <Check label="Escribir la medida" checked={draft.showMeasures} onChange={showMeasures => onChange({ ...draft, showMeasures })} />
         <Check label="Con transportador" checked={draft.protractor} onChange={protractor => onChange({ ...draft, protractor })} />
       </div>
-      <p className="crt-form__hint">El rótulo reemplaza a la medida y admite fórmulas: $\alpha$, x. Sin medida y con transportador, el estudiante mide el ángulo.</p>
+      <p className="crt-form__hint">El rótulo admite fórmulas ($\alpha$, x) y sale junto a la medida: α = 45°. Sin medida y con transportador, el estudiante mide el ángulo.</p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
       <BlockPreview draft={draft} />
     </>

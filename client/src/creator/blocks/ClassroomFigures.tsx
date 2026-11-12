@@ -44,10 +44,15 @@ export const Angle = memo(function Angle({ spec }: { spec: AngleSpec }) {
     // Cada ángulo ocupa lo que mide su dibujo: uno obtuso necesita sitio a la izquierda del vértice
     const items = spec.angles.map(angle => {
       const rad = (angle.degrees * Math.PI) / 180;
-      const text = angle.label ?? (spec.showMeasures ? `${formatNumberEs(angle.degrees)}°` : "");
+      const measure = `${formatNumberEs(angle.degrees)}°`;
+      // Con rótulo y medida van los dos: «α = 45°» es lo que espera una clave de respuestas
+      const named = Boolean(angle.label) && spec.showMeasures;
+      const text = angle.label ? (named ? `${angle.label} = ${measure}` : angle.label) : spec.showMeasures ? measure : "";
+      const w = Math.max(2, text.replace(/[$\\{}]/g, "").length) * 7.4 + 8;
       // En un ángulo cerrado el rótulo se aleja del vértice para no montarse en los lados
-      const labelR = ARC + (angle.degrees < 35 ? 34 : 19);
-      const label = { x: labelR * Math.cos(rad / 2), y: labelR * Math.sin(rad / 2), w: Math.max(2, text.replace(/[$\\{}]/g, "").length) * 7.4 + 8 };
+      const labelR = ARC + (angle.degrees < 35 ? 34 : 19) + (named ? w / 4 : 0);
+      // «α = 45°» no cabe dentro de la abertura sin pisar un lado o el transportador: va bajo la base, que está libre hasta 180°
+      const label = named && angle.degrees <= 180 ? { x: ARC + 6, y: -17, w } : { x: labelR * Math.cos(rad / 2), y: labelR * Math.sin(rad / 2), w };
       const xs = [0, reach, reach * Math.cos(rad), ...(text ? [label.x - label.w / 2, label.x + label.w / 2] : []), ...(spec.protractor ? [-PROTRACTOR_R - 4, PROTRACTOR_R + 4] : [])];
       const ys = [0, reach * Math.sin(rad), ...(angle.degrees > 180 ? [-ARC] : []), ...(text ? [label.y - 11, label.y + 11] : []), ...(spec.protractor ? [PROTRACTOR_R + 4] : [])];
       return { angle, rad, text, label, minX: Math.min(...xs) - 12, maxX: Math.max(...xs) + 12, minY: Math.min(...ys) - 10, maxY: Math.max(...ys) + 10 };
