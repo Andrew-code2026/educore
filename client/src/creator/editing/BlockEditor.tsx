@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState, type ReactNode } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { BLOCK_TYPE_LABELS, blockInputSchema, CREATOR_LIMITS, graphSpecSchema, type Block, type BlockInput, type BlockType } from "@shared/creator";
@@ -8,6 +8,7 @@ import { CoordinatePlane } from "../blocks/CoordinatePlane";
 import { Formula } from "../blocks/Formula";
 import { Field, NumberInput, type Draft, type FormProps } from "./fields";
 import { BalanceForm, BarChartForm, FractionModelForm, NumberLineForm, PieChartForm, ShapesForm } from "./FigureForms";
+import type { BlockEditorHandle } from "./InlineBlockEditor";
 import { RichTextEditor } from "./RichTextEditor";
 
 /** Contenido inicial de un bloque nuevo, listo para que el docente lo complete. */
@@ -512,30 +513,45 @@ interface BlockEditorProps {
 }
 
 /** Formulario de edición de un bloque. No guarda nada que no pase las mismas validaciones que la IA. */
-export function BlockEditor({ block, onSave, onCancel }: BlockEditorProps) {
+export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(function BlockEditor({ block, onSave, onCancel }, ref) {
   const [draft, setDraft] = useState<BlockInput>(() => {
     const { id: _id, ...content } = block;
     return content as BlockInput;
   });
   const [issues, setIssues] = useState<string[]>([]);
+  const form = useRef<HTMLDivElement>(null);
 
-  const save = () => {
+  const save = (): boolean => {
     const parsed = blockInputSchema.safeParse(draft);
     if (!parsed.success) {
       setIssues(z.prettifyError(parsed.error).split("\n").filter(Boolean).slice(0, 6));
-      return;
+      return false;
     }
     const normalized = normalizeBlock(parsed.data);
     const problems = validateBlock(normalized);
     if (problems.length > 0) {
       setIssues(problems.slice(0, 6));
-      return;
+      return false;
     }
     onSave(normalized);
+    return true;
   };
+
+  // La hoja puede pedir que se guarde lo que hay (antes de que la IA empiece a trabajar), siempre con el borrador al día
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  useImperativeHandle(
+    ref,
+    () => ({
+      settle: () => saveRef.current(),
+      focus: () => form.current?.querySelector<HTMLElement>("input, textarea, select, [contenteditable='true']")?.focus(),
+    }),
+    [],
+  );
 
   return (
     <div
+      ref={form}
       className="crt-form"
       role="group"
       aria-label={`Editar ${BLOCK_TYPE_LABELS[block.type].toLowerCase()}`}
@@ -566,4 +582,4 @@ export function BlockEditor({ block, onSave, onCancel }: BlockEditorProps) {
       </div>
     </div>
   );
-}
+});

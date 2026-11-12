@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
 import { BLOCK_TYPE_LABELS, CREATOR_LIMITS, type Block, type BlockInput, type BlockType, type CreatorEvent, type ResourceDoc, type Section } from "@shared/creator";
 import type { DocOp, OpResult } from "@shared/creatorOps";
 import { cn } from "@/lib/utils";
 import { BlockView } from "./blocks/BlockView";
 import { ADDABLE_BLOCKS, BLOCK_TEMPLATES, BlockEditor } from "./editing/BlockEditor";
+import { InlineBlockEditor, type BlockEditorHandle, type CloseReason } from "./editing/InlineBlockEditor";
+import { isInlineBlock, isInlineType } from "./editing/inlineDraft";
+import type { EditEntry } from "./editing/InlineText";
 import { ResourceSheet } from "./ResourceSheet";
 
 type Preview = Extract<CreatorEvent, { type: "preview" }>;
@@ -19,6 +22,18 @@ interface EditableDocumentProps {
   /** Sección que la IA está escribiendo ahora mismo. */
   preview: Preview | null;
   working: boolean;
+}
+
+export interface EditableDocumentHandle {
+  /** Guarda el bloque que esté abierto, si es válido. Devuelve `false` si sigue abierto con datos por corregir. */
+  settle: () => boolean;
+}
+
+/** El bloque abierto: los de texto se editan en su sitio y los demás con su formulario. */
+interface Editing {
+  id: string;
+  inline: boolean;
+  entry: EditEntry;
 }
 
 /** Espera antes de mostrar las acciones de un bloque: al desplazar la hoja o cruzarla con el puntero no aparece nada. */
@@ -129,49 +144,85 @@ function TitleEditor({ doc, readOnly, applyOp }: Pick<EditableDocumentProps, "do
 }
 
 /** El recurso en pantalla: cada bloque se edita en su sitio, con las mismas reglas que sigue la IA. */
-export function EditableDocument({ doc, readOnly, applyOp, schoolName, logoUrl, preview, working }: EditableDocumentProps) {
-  const [editingId, setEditingId] = useState<string | null>(null);
+export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocumentProps>(function EditableDocument({ doc, readOnly, applyOp, schoolName, logoUrl, preview, working }, ref) {
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const editingRef = useRef(editing);
+  editingRef.current = editing;
+  const editor = useRef<BlockEditorHandle | null>(null);
+  const paper = useRef<HTMLDivElement>(null);
   /** Dónde está abierto el menú de añadir: después de un bloque o al final de una sección. */
   const [inserter, setInserter] = useState<{ sectionId: string; afterBlockId?: string } | null>(null);
   const { activeId, enter, leave, focus, blur } = useActiveBlock();
   const noHover = useNoHover();
 
+  // Antes de que la IA empiece a trabajar, quien envía el mensaje pide guardar lo abierto (ver CreatorWorkspace)
+  useImperativeHandle(ref, () => ({ settle: () => editor.current?.settle() ?? true }), []);
+
   useEffect(() => {
     if (readOnly) {
-      setEditingId(null);
+      setEditing(null);
       setInserter(null);
     }
   }, [readOnly]);
+
+  /** Abre un bloque para editarlo. Un texto abierto con un dato por corregir no se cierra: se perdería lo escrito. */
+  const open = (id: string, type: BlockType, entry: EditEntry) => {
+    const current = editingRef.current;
+    if (current && current.id !== id && current.inline && editor.current && !editor.current.settle()) {
+      editor.current.focus();
+      return;
+    }
+    setEditing({ id, inline: isInlineType(type), entry });
+  };
+
+  const close = (id: string, reason: CloseReason = "blur") => {
+    setEditing(current => (current?.id === id ? null : current));
+    // Cerrado desde el teclado, el foco vuelve al bloque para seguir con Tab
+    if (reason === "keyboard") {
+      requestAnimationFrame(() => paper.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(id)}"] .crt-block__view`)?.focus());
+    }
+  };
 
   const insert = (type: BlockType) => {
     if (!inserter) return;
     const result = applyOp({ op: "insert_blocks", sectionId: inserter.sectionId, afterBlockId: inserter.afterBlockId, blocks: [BLOCK_TEMPLATES[type]] });
     setInserter(null);
-    // El bloque nuevo se abre de una vez para completarlo
-    if (result.ok && type !== "page_break") setEditingId(result.ids[0] ?? null);
+    // El bloque nuevo se abre de una vez para completarlo, con su texto de muestra seleccionado
+    if (result.ok && type !== "page_break" && result.ids[0]) open(result.ids[0], type, "all");
   };
 
   const renderBlock = (block: Block, section: Section) => {
-    const editing = editingId === block.id;
+    const isEditing = editing?.id === block.id;
+    const inline = isInlineBlock(block);
     const index = section.blocks.indexOf(block);
     const canEdit = !readOnly && block.type !== "page_break";
-    const active = !readOnly && !editing && activeId === block.id;
+    const active = !readOnly && !isEditing && activeId === block.id;
     const showTools = !readOnly && (noHover || active);
     return (
       <div
-        className={cn("crt-block", `crt-block--${block.type}`, editing && "is-editing", !readOnly && "is-editable", active && "is-active")}
+        className={cn("crt-block", `crt-block--${block.type}`, isEditing && (inline ? "is-inplace" : "is-editing"), !readOnly && "is-editable", active && "is-active")}
+        data-block-id={block.id}
         onPointerEnter={event => event.pointerType !== "touch" && enter(block.id)}
         onPointerLeave={() => leave(block.id)}
         onFocus={() => focus(block.id)}
         onBlur={event => !event.currentTarget.contains(event.relatedTarget) && blur(block.id)}
       >
-        {editing ? (
-          <BlockEditor
+        {isEditing && inline ? (
+          <InlineBlockEditor
+            ref={editor}
             block={block}
-            onCancel={() => setEditingId(null)}
+            entry={editing.entry}
+            onCommit={(next: BlockInput) => void applyOp({ op: "update_block", blockId: block.id, block: next })}
+            onClose={reason => close(block.id, reason)}
+          />
+        ) : isEditing ? (
+          <BlockEditor
+            ref={editor}
+            block={block}
+            onCancel={() => close(block.id)}
             onSave={(next: BlockInput) => {
               applyOp({ op: "update_block", blockId: block.id, block: next });
-              setEditingId(null);
+              close(block.id);
             }}
           />
         ) : (
@@ -183,11 +234,12 @@ export function EditableDocument({ doc, readOnly, applyOp, schoolName, logoUrl, 
                     role: "button",
                     tabIndex: 0,
                     "aria-label": `Editar ${BLOCK_TYPE_LABELS[block.type].toLowerCase()}`,
-                    onClick: () => setEditingId(block.id),
+                    // El cursor queda donde se hizo clic; con el teclado, al final del texto
+                    onClick: (event: React.MouseEvent) => open(block.id, block.type, event.detail > 0 ? { x: event.clientX, y: event.clientY } : "end"),
                     onKeyDown: (event: React.KeyboardEvent) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
-                        setEditingId(block.id);
+                        open(block.id, block.type, "end");
                       }
                     },
                   }
@@ -198,7 +250,7 @@ export function EditableDocument({ doc, readOnly, applyOp, schoolName, logoUrl, 
             {showTools && (
               <div className="crt-block__tools" role="toolbar" aria-label={`Acciones de ${BLOCK_TYPE_LABELS[block.type].toLowerCase()}`}>
                 {canEdit && (
-                  <button type="button" title="Editar" aria-label="Editar" onClick={() => setEditingId(block.id)}>
+                  <button type="button" title="Editar" aria-label="Editar" onClick={() => open(block.id, block.type, "end")}>
                     <Pencil aria-hidden="true" />
                   </button>
                 )}
@@ -241,7 +293,7 @@ export function EditableDocument({ doc, readOnly, applyOp, schoolName, logoUrl, 
   };
 
   return (
-    <div className="crt-paper">
+    <div className="crt-paper" ref={paper}>
       <ResourceSheet
         doc={doc}
         schoolName={schoolName}
@@ -274,4 +326,4 @@ export function EditableDocument({ doc, readOnly, applyOp, schoolName, logoUrl, 
       )}
     </div>
   );
-}
+});

@@ -25,7 +25,7 @@ function Figure({ caption, children }: { caption?: string; children: ReactNode }
 }
 
 /** Espacio para que el estudiante responda: renglones, cuadrícula o en blanco. */
-function AnswerSpace({ kind, lines }: { kind: BlockOf<"exercise">["answerSpace"]; lines: number }) {
+export function AnswerSpace({ kind, lines }: { kind: BlockOf<"exercise">["answerSpace"]; lines: number }) {
   if (kind === "none") return null;
   if (kind === "lines") {
     return (
