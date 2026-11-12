@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
 import { BLOCK_TYPE_LABELS, CREATOR_LIMITS, type Block, type BlockInput, type BlockType, type CreatorEvent, type ResourceDoc, type Section } from "@shared/creator";
 import type { DocOp, OpResult } from "@shared/creatorOps";
@@ -19,6 +19,57 @@ interface EditableDocumentProps {
   /** Sección que la IA está escribiendo ahora mismo. */
   preview: Preview | null;
   working: boolean;
+}
+
+/** Espera antes de mostrar las acciones de un bloque: al desplazar la hoja o cruzarla con el puntero no aparece nada. */
+const HOVER_IN_MS = 110;
+/** Margen para llegar con el puntero del bloque a su barra sin que se esconda. */
+const HOVER_OUT_MS = 160;
+
+/** En pantallas táctiles no hay puntero que pase por encima: las acciones de cada bloque van siempre a la vista. */
+function useNoHover() {
+  const [noHover, setNoHover] = useState(() => typeof window !== "undefined" && window.matchMedia("(hover: none)").matches);
+  useEffect(() => {
+    const media = window.matchMedia("(hover: none)");
+    const onChange = () => setNoHover(media.matches);
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+  return noHover;
+}
+
+interface ActiveBlock {
+  hoverId: string | null;
+  focusId: string | null;
+  /** Lo último que usó el docente: manda sobre lo otro cuando puntero y foco apuntan a bloques distintos. */
+  last: "hover" | "focus";
+}
+
+/**
+ * El bloque activo es el que está bajo el puntero o el que tiene el foco del teclado.
+ * Solo ese bloque monta su barra de acciones: una barra en toda la hoja en vez de una por bloque.
+ */
+function useActiveBlock() {
+  const [state, setState] = useState<ActiveBlock>({ hoverId: null, focusId: null, last: "hover" });
+  const timer = useRef<number | undefined>(undefined);
+
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  const enter = useCallback((id: string) => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setState(current => ({ ...current, hoverId: id, last: "hover" })), HOVER_IN_MS);
+  }, []);
+
+  const leave = useCallback((id: string) => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setState(current => (current.hoverId === id ? { ...current, hoverId: null } : current)), HOVER_OUT_MS);
+  }, []);
+
+  const focus = useCallback((id: string) => setState(current => (current.focusId === id && current.last === "focus" ? current : { ...current, focusId: id, last: "focus" })), []);
+  const blur = useCallback((id: string) => setState(current => (current.focusId === id ? { ...current, focusId: null } : current)), []);
+
+  const activeId = state.last === "focus" ? (state.focusId ?? state.hoverId) : (state.hoverId ?? state.focusId);
+  return { activeId, enter, leave, focus, blur };
 }
 
 function BlockTypeMenu({ onPick, onClose }: { onPick: (type: BlockType) => void; onClose: () => void }) {
@@ -82,6 +133,8 @@ export function EditableDocument({ doc, readOnly, applyOp, schoolName, logoUrl, 
   const [editingId, setEditingId] = useState<string | null>(null);
   /** Dónde está abierto el menú de añadir: después de un bloque o al final de una sección. */
   const [inserter, setInserter] = useState<{ sectionId: string; afterBlockId?: string } | null>(null);
+  const { activeId, enter, leave, focus, blur } = useActiveBlock();
+  const noHover = useNoHover();
 
   useEffect(() => {
     if (readOnly) {
@@ -102,8 +155,16 @@ export function EditableDocument({ doc, readOnly, applyOp, schoolName, logoUrl, 
     const editing = editingId === block.id;
     const index = section.blocks.indexOf(block);
     const canEdit = !readOnly && block.type !== "page_break";
+    const active = !readOnly && !editing && activeId === block.id;
+    const showTools = !readOnly && (noHover || active);
     return (
-      <div className={cn("crt-block", `crt-block--${block.type}`, editing && "is-editing", !readOnly && "is-editable")}>
+      <div
+        className={cn("crt-block", `crt-block--${block.type}`, editing && "is-editing", !readOnly && "is-editable", active && "is-active")}
+        onPointerEnter={event => event.pointerType !== "touch" && enter(block.id)}
+        onPointerLeave={() => leave(block.id)}
+        onFocus={() => focus(block.id)}
+        onBlur={event => !event.currentTarget.contains(event.relatedTarget) && blur(block.id)}
+      >
         {editing ? (
           <BlockEditor
             block={block}
@@ -134,7 +195,7 @@ export function EditableDocument({ doc, readOnly, applyOp, schoolName, logoUrl, 
             >
               <BlockView block={block} />
             </div>
-            {!readOnly && (
+            {showTools && (
               <div className="crt-block__tools" role="toolbar" aria-label={`Acciones de ${BLOCK_TYPE_LABELS[block.type].toLowerCase()}`}>
                 {canEdit && (
                   <button type="button" title="Editar" aria-label="Editar" onClick={() => setEditingId(block.id)}>

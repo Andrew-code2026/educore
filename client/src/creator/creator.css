@@ -555,8 +555,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
-  padding: 12px 18px;
+  gap: 8px 14px;
+  /* Barra baja: cada píxel que no ocupa es alto de hoja a la vista */
+  padding: 7px 18px;
   background: var(--crt-bar-bg);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--edc-hair);
@@ -581,7 +582,7 @@
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--edc-scroll) transparent;
-  padding: 20px 22px 60px;
+  padding: 14px 22px 60px;
   background: var(--crt-stage-bg);
   display: flex;
   flex-direction: column;
@@ -838,14 +839,16 @@
 
 .crt-block { position: relative; margin: 0 -10px 12px; padding: 4px 10px; border-radius: 10px; }
 .crt-block--heading { margin-top: 18px; margin-bottom: 4px; }
-.crt-block.is-editable { transition: background-color .12s ease; }
-.crt-block.is-editable:hover,
-.crt-block.is-editable:focus-within { background: #F5F9FE; }
-.crt-block.is-editing { background: #F5F9FE; outline: 1px solid var(--sheet-accent-line); }
+/* La hoja se queda quieta mientras se lee o se desplaza: el bloque activo (bajo el puntero tras una
+   pausa breve, o con el foco) solo se marca con un filete, igual que el título al pasar por encima */
+.crt-block.is-editable { outline: 1px solid transparent; transition: outline-color .12s ease; }
+.crt-block.is-active { outline-color: var(--sheet-hair); }
+.crt-block.is-editing { background: #F5F9FE; outline-color: var(--sheet-accent-line); }
 .crt-block__view[role="button"] { cursor: text; border-radius: 6px; }
 .crt-block__view[role="button"]:focus-visible { outline: 2px solid var(--sheet-accent); outline-offset: 4px; }
 
-/* La barra flota por encima del bloque: nunca tapa el texto que se está leyendo */
+/* Barra de acciones del bloque activo: hay una sola en toda la hoja (EditableDocument la monta
+   en el bloque activo). Por defecto flota sobre la esquina del bloque, en fila. */
 .crt-block__tools {
   position: absolute;
   top: -31px;
@@ -858,25 +861,31 @@
   background: #FFFFFF;
   border: 1px solid var(--sheet-hair);
   box-shadow: 0 6px 16px -8px rgba(17, 27, 36, .4);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .12s ease;
+  animation: crt-tools-in .12s ease both;
 }
 
-.crt-block:hover > .crt-block__tools,
-.crt-block:focus-within > .crt-block__tools { opacity: 1; pointer-events: auto; }
-@media (hover: none) { .crt-block__tools { opacity: 1; pointer-events: auto; } }
+@keyframes crt-tools-in { from { opacity: 0; } }
+
+/* Con puntero y hoja ancha baja al margen derecho, en columna: no tapa ningún texto */
+@media (hover: hover) {
+  @container crt (min-width: 721px) {
+    .crt-block__tools { top: 0; right: auto; left: calc(100% + 5px); flex-direction: column; }
+    /* Puente invisible entre el bloque y la barra: el puntero no «sale» al cruzarlo */
+    .crt-block__tools::before { content: ""; position: absolute; top: 0; bottom: 0; right: 100%; width: 8px; }
+  }
+}
 
 .crt-block__tools button {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border: 0;
   border-radius: 50%;
   background: transparent;
   color: var(--sheet-ink-2);
   cursor: pointer;
+  transition: background-color .12s ease, color .12s ease;
 }
 
 .crt-block__tools button svg { width: 14px; height: 14px; }
@@ -1187,6 +1196,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .crt .crt-idea:hover, .crt .crt-card:hover { transform: none; }
+  .crt-block__tools { animation: none; }
+  .crt-block.is-editable, .crt-block__tools button { transition: none; }
 }
 
 /* ── Copia para imprimir o guardar en PDF ──────────────── */
