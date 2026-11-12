@@ -29,13 +29,14 @@ const errorText = (error: unknown) => (error instanceof Error && error.message ?
  *
  * Vive fuera de React para poder probarlo con relojes falsos; `useCreatorAutosave` lo envuelve.
  */
-export function createAutosaveController(options: { save: () => SaveFn; onState: (state: SaveState) => void; onRejection: (message: string | null) => void }) {
+export function createAutosaveController(options: { save: () => SaveFn; onState: (state: SaveState) => void }) {
   let latest: ResourceDoc | null = null;
   let version = 0;
   let dirty = false;
   let inFlight: Promise<unknown> | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let failure: SaveFailure | null = null;
+  let rejection: string | null = null;
   let attempt = 0;
   /** El docente eligió guardar su versión encima de la que llegó de otra ventana. */
   let overwrite = false;
@@ -70,7 +71,7 @@ export function createAutosaveController(options: { save: () => SaveFn; onState:
       overwrite = false;
       failure = null;
       attempt = 0;
-      if (active) options.onRejection(null);
+      rejection = null;
       show(dirty ? "pending" : "saved");
       if (dirty) schedule(AUTOSAVE_DELAY_MS);
       return true;
@@ -84,7 +85,7 @@ export function createAutosaveController(options: { save: () => SaveFn; onState:
         return false;
       }
       if (kind === "rejected") {
-        if (active) options.onRejection(errorText(error));
+        rejection = errorText(error);
         show("error");
         return false;
       }
@@ -119,7 +120,7 @@ export function createAutosaveController(options: { save: () => SaveFn; onState:
       failure = null;
       attempt = 0;
       overwrite = false;
-      if (active) options.onRejection(null);
+      rejection = null;
       show("saved");
     },
 
@@ -144,6 +145,8 @@ export function createAutosaveController(options: { save: () => SaveFn; onState:
 
     isDirty: () => dirty || inFlight !== null,
     lastFailure: () => failure,
+    /** El motivo del último rechazo del servidor, leído al momento (el estado de React puede ir un render atrás). */
+    lastRejection: () => rejection,
 
     setActive(next: boolean) {
       active = next;
@@ -156,20 +159,29 @@ export function createAutosaveController(options: { save: () => SaveFn; onState:
 
 export type AutosaveController = ReturnType<typeof createAutosaveController>;
 
-/** El controlador de guardado de un recurso. Todo lo que devuelve es estable salvo `saveState` y `rejection`. */
-export function useCreatorAutosave(save: SaveFn) {
+/**
+ * El controlador de guardado de un recurso. Todo lo que devuelve es estable salvo `saveState`.
+ * `onExitUnsaved` avisa si al salir del editor quedó algo sin guardar (conflicto sin resolver, sin conexión):
+ * sin él, eso se perdería en silencio.
+ */
+export function useCreatorAutosave(save: SaveFn, options: { onExitUnsaved?: (failure: SaveFailure | null) => void } = {}) {
   const [saveState, setSaveState] = useState<SaveState>("saved");
-  const [rejection, setRejection] = useState<string | null>(null);
   const saveRef = useRef(save);
   saveRef.current = save;
-  const [controller] = useState(() => createAutosaveController({ save: () => saveRef.current, onState: setSaveState, onRejection: setRejection }));
+  const exitRef = useRef(options.onExitUnsaved);
+  exitRef.current = options.onExitUnsaved;
+  const [controller] = useState(() => createAutosaveController({ save: () => saveRef.current, onState: setSaveState }));
 
   useEffect(() => {
     controller.setActive(true);
     return () => {
       controller.setActive(false);
-      // Lo pendiente se guarda al salir del editor
-      if (controller.isDirty()) void controller.flush();
+      // Lo pendiente se guarda al salir del editor; si no se puede, se avisa
+      if (controller.isDirty()) {
+        void controller.flush().then(saved => {
+          if (!saved) exitRef.current?.(controller.lastFailure());
+        });
+      }
     };
   }, [controller]);
 
@@ -189,5 +201,5 @@ export function useCreatorAutosave(save: SaveFn) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [controller]);
 
-  return useMemo(() => ({ ...controller, saveState, rejection }), [controller, rejection, saveState]);
+  return useMemo(() => ({ ...controller, saveState }), [controller, saveState]);
 }

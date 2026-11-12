@@ -40,7 +40,6 @@ describe("guardado automático", () => {
         return respond(calls.length);
       },
       onState: state => states.push(state),
-      onRejection: () => undefined,
     });
 
   beforeEach(() => {
@@ -156,6 +155,7 @@ describe("guardado automático", () => {
     await vi.advanceTimersByTimeAsync(15_000);
     expect(calls).toHaveLength(1);
     expect(states.at(-1)).toBe("error");
+    expect(autosave.lastRejection()).toBe("rechazado");
     autosave.update({ ...doc, title: "xy" });
     await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS);
     expect(calls).toHaveLength(2);

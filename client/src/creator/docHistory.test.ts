@@ -74,6 +74,21 @@ describe("historial del documento", () => {
     expect(state.history.past).toHaveLength(3);
   });
 
+  it("tras deshacer, la edición siguiente del mismo bloque es un paso propio", () => {
+    const start = sample();
+    const [first, second] = start.sections[0].blocks;
+    const retext = (block: typeof first, text: string): DocOp => ({ op: "update_block", blockId: block.id, block: { ...block, ...("text" in block ? { text } : {}) } as never });
+    let state = { doc: start, history: emptyHistory };
+    state = edit(state, retext(first, "x1"), 0);
+    const afterFirst = state.doc;
+    state = edit(state, retext(second, "y1"), 300);
+    const undone = undoStep(state.history, state.doc, 500)!;
+    expect(undone.doc).toBe(afterFirst);
+    // Volver a editar el primer bloque dentro del margen no debe fundirse con su grupo anterior
+    state = edit({ doc: undone.doc, history: undone.history }, retext(first, "x2"), 800);
+    expect(undoStep(state.history, state.doc)!.doc).toBe(afterFirst);
+  });
+
   it("guarda como mucho el tope de pasos", () => {
     let history = emptyHistory;
     const doc = sample();
@@ -99,29 +114,29 @@ describe("dónde quedó el cambio", () => {
     const start = sample();
     const section = start.sections[start.sections.length - 1];
     const after = apply(start, { op: "delete_blocks", blockIds: [section.blocks[0].id] });
-    expect(locateChange(after, start)).toEqual({ sectionId: section.id, blockIndex: 0 });
+    expect(locateChange(after, start)).toEqual({ sectionId: section.id, blockId: section.blocks[0].id });
   });
 
   it("ubica el bloque que vuelve al deshacer un borrado", () => {
     const start = sample();
     const target = start.sections[0].blocks[2];
     const after = apply(start, { op: "delete_blocks", blockIds: [target.id] });
-    expect(locateChange(after, start)).toEqual({ sectionId: start.sections[0].id, blockIndex: 2 });
+    expect(locateChange(after, start)).toEqual({ sectionId: start.sections[0].id, blockId: target.id });
   });
 
   it("ubica un movimiento y un borrado al final de la sección", () => {
     const start = sample();
     const blocks = start.sections[0].blocks;
     const moved = apply(start, { op: "move_block", blockId: blocks[1].id, direction: "down" });
-    expect(locateChange(start, moved)).toEqual({ sectionId: start.sections[0].id, blockIndex: 1 });
+    expect(locateChange(start, moved)).toEqual({ sectionId: start.sections[0].id, blockId: blocks[2].id });
     const last = blocks[blocks.length - 1];
     const trimmed = apply(start, { op: "delete_blocks", blockIds: [last.id] });
-    expect(locateChange(start, trimmed)).toEqual({ sectionId: start.sections[0].id, blockIndex: blocks.length - 2 });
+    expect(locateChange(start, trimmed)).toEqual({ sectionId: start.sections[0].id, blockId: blocks[blocks.length - 2].id });
   });
 
   it("reconoce un cambio de título y la ausencia de cambios", () => {
     const start = sample();
-    expect(locateChange(start, apply(start, { op: "set_meta", title: "Nuevo" }))).toEqual({ sectionId: null, blockIndex: null });
+    expect(locateChange(start, apply(start, { op: "set_meta", title: "Nuevo" }))).toEqual({ sectionId: null, blockId: null });
     expect(locateChange(start, start)).toBeNull();
   });
 });

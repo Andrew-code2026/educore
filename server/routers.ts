@@ -238,7 +238,8 @@ async function requireCreatorActor(ctx: TrpcContext, role: EduRole, isMutation =
   return actor;
 }
 
-async function creatorCall<T>(run: () => Promise<T>): Promise<T> {
+/** Exportada para las pruebas: el cliente depende de estos códigos para decidir si reintenta un guardado. */
+export async function creatorCall<T>(run: () => Promise<T>): Promise<T> {
   try {
     return await run();
   } catch (error) {

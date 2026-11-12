@@ -57,14 +57,8 @@ function isEditingTarget(target: EventTarget | null) {
 function revealChange(location: ChangeLocation | null) {
   if (!location) return;
   window.requestAnimationFrame(() => {
-    let target: HTMLElement | null;
-    if (location.sectionId === null) {
-      target = document.querySelector<HTMLElement>(".crt-stage .crt-paper");
-    } else {
-      const section = document.getElementById(`crt-${location.sectionId}`);
-      const blocks = section?.querySelectorAll<HTMLElement>(":scope > .crt-block");
-      target = (location.blockIndex !== null ? blocks?.[location.blockIndex] : undefined) ?? section;
-    }
+    const block = location.blockId ? document.querySelector<HTMLElement>(`.crt-stage [data-block-id="${CSS.escape(location.blockId)}"]`) : null;
+    const target = block ?? (location.sectionId ? document.getElementById(`crt-${location.sectionId}`) : document.querySelector<HTMLElement>(".crt-stage .crt-paper"));
     if (!target) return;
     const box = (target.closest(".crt-stage") ?? document.documentElement).getBoundingClientRect();
     const rect = target.getBoundingClientRect();
@@ -151,24 +145,32 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   const detailQuery = trpc.creator.get.useQuery(input, {
     retry: 1,
     refetchOnWindowFocus: false,
+    // Al volver la red reintenta el autoguardado: traer el documento a la vez podría reemplazar lo local por algo anterior
+    refetchOnReconnect: false,
     // Sin canal en vivo, el avance de la IA se consulta cada pocos segundos
     refetchInterval: running && streamFailed ? 3000 : false,
   });
   const versionsQuery = trpc.creator.versions.useQuery(input, { enabled: versionsOpen, staleTime: 0 });
-  // Sin red, React Query pausaría el guardado sin avisar: mejor que falle y decida la política de reintento
+  // Sin red, React Query pausaría estas acciones sin avisar: mejor que fallen y lo diga cada una
   const { mutateAsync: saveDoc } = trpc.creator.saveDoc.useMutation({ networkMode: "always" });
-  const { mutateAsync: sendMessage } = trpc.creator.sendMessage.useMutation();
-  const restoreMutation = trpc.creator.restoreVersion.useMutation();
-  const duplicateMutation = trpc.creator.duplicate.useMutation();
-  const removeMutation = trpc.creator.remove.useMutation();
+  const { mutateAsync: sendMessage } = trpc.creator.sendMessage.useMutation({ networkMode: "always" });
+  const restoreMutation = trpc.creator.restoreVersion.useMutation({ networkMode: "always" });
+  const duplicateMutation = trpc.creator.duplicate.useMutation({ networkMode: "always" });
+  const removeMutation = trpc.creator.remove.useMutation({ networkMode: "always" });
 
   const autosave = useCreatorAutosave(
     useCallback(
       (next: ResourceDoc, baseVersion: number, { overwrite }: { overwrite: boolean }) => saveDoc({ role, id: resourceId, doc: next, baseVersion, ...(overwrite ? { overwrite } : {}) }),
       [resourceId, role, saveDoc],
     ),
+    {
+      onExitUnsaved: failure => {
+        const reason = failure === "conflict" ? "el recurso había cambiado en otra ventana" : failure === "busy" ? "la IA estaba trabajando en él" : failure === "rejected" ? "el servidor no los aceptó" : "no había conexión";
+        toast.error(`No se guardaron tus últimos cambios en «${docRef.current.title || "Recurso sin título"}»: ${reason}.`, { id: SAVE_TOAST, duration: 10_000 });
+      },
+    },
   );
-  const { saveState, rejection, reset: resetAutosave, isDirty, update: updateAutosave, flush: flushAutosave, keepMine, retry: retryAutosave, lastFailure } = autosave;
+  const { saveState, reset: resetAutosave, isDirty, update: updateAutosave, flush: flushAutosave, keepMine, retry: retryAutosave, lastFailure, lastRejection } = autosave;
   const history = useDocHistory();
   const { record: recordHistory, undo: popUndo, redo: popRedo, clear: clearHistory } = history;
   const [conflictOpen, setConflictOpen] = useState(false);
@@ -209,10 +211,10 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     previousSave.current = saveState;
     if (before === saveState) return;
     if (saveState === "offline") toast.error("Sin conexión. Tus cambios siguen en esta ventana y se guardarán cuando vuelva.", { id: SAVE_TOAST });
-    else if (saveState === "error") toast.error(rejection ?? "No pudimos guardar tus cambios.", { id: SAVE_TOAST });
+    else if (saveState === "error") toast.error(lastRejection() ?? "No pudimos guardar tus cambios.", { id: SAVE_TOAST });
     else if (saveState === "conflict") setConflictOpen(true);
     else if (before === "offline" && saveState === "saved") toast.success("Volvió la conexión. Tus cambios quedaron guardados.", { id: SAVE_TOAST });
-  }, [rejection, saveState]);
+  }, [lastRejection, saveState]);
 
   // Lo que esperaba a la IA se guarda en cuanto termina el turno
   useEffect(() => {
@@ -227,10 +229,10 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
         setConflictOpen(true);
         return;
       }
-      const reason = failure === "busy" ? "La IA está trabajando en este recurso; espera a que termine." : failure === "rejected" ? (rejection ?? "No pudimos guardar tus cambios.") : "Revisa la conexión.";
+      const reason = failure === "busy" ? "La IA está trabajando en este recurso; espera a que termine." : failure === "rejected" ? (lastRejection() ?? "No pudimos guardar tus cambios.") : "Revisa la conexión.";
       toast.error(`Guarda tus cambios antes de ${action}. ${reason}`, { id: SAVE_TOAST });
     },
-    [lastFailure, rejection],
+    [lastFailure, lastRejection],
   );
 
   const finishTurn = useCallback(
@@ -341,8 +343,9 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   const loadLatest = async () => {
     setResolving(true);
     try {
-      const fresh = await detailQuery.refetch();
-      if (!fresh.data) throw fresh.error ?? new Error("sin datos");
+      // Si la consulta falla, `refetch` devolvería lo que había en caché: mejor que lance
+      const fresh = await detailQuery.refetch({ throwOnError: true });
+      if (!fresh.data) throw new Error("sin datos");
       resetAutosave(fresh.data.doc, fresh.data.version);
       setDoc(fresh.data.doc);
       clearHistory();
@@ -359,8 +362,8 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   const keepLocal = async () => {
     setResolving(true);
     try {
-      const fresh = await detailQuery.refetch();
-      if (!fresh.data) throw fresh.error ?? new Error("sin datos");
+      const fresh = await detailQuery.refetch({ throwOnError: true });
+      if (!fresh.data) throw new Error("sin datos");
       setConflictOpen(false);
       if (await keepMine(fresh.data.version)) toast.success("Guardamos tu versión. La otra quedó en «Versiones».", { id: SAVE_TOAST });
     } catch {

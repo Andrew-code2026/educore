@@ -36,7 +36,8 @@ export function historyKey(op: DocOp): string | undefined {
 export function recordStep(history: DocHistory, before: ResourceDoc, options: { key?: string; at: number; limit?: number; mergeMs?: number }): DocHistory {
   const { key, at, limit = HISTORY_LIMIT, mergeMs = HISTORY_MERGE_MS } = options;
   const last = history.past[history.past.length - 1];
-  if (key && last?.key === key && at - last.at < mergeMs) {
+  // Tras deshacer no se funde: el documento actual debe poder recuperarse con su propio paso
+  if (key && last?.key === key && at - last.at < mergeMs && history.future.length === 0) {
     // Se conserva el documento de antes de la primera edición del grupo
     return { past: [...history.past.slice(0, -1), { ...last, at }], future: [] };
   }
@@ -56,25 +57,24 @@ export function redoStep(history: DocHistory, current: ResourceDoc, at = 0): { h
   return { doc: next.doc, history: { past: [...history.past, { doc: current, at }], future: history.future.slice(0, -1) } };
 }
 
-/** Dónde quedó el cambio entre dos documentos, medido en `to`. `sectionId: null` es el título. */
-export type ChangeLocation = { sectionId: string | null; blockIndex: number | null };
+/** Dónde quedó el cambio entre dos documentos, medido en `to`. `sectionId: null` es el título; `blockId: null`, la sección entera. */
+export type ChangeLocation = { sectionId: string | null; blockId: string | null };
 
 export function locateChange(from: ResourceDoc, to: ResourceDoc): ChangeLocation | null {
   for (const section of to.sections) {
     const previous = from.sections.find(candidate => candidate.id === section.id);
-    if (!previous) return { sectionId: section.id, blockIndex: null };
+    if (!previous) return { sectionId: section.id, blockId: null };
     // Borrar bloques copia todas las secciones: lo que cuenta es si cambiaron sus bloques o su encabezado
     const sameBlocks = previous.blocks.length === section.blocks.length && previous.blocks.every((block, position) => block === section.blocks[position]);
     if (previous === section || (sameBlocks && previous.title === section.title && previous.role === section.role)) continue;
     const index = section.blocks.findIndex((block, position) => block !== previous.blocks[position]);
-    if (index !== -1) return { sectionId: section.id, blockIndex: index };
-    // Se quitaron bloques del final: el cambio queda junto al último que sigue. Si no, cambió el encabezado.
-    const shorter = section.blocks.length < previous.blocks.length && section.blocks.length > 0;
-    return { sectionId: section.id, blockIndex: shorter ? section.blocks.length - 1 : null };
+    // Si se quitaron bloques del final, el cambio queda junto al último que sigue; si no hay diferencia en los bloques, cambió el encabezado
+    const at = index !== -1 ? index : section.blocks.length < previous.blocks.length ? section.blocks.length - 1 : -1;
+    return { sectionId: section.id, blockId: section.blocks[at]?.id ?? null };
   }
   const removed = from.sections.findIndex(section => !to.sections.some(candidate => candidate.id === section.id));
-  if (removed !== -1 && to.sections.length > 0) return { sectionId: to.sections[Math.min(removed, to.sections.length - 1)].id, blockIndex: null };
-  if (from.title !== to.title || from.subtitle !== to.subtitle) return { sectionId: null, blockIndex: null };
+  if (removed !== -1 && to.sections.length > 0) return { sectionId: to.sections[Math.min(removed, to.sections.length - 1)].id, blockId: null };
+  if (from.title !== to.title || from.subtitle !== to.subtitle) return { sectionId: null, blockId: null };
   return null;
 }
 
