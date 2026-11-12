@@ -64,10 +64,13 @@ export function AnalyticsPage({ data, role, setSection }: AnalyticsPageProps) {
 
   const period = useMemo(() => resolveActivePeriod(data?.academicPeriods)?.name ?? null, [data?.academicPeriods]);
 
+  // Rectoría/Coordinación no abre planillas ni toma asistencia: las alertas académicas llevan a boletines
+  const isAdmin = role === "admin";
   const handleOpenAlert = useCallback(
-    (alert: AlertModel) => setSection(alert.kind === "academic" ? "grades" : "attendance"),
-    [setSection],
+    (alert: AlertModel) => setSection(isAdmin ? "reports" : alert.kind === "academic" ? "grades" : "attendance"),
+    [isAdmin, setSection],
   );
+  const adminAlertLabel = useCallback((alert: AlertModel) => (alert.kind === "academic" ? "Ver boletines" : null), []);
   const handleOpenPlanilla = useCallback(() => setSection("grades"), [setSection]);
   const { refetch: refetchPlanillas } = planillasQuery;
   const handleRetry = useCallback(() => void refetchPlanillas(), [refetchPlanillas]);
@@ -81,7 +84,13 @@ export function AnalyticsPage({ data, role, setSection }: AnalyticsPageProps) {
       error={planillasQuery.isError && !planillasQuery.data}
       onRetry={handleRetry}
       onOpenAlert={handleOpenAlert}
-      onOpenPlanilla={handleOpenPlanilla}
+      onOpenPlanilla={isAdmin ? undefined : handleOpenPlanilla}
+      alertActionLabel={isAdmin ? adminAlertLabel : undefined}
+      emptyPlanillas={
+        isAdmin
+          ? { title: "Aún no hay planillas en el colegio", text: "Aparecen cuando asignas carga docente desde Académico." }
+          : undefined
+      }
     />
   );
 }

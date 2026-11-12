@@ -8,19 +8,34 @@ const PASSING_PCT = (PASSING_GRADE / GRADE_SCALE_MAX) * 100;
 interface CourseAverageListProps {
   courses: CourseModel[];
   onOpen: (course: CourseModel) => void;
+  /** Texto de la acción por curso (el docente abre la planilla; el directivo, los boletines). */
+  actionLabel?: string;
+  actionAria?: (group: string) => string;
 }
 
-export const CourseAverageList = memo(function CourseAverageList({ courses, onOpen }: CourseAverageListProps) {
+const DEFAULT_ARIA = (group: string) => `Abrir las planillas de ${group} en Grade Center`;
+
+export const CourseAverageList = memo(function CourseAverageList({ courses, onOpen, actionLabel = "Abrir", actionAria = DEFAULT_ARIA }: CourseAverageListProps) {
   return (
     <ul aria-label="Promedio por curso" className="rpt-surface rpt-list">
       {courses.map((course) => (
-        <CourseRow key={course.key} course={course} onOpen={onOpen} />
+        <CourseRow key={course.key} course={course} onOpen={onOpen} actionLabel={actionLabel} actionAria={actionAria} />
       ))}
     </ul>
   );
 });
 
-function CourseRow({ course, onOpen }: { course: CourseModel; onOpen: (course: CourseModel) => void }) {
+function CourseRow({
+  course,
+  onOpen,
+  actionLabel,
+  actionAria,
+}: {
+  course: CourseModel;
+  onOpen: (course: CourseModel) => void;
+  actionLabel: string;
+  actionAria: (group: string) => string;
+}) {
   const average = course.average;
 
   return (
@@ -77,10 +92,10 @@ function CourseRow({ course, onOpen }: { course: CourseModel; onOpen: (course: C
         <button
           type="button"
           className="rpt-btn rpt-btn--outline"
-          aria-label={`Abrir las planillas de ${course.group} en Grade Center`}
+          aria-label={actionAria(course.group)}
           onClick={() => onOpen(course)}
         >
-          Abrir
+          {actionLabel}
           <ArrowRight aria-hidden="true" strokeWidth={1.9} />
         </button>
       </div>

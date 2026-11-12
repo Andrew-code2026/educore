@@ -10,7 +10,7 @@ import {
   type PlanillaModel,
 } from "./landing";
 import { LandingHeader } from "./LandingHeader";
-import { AlertList } from "./AlertList";
+import { AlertList, type AlertActionLabel } from "./AlertList";
 import { PlanillaList } from "./PlanillaList";
 import "./landing.css";
 
@@ -22,8 +22,11 @@ interface AnalyticsLandingProps {
   lede: string;
   error: boolean;
   onRetry: () => void;
-  onOpenAlert: (alert: AlertModel) => void;
-  onOpenPlanilla: (planilla: PlanillaModel) => void;
+  onOpenAlert?: (alert: AlertModel) => void;
+  /** Sin callback las planillas se muestran solo como lectura. */
+  onOpenPlanilla?: (planilla: PlanillaModel) => void;
+  alertActionLabel?: AlertActionLabel;
+  emptyPlanillas?: { title: string; text: string };
 }
 
 const FILTERS: ReadonlyArray<{ id: AlertFilter; label: string }> = [
@@ -42,6 +45,11 @@ export function AnalyticsLanding({
   onRetry,
   onOpenAlert,
   onOpenPlanilla,
+  alertActionLabel,
+  emptyPlanillas = {
+    title: "Aún no tienes planillas asignadas",
+    text: "Cuando tengas cursos y materias asignados, verás aquí su rendimiento.",
+  },
 }: AnalyticsLandingProps) {
   return (
     <div className="anl">
@@ -60,7 +68,7 @@ export function AnalyticsLanding({
           <ErrorCard onRetry={onRetry} />
         ) : model ? (
           <>
-            <AlertsSection alerts={model.alerts} summary={model.summary} onOpen={onOpenAlert} />
+            <AlertsSection alerts={model.alerts} summary={model.summary} onOpen={onOpenAlert} actionLabel={alertActionLabel} />
             <section aria-labelledby="anl-planillas-heading" className="anl-section">
               <div className="anl-section__head">
                 <h2 id="anl-planillas-heading" className="anl-section__title">
@@ -77,8 +85,8 @@ export function AnalyticsLanding({
                 <UnstartedPlanillas planillas={model.unstarted} onOpen={onOpenPlanilla} />
               )}
               {model.planillas.length === 0 && model.unstarted.length === 0 && (
-                <EmptyCard icon={<BookOpen strokeWidth={1.9} />} title="Aún no tienes planillas asignadas">
-                  Cuando tengas cursos y materias asignados, verás aquí su rendimiento.
+                <EmptyCard icon={<BookOpen strokeWidth={1.9} />} title={emptyPlanillas.title}>
+                  {emptyPlanillas.text}
                 </EmptyCard>
               )}
             </section>
@@ -94,10 +102,11 @@ export function AnalyticsLanding({
 interface AlertsSectionProps {
   alerts: AlertModel[];
   summary: AnalyticsLandingModel["summary"];
-  onOpen: (alert: AlertModel) => void;
+  onOpen?: (alert: AlertModel) => void;
+  actionLabel?: AlertActionLabel;
 }
 
-function AlertsSection({ alerts, summary, onOpen }: AlertsSectionProps) {
+function AlertsSection({ alerts, summary, onOpen, actionLabel }: AlertsSectionProps) {
   const [filter, setFilter] = useState<AlertFilter>("all");
   const [expanded, setExpanded] = useState(false);
 
@@ -146,7 +155,7 @@ function AlertsSection({ alerts, summary, onOpen }: AlertsSectionProps) {
         </EmptyCard>
       ) : (
         <>
-          <AlertList alerts={visible} onOpen={onOpen} />
+          <AlertList alerts={visible} onOpen={onOpen} actionLabel={actionLabel} />
           {filtered.length > ALERTS_PREVIEW_LIMIT && (
             <button
               type="button"
@@ -165,7 +174,7 @@ function AlertsSection({ alerts, summary, onOpen }: AlertsSectionProps) {
 
 interface UnstartedPlanillasProps {
   planillas: PlanillaModel[];
-  onOpen: (planilla: PlanillaModel) => void;
+  onOpen?: (planilla: PlanillaModel) => void;
 }
 
 /** Planillas sin evaluaciones: sin métricas que comparar, se listan como accesos compactos. */
@@ -179,15 +188,22 @@ function UnstartedPlanillas({ planillas, onOpen }: UnstartedPlanillasProps) {
       <ul aria-label="Planillas sin evaluaciones" className="anl-chips">
         {planillas.map((planilla) => (
           <li key={planilla.key}>
-            <button
-              type="button"
-              className="anl-chip"
-              aria-label={`Abrir planilla de ${planilla.subject} ${planilla.group} en Grade Center`}
-              onClick={() => onOpen(planilla)}
-            >
-              <span className="anl-group anl-num">{planilla.group}</span>
-              {planilla.subject}
-            </button>
+            {onOpen ? (
+              <button
+                type="button"
+                className="anl-chip"
+                aria-label={`Abrir planilla de ${planilla.subject} ${planilla.group} en Grade Center`}
+                onClick={() => onOpen(planilla)}
+              >
+                <span className="anl-group anl-num">{planilla.group}</span>
+                {planilla.subject}
+              </button>
+            ) : (
+              <span className="anl-chip" style={{ cursor: "default" }}>
+                <span className="anl-group anl-num">{planilla.group}</span>
+                {planilla.subject}
+              </span>
+            )}
           </li>
         ))}
       </ul>

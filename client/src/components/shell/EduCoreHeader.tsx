@@ -17,7 +17,7 @@ interface EduCoreHeaderProps {
 
 const ROLE_PROFILES: Record<EduRole, { name: string; roleLabel: string; menuLabel: string; initials: string }> = {
   teacher: { name: "Prof. Juan Diego Loaiza", roleLabel: "Docente", menuLabel: "Docente", initials: "JD" },
-  admin: { name: "Dra. Carolina Restrepo", roleLabel: "Rectoría", menuLabel: "Rectoría / Coordinación", initials: "CR" },
+  admin: { name: "Valentina Ríos", roleLabel: "Coordinación", menuLabel: "Rectoría / Coordinación", initials: "VR" },
   student: { name: "Sofía Martínez Cadavid", roleLabel: "Estudiante", menuLabel: "Estudiante", initials: "SM" },
   guardian: { name: "Fernando Martínez", roleLabel: "Acudiente", menuLabel: "Acudiente", initials: "FM" },
 };
@@ -77,7 +77,7 @@ export function EduCoreHeader({
   };
 
   const activeProfile = ROLE_PROFILES[role] || ROLE_PROFILES.teacher;
-  const avatarInitials = role === "teacher" && user?.name ? initialsOf(user.name) : activeProfile.initials;
+  const avatarInitials = (role === "teacher" || role === "admin") && user?.name ? initialsOf(user.name) : activeProfile.initials;
 
   return (
     <header className="edc-topbar edc-chrome">
@@ -136,7 +136,7 @@ export function EduCoreHeader({
             aria-label="Cambiar vista demo"
             className="sr-only"
           >
-            <option value="admin">Vista Administrador</option>
+            <option value="admin">Vista Rectoría / Coordinación</option>
             <option value="teacher">Vista Docente</option>
             <option value="student">Vista Estudiante</option>
             <option value="guardian">Vista Acudiente</option>
@@ -160,7 +160,12 @@ export function EduCoreHeader({
               {(["teacher", "admin", "student", "guardian"] as EduRole[]).map(opt => {
                 const meta = ROLE_PROFILES[opt];
                 const isSelected = role === opt;
-                const subtitle = opt === "teacher" && user?.name ? (user.name.startsWith("Prof.") ? user.name : `Prof. ${user.name}`) : meta.name;
+                const subtitle =
+                  opt === "teacher" && role === "teacher" && user?.name
+                    ? (user.name.startsWith("Prof.") ? user.name : `Prof. ${user.name}`)
+                    : opt === "admin" && role === "admin" && user?.name
+                      ? user.name
+                      : meta.name;
                 return (
                   <button
                     key={opt}

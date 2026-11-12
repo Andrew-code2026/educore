@@ -21,6 +21,8 @@ interface ReportsLandingProps {
   onOpenAlerts: () => void;
   onGenerate: (card: ReportCardModel) => void;
   onOpenReportCards: (card: ReportCardModel) => void;
+  /** Rectoría/Coordinación: cada curso abre sus boletines y los cursos sin notas no tienen acción. */
+  managementView?: boolean;
 }
 
 /** Portada de Reportes y analítica: boletines, lectura del periodo y promedio por curso. */
@@ -36,6 +38,7 @@ export function ReportsLanding({
   onOpenAlerts,
   onGenerate,
   onOpenReportCards,
+  managementView = false,
 }: ReportsLandingProps) {
   return (
     <div className="rpt">
@@ -103,7 +106,14 @@ export function ReportsLanding({
                 </h2>
                 {model.courses.length > 1 && <span className="rpt-section__hint">De menor a mayor promedio</span>}
               </div>
-              {model.courses.length > 0 && <CourseAverageList courses={model.courses} onOpen={onOpenCourse} />}
+              {model.courses.length > 0 && (
+                <CourseAverageList
+                  courses={model.courses}
+                  onOpen={onOpenCourse}
+                  actionLabel={managementView ? "Boletines" : undefined}
+                  actionAria={managementView ? group => `Ver los boletines de ${group}` : undefined}
+                />
+              )}
               {model.ungraded.length > 0 && (
                 <CourseChips
                   title="Sin notas aún"
@@ -111,17 +121,24 @@ export function ReportsLanding({
                   items={model.ungraded}
                   getKey={(course) => course.key}
                 >
-                  {(course) => (
-                    <button
-                      type="button"
-                      className="rpt-chip"
-                      aria-label={`Registrar notas de ${course.group} en Grade Center`}
-                      onClick={() => onOpenCourse(course)}
-                    >
-                      <span className="rpt-group rpt-num">{course.group}</span>
-                      Registrar notas
-                    </button>
-                  )}
+                  {(course) =>
+                    managementView ? (
+                      <span className="rpt-chip" style={{ cursor: "default" }}>
+                        <span className="rpt-group rpt-num">{course.group}</span>
+                        Sin notas registradas
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="rpt-chip"
+                        aria-label={`Registrar notas de ${course.group} en Grade Center`}
+                        onClick={() => onOpenCourse(course)}
+                      >
+                        <span className="rpt-group rpt-num">{course.group}</span>
+                        Registrar notas
+                      </button>
+                    )
+                  }
                 </CourseChips>
               )}
               {model.courses.length === 0 && model.ungraded.length === 0 && (

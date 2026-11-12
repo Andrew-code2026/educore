@@ -7,23 +7,28 @@ const KIND_META: Record<AlertKind, { tag: string; action: string; Icon: typeof T
   attendance: { tag: "Asistencia", action: "Ver asistencia", Icon: CalendarX2 },
 };
 
+/** Etiqueta de la acción por alerta; `null` oculta el botón (p. ej. secciones que el rol no abre). */
+export type AlertActionLabel = (alert: AlertModel) => string | null;
+
 interface AlertListProps {
   alerts: AlertModel[];
-  onOpen: (alert: AlertModel) => void;
+  onOpen?: (alert: AlertModel) => void;
+  actionLabel?: AlertActionLabel;
 }
 
-export const AlertList = memo(function AlertList({ alerts, onOpen }: AlertListProps) {
+export const AlertList = memo(function AlertList({ alerts, onOpen, actionLabel }: AlertListProps) {
   return (
     <ul aria-label="Estudiantes con alertas" className="anl-surface anl-list">
       {alerts.map((alert) => (
-        <AlertRow key={alert.key} alert={alert} onOpen={onOpen} />
+        <AlertRow key={alert.key} alert={alert} onOpen={onOpen} actionLabel={actionLabel} />
       ))}
     </ul>
   );
 });
 
-function AlertRow({ alert, onOpen }: { alert: AlertModel; onOpen: (alert: AlertModel) => void }) {
-  const { tag, action, Icon } = KIND_META[alert.kind];
+function AlertRow({ alert, onOpen, actionLabel }: { alert: AlertModel; onOpen?: (alert: AlertModel) => void; actionLabel?: AlertActionLabel }) {
+  const { tag, Icon } = KIND_META[alert.kind];
+  const action = actionLabel ? actionLabel(alert) : KIND_META[alert.kind].action;
 
   return (
     <li className="anl-alert">
@@ -50,15 +55,17 @@ function AlertRow({ alert, onOpen }: { alert: AlertModel; onOpen: (alert: AlertM
         </div>
       </div>
 
-      <button
-        type="button"
-        className="anl-btn anl-btn--outline"
-        aria-label={`${action} de ${alert.studentName}, ${alert.group} ${alert.subject}`}
-        onClick={() => onOpen(alert)}
-      >
-        {action}
-        <ArrowRight aria-hidden="true" strokeWidth={1.9} />
-      </button>
+      {onOpen && action ? (
+        <button
+          type="button"
+          className="anl-btn anl-btn--outline"
+          aria-label={`${action} de ${alert.studentName}, ${alert.group} ${alert.subject}`}
+          onClick={() => onOpen(alert)}
+        >
+          {action}
+          <ArrowRight aria-hidden="true" strokeWidth={1.9} />
+        </button>
+      ) : null}
     </li>
   );
 }

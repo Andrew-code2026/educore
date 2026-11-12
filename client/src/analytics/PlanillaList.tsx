@@ -6,7 +6,8 @@ const PASSING_PCT = (PASSING_GRADE / GRADE_SCALE_MAX) * 100;
 
 interface PlanillaListProps {
   planillas: PlanillaModel[];
-  onOpen: (planilla: PlanillaModel) => void;
+  /** Sin callback la fila es solo lectura (p. ej. Rectoría/Coordinación no abre Grade Center). */
+  onOpen?: (planilla: PlanillaModel) => void;
 }
 
 export const PlanillaList = memo(function PlanillaList({ planillas, onOpen }: PlanillaListProps) {
@@ -19,7 +20,7 @@ export const PlanillaList = memo(function PlanillaList({ planillas, onOpen }: Pl
   );
 });
 
-function PlanillaRow({ planilla, onOpen }: { planilla: PlanillaModel; onOpen: (planilla: PlanillaModel) => void }) {
+function PlanillaRow({ planilla, onOpen }: { planilla: PlanillaModel; onOpen?: (planilla: PlanillaModel) => void }) {
   const name = `${planilla.subject} ${planilla.group}`;
   const hasAverage = planilla.average != null;
 
@@ -86,15 +87,17 @@ function PlanillaRow({ planilla, onOpen }: { planilla: PlanillaModel; onOpen: (p
       </div>
 
       <div className="anl-planilla__action">
-        <button
-          type="button"
-          className="anl-btn anl-btn--outline"
-          aria-label={`Abrir planilla de ${name} en Grade Center`}
-          onClick={() => onOpen(planilla)}
-        >
-          Abrir
-          <ArrowRight aria-hidden="true" strokeWidth={1.9} />
-        </button>
+        {onOpen ? (
+          <button
+            type="button"
+            className="anl-btn anl-btn--outline"
+            aria-label={`Abrir planilla de ${name} en Grade Center`}
+            onClick={() => onOpen(planilla)}
+          >
+            Abrir
+            <ArrowRight aria-hidden="true" strokeWidth={1.9} />
+          </button>
+        ) : null}
       </div>
     </li>
   );

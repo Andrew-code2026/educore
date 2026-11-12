@@ -2,12 +2,9 @@ import "dotenv/config";
 import { and, eq, inArray } from "drizzle-orm";
 import {
   academicYears,
-  assessmentGrades,
-  assessments,
   courses,
   studentEnrollments,
   studentProfiles,
-  students,
   users,
 } from "../drizzle/schema";
 import {
@@ -16,6 +13,7 @@ import {
   DEMO_SCHOOL_ID,
   enrollAcademicStudent,
   getDb,
+  syncStudentCourseArtifacts,
 } from "./db";
 
 export interface TestStudentDef {
@@ -62,10 +60,6 @@ export const TEST_STUDENTS_11_2: TestStudentDef[] = [
   { lastName: "Vasquez Lopez", firstName: "Santiago", email: "santiago.vasquez@demo.educore.co", studentCode: "EST-11-2-33" },
 ];
 
-const PASTEL_AVATARS = [
-  "#dbeafe", "#dcfce7", "#fef3c7", "#fce7f3", "#ede9fe", "#cffafe", "#ffedd5", "#f1f5f9"
-];
-
 export async function seedStudents11_2(schoolId = DEMO_SCHOOL_ID) {
   const db = await getDb();
   if (!db) {
@@ -101,12 +95,6 @@ export async function seedStudents11_2(schoolId = DEMO_SCHOOL_ID) {
   if (!academicYear) {
     throw new Error(`Año académico id ${academicYearId} no encontrado.`);
   }
-
-  // 2. Evaluaciones existentes en 11-2 (para asegurar calificaciones listas en Grade Center)
-  const courseAssessments = await db
-    .select()
-    .from(assessments)
-    .where(and(eq(assessments.schoolId, schoolId), eq(assessments.courseId, course.id)));
 
   const actor: AcademicActor = {
     schoolId,
@@ -192,66 +180,12 @@ export async function seedStudents11_2(schoolId = DEMO_SCHOOL_ID) {
     }
 
     if (enrollment) {
-      // Asegurar filas en assessmentGrades para que las evaluaciones existentes en 11-2
-      // queden listas para calificar normalmente en el Grade Center
-      for (const assessment of courseAssessments) {
-        const existingGrade = (
-          await db
-            .select()
-            .from(assessmentGrades)
-            .where(
-              and(
-                eq(assessmentGrades.schoolId, schoolId),
-                eq(assessmentGrades.assessmentId, assessment.id),
-                eq(assessmentGrades.studentId, user.id)
-              )
-            )
-            .limit(1)
-        )[0];
-
-        if (!existingGrade) {
-          await db.insert(assessmentGrades).values({
-            schoolId,
-            assessmentId: assessment.id,
-            studentId: user.id,
-            studentEnrollmentId: enrollment.id,
-            courseId: course.id,
-            subjectId: assessment.subjectId,
-            academicYearId,
-            academicPeriodId: assessment.academicPeriodId,
-            value: null,
-            comment: null,
-            status: "PENDING",
-          });
-        }
-      }
-    }
-
-    // Asegurar presencia en la tabla heredada 'students' para vistas secundarias/snapshot
-    const existingLegacy = (
-      await db
-        .select()
-        .from(students)
-        .where(
-          and(
-            eq(students.schoolId, schoolId),
-            eq(students.course, "11-2"),
-            eq(students.email, studentDef.email)
-          )
-        )
-        .limit(1)
-    )[0];
-
-    if (!existingLegacy) {
-      await db.insert(students).values({
-        schoolId,
-        name: expectedName,
-        email: studentDef.email,
-        course: "11-2",
-        gradeLevel: "11",
+      // Mismo camino que la matrícula del portal directivo: Grade Center, Asistencia y conteo del curso
+      await syncStudentCourseArtifacts(schoolId, {
+        studentUserId: user.id,
+        courseId: course.id,
+        enrollmentId: enrollment.id,
         guardianName: studentDef.guardianName || `Acudiente de ${studentDef.firstName}`,
-        status: "Activo",
-        avatarColor: PASTEL_AVATARS[i % PASTEL_AVATARS.length],
       });
     }
 
@@ -262,7 +196,6 @@ export async function seedStudents11_2(schoolId = DEMO_SCHOOL_ID) {
     }
   }
 
-  // Actualizar conteo de estudiantes en la tabla courses
   const totalActiveEnrollments = (
     await db
       .select({ id: studentEnrollments.id })
@@ -276,11 +209,6 @@ export async function seedStudents11_2(schoolId = DEMO_SCHOOL_ID) {
         )
       )
   ).length;
-
-  await db
-    .update(courses)
-    .set({ studentsCount: totalActiveEnrollments })
-    .where(eq(courses.id, course.id));
 
   return {
     course: {

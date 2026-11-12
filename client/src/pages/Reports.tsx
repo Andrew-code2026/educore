@@ -81,7 +81,19 @@ export function ReportsPage({ data, role, setSection }: ReportsPageProps) {
     [generate, role, utils],
   );
 
-  const handleOpenCourse = useCallback(() => setSection("grades"), [setSection]);
+  // El docente abre la planilla; Rectoría/Coordinación abre los boletines del curso
+  const reportCardCourses = model?.reportCards;
+  const handleOpenCourse = useCallback(
+    (course: { courseId?: number; group?: string }) => {
+      if (role !== "admin") return setSection("grades");
+      const card = reportCardCourses?.find(item => item.courseId === course.courseId || item.group === course.group);
+      if (card) {
+        setOpenCourse(card);
+        setOpenStudentId(null);
+      }
+    },
+    [role, setSection, reportCardCourses],
+  );
   const handleOpenAlerts = useCallback(() => setSection("analytics"), [setSection]);
   const { refetch: refetchPlanillas } = planillasQuery;
   const { refetch: refetchReportCards } = reportCardsQuery;
@@ -131,6 +143,7 @@ export function ReportsPage({ data, role, setSection }: ReportsPageProps) {
       onOpenAlerts={handleOpenAlerts}
       onGenerate={handleGenerate}
       onOpenReportCards={handleOpenReportCards}
+      managementView={role === "admin"}
     />
   );
 }

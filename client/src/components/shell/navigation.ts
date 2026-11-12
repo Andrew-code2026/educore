@@ -15,7 +15,7 @@ import {
 import type { EduRole, NavGroup, NavItem, Section } from "./shell.types";
 
 export const ROLE_LABELS: Record<EduRole, string> = {
-  admin: "Administrador",
+  admin: "Rectoría / Coordinación",
   teacher: "Docente",
   student: "Estudiante",
   guardian: "Acudiente",
@@ -201,45 +201,74 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
     ];
   }
 
-  // Admin / Rector
+  // Rectoría / Coordinación: gestión institucional, seguimiento y comunidad.
+  // Grade Center, Classroom y Asistencia son flujos del docente y no aparecen aquí.
   return [
+    {
+      key: "management",
+      label: "Gestión",
+      items: [
+        { ...ALL_NAV_ITEMS.overview, roles: ["admin"], groupKey: "management", mobilePriority: "bottom" },
+        { ...ALL_NAV_ITEMS.users, roles: ["admin"], groupKey: "management", mobilePriority: "bottom" },
+        { ...ALL_NAV_ITEMS.academic, roles: ["admin"], groupKey: "management", mobilePriority: "bottom" },
+      ],
+    },
+    {
+      key: "tracking",
+      label: "Seguimiento",
+      items: [
+        { ...ALL_NAV_ITEMS.analytics, roles: ["admin"], groupKey: "tracking", mobilePriority: "more" },
+        {
+          ...ALL_NAV_ITEMS.reports,
+          label: "Boletines y reportes",
+          roles: ["admin"],
+          groupKey: "tracking",
+          mobilePriority: "more",
+        },
+        { ...ALL_NAV_ITEMS.piar, roles: ["admin"], groupKey: "tracking", mobilePriority: "more" },
+      ],
+    },
+    {
+      key: "community",
+      label: "Comunidad",
+      items: [
+        {
+          ...ALL_NAV_ITEMS.communications,
+          roles: ["admin"],
+          groupKey: "community",
+          mobilePriority: "more",
+          badge: notificationCount > 0 ? notificationCount : undefined,
+        },
+        { ...ALL_NAV_ITEMS.calendar, roles: ["admin"], groupKey: "community", mobilePriority: "more" },
+      ],
+    },
     {
       key: "institution",
       label: "Institución",
       items: [
-        { ...ALL_NAV_ITEMS.overview, roles: ["admin"], groupKey: "institution", mobilePriority: "bottom" },
-        { ...ALL_NAV_ITEMS.academic, roles: ["admin"], groupKey: "institution", mobilePriority: "bottom" },
-        { ...ALL_NAV_ITEMS.users, roles: ["admin"], groupKey: "institution", mobilePriority: "more" },
         { ...ALL_NAV_ITEMS.settings, roles: ["admin"], groupKey: "institution", mobilePriority: "more" },
       ],
     },
-    {
-      key: "operation",
-      label: "Operación Educativa",
-      items: [
-        { ...ALL_NAV_ITEMS.grades, roles: ["admin"], groupKey: "operation", mobilePriority: "bottom" },
-        { ...ALL_NAV_ITEMS.attendance, roles: ["admin"], groupKey: "operation", mobilePriority: "more" },
-        { ...ALL_NAV_ITEMS.classroom, roles: ["admin"], groupKey: "operation", mobilePriority: "more" },
-        { ...ALL_NAV_ITEMS.calendar, roles: ["admin"], groupKey: "operation", mobilePriority: "more" },
-        { ...ALL_NAV_ITEMS.piar, roles: ["admin"], groupKey: "operation", mobilePriority: "more" },
-      ],
-    },
-    {
-      key: "analysis_comm",
-      label: "Análisis & Comunidad",
-      items: [
-        { ...ALL_NAV_ITEMS.analytics, roles: ["admin"], groupKey: "analysis_comm", mobilePriority: "more" },
-        { ...ALL_NAV_ITEMS.reports, roles: ["admin"], groupKey: "analysis_comm", mobilePriority: "more" },
-        {
-          ...ALL_NAV_ITEMS.communications,
-          roles: ["admin"],
-          groupKey: "analysis_comm",
-          mobilePriority: "more",
-          badge: notificationCount > 0 ? notificationCount : undefined,
-        },
-      ],
-    },
   ];
+}
+
+/**
+ * Secciones que un rol no puede abrir aunque llegue por URL.
+ * - Rectoría/Coordinación: los flujos de aula (notas, actividades, toma de
+ *   asistencia) son del docente; el directivo los sigue desde Análisis y Boletines.
+ * - Docente: la estructura académica, los usuarios y la configuración son de la institución.
+ * - Estudiante/acudiente: el PIAR contiene información sensible; usuarios y configuración
+ *   son exclusivos del portal directivo.
+ */
+const DENIED_SECTIONS: Record<EduRole, ReadonlySet<Section>> = {
+  admin: new Set<Section>(["grades", "classroom", "attendance"]),
+  teacher: new Set<Section>(["academic", "users", "settings"]),
+  student: new Set<Section>(["piar", "users", "settings"]),
+  guardian: new Set<Section>(["piar", "users", "settings"]),
+};
+
+export function isSectionAllowed(role: EduRole, section: Section): boolean {
+  return !DENIED_SECTIONS[role].has(section);
 }
 
 // Obtener lista plana de items visibles para el rol
