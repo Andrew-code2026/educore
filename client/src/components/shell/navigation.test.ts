@@ -174,6 +174,13 @@ describe("EduCore Shell Navigation System", () => {
       expect(isSectionAllowed("guardian", "piar")).toBe(false);
     });
 
+    it("offers the resource creator to teachers and keeps families out of it", () => {
+      expect(getFlatNavItemsForRole("teacher").map(i => i.id)).toContain("creator");
+      expect(isSectionAllowed("teacher", "creator")).toBe(true);
+      expect(isSectionAllowed("student", "creator")).toBe(false);
+      expect(isSectionAllowed("guardian", "creator")).toBe(false);
+    });
+
     it("never lists a section in the sidebar that the role cannot open", () => {
       for (const role of allRoles) {
         for (const item of getFlatNavItemsForRole(role)) {

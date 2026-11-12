@@ -7,4 +7,7 @@ export const ENV = {
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+  /** Creador de recursos: modelo de Claude y tope diario de turnos de IA por usuario. */
+  creatorModel: process.env.CREATOR_MODEL?.trim() || "claude-opus-5-5",
+  creatorDailyLimit: Math.max(1, Number(process.env.CREATOR_DAILY_LIMIT) || 60),
 };

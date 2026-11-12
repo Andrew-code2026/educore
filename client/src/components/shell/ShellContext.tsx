@@ -187,6 +187,13 @@ export function ShellContextProvider({
           breadcrumbs: [{ label: "Seguimiento" }, { label: "PIAR", isCurrent: true }],
           contextPills: [{ label: "Decreto 1421 de 2017", tone: "primary" }],
         };
+      case "creator":
+        return {
+          title: "Crear recursos",
+          subtitle: "Guías, talleres y evaluaciones con IA",
+          breadcrumbs: [{ label: "Enseñanza" }, { label: "Crear recursos", isCurrent: true }],
+          contextPills: [{ label: "Asistente de IA", tone: "primary" }],
+        };
       case "analytics":
         return {
           title: "Análisis & Alertas",

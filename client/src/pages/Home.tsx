@@ -14,6 +14,7 @@ import { CalendarPage } from "./Calendar";
 import { CommunicationsPage } from "./Communications";
 import { ReportsPage } from "./Reports";
 import { PiarPage } from "./Piar";
+import { CreatorPage } from "./Creator";
 import { LegacyAcademicPage } from "./AcademicLegacy";
 import { AdminDashboard } from "@/admin/dashboard/AdminDashboard";
 import { AcademicPage } from "@/admin/academic/AcademicPage";
@@ -134,6 +135,7 @@ export default function Home() {
     : activeSection === "users" ? <UsersPage onPreview={handleRoleChange} />
     : activeSection === "analytics" ? <AnalyticsPage data={data} role={effectiveRole} setSection={setSection} />
     : activeSection === "piar" ? <PiarPage data={data} role={effectiveRole} />
+    : activeSection === "creator" ? <CreatorPage data={data} role={effectiveRole} />
     : <SettingsPage data={data} role={effectiveRole} onChanged={refresh} />;
   return <EduCoreShell role={effectiveRole} section={activeSection} setSection={setSection} schoolName={schoolName} school={data.school} user={user} onRoleChange={handleRoleChange} onLogout={handleLogout} notificationCount={data.notifications.filter((item: any) => !item.read).length}>{content}</EduCoreShell>;
 }

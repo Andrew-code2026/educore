@@ -96,6 +96,12 @@ export const ALL_NAV_ITEMS: Record<Section, Omit<NavItem, "roles" | "groupKey" |
     icon: FileHeart,
     description: "Planes Individuales de Ajustes Razonables por curso",
   },
+  creator: {
+    id: "creator",
+    label: "Crear recursos",
+    icon: Sparkles,
+    description: "Guías, talleres y evaluaciones con IA, listos para imprimir",
+  },
   settings: {
     id: "settings",
     label: "Configuración",
@@ -115,6 +121,7 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
           { ...ALL_NAV_ITEMS.overview, roles: ["teacher"], groupKey: "teaching", mobilePriority: "bottom" },
           { ...ALL_NAV_ITEMS.grades, label: "Grade Center", roles: ["teacher"], groupKey: "teaching", mobilePriority: "bottom" },
           { ...ALL_NAV_ITEMS.classroom, label: "Classroom", roles: ["teacher"], groupKey: "teaching", mobilePriority: "bottom" },
+          { ...ALL_NAV_ITEMS.creator, roles: ["teacher"], groupKey: "teaching", mobilePriority: "more" },
         ],
       },
       {
@@ -257,14 +264,15 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
  * - Rectoría/Coordinación: los flujos de aula (notas, actividades, toma de
  *   asistencia) son del docente; el directivo los sigue desde Análisis y Boletines.
  * - Docente: la estructura académica, los usuarios y la configuración son de la institución.
- * - Estudiante/acudiente: el PIAR contiene información sensible; usuarios y configuración
- *   son exclusivos del portal directivo.
+ * - Estudiante/acudiente: el PIAR contiene información sensible; el creador de recursos es
+ *   una herramienta de docentes y directivos; usuarios y configuración son exclusivos del
+ *   portal directivo.
  */
 const DENIED_SECTIONS: Record<EduRole, ReadonlySet<Section>> = {
   admin: new Set<Section>(["grades", "classroom", "attendance"]),
   teacher: new Set<Section>(["academic", "users", "settings"]),
-  student: new Set<Section>(["piar", "users", "settings"]),
-  guardian: new Set<Section>(["piar", "users", "settings"]),
+  student: new Set<Section>(["piar", "creator", "users", "settings"]),
+  guardian: new Set<Section>(["piar", "creator", "users", "settings"]),
 };
 
 export function isSectionAllowed(role: EduRole, section: Section): boolean {

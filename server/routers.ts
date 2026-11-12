@@ -88,6 +88,27 @@ import {
 import { hasPermission, IDENTITY_ROLES, type IdentityRole } from "./identityModel";
 import { canUsePiar, createPiarRecord, deletePiarRecord, getPiarCourse, getPiarRecord, listPiarCourses, savePiarRecord } from "./piarDb";
 import { PIAR_MAX_KEYS, PIAR_VALUE_MAX } from "@shared/piar";
+import { CLARIFY_LIMITS, clarificationSchema, composeCreatorRequest, CREATOR_LIMITS, emptyDoc, plainText, RESOURCE_KINDS, resourceDocSchema } from "@shared/creator";
+import { buildSampleDoc, SAMPLE_IDS, SAMPLES } from "@shared/creatorSample";
+import { generateClarifyQuestions } from "./creatorClarify";
+import { isAnthropicConfigured } from "./_core/anthropic";
+import { ENV } from "./_core/env";
+import { activeCreatorRunIds, isCreatorRunning, startCreatorRun, subscribeCreatorRun } from "./creatorAgent";
+import {
+  beginCreatorTurn,
+  canUseCreator,
+  countCreatorTurnsToday,
+  createCreatorResource,
+  deleteCreatorResource,
+  duplicateCreatorResource,
+  getCreatorResource,
+  getCreatorSchoolName,
+  listCreatorResources,
+  listCreatorVersions,
+  releaseStaleCreatorRuns,
+  restoreCreatorVersion,
+  saveCreatorDoc,
+} from "./creatorDb";
 import type { TrpcContext } from "./_core/context";
 
 const attendanceStatus = z.enum(["present", "absent", "late", "excused"]);
@@ -190,6 +211,34 @@ async function piarCall<T>(run: () => Promise<T>): Promise<T> {
     throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "No se pudo completar la operación del PIAR." });
   }
 }
+
+/** Creador de recursos: docentes y directivos con permiso de IA. */
+async function requireCreatorActor(ctx: TrpcContext, role: EduRole, isMutation = false) {
+  const actor = await requirePermission(ctx, role, "ai.use", isMutation);
+  if (!canUseCreator(actor)) throw new TRPCError({ code: "FORBIDDEN", message: "No tienes permisos para crear recursos." });
+  return actor;
+}
+
+async function creatorCall<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof TRPCError) throw error;
+    throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "No se pudo completar la operación." });
+  }
+}
+
+/** Antes de gastar un turno de IA: que haya clave configurada y cupo diario. */
+async function assertCreatorAiAvailable(actor: Awaited<ReturnType<typeof requireCreatorActor>>) {
+  if (!isAnthropicConfigured()) {
+    throw new TRPCError({ code: "PRECONDITION_FAILED", message: "La IA no está configurada en este servidor. Falta la clave ANTHROPIC_API_KEY." });
+  }
+  if ((await countCreatorTurnsToday(actor)) >= ENV.creatorDailyLimit) {
+    throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: `Alcanzaste el límite de ${ENV.creatorDailyLimit} solicitudes a la IA por hoy. Mañana puedes continuar.` });
+  }
+}
+
+const creatorLabel = z.string().trim().max(120).optional();
 
 const piarValuesSchema = z
   .record(z.string().max(40), z.string().max(PIAR_VALUE_MAX))
@@ -856,6 +905,167 @@ export const appRouter = router({
     remove: publicProcedure.input(z.object({ role: roleSchema, recordId: z.number().int() })).mutation(async ({ input, ctx }) => {
       const actor = await requirePiarActor(ctx, input.role, true);
       return piarCall(() => deletePiarRecord(actor, { recordId: input.recordId }));
+    }),
+  }),
+  creator: router({
+    status: publicProcedure.input(z.object({ role: roleSchema })).query(async ({ input, ctx }) => {
+      const actor = await requireCreatorActor(ctx, input.role);
+      const used = await creatorCall(() => countCreatorTurnsToday(actor)).catch(() => 0);
+      return {
+        aiReady: isAnthropicConfigured(),
+        dailyLimit: ENV.creatorDailyLimit,
+        usedToday: used,
+        // Los ejemplos viajan como lista para que el cliente no cargue su contenido
+        samples: SAMPLE_IDS.map(id => ({ id, label: SAMPLES[id].label })),
+      };
+    }),
+    list: publicProcedure.input(z.object({ role: roleSchema })).query(async ({ input, ctx }) => {
+      const actor = await requireCreatorActor(ctx, input.role);
+      return creatorCall(async () => {
+        await releaseStaleCreatorRuns(activeCreatorRunIds());
+        return listCreatorResources(actor);
+      });
+    }),
+    get: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int() })).query(async ({ input, ctx }) => {
+      const actor = await requireCreatorActor(ctx, input.role);
+      return creatorCall(async () => ({ ...(await getCreatorResource(actor, input.id)), running: isCreatorRunning(input.id) }));
+    }),
+    create: publicProcedure
+      .input(z.object({
+        role: roleSchema,
+        kind: z.enum(RESOURCE_KINDS),
+        prompt: z.string().trim().min(8, "Describe el recurso con un poco más de detalle.").max(CREATOR_LIMITS.promptMax),
+        courseLabel: creatorLabel,
+        subjectLabel: creatorLabel,
+        gradeLabel: creatorLabel,
+        clarifications: z.array(clarificationSchema).max(CLARIFY_LIMITS.questionsMax).default([]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const actor = await requireCreatorActor(ctx, input.role, true);
+        await assertCreatorAiAvailable(actor);
+        return creatorCall(async () => {
+          const title = plainText(input.prompt, 80);
+          // Lo que respondió el docente a las preguntas aclaratorias viaja con la solicitud
+          const request = composeCreatorRequest(input.prompt, input.clarifications);
+          const { id } = await createCreatorResource(actor, {
+            title,
+            kind: input.kind,
+            prompt: request,
+            courseLabel: input.courseLabel,
+            subjectLabel: input.subjectLabel,
+            gradeLabel: input.gradeLabel,
+            doc: emptyDoc(),
+            status: "ready",
+            reason: "generate",
+          });
+          const turn = await beginCreatorTurn(actor, { id, request });
+          startCreatorRun({
+            resource: { id, schoolId: actor.schoolId, version: turn.row.version },
+            userId: actor.userId,
+            mode: "generate",
+            doc: turn.doc,
+            history: [],
+            request,
+            context: {
+              kind: input.kind,
+              schoolName: await getCreatorSchoolName(actor.schoolId),
+              courseLabel: input.courseLabel || null,
+              subjectLabel: input.subjectLabel || null,
+              gradeLabel: input.gradeLabel || null,
+            },
+          });
+          return { id };
+        });
+      }),
+    /** Hasta tres preguntas de opción múltiple para afinar el recurso antes de crearlo. Lista vacía si no hacen falta. */
+    clarify: publicProcedure
+      .input(z.object({
+        role: roleSchema,
+        kind: z.enum(RESOURCE_KINDS),
+        prompt: z.string().trim().min(8).max(CREATOR_LIMITS.promptMax),
+        courseLabel: creatorLabel,
+        subjectLabel: creatorLabel,
+        gradeLabel: creatorLabel,
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const actor = await requireCreatorActor(ctx, input.role, true);
+        await assertCreatorAiAvailable(actor);
+        const { role: _role, ...request } = input;
+        return { questions: await generateClarifyQuestions(request) };
+      }),
+    /** Abre el recurso de ejemplo: no usa IA, sirve para conocer el editor. */
+    createSample: publicProcedure.input(z.object({ role: roleSchema, sample: z.enum(SAMPLE_IDS).default("funciones") })).mutation(async ({ input, ctx }) => {
+      const actor = await requireCreatorActor(ctx, input.role, true);
+      return creatorCall(() => {
+        const doc = buildSampleDoc(input.sample);
+        return createCreatorResource(actor, {
+          title: doc.title,
+          kind: "guia",
+          prompt: "Recurso de ejemplo",
+          subjectLabel: SAMPLES[input.sample].subjectLabel,
+          gradeLabel: SAMPLES[input.sample].gradeLabel,
+          doc,
+          status: "ready",
+          reason: "sample",
+        });
+      });
+    }),
+    sendMessage: publicProcedure
+      .input(z.object({ role: roleSchema, id: z.number().int(), message: z.string().trim().min(2).max(CREATOR_LIMITS.messageMax) }))
+      .mutation(async ({ input, ctx }) => {
+        const actor = await requireCreatorActor(ctx, input.role, true);
+        await assertCreatorAiAvailable(actor);
+        return creatorCall(async () => {
+          if (isCreatorRunning(input.id)) throw new Error("La IA ya está trabajando en este recurso.");
+          const turn = await beginCreatorTurn(actor, { id: input.id, request: input.message });
+          startCreatorRun({
+            resource: { id: turn.row.id, schoolId: turn.row.schoolId, version: turn.row.version },
+            userId: actor.userId,
+            mode: turn.doc.sections.length === 0 ? "generate" : "chat",
+            doc: turn.doc,
+            history: turn.history,
+            request: input.message,
+            context: {
+              kind: (RESOURCE_KINDS as readonly string[]).includes(turn.row.kind) ? (turn.row.kind as (typeof RESOURCE_KINDS)[number]) : "guia",
+              schoolName: await getCreatorSchoolName(actor.schoolId),
+              courseLabel: turn.row.courseLabel,
+              subjectLabel: turn.row.subjectLabel,
+              gradeLabel: turn.row.gradeLabel,
+            },
+          });
+          return { id: input.id };
+        });
+      }),
+    /** Progreso en vivo del turno de IA en curso (SSE). Termina cuando el turno acaba. */
+    events: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int() })).subscription(async function* ({ input, ctx, signal }) {
+      const actor = await requireCreatorActor(ctx, input.role);
+      await creatorCall(() => getCreatorResource(actor, input.id));
+      yield* subscribeCreatorRun(input.id, signal);
+    }),
+    saveDoc: publicProcedure
+      .input(z.object({ role: roleSchema, id: z.number().int(), baseVersion: z.number().int(), doc: resourceDocSchema }))
+      .mutation(async ({ input, ctx }) => {
+        const actor = await requireCreatorActor(ctx, input.role, true);
+        return creatorCall(() => saveCreatorDoc(actor, { id: input.id, doc: input.doc, baseVersion: input.baseVersion }));
+      }),
+    duplicate: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requireCreatorActor(ctx, input.role, true);
+      return creatorCall(() => duplicateCreatorResource(actor, input.id));
+    }),
+    remove: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requireCreatorActor(ctx, input.role, true);
+      return creatorCall(async () => {
+        if (isCreatorRunning(input.id)) throw new Error("La IA está trabajando en este recurso. Espera a que termine para eliminarlo.");
+        return deleteCreatorResource(actor, input.id);
+      });
+    }),
+    versions: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int() })).query(async ({ input, ctx }) => {
+      const actor = await requireCreatorActor(ctx, input.role);
+      return creatorCall(() => listCreatorVersions(actor, input.id));
+    }),
+    restoreVersion: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int(), versionId: z.number().int() })).mutation(async ({ input, ctx }) => {
+      const actor = await requireCreatorActor(ctx, input.role, true);
+      return creatorCall(() => restoreCreatorVersion(actor, { id: input.id, versionId: input.versionId }));
     }),
   }),
   followUp: router({
