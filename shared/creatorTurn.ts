@@ -144,20 +144,20 @@ export function describeFocus(doc: ResourceDoc, blockIds: readonly string[]): st
 /* ───────────────────────── Sugerencias de seguimiento ───────────────────────── */
 
 const OPEN = "<sugerencias>";
-const CLOSE = "</sugerencias>";
+const OPEN_TAG = /<sugerencias>/i;
+const CLOSE_TAG = /<\/sugerencias>/i;
 
 /**
  * Mientras llega la respuesta: la parte que ya se puede mostrar. El bloque de sugerencias no se
  * muestra nunca, y un final que podría ser el comienzo de su etiqueta se retiene hasta saberlo.
  */
 export function visibleReply(text: string, complete = false): string {
-  const lower = text.toLowerCase();
-  const start = lower.indexOf(OPEN);
+  const start = text.search(OPEN_TAG);
   if (start !== -1) return text.slice(0, start);
   // Con la respuesta ya completa no queda nada por saber: lo retenido era texto
   if (complete) return text;
   for (let length = Math.min(OPEN.length - 1, text.length); length > 0; length--) {
-    if (lower.endsWith(OPEN.slice(0, length))) return text.slice(0, text.length - length);
+    if (text.slice(-length).toLowerCase() === OPEN.slice(0, length)) return text.slice(0, text.length - length);
   }
   return text;
 }
@@ -186,13 +186,14 @@ export function sanitizeSuggestions(raw: readonly unknown[]): string[] {
 
 /** Separa el mensaje para el docente del bloque `<sugerencias>` con que el modelo lo cierra. */
 export function splitSuggestions(text: string): { text: string; suggestions: string[] } {
-  const lower = text.toLowerCase();
-  const start = lower.indexOf(OPEN);
+  const start = text.search(OPEN_TAG);
   if (start === -1) return { text: text.trim(), suggestions: [] };
-  const end = lower.indexOf(CLOSE, start);
-  const inner = text.slice(start + OPEN.length, end === -1 ? undefined : end);
-  const rest = end === -1 ? "" : text.slice(end + CLOSE.length);
-  return { text: `${text.slice(0, start).trimEnd()}${rest.trim() ? `\n\n${rest.trim()}` : ""}`.trim(), suggestions: sanitizeSuggestions(inner.split("\n")) };
+  // Las posiciones se miden siempre sobre el texto original: pasarlo a minúsculas puede cambiar su longitud
+  const body = text.slice(start + OPEN.length);
+  const end = body.search(CLOSE_TAG);
+  const inner = end === -1 ? body : body.slice(0, end);
+  const rest = end === -1 ? "" : body.slice(end + OPEN.length + 1).trim();
+  return { text: `${text.slice(0, start).trimEnd()}${rest ? `\n\n${rest}` : ""}`.trim(), suggestions: sanitizeSuggestions(inner.split("\n")) };
 }
 
 /* ───────────────────────── Deshacer un turno ───────────────────────── */

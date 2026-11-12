@@ -211,7 +211,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     const canEdit = !readOnly && block.type !== "page_break";
     const active = !readOnly && !isEditing && activeId === block.id;
     const showTools = !readOnly && (noHover || active);
-    const mark = readOnly ? undefined : marks.get(block.id);
+    const mark = marks.get(block.id);
     const canAttach = !readOnly && onToggleAttach !== undefined && block.type !== "page_break";
     const attached = canAttach && attachedIds.has(block.id);
     const attachLabel = attached ? "Quitar del chat" : "Llevar al chat";

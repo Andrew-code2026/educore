@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { ResourceDoc } from "@shared/creator";
+import { countBlocks, type ResourceDoc } from "@shared/creator";
 import type { DocOp } from "@shared/creatorOps";
 import { reuseUnchanged } from "@shared/creatorTurn";
 
@@ -66,10 +66,15 @@ export const peekUndo = (history: DocHistory): ResourceDoc | null => history.pas
  * devuelve la hoja a como estaba antes del turno, por muchas operaciones que haya hecho la IA.
  * `after` llega del servidor como copia nueva; se devuelve con los objetos de `before` en lo que no
  * cambió, y si no cambió nada el historial queda igual.
+ *
+ * Un recurso que la IA escribió desde cero no deja paso: deshacer lo vaciaría, y para eso no hay
+ * un «antes» al que tenga sentido volver (el servidor tampoco lo ofrece).
  */
 export function recordTurn(history: DocHistory, before: ResourceDoc, after: ResourceDoc, at: number): { history: DocHistory; doc: ResourceDoc } {
   const doc = reuseUnchanged(before, after);
-  return doc === before ? { history, doc } : { doc, history: recordStep(history, before, { at }) };
+  if (doc === before) return { history, doc };
+  if (countBlocks(before) === 0) return { history: emptyHistory, doc };
+  return { doc, history: recordStep(history, before, { at }) };
 }
 
 /** Dónde quedó el cambio entre dos documentos, medido en `to`. `sectionId: null` es el título; `blockId: null`, la sección entera. */

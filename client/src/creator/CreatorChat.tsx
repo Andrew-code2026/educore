@@ -2,17 +2,12 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { ArrowUp, ArrowUpRight, Check, Loader2, Minus, Sparkles, TriangleAlert, Undo2, X } from "lucide-react";
 import { BLOCK_TYPE_LABELS, CREATOR_LIMITS, type CreatorActivity, type CreatorAttachment, type CreatorChatMessage } from "@shared/creator";
 import { RichText } from "./blocks/RichText";
+import type { RevealTarget } from "./reveal";
 
 export interface LiveTurn {
   phase: "thinking" | "writing";
   text: string;
   activities: CreatorActivity[];
-}
-
-/** A dónde llevar la hoja: unos bloques o, si ya no hay ninguno, su sección. */
-export interface RevealTarget {
-  blockIds?: string[];
-  sectionId?: string;
 }
 
 interface CreatorChatProps {
@@ -24,6 +19,8 @@ interface CreatorChatProps {
   suggestions: string[];
   /** Bloques que el docente señaló en la hoja para su próximo mensaje. */
   attachments: CreatorAttachment[];
+  /** Cambia cada vez que el docente señala un bloque: el cursor pasa al cuadro de escritura. */
+  focusSignal: number;
   onDetach: (blockId: string) => void;
   onReveal: (target: RevealTarget) => void;
   /** La respuesta de la IA que se puede deshacer desde aquí, y si ya se deshizo. */
@@ -83,7 +80,7 @@ function BlockRef({ attachment, onReveal, onRemove }: { attachment: CreatorAttac
 }
 
 /** Conversación con la IA sobre el recurso abierto. Cada respuesta dice qué cambió en el documento, lleva hasta el cambio y lo deja deshacer. */
-export function CreatorChat({ messages, live, blocked, suggestions, attachments, onDetach, onReveal, undoable, onUndoTurn, onSend }: CreatorChatProps) {
+export function CreatorChat({ messages, live, blocked, suggestions, attachments, focusSignal, onDetach, onReveal, undoable, onUndoTurn, onSend }: CreatorChatProps) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -94,12 +91,13 @@ export function CreatorChat({ messages, live, blocked, suggestions, attachments,
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length, live?.text, live?.activities.length, live?.phase]);
 
-  // Señalar un bloque es empezar a escribirle al asistente: el cursor pasa al cuadro
-  const attachedCount = useRef(attachments.length);
+  // Señalar un bloque es empezar a escribirle al asistente: el cursor pasa al cuadro. Solo entonces:
+  // una ficha que reaparece al deshacer un borrado no se lleva el foco de la hoja.
+  const seenSignal = useRef(focusSignal);
   useEffect(() => {
-    if (attachments.length > attachedCount.current) inputRef.current?.focus({ preventScroll: true });
-    attachedCount.current = attachments.length;
-  }, [attachments.length]);
+    if (focusSignal !== seenSignal.current) inputRef.current?.focus({ preventScroll: true });
+    seenSignal.current = focusSignal;
+  }, [focusSignal]);
 
   const send = async (text: string) => {
     const message = text.trim();

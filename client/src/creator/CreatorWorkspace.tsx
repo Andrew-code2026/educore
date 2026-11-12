@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, ChevronUp, CloudOff, Copy, History, Loader2, Maximize2, MessageSquare, Minimize2, Printer, Redo2, Sparkles, Trash2, Undo2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, CloudOff, Copy, History, Loader2, Maximize2, MessageSquare, Minimize2, Printer, Redo2, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
-import { emptyDoc, findBlock, type CreatorChatMessage, type CreatorEvent, type ResourceDoc } from "@shared/creator";
+import { emptyDoc, findBlock, type CreatorAttachment, type CreatorChatMessage, type CreatorEvent, type ResourceDoc } from "@shared/creator";
 import { applyDocOp, type DocOp, type OpResult } from "@shared/creatorOps";
 import { ATTACH_MAX, describeAttachment, describeTurn, reuseUnchanged } from "@shared/creatorTurn";
 import { useOptionalShellContext, type EduRole } from "@/components/shell";
@@ -19,12 +19,14 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { trpc } from "@/lib/trpc";
-import { CreatorChat, type LiveTurn, type RevealTarget } from "./CreatorChat";
-import { historyKey, historyShortcut, locateChange, useDocHistory, type ChangeLocation } from "./docHistory";
+import { CreatorChat, type LiveTurn } from "./CreatorChat";
+import { historyKey, historyShortcut, locateChange, useDocHistory } from "./docHistory";
 import { EditableDocument, type EditableDocumentHandle } from "./EditableDocument";
 import { ErrorCard, formatWhen } from "./parts";
 import { ResourceSheet } from "./ResourceSheet";
-import { acceptMark, isReviewVisible, lastTurnMessage, pendingMarks, readStoredReview, startReview, storeReview, type TurnMark, type TurnReview } from "./turnReview";
+import { revealChange, revealTarget, type RevealTarget } from "./reveal";
+import { acceptMark, isReviewVisible, lastTurnMessage, pendingMarks, readStoredReview, startReview, storeReview, type TurnReview } from "./turnReview";
+import { TurnReviewBar } from "./TurnReviewBar";
 import { useCreatorAutosave, type SaveState } from "./useCreatorAutosave";
 import "./creator.css";
 
@@ -66,95 +68,6 @@ function isEditingTarget(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
   if (target instanceof HTMLElement && target.isContentEditable) return true;
   return target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), .crt-inplace, [role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]') !== null;
-}
-
-/** Tras deshacer o rehacer, lo que cambió se trae a la vista si quedó fuera de pantalla. */
-function revealChange(location: ChangeLocation | null) {
-  if (!location) return;
-  window.requestAnimationFrame(() => {
-    const block = location.blockId ? document.querySelector<HTMLElement>(`.crt-stage [data-block-id="${CSS.escape(location.blockId)}"]`) : null;
-    const target = block ?? (location.sectionId ? document.getElementById(`crt-${location.sectionId}`) : document.querySelector<HTMLElement>(".crt-stage .crt-paper"));
-    if (!target) return;
-    const box = (target.closest(".crt-stage") ?? document.documentElement).getBoundingClientRect();
-    const rect = target.getBoundingClientRect();
-    if (rect.bottom < box.top + 24 || rect.top > box.bottom - 24) target.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
-}
-
-/** Cuánto dura el destello de un bloque al que se llegó desde el chat o desde el resumen del turno. */
-const FLASH_MS = 1800;
-
-function flash(element: HTMLElement) {
-  element.removeAttribute("data-flash");
-  // Leer el ancho fuerza el reinicio de la animación si el bloque ya estaba destellando
-  void element.offsetWidth;
-  element.setAttribute("data-flash", "");
-  window.setTimeout(() => element.removeAttribute("data-flash"), FLASH_MS);
-}
-
-/** Lleva la hoja hasta unos bloques (o su sección) y los destaca un momento. Devuelve `false` si ya no están. */
-function revealTarget(target: RevealTarget): boolean {
-  const stage = document.querySelector<HTMLElement>(".crt-stage");
-  if (!stage) return false;
-  const blocks = (target.blockIds ?? []).flatMap(id => stage.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(id)}"]`) ?? []);
-  const section = blocks.length === 0 && target.sectionId ? document.getElementById(`crt-${target.sectionId}`) : null;
-  const first = blocks[0] ?? section;
-  if (!first) return false;
-  // Un bloque más alto que la vista se alinea arriba; los demás, al centro
-  const tall = first.getBoundingClientRect().height > stage.clientHeight * 0.7;
-  first.scrollIntoView({ behavior: "smooth", block: section || tall ? "start" : "center" });
-  for (const element of blocks.length > 0 ? blocks : [first]) flash(element);
-  return true;
-}
-
-interface TurnReviewBarProps {
-  summary: string;
-  pending: TurnMark[];
-  undoing: boolean;
-  onReveal: (blockId: string) => void;
-  onUndo: () => void;
-  onSeen: () => void;
-}
-
-/** El resumen del último turno de la IA, encima de la hoja: qué cambió, recorrerlo, deshacerlo o darlo por visto. */
-function TurnReviewBar({ summary, pending, undoing, onReveal, onUndo, onSeen }: TurnReviewBarProps) {
-  const [current, setCurrent] = useState<string | null>(null);
-  const position = current ? pending.findIndex(mark => mark.id === current) : -1;
-
-  const step = (delta: 1 | -1) => {
-    if (pending.length === 0) return;
-    const next = position === -1 ? (delta === 1 ? 0 : pending.length - 1) : (position + delta + pending.length) % pending.length;
-    setCurrent(pending[next].id);
-    onReveal(pending[next].id);
-  };
-
-  return (
-    <div className="crt-review" role="status">
-      <Sparkles aria-hidden="true" />
-      <span className="crt-review__text">{summary}</span>
-      {pending.length > 0 && (
-        <span className="crt-review__nav" role="group" aria-label="Recorrer los cambios">
-          <button type="button" aria-label="Cambio anterior" title="Cambio anterior" onClick={() => step(-1)}>
-            <ChevronUp aria-hidden="true" />
-          </button>
-          <span>{position === -1 ? `${pending.length} por ver` : `${position + 1} de ${pending.length}`}</span>
-          <button type="button" aria-label="Cambio siguiente" title="Cambio siguiente" onClick={() => step(1)}>
-            <ChevronDown aria-hidden="true" />
-          </button>
-        </span>
-      )}
-      <span className="crt-review__actions">
-        <button type="button" disabled={undoing} title="El recurso vuelve a como estaba antes de este turno" onClick={onUndo}>
-          {undoing ? <Loader2 className="crt-spin" aria-hidden="true" /> : <Undo2 aria-hidden="true" />}
-          Deshacer
-        </button>
-        <button type="button" title="Quita las marcas de la hoja" onClick={onSeen}>
-          <Check aria-hidden="true" />
-          Visto
-        </button>
-      </span>
-    </div>
-  );
 }
 
 interface CreatorWorkspaceProps {
@@ -201,6 +114,8 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   const [live, setLive] = useState<LiveTurn | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  /** Los bloques señalados del mensaje en curso: el chat los muestra hasta que el mensaje llega guardado. */
+  const [pendingAttachments, setPendingAttachments] = useState<CreatorAttachment[]>([]);
   const [streamFailed, setStreamFailed] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -214,6 +129,8 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   const [attached, setAttached] = useState<string[]>([]);
   const attachedRef = useRef(attached);
   attachedRef.current = attached;
+  /** Cuenta las veces que el docente señaló un bloque: con cada una, el cursor pasa al cuadro del chat. */
+  const [attachCount, setAttachCount] = useState(0);
   /** Lo que el último turno de la IA dejó marcado en la hoja; `null` cuando el docente ya lo dio por visto. */
   const [review, setReview] = useState<TurnReview | null>(null);
   /** El último turno tal como lo vio esta ventana: el documento de antes (si lo tuvo) y el de después. */
@@ -443,7 +360,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
 
   const stepHistory = useCallback(
     (command: "undo" | "redo") => {
-      if (workingRef.current) return;
+      if (workingRef.current || undoingTurnRef.current) return;
       const current = docRef.current;
       const next = command === "undo" ? popUndo(current) : popRedo(current);
       if (!next) return;
@@ -542,11 +459,12 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
         explainUnsaved("escribirle al asistente");
         throw new Error("unsaved");
       }
-      setPendingMessage(message);
       // Solo viajan los bloques señalados que siguen en la hoja
-      const blockIds = attachedRef.current.filter(id => findBlock(docRef.current, id) !== null).slice(0, ATTACH_MAX);
+      const sent = attachedRef.current.flatMap(id => findBlock(docRef.current, id)?.block ?? []).slice(0, ATTACH_MAX).map(describeAttachment);
+      setPendingAttachments(sent);
+      setPendingMessage(message);
       try {
-        await sendMessage({ role, id: resourceId, message, blockIds });
+        await sendMessage({ role, id: resourceId, message, blockIds: sent.map(attachment => attachment.id) });
         // Al terminar el turno, este documento entra al historial como el paso anterior
         turnBase.current = docRef.current;
         setAttached([]);
@@ -641,8 +559,8 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     // El mensaje recién enviado se muestra de inmediato, hasta que llega guardado desde el servidor
     const last = saved[saved.length - 1];
     if (!pendingMessage || (last?.role === "user" && last.content === pendingMessage)) return saved;
-    return [...saved, { id: -1, role: "user", content: pendingMessage, activity: [], createdAt: new Date() }];
-  }, [detail?.messages, pendingMessage]);
+    return [...saved, { id: -1, role: "user", content: pendingMessage, activity: [], attachments: pendingAttachments, createdAt: new Date() }];
+  }, [detail?.messages, pendingAttachments, pendingMessage]);
 
   // Solo cuentan los bloques señalados que siguen en la hoja: uno borrado deja de mostrarse y de viajar
   const attachments = useMemo(
@@ -666,6 +584,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
       return;
     }
     setAttached([...current, blockId]);
+    setAttachCount(count => count + 1);
     // En pantalla angosta el chat no está a la vista: se dice dónde quedó
     if (narrowRef.current) toast("Bloque señalado para el asistente.", { id: ATTACH_TOAST, action: { label: "Abrir asistente", onClick: () => setPane("chat") } });
   }, []);
@@ -794,6 +713,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
       blocked={blocked}
       suggestions={suggestions}
       attachments={attachments}
+      focusSignal={attachCount}
       onDetach={toggleAttach}
       onReveal={reveal}
       undoable={undoable}
@@ -841,7 +761,8 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
         <EditableDocument
           ref={sheetRef}
           doc={doc}
-          readOnly={working}
+          // Mientras el servidor deshace un turno la hoja espera: lo que se editara en ese instante se perdería
+          readOnly={working || undoingTurn}
           applyOp={applyOp}
           schoolName={schoolName}
           logoUrl={logoUrl}
@@ -876,10 +797,10 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
           </button>
         )}
         <div className="crt-bar__actions" role="group" aria-label="Historial de cambios">
-          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || !history.canUndo} aria-label="Deshacer" title={undoIsTurn ? `Deshacer lo que hizo la IA (${UNDO_HINT})` : `Deshacer (${UNDO_HINT})`} onClick={undo}>
+          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || undoingTurn || !history.canUndo} aria-label="Deshacer" title={undoIsTurn ? `Deshacer lo que hizo la IA (${UNDO_HINT})` : `Deshacer (${UNDO_HINT})`} onClick={undo}>
             <Undo2 aria-hidden="true" />
           </button>
-          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || !history.canRedo} aria-label="Rehacer" title={`Rehacer (${REDO_HINT})`} onClick={redo}>
+          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || undoingTurn || !history.canRedo} aria-label="Rehacer" title={`Rehacer (${REDO_HINT})`} onClick={redo}>
             <Redo2 aria-hidden="true" />
           </button>
         </div>

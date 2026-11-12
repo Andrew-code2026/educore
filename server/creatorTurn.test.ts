@@ -264,6 +264,12 @@ describe("sugerencias de seguimiento", () => {
     expect(shown.trim()).toBe("Añadí dos ejercicios de contexto.");
   });
 
+  it("reconoce la etiqueta en mayúsculas y corta bien aunque el texto tenga letras que cambian de longitud en minúsculas", () => {
+    const odd = "İstanbul: listo.\n<SUGERENCIAS>\n- Añade un mapa de İstanbul\n</Sugerencias>\nFin.";
+    expect(visibleReply(odd)).toBe("İstanbul: listo.\n");
+    expect(splitSuggestions(odd)).toEqual({ text: "İstanbul: listo.\n\nFin.", suggestions: ["Añade un mapa de İstanbul"] });
+  });
+
   it("no retiene para siempre un signo «<» que no abre el bloque", () => {
     expect(visibleReply("Si x <")).toBe("Si x ");
     expect(visibleReply("Si x <", true)).toBe("Si x <");

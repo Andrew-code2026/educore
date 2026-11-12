@@ -70,7 +70,7 @@ export function acceptMark(review: TurnReview, blockId: string): TurnReview | nu
 }
 
 /** El resumen se muestra mientras quede algo marcado o el documento siga tal como lo dejó la IA (un turno que solo borró no deja marcas). */
-export const isReviewVisible = (review: TurnReview | null, doc: ResourceDoc, pending: TurnMark[]): review is TurnReview => review !== null && (pending.length > 0 || review.after === doc);
+export const isReviewVisible = (review: TurnReview | null, doc: ResourceDoc, pending: TurnMark[]): boolean => review !== null && (pending.length > 0 || review.after === doc);
 
 export const storeReview = (review: TurnReview, doc: ResourceDoc, pending: TurnMark[]): StoredReview => ({ messageId: review.messageId, pending: pending.map(mark => mark.id), intact: review.after === doc });
 

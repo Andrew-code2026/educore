@@ -63,6 +63,16 @@ describe("el turno de la IA en el historial de deshacer", () => {
     expect(result.history).toBe(emptyHistory);
   });
 
+  it("un recurso escrito desde cero no deja paso: deshacer no lo vacía", () => {
+    const written = buildSampleDoc("funciones");
+    const empty: ResourceDoc = { title: "Guía nueva", sections: [] };
+    const history = recordStep(emptyHistory, { title: "", sections: [] }, { key: "meta", at: 0 });
+    const result = recordTurn(history, empty, fresh(written), 1000);
+    expect(result.doc).toEqual(written);
+    expect(result.history).toBe(emptyHistory);
+    expect(undoStep(result.history, result.doc)).toBeNull();
+  });
+
   it("una edición hecha justo después no se funde con el turno", () => {
     const before = buildSampleDoc("funciones");
     const turn = finishTurn(emptyHistory, before);

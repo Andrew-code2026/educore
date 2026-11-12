@@ -658,9 +658,9 @@
 .crt .crt-review button:disabled { opacity: .5; cursor: default; }
 .crt .crt-review button svg { width: 14px; height: 14px; }
 
-/* Con el resumen pegado arriba, la barra de formato y los bloques a los que se salta quedan debajo de él */
-.crt .crt-stage.has-review { --crt-sticky-top: 50px; }
-.crt .crt-stage.has-review :is(.crt-block, .crt-doc__section) { scroll-margin-top: 62px; }
+/* Con el resumen pegado arriba, la barra de formato y los bloques a los que se salta quedan debajo de él.
+   Cuánto ocupa lo mide el propio resumen (TurnReviewBar pone --crt-sticky-top): puede partir renglón. */
+.crt .crt-stage.has-review :is(.crt-block, .crt-doc__section) { scroll-margin-top: calc(var(--crt-sticky-top, 50px) + 12px); }
 
 .crt .crt-count {
   display: inline-grid;
