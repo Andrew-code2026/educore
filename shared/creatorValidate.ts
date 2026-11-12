@@ -266,7 +266,7 @@ export function validateBlock(block: BlockInput): string[] {
       break;
     case "balance":
       for (const [name, side] of [["izquierdo", block.left], ["derecho", block.right]] as const) {
-        if (side.variables + side.units === 0) issues.push(`Balanza: el platillo ${name} está vacío.`);
+        if (side.variables + side.units + side.weights.length === 0) issues.push(`Balanza: el platillo ${name} está vacío.`);
       }
       break;
     default:
@@ -347,6 +347,14 @@ function validateNumberLine(block: Extract<BlockInput, { type: "number_line" }>)
       const error = checkLatex(jump.label);
       if (error) issues.push(`Recta numérica: el rótulo de un salto no es LaTeX válido (${error}).`);
     }
+  });
+  block.intervals.forEach((interval, index) => {
+    const from = interval.from ?? null;
+    const to = interval.to ?? null;
+    const name = `el intervalo ${index + 1}`;
+    if (from === null && to === null) issues.push(`Recta numérica: ${name} no tiene extremos; indica al menos uno (from o to).`);
+    if (from !== null && to !== null && !(from < to)) issues.push(`Recta numérica: en ${name}, el extremo izquierdo (from) debe ser menor que el derecho (to).`);
+    for (const end of [from, to]) if (end !== null && !inside(end)) issues.push(`Recta numérica: el extremo ${formatNumber(end, 4)} de ${name} queda fuera de la recta.`);
   });
   return issues;
 }

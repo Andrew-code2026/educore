@@ -22,7 +22,7 @@ export const BLOCK_TEMPLATES: Record<BlockType, BlockInput> = {
   table: { type: "table", header: ["Columna 1", "Columna 2"], rows: [["", ""], ["", ""]], firstColumnHeader: false },
   value_table: { type: "value_table", expr: "2*x + 1", exprLatex: "y = 2x + 1", xs: [-2, -1, 0, 1, 2], blankY: false },
   graph: { type: "graph", spec: { xMin: -5, xMax: 5, yMin: -5, yMax: 5, xStep: 1, yStep: 1, functions: [], points: [] } },
-  number_line: { type: "number_line", min: 0, max: 10, step: 1, labelEvery: 1, showNumbers: true, points: [], jumps: [] },
+  number_line: { type: "number_line", min: 0, max: 10, step: 1, labelEvery: 1, showNumbers: true, points: [], jumps: [], intervals: [] },
   fraction_model: {
     type: "fraction_model",
     shape: "circle",
@@ -56,7 +56,7 @@ export const BLOCK_TEMPLATES: Record<BlockType, BlockInput> = {
   },
   ...STAT_TEMPLATES,
   shapes: { type: "shapes", figures: [{ kind: "rectangle", width: 5, height: 3, widthLabel: "5 cm", heightLabel: "3 cm" }], toScale: true },
-  balance: { type: "balance", variable: "x", left: { variables: 2, units: 1 }, right: { variables: 0, units: 7 } },
+  balance: { type: "balance", variable: "x", left: { variables: 2, units: 1, weights: [] }, right: { variables: 0, units: 7, weights: [] } },
   solution: { type: "solution", label: "Ejercicio", steps: ["Escribe aquí el primer paso."] },
   header_fields: { type: "header_fields", fields: ["Nombre", "Fecha", "Grado"] },
   page_break: { type: "page_break" },

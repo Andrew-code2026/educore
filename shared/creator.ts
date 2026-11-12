@@ -196,6 +196,18 @@ const numberLineBlock = z.object({
     .max(6)
     .default([])
     .describe("Saltos en arco de un valor a otro, para mostrar sumas y restas."),
+  intervals: z
+    .array(
+      z.object({
+        from: z.number().nullable().optional().describe("Extremo izquierdo. Omítelo (o null) para una semirrecta que sigue hacia la izquierda, como en x < 3."),
+        to: z.number().nullable().optional().describe("Extremo derecho. Omítelo (o null) para una semirrecta que sigue hacia la derecha, como en x ≥ 2."),
+        fromClosed: z.boolean().default(false).describe("true si el extremo izquierdo está incluido (≥ o corchete): círculo relleno. false: círculo vacío."),
+        toClosed: z.boolean().default(false).describe("true si el extremo derecho está incluido (≤ o corchete)."),
+      }),
+    )
+    .max(3)
+    .default([])
+    .describe("Intervalos o soluciones de inecuaciones, resaltados sobre la recta con sus extremos abiertos o cerrados."),
 });
 
 const fractionModelBlock = z.object({
@@ -390,6 +402,11 @@ const shapesBlock = z.object({
 const balanceSide = z.object({
   variables: z.number().int().min(0).max(6).default(0).describe("Cuántas incógnitas hay en este platillo."),
   units: z.number().int().min(0).max(15).default(0).describe("Cuántas unidades (fichas de valor 1) hay en este platillo."),
+  weights: z
+    .array(z.number().positive().max(9999))
+    .max(3)
+    .default([])
+    .describe("Pesas rotuladas con su valor, p. ej. [15] o [20, 5]. Úsalas cuando el número es demasiado grande para dibujarlo ficha por ficha."),
 });
 
 const balanceBlock = z.object({

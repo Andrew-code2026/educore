@@ -89,6 +89,34 @@ export function NumberLineForm({ draft, onChange }: FormProps<"number_line">) {
       ))}
       {draft.jumps.length < 6 && <AddButton onClick={() => onChange({ ...draft, jumps: [...draft.jumps, { from: draft.min, to: draft.min + draft.step }] })}>Añadir salto</AddButton>}
 
+      <span className="crt-form__legend">Intervalos e inecuaciones</span>
+      {draft.intervals.map((interval, index) => {
+        const setInterval = (patch: Partial<typeof interval>) => onChange({ ...draft, intervals: draft.intervals.map((current, i) => (i === index ? { ...current, ...patch } : current)) });
+        return (
+          <div key={`${version}-i${index}`} className="crt-form__row">
+            <Field label="Desde">
+              <OptionalNumberInput label={`Extremo izquierdo del intervalo ${index + 1}`} value={interval.from ?? undefined} onChange={from => setInterval({ from: from ?? null })} />
+            </Field>
+            <Field label="Hasta">
+              <OptionalNumberInput label={`Extremo derecho del intervalo ${index + 1}`} value={interval.to ?? undefined} onChange={to => setInterval({ to: to ?? null })} />
+            </Field>
+            <Check label="Incluye el izquierdo" checked={interval.fromClosed} onChange={fromClosed => setInterval({ fromClosed })} />
+            <Check label="Incluye el derecho" checked={interval.toClosed} onChange={toClosed => setInterval({ toClosed })} />
+            <RemoveButton
+              label={`Quitar el intervalo ${index + 1}`}
+              onClick={() => {
+                onChange({ ...draft, intervals: draft.intervals.filter((_, i) => i !== index) });
+                bump();
+              }}
+            />
+          </div>
+        );
+      })}
+      {draft.intervals.length < 3 && (
+        <AddButton onClick={() => onChange({ ...draft, intervals: [...draft.intervals, { from: draft.min + draft.step, to: null, fromClosed: false, toClosed: false }] })}>Añadir intervalo</AddButton>
+      )}
+      {draft.intervals.length > 0 && <p className="crt-form__hint">Deja vacío un extremo para una semirrecta: «desde 2» sin «hasta» dibuja x &gt; 2. Un extremo incluido lleva círculo relleno.</p>}
+
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
       <BlockPreview draft={draft} />
     </>
@@ -141,7 +169,7 @@ export function FractionModelForm({ draft, onChange }: FormProps<"fraction_model
 }
 
 /** Lista de categorías con valor, común a barras y sectores. */
-function DataRows({ rows, max, noun, onChange }: { rows: Array<{ label: string; value: number }>; max: number; noun: string; onChange: (rows: Array<{ label: string; value: number }>) => void }) {
+export function DataRows({ rows, max, noun, onChange }: { rows: Array<{ label: string; value: number }>; max: number; noun: string; onChange: (rows: Array<{ label: string; value: number }>) => void }) {
   const [version, bump] = useListVersion();
   return (
     <>
@@ -357,6 +385,17 @@ export function BalanceForm({ draft, onChange }: FormProps<"balance">) {
       <Field label={`${title}: unidades`}>
         <NumberInput label={`Unidades del platillo ${title.toLowerCase()}`} value={draft[name].units} onChange={units => onChange({ ...draft, [name]: { ...draft[name], units } })} />
       </Field>
+      <Field label={`${title}: pesas con número`}>
+        <input
+          className="crt-input"
+          aria-label={`Pesas con número del platillo ${title.toLowerCase()}, separadas por comas`}
+          placeholder="15"
+          defaultValue={draft[name].weights.join(", ")}
+          onChange={event =>
+            onChange({ ...draft, [name]: { ...draft[name], weights: event.target.value.split(/[,;s]+/).filter(Boolean).map(Number) } })
+          }
+        />
+      </Field>
     </>
   );
   return (
@@ -368,7 +407,7 @@ export function BalanceForm({ draft, onChange }: FormProps<"balance">) {
         {side("left", "Izquierdo")}
         {side("right", "Derecho")}
       </div>
-      <p className="crt-form__hint">La balanza se dibuja en equilibrio: representa una ecuación como 2x + 1 = 7.</p>
+      <p className="crt-form__hint">La balanza se dibuja en equilibrio: representa una ecuación como 2x + 1 = 7. Para números grandes usa una pesa con número en vez de fichas: 2x + 5 = 15 lleva una pesa de 15 a la derecha.</p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
       <BlockPreview draft={draft} />
     </>
