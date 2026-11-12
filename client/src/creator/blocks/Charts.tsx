@@ -1,7 +1,7 @@
 import { memo, useMemo } from "react";
 import type { BlockInput } from "@shared/creator";
 import { niceMax, niceStep, pieAngles, roundPercents, tickValues, wrapLabel } from "@shared/creatorFigures";
-import { formatNumber } from "@shared/creatorMath";
+import { formatNumberEs } from "@shared/creatorMath";
 import { FigureFrame, figureColor } from "./FigureFrame";
 
 type BarChartSpec = Extract<BlockInput, { type: "bar_chart" }>;
@@ -35,7 +35,7 @@ export const BarChart = memo(function BarChart({ spec }: { spec: BarChartSpec })
   }, [spec]);
 
   const { left, top, plotW, plotH, barW, y, bars, height, ticks } = view;
-  const description = `Diagrama de barras${spec.title ? ` «${spec.title}»` : ""}: ${spec.bars.map(bar => (spec.blank ? bar.label : `${bar.label} ${formatNumber(bar.value)}`)).join(", ")}.`;
+  const description = `Diagrama de barras${spec.title ? ` «${spec.title}»` : ""}: ${spec.bars.map(bar => (spec.blank ? bar.label : `${bar.label} ${formatNumberEs(bar.value)}`)).join(", ")}.`;
 
   return (
     <FigureFrame width={WIDTH} height={height} description={description}>
@@ -52,7 +52,7 @@ export const BarChart = memo(function BarChart({ spec }: { spec: BarChartSpec })
       <g className="crt-figure__text">
         {ticks.map(tick => (
           <text key={tick} x={left - 8} y={y(tick) + 4} textAnchor="end">
-            {formatNumber(tick)}
+            {formatNumberEs(tick)}
           </text>
         ))}
         {bars.map((bar, index) =>
@@ -84,7 +84,7 @@ export const BarChart = memo(function BarChart({ spec }: { spec: BarChartSpec })
         <g className="crt-figure__text crt-figure__text--strong">
           {bars.map((bar, index) => (
             <text key={index} x={bar.cx} y={bar.top - 6} textAnchor="middle">
-              {formatNumber(bar.value)}
+              {formatNumberEs(bar.value)}
             </text>
           ))}
         </g>

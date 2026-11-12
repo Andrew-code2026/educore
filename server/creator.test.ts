@@ -18,11 +18,11 @@ import {
   type BlockInput,
   type ResourceDoc,
 } from "@shared/creator";
-import { fractionLatex, isMultipleOfFraction, niceMax, niceStep, pieAngles, polygonArea, roundPercents, tickValues, wholesNeeded, wrapLabel } from "@shared/creatorFigures";
+import { boxTouchesPolygon, fractionLatex, isMultipleOfFraction, niceMax, niceStep, pieAngles, placeSideLabels, polygonArea, roundPercents, tickValues, wholesNeeded, wrapLabel } from "@shared/creatorFigures";
 import { buildSampleDoc, SAMPLE_IDS, SAMPLES } from "@shared/creatorSample";
-import { compileExpression, formatNumber, MathSyntaxError, nearlyEqual, parseExpression, sampleCurve, tryCompile } from "@shared/creatorMath";
+import { compileExpression, formatNumber, formatNumberEs, MathSyntaxError, nearlyEqual, parseExpression, sampleCurve, tryCompile } from "@shared/creatorMath";
 import { applyDocOp } from "@shared/creatorOps";
-import { checkLatex, computeValueTable, findBareSubscript, validateBlock, validateBlockOrder, validateGraphSpec, validateText } from "@shared/creatorValidate";
+import { checkLatex, computeValueTable, findBareSubscript, validateBlock, validateBlockOrder, validateGraphSpec, validateText, valueTableVariable } from "@shared/creatorValidate";
 
 const block = (input: unknown): BlockInput => blockInputSchema.parse(input);
 
@@ -88,6 +88,17 @@ describe("creatorMath", () => {
     expect(formatNumber(-0.001)).toBe("0");
     expect(formatNumber(1 / 3)).toBe("0.33");
     expect(formatNumber(Number.NaN)).toBe("—");
+    // Lo que lee el estudiante va como en Colombia: punto de miles y coma decimal
+    expect(formatNumberEs(20000)).toBe("20.000");
+    expect(formatNumberEs(1000)).toBe("1.000");
+    expect(formatNumberEs(999)).toBe("999");
+    expect(formatNumberEs(1.5)).toBe("1,5");
+    expect(formatNumberEs(-4000)).toBe("-4.000");
+    expect(formatNumberEs(1234567.891)).toBe("1.234.567,89");
+    expect(formatNumberEs(0.1 + 0.2)).toBe("0,3");
+    expect(formatNumberEs(0.125, 3)).toBe("0,125");
+    expect(formatNumberEs(-0.001)).toBe("0");
+    expect(formatNumberEs(Number.NaN)).toBe("—");
   });
 
   it("compara con tolerancia relativa", () => {
@@ -171,6 +182,46 @@ describe("validación de bloques", () => {
     expect(order([exercise(), { type: "balance", left: { variables: 3, units: 2 }, right: { variables: 0, units: 11 } }])).toHaveLength(1);
   });
 
+  it("no pide un párrafo de relleno cuando la figura es del ejercicio siguiente", () => {
+    const graph = { type: "graph", spec: { xMin: -2, xMax: 4, yMin: -4, yMax: 8, functions: [{ expr: "-2*x + 4" }], points: [] } };
+    const shape = { type: "shapes", figures: [{ kind: "rectangle", width: 6, height: 4, widthLabel: "6 m", heightLabel: "4 m" }] };
+    const exercise = (label: string, md: string, extra: Record<string, unknown> = {}) => ({ type: "exercise", label, md, ...extra });
+    const order = (blocks: unknown[]) => validateBlockOrder([{ title: "Taller", blocks: blocks.map(block) }]);
+
+    // El taller real de 8°: cada figura va delante de su ejercicio, sin nada entre el ejercicio 1 y la figura del 2
+    expect(
+      order([
+        { type: "heading", text: "Parte 1" },
+        shape,
+        exercise("Ejercicio 1", "Calcula el área de la figura en forma de T."),
+        shape,
+        exercise("Ejercicio 2", "La figura de arriba es un rectángulo con un triángulo encima. Calcula su área."),
+      ]),
+    ).toEqual([]);
+    // Un ejercicio que no habla de ninguna figura, seguido de la figura del siguiente
+    expect(order([exercise("Ejercicio 3", "Resuelve $2x + 3 = 11$."), graph, exercise("Ejercicio 4", "Según la gráfica, ¿dónde corta la recta al eje $y$?")])).toEqual([]);
+
+    // El defecto original sigue detectado: el enunciado habla de una gráfica que queda bajo sus renglones
+    const original = order([exercise("Ejercicio 4", "La gráfica muestra la recta. Halla su pendiente."), graph, exercise("Ejercicio 5", "Resuelve $3x = 12$.")]);
+    expect(original).toHaveLength(1);
+    expect(original[0]).toContain("Ejercicio 4");
+    // …también cuando la mención está en un inciso
+    expect(order([exercise("Ejercicio 4", "Responde.", { parts: [{ label: "a", md: "¿Qué pendiente tiene la recta del plano?" }] }), graph, exercise("Ejercicio 5", "Resuelve.")])).toHaveLength(1);
+    // …y cuando la figura de delante no es suya, porque el ejercicio anterior se resuelve sobre ella
+    expect(
+      order([
+        exercise("Ejercicio 1", "Sombrea la mitad de la figura.", { answerSpace: "none" }),
+        shape,
+        exercise("Ejercicio 2", "Observa el dibujo y calcula su perímetro."),
+        shape,
+        exercise("Ejercicio 3", "Resuelve."),
+      ]),
+    ).toHaveLength(1);
+    // Una figura que no tiene ejercicio después solo puede ser del anterior
+    expect(order([exercise("Ejercicio 6", "Resuelve $x + 1 = 2$."), graph])).toHaveLength(1);
+    expect(order([exercise("Ejercicio 6", "Resuelve $x + 1 = 2$."), graph, { type: "heading", text: "Parte 2" }, exercise("Ejercicio 7", "Resuelve.")])).toHaveLength(1);
+  });
+
   it("detecta LaTeX fuera de una fórmula", () => {
     expect(validateText("la pendiente es \\frac{1}{2}", "Texto")).toHaveLength(1);
     expect(validateText("la pendiente es $\\frac{1}{2}$ y cuesta \\$500", "Texto")).toEqual([]);
@@ -211,6 +262,32 @@ describe("validación de bloques", () => {
     expect(computeValueTable("1/x", [0, 2])).toEqual([null, 0.5]);
     const table = block({ type: "value_table", expr: "1/x", exprLatex: "y = \\frac{1}{x}", xs: [0, 1] });
     expect(validateBlock(table)).toHaveLength(1);
+  });
+
+  it("rotula la tabla de valores con la variable de la función", () => {
+    // Sin declararla se lee del encabezado; así se corrigen también los recursos ya guardados
+    expect(valueTableVariable({ exprLatex: "A(s) = 4000s + 20000" })).toBe("s");
+    expect(valueTableVariable({ exprLatex: "V\\left(t\\right) = 400 - 25t" })).toBe("t");
+    expect(valueTableVariable({ exprLatex: "C_{total}(n) = 2500n + 60000" })).toBe("n");
+    expect(valueTableVariable({ exprLatex: "y = 2x + 1" })).toBe("x");
+    expect(valueTableVariable({ exprLatex: "y = 2(x + 1)" })).toBe("x");
+    expect(valueTableVariable({ exprLatex: "d = 80t", variable: "t" })).toBe("t");
+
+    // La función se puede escribir con la variable de la tabla o con x
+    expect(computeValueTable("4000*s + 20000", [0, 1, 2], "s")).toEqual([20000, 24000, 28000]);
+    expect(computeValueTable("4000*x + 20000", [0, 1, 2], "s")).toEqual([20000, 24000, 28000]);
+    expect(computeValueTable("400 - 25t", [0, 4], "t")).toEqual([400, 300]);
+
+    const table = (extra: Record<string, unknown>) => block({ type: "value_table", exprLatex: "A(s) = 4000s + 20000", xs: [0, 1, 2], ...extra });
+    expect(validateBlock(table({ expr: "4000*x + 20000" }))).toEqual([]);
+    expect(validateBlock(table({ expr: "4000*s + 20000", variable: "s" }))).toEqual([]);
+    expect(validateBlock(table({ expr: "4000*k + 20000", variable: "s" }))).toHaveLength(1);
+    // La fila diría «x» y el encabezado «A(s)»
+    const mismatch = validateBlock(table({ expr: "4000*x + 20000", variable: "x" }));
+    expect(mismatch).toHaveLength(1);
+    expect(mismatch[0]).toContain("no coincide");
+    expect(validateBlock(block({ type: "value_table", expr: "1/s", exprLatex: "f(s) = \\frac{1}{s}", xs: [0, 1] }))[0]).toContain("s = 0");
+    expect(blockInputSchema.safeParse({ type: "value_table", expr: "x", exprLatex: "y = x", xs: [0, 1], variable: "st" }).success).toBe(false);
   });
 
   it("exige filas del ancho del encabezado", () => {
@@ -273,6 +350,77 @@ describe("figuras: cálculos", () => {
     expect(polygonArea([{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 4, y: 3 }, { x: 0, y: 3 }])).toBe(12);
     expect(polygonArea([{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 2 }])).toBe(0);
     expect(pieAngles([1, 1, 2])).toEqual([{ start: 0, end: 90 }, { start: 90, end: 180 }, { start: 180, end: 360 }]);
+  });
+});
+
+describe("figuras: rótulos de los lados de un polígono", () => {
+  type Vertex = [number, number];
+  /** Igual que el dibujo: el lado mayor mide 150 px y la y crece hacia abajo. */
+  const toScreen = (vertices: Vertex[]) => {
+    const xs = vertices.map(([x]) => x);
+    const ys = vertices.map(([, y]) => y);
+    const scale = 150 / Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+    return vertices.map(([x, y]) => ({ x: (x - Math.min(...xs)) * scale, y: (Math.max(...ys) - y) * scale }));
+  };
+  const overlap = (a: { x: number; y: number; w: number; h: number }, b: typeof a) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  const expectClean = (points: Array<{ x: number; y: number }>, labels: string[]) => {
+    const placed = placeSideLabels(points, labels);
+    expect(placed.map(item => item.side)).toEqual(labels.flatMap((text, side) => (text ? [side] : [])));
+    for (const item of placed) expect(boxTouchesPolygon(item.box, points), `el rótulo del lado ${item.side} pisa la figura`).toBe(false);
+    placed.forEach((a, i) => placed.slice(i + 1).forEach(b => expect(overlap(a.box, b.box), `se enciman los rótulos de los lados ${a.side} y ${b.side}`).toBe(false)));
+    return placed;
+  };
+
+  const L: Vertex[] = [[0, 0], [8, 0], [8, 3], [5, 3], [5, 6], [0, 6]];
+  const L_LABELS = ["8 m", "3 m", "3 m", "3 m", "5 m", "6 m"];
+  const T: Vertex[] = [[4, 0], [8, 0], [8, 6], [12, 6], [12, 9], [0, 9], [0, 6], [4, 6]];
+  const T_LABELS = ["4 m", "6 m", "4 m", "3 m", "12 m", "3 m", "4 m", "6 m"];
+
+  it("en una L no encima los dos rótulos de la muesca", () => {
+    const points = toScreen(L);
+    const placed = expectClean(points, L_LABELS);
+    // Los dos lados de la muesca rotulan hacia ella: arriba del brazo y a la derecha del cuerpo
+    expect(placed[2].anchor).toBe("bottom");
+    expect(placed[2].box.y + placed[2].box.h).toBeLessThan(points[2].y);
+    expect(placed[3].anchor).toBe("left");
+    expect(placed[3].box.x).toBeGreaterThan(points[3].x);
+  });
+
+  it("en una muesca estrecha reubica los dos rótulos a la vez", () => {
+    // Salió en un taller generado: muesca de 4 m × 3 m, donde mover un solo rótulo no alcanza
+    expectClean(toScreen([[0, 0], [10, 0], [10, 4], [6, 4], [6, 7], [0, 7]]), ["10 m", "4 m", "4 m", "3 m", "6 m", "7 m"]);
+    expectClean(toScreen([[0, 0], [7, 0], [7, 4], [3, 4], [3, 1], [0, 1]]), ["7 m", "4 m", "4 m", "3 m", "3 m", "1 m"]);
+    expectClean(toScreen([[0, 0], [12, 0], [12, 2], [10, 2], [10, 8], [0, 8]]), ["12 m", "2 m", "2 m", "6 m", "10 m", "8 m"]);
+  });
+
+  it("en una T pone por fuera los rótulos de debajo de los brazos", () => {
+    const points = toScreen(T);
+    const placed = expectClean(points, T_LABELS);
+    const armY = points[2].y;
+    for (const side of [2, 6]) {
+      expect(placed[side].anchor).toBe("top");
+      expect(placed[side].box.y).toBeGreaterThan(armY);
+    }
+    // Los lados del tronco, hacia fuera del tronco
+    expect(placed[1].box.x).toBeGreaterThan(points[1].x);
+    expect(placed[7].box.x + placed[7].box.w).toBeLessThan(points[0].x);
+  });
+
+  it("da lo mismo recorrer los vértices en un sentido o en el otro", () => {
+    for (const [vertices, labels] of [[L, L_LABELS], [T, T_LABELS]] as const) {
+      // Al invertir el recorrido, el lado i pasa a ser el lado n - 2 - i
+      const reversed = [...vertices].reverse();
+      const count = vertices.length;
+      const reversedLabels = reversed.map((_, side) => labels[(2 * count - 2 - side) % count]);
+      expectClean(toScreen(reversed), reversedLabels);
+    }
+  });
+
+  it("omite los lados sin rótulo y sirve para lados inclinados", () => {
+    const house: Vertex[] = [[0, 0], [6, 0], [6, 4], [3, 7], [0, 4]];
+    const placed = expectClean(toScreen(house), ["6 m", "4 m", "", "", "4 m"]);
+    expect(placed).toHaveLength(3);
+    expectClean(toScreen([[0, 0], [6, 0], [2, 5]]), ["6 cm", "$\\sqrt{41}$ cm", "5,4 cm"]);
   });
 });
 

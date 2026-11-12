@@ -13,6 +13,8 @@ export default defineConfig({
       "@assets": path.resolve(templateRoot, "attached_assets"),
     },
   },
+  // Los tests que dibujan un componente (.tsx) necesitan el JSX automático, como en la app
+  esbuild: { jsx: "automatic" },
   test: {
     environment: "node",
     fileParallelism: false,

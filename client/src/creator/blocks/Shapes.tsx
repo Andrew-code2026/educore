@@ -1,5 +1,6 @@
 import { memo, useMemo, type ReactNode } from "react";
 import { SHAPE_KIND_LABELS, type BlockInput, type ShapeFigure } from "@shared/creator";
+import { placeSideLabels, type SideLabelPlacement } from "@shared/creatorFigures";
 import { FigureFrame, figureColor, type FigureLabel } from "./FigureFrame";
 
 type ShapesSpec = Extract<BlockInput, { type: "shapes" }>;
@@ -8,6 +9,9 @@ type BalanceSpec = Extract<BlockInput, { type: "balance" }>;
 /** Lado mayor, en píxeles, de la figura más grande. */
 const CELL = 150;
 const PAD = { left: 50, right: 22, top: 20, bottom: 36 };
+/** Margen mínimo alrededor de un polígono; crece lo necesario para que quepan sus rótulos. */
+const POLYGON_PAD = { left: 22, right: 22, top: 20, bottom: 36 };
+const LABEL_GAP = 4;
 
 function extent(figure: ShapeFigure): { w: number; h: number; minX: number; minY: number } {
   switch (figure.kind) {
@@ -33,10 +37,25 @@ export const Shapes = memo(function Shapes({ spec }: { spec: ShapesSpec }) {
     const sized = spec.figures.map((figure, index) => {
       const e = extents[index];
       const scale = spec.toScale ? shared : CELL / Math.max(e.w, e.h);
-      return { figure, e, scale, w: Math.max(e.w * scale, 18), h: Math.max(e.h * scale, 18) };
+      const w = Math.max(e.w * scale, 18);
+      const h = Math.max(e.h * scale, 18);
+      if (figure.kind !== "polygon") return { figure, e, scale, w, h, pad: PAD, points: [], sides: [] as SideLabelPlacement[] };
+      // Vértices y rótulos relativos a la esquina superior izquierda de la figura; el margen sale de los rótulos
+      const points = figure.vertices.map(vertex => ({ x: (vertex.x - e.minX) * scale, y: h - (vertex.y - e.minY) * scale }));
+      const sides = placeSideLabels(points, figure.sideLabels);
+      const pad = { ...POLYGON_PAD };
+      for (const { box } of sides) {
+        pad.left = Math.max(pad.left, LABEL_GAP - box.x);
+        pad.right = Math.max(pad.right, box.x + box.w - w + LABEL_GAP);
+        pad.top = Math.max(pad.top, LABEL_GAP - box.y);
+        pad.bottom = Math.max(pad.bottom, box.y + box.h - h + LABEL_GAP);
+      }
+      return { figure, e, scale, w, h, pad, points, sides };
     });
     const tallest = Math.max(...sized.map(item => item.h));
-    const baseline = PAD.top + tallest;
+    // Las figuras comparten la línea de base: el margen de arriba y el de abajo son los del que más pide
+    const baseline = Math.max(...sized.map(item => item.pad.top - (tallest - item.h))) + tallest;
+    const bottom = Math.max(...sized.map(item => item.pad.bottom));
     const shapes: ReactNode[] = [];
     const labels: FigureLabel[] = [];
     const label = (md: string | undefined, x: number, y: number, anchor: FigureLabel["anchor"]) => {
@@ -44,8 +63,8 @@ export const Shapes = memo(function Shapes({ spec }: { spec: ShapesSpec }) {
     };
 
     let cursor = 0;
-    sized.forEach(({ figure, e, scale, w, h }, index) => {
-      const ox = cursor + PAD.left;
+    sized.forEach(({ figure, w, h, pad, points: local, sides }, index) => {
+      const ox = cursor + pad.left;
       const oy = baseline - h;
       const color = figureColor(index);
       const common = { fill: color.fill, stroke: "#111B24", strokeWidth: 1.6, strokeLinejoin: "round" as const };
@@ -82,26 +101,14 @@ export const Shapes = memo(function Shapes({ spec }: { spec: ShapesSpec }) {
           label(figure.label, cx, baseline + 7, "top");
         }
       } else {
-        const points = figure.vertices.map(vertex => ({ x: ox + (vertex.x - e.minX) * scale, y: baseline - (vertex.y - e.minY) * scale }));
+        const points = local.map(point => ({ x: ox + point.x, y: oy + point.y }));
         shapes.push(<polygon key={index} points={points.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ")} {...common} />);
-        const centroid = { x: points.reduce((sum, point) => sum + point.x, 0) / points.length, y: points.reduce((sum, point) => sum + point.y, 0) / points.length };
-        points.forEach((point, side) => {
-          const text = figure.sideLabels[side];
-          if (!text) return;
-          const next = points[(side + 1) % points.length];
-          const mid = { x: (point.x + next.x) / 2, y: (point.y + next.y) / 2 };
-          const length = Math.hypot(next.x - point.x, next.y - point.y) || 1;
-          let normal = { x: -(next.y - point.y) / length, y: (next.x - point.x) / length };
-          // El rótulo va hacia fuera de la figura
-          if ((mid.x - centroid.x) * normal.x + (mid.y - centroid.y) * normal.y < 0) normal = { x: -normal.x, y: -normal.y };
-          const anchor = Math.abs(normal.x) > 0.6 ? (normal.x > 0 ? "left" : "right") : normal.y > 0 ? "top" : "bottom";
-          label(text, mid.x + normal.x * 8, mid.y + normal.y * 8, anchor);
-        });
+        for (const side of sides) label(figure.sideLabels[side.side], ox + side.x, oy + side.y, side.anchor);
       }
-      cursor += PAD.left + w + PAD.right;
+      cursor += pad.left + w + pad.right;
     });
 
-    return { width: Math.max(cursor, 160), height: baseline + PAD.bottom, shapes, labels };
+    return { width: Math.max(cursor, 160), height: baseline + bottom, shapes, labels };
   }, [spec]);
 
   const description = `Figuras geométricas: ${spec.figures.map(figure => SHAPE_KIND_LABELS[figure.kind].toLowerCase()).join(", ")}.`;

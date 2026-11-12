@@ -1,6 +1,6 @@
 import { memo, useId, useMemo, type CSSProperties } from "react";
 import type { GraphSpec } from "@shared/creator";
-import { formatNumber, sampleCurve, tryCompile } from "@shared/creatorMath";
+import { formatNumber, formatNumberEs, sampleCurve, tryCompile } from "@shared/creatorMath";
 import { Formula } from "./Formula";
 
 /** Márgenes alrededor de la cuadrícula: caben las flechas de los ejes y los números. */
@@ -109,8 +109,8 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       return { x: anchor === "middle" ? anchorX - boxW / 2 : anchorX - boxW, y: baseline - 10, w: boxW, h: 13 };
     };
     const numberBoxes: Box[] = [
-      ...xTicks.filter((x, index) => index % everyX === 0 && !(originShown && x === 0)).map(x => numberBox(formatNumber(x), sx(x), sy(axisX) + 14, "middle")),
-      ...yTicks.filter((y, index) => index % everyY === 0 && !(originShown && y === 0)).map(y => numberBox(formatNumber(y), sx(axisY) - 7, sy(y) + 3.5, "end")),
+      ...xTicks.filter((x, index) => index % everyX === 0 && !(originShown && x === 0)).map(x => numberBox(formatNumberEs(x), sx(x), sy(axisX) + 14, "middle")),
+      ...yTicks.filter((y, index) => index % everyY === 0 && !(originShown && y === 0)).map(y => numberBox(formatNumberEs(y), sx(axisY) - 7, sy(y) + 3.5, "end")),
       ...(originShown ? [numberBox("0", sx(axisY) - 7, sy(axisX) + 14, "end")] : []),
     ];
     const axisBoxes: Box[] = [
@@ -239,14 +239,14 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
           {xTicks.map((x, index) =>
             (originInside && x === 0) || index % everyX !== 0 ? null : (
               <text key={`lx${x}`} x={sx(x)} y={axisXpx + 14} textAnchor="middle">
-                {formatNumber(x)}
+                {formatNumberEs(x)}
               </text>
             ),
           )}
           {yTicks.map((y, index) =>
             (originInside && y === 0) || index % everyY !== 0 ? null : (
               <text key={`ly${y}`} x={axisYpx - 7} y={sy(y) + 3.5} textAnchor="end">
-                {formatNumber(y)}
+                {formatNumberEs(y)}
               </text>
             ),
           )}

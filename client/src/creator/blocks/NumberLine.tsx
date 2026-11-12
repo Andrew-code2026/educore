@@ -1,7 +1,7 @@
 import { memo, useMemo } from "react";
 import type { BlockInput } from "@shared/creator";
 import { fractionLatex, tickValues } from "@shared/creatorFigures";
-import { formatNumber } from "@shared/creatorMath";
+import { formatNumberEs } from "@shared/creatorMath";
 import { FigureFrame, type FigureLabel } from "./FigureFrame";
 
 type NumberLineSpec = Extract<BlockInput, { type: "number_line" }>;
@@ -58,8 +58,8 @@ export const NumberLine = memo(function NumberLine({ spec }: { spec: NumberLineS
 
   if (!view) return <div className="crt-figure crt-figure--invalid">Rango de la recta no válido.</div>;
   const { lineY, height, x, marks, labels, jumps, fraction } = view;
-  const points = spec.points.map(point => `${formatNumber(point.value)}`).join(", ");
-  const description = `Recta numérica de ${formatNumber(spec.min)} a ${formatNumber(spec.max)}${points ? `. Puntos marcados: ${points}` : ""}.`;
+  const points = spec.points.map(point => `${formatNumberEs(point.value)}`).join(", ");
+  const description = `Recta numérica de ${formatNumberEs(spec.min)} a ${formatNumberEs(spec.max)}${points ? `. Puntos marcados: ${points}` : ""}.`;
 
   return (
     <FigureFrame width={WIDTH} height={height} description={description} labels={labels}>
@@ -76,7 +76,7 @@ export const NumberLine = memo(function NumberLine({ spec }: { spec: NumberLineS
           {marks.map(mark =>
             mark.labelled ? (
               <text key={mark.value} x={mark.x} y={lineY + 24} textAnchor="middle">
-                {formatNumber(mark.value, 3)}
+                {formatNumberEs(mark.value, 3)}
               </text>
             ) : null,
           )}

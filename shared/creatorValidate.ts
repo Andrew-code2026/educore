@@ -1,7 +1,7 @@
 import katex from "katex";
 import { blockTexts, CREATOR_LIMITS, extractMath, type BlockInput, type GraphSpec } from "./creator";
 import { isMultipleOfFraction, polygonArea } from "./creatorFigures";
-import { formatNumber, nearlyEqual, tryCompile } from "./creatorMath";
+import { formatNumber, nearlyEqual, tryCompile, type CompileResult } from "./creatorMath";
 
 /**
  * Comprobaciones que un bloque debe pasar antes de entrar al documento.
@@ -120,9 +120,30 @@ export function validateGraphSpec(spec: GraphSpec): string[] {
   return issues;
 }
 
-/** Valores de y de una tabla de valores; null donde la función no está definida. */
-export function computeValueTable(expr: string, xs: number[]): Array<number | null> {
-  const compiled = tryCompile(expr);
+/** "A(s) = …", "f(t) = …", "g\left(u\right) = …": la letra entre paréntesis es la variable. */
+const FUNCTION_NOTATION = /^\s*\\?[A-Za-z]+(?:_(?:\{[^{}]*\}|\w))?\s*\(\s*([A-Za-z])\s*\)\s*=/;
+
+const notationVariable = (exprLatex: string): string | null => FUNCTION_NOTATION.exec(exprLatex.replace(/\\(left|right)\b/g, ""))?.[1] ?? null;
+
+/**
+ * Variable independiente de una tabla de valores, para rotular su primera fila: la que
+ * declara el bloque, o la que se lee en "A(s) = 4000s + 20000"; x cuando no se sabe.
+ */
+export function valueTableVariable(block: { variable?: string; exprLatex: string }): string {
+  return block.variable ?? notationVariable(block.exprLatex) ?? "x";
+}
+
+/** La función se puede escribir con la variable de la tabla o con x, que es como se guardaba antes. */
+function compileValueTable(expr: string, variable: string): CompileResult {
+  const own = tryCompile(expr, variable.toLowerCase());
+  if (own.ok || variable.toLowerCase() === "x") return own;
+  const withX = tryCompile(expr);
+  return withX.ok ? withX : own;
+}
+
+/** Resultados de una tabla de valores; null donde la función no está definida. */
+export function computeValueTable(expr: string, xs: number[], variable = "x"): Array<number | null> {
+  const compiled = compileValueTable(expr, variable);
   if (!compiled.ok) return xs.map(() => null);
   return xs.map(x => {
     const y = compiled.fn(x);
@@ -156,16 +177,22 @@ export function validateBlock(block: BlockInput): string[] {
       break;
     }
     case "value_table": {
-      const compiled = tryCompile(block.expr);
+      const variable = valueTableVariable(block);
+      const compiled = compileValueTable(block.expr, variable);
       if (!compiled.ok) {
         issues.push(`Tabla de valores: "${block.expr}" no se puede evaluar: ${compiled.error}`);
       } else {
         for (const x of block.xs) {
-          if (!Number.isFinite(compiled.fn(x))) issues.push(`Tabla de valores: "${block.expr}" no está definida en x = ${formatNumber(x)}.`);
+          if (!Number.isFinite(compiled.fn(x))) issues.push(`Tabla de valores: "${block.expr}" no está definida en ${variable} = ${formatNumber(x)}.`);
         }
       }
       const error = checkLatex(block.exprLatex);
       if (error) issues.push(`Tabla de valores: exprLatex no es LaTeX válido (${error}).`);
+      // La primera fila se rotula con la variable: si contradice al encabezado, la tabla confunde
+      const written = notationVariable(block.exprLatex);
+      if (block.variable && written && written !== block.variable) {
+        issues.push(`Tabla de valores: la variable (variable = "${block.variable}") no coincide con la del encabezado $${block.exprLatex}$, que usa ${written}. Deja la misma en los dos.`);
+      }
       break;
     }
     case "graph":
@@ -248,22 +275,46 @@ function validateNumberLine(block: Extract<BlockInput, { type: "number_line" }>)
 
 const FIGURE_TYPES: ReadonlySet<string> = new Set(["graph", "number_line", "fraction_model", "bar_chart", "pie_chart", "shapes", "balance"]);
 
+/** Palabras con las que un enunciado se refiere a una figura. */
+const FIGURE_MENTION = /\b(gr[aá]fic[ao]s?|figuras?|planos?|diagramas?|balanzas?|rectas?\s+num[eé]ricas?|dibujos?|modelos?)\b/i;
+
+const isFigure = (block: BlockInput | undefined): boolean => block !== undefined && FIGURE_TYPES.has(block.type);
+const solvedOnFigure = (block: BlockInput | undefined): boolean => block?.type === "exercise" && block.answerSpace === "none";
+
 /**
  * Problemas de orden entre bloques vecinos. Un ejercicio dibuja su espacio de respuesta
- * justo debajo del enunciado; si lo que sigue es una figura, los renglones quedan en medio
- * y separan el enunciado de la figura. Cada aviso identifica el ejercicio, de modo que se
- * pueda comparar el documento antes y después de un cambio.
+ * justo debajo del enunciado; si la figura a la que se refiere viene después, los renglones
+ * quedan en medio y los separan.
+ *
+ * Una figura que sigue a un ejercicio no siempre es suya: puede ser el dato del ejercicio
+ * siguiente, y entonces está bien donde está, sin un párrafo que la presente. Se avisa solo
+ * cuando la figura no puede ser del siguiente (no viene otro ejercicio después) o cuando el
+ * enunciado habla de una figura y no tiene otra delante que sea la suya.
+ *
+ * Cada aviso identifica el ejercicio, de modo que se pueda comparar el documento antes y
+ * después de un cambio.
  */
 export function validateBlockOrder(sections: Array<{ title: string; blocks: BlockInput[] }>): string[] {
   const issues: string[] = [];
   for (const section of sections) {
     section.blocks.forEach((block, index) => {
       const next = section.blocks[index + 1];
-      if (block.type !== "exercise" || block.answerSpace === "none" || !next || !FIGURE_TYPES.has(next.type)) return;
+      if (block.type !== "exercise" || block.answerSpace === "none" || !next || !isFigure(next)) return;
+
+      const followedByExercise = section.blocks[index + 2]?.type === "exercise";
+      if (followedByExercise) {
+        const mentionsFigure = [block.md, ...block.parts.map(part => part.md)].some(md => FIGURE_MENTION.test(md));
+        // La figura de delante es suya, salvo que el ejercicio anterior se resuelva sobre ella
+        const hasOwnFigure = isFigure(section.blocks[index - 1]) && !solvedOnFigure(section.blocks[index - 2]);
+        if (!mentionsFigure || hasOwnFigure) return;
+      }
+
       issues.push(
         `Sección «${section.title}», ${block.label}: su espacio de respuesta queda entre el enunciado y la figura que sigue (${next.type}). ` +
           `Si el ejercicio se resuelve sobre esa figura, usa answerSpace "none". Si la figura es un dato que el estudiante debe leer, ponla antes del enunciado. ` +
-          `Si la figura pertenece a lo que viene después, sepárala del ejercicio con un título o un párrafo que la presente.`,
+          (followedByExercise
+            ? `Si la figura es del ejercicio siguiente, este enunciado necesita la suya delante, porque habla de una figura.`
+            : `Si la figura es de un ejercicio posterior, ponla justo antes de ese ejercicio.`),
       );
     });
   }

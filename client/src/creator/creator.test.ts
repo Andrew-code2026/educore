@@ -1,6 +1,11 @@
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { blockTexts } from "@shared/creator";
 import { buildSampleDoc } from "@shared/creatorSample";
+import { RichText } from "./blocks/RichText";
 import { parseInline, parseMd, serializeMd } from "./editing/mdModel";
 
 const roundTrip = (md: string) => serializeMd(parseMd(md));
@@ -60,5 +65,41 @@ describe("modelo de texto del editor", () => {
       const once = roundTrip(md);
       expect(roundTrip(once)).toBe(once);
     }
+  });
+});
+
+describe("fórmulas en el texto", () => {
+  const html = (md: string, inline = false) => renderToStaticMarkup(createElement(RichText, { md, inline }));
+  const css = readFileSync(createRequire(import.meta.url).resolve("katex/dist/katex.min.css"), "utf8");
+
+  it("dibuja exponentes, subíndices y fracciones con clases que la hoja de estilos define", () => {
+    const out = html("El área es $x^2 + 7x + 12$, con $x_1 = \\frac{1}{2}$.");
+    // Cada cambio de tamaño (el exponente va a 0.7 del texto) debe tener su regla en el CSS que se carga
+    const sizings = out.match(/class="[^"]*\breset-size\d+ size\d+[^"]*"/g) ?? [];
+    expect(sizings.length).toBeGreaterThanOrEqual(3);
+    for (const attr of sizings) {
+      const classes = attr.slice(7, -1).split(" ");
+      const sizing = classes.find(name => name.endsWith("sizing"));
+      const reset = classes.find(name => name.startsWith("reset-size"));
+      const size = classes.find(name => /^size\d+$/.test(name));
+      expect(css, attr).toContain(`.katex .${sizing}.${reset}.${size}{`);
+    }
+  });
+
+  it("reduce el exponente a 0.7 del tamaño de la base", () => {
+    expect(html("$x^2$")).toMatch(/reset-size6 size3/);
+    expect(css).toMatch(/\.katex \.katex-sizing\.reset-size6\.size3\{font-size:\.7em\}/);
+  });
+
+  it("separa la fórmula en bloque y deja en línea la de un rótulo", () => {
+    expect(html("La fórmula $$A = b \\cdot h$$ da el área.")).toContain('class="katex-display"');
+    const label = html("$r = 3$ cm", true);
+    expect(label).toContain('class="katex"');
+    expect(label).not.toContain("<p>");
+    expect(label).not.toContain("katex-display");
+  });
+
+  it("muestra el texto de una fórmula que no compila en vez de romper la hoja", () => {
+    expect(html("Mal: $\\frac{1}{$ fin")).toContain("<code");
   });
 });

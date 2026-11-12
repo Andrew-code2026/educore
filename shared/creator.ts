@@ -144,9 +144,15 @@ const valueTableBlock = z.object({
   type: z.literal("value_table"),
   caption,
   expr: expression.describe('Función de x en texto plano, p. ej. "x^2 - 4*x + 3". Los valores de y se calculan solos.'),
-  exprLatex: latex.describe('La misma función en LaTeX para el encabezado, p. ej. "y = x^{2} - 4x + 3".'),
-  xs: z.array(z.number()).min(2).max(12).describe("Valores de x."),
-  blankY: z.boolean().default(false).describe("true deja la fila de y vacía para que el estudiante la complete."),
+  exprLatex: latex.describe('La misma función en LaTeX para el encabezado, p. ej. "y = x^{2} - 4x + 3" o "A(s) = 4000s + 20000".'),
+  variable: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z]$/)
+    .optional()
+    .describe('Letra de la variable independiente tal como aparece en exprLatex: "s" para "A(s) = 4000s + 20000". Rotula la primera fila. Si se omite, se toma de exprLatex cuando tiene la forma f(t) = …, y si no es x.'),
+  xs: z.array(z.number()).min(2).max(12).describe("Valores de la variable independiente."),
+  blankY: z.boolean().default(false).describe("true deja la fila de resultados vacía para que el estudiante la complete."),
 });
 
 const graphBlock = z.object({
