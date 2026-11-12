@@ -91,6 +91,7 @@ import { StudentPortalError, getStudentCourseName, getStudentGrades, getStudentR
 import { ensureStudentPortalSeeded } from "./studentPortalSeed";
 import { CLARIFY_LIMITS, clarificationSchema, composeCreatorRequest, CREATOR_LIMITS, emptyDoc, plainText, RESOURCE_KINDS, resourceDocSchema } from "@shared/creator";
 import { buildSampleDoc, SAMPLE_IDS, SAMPLES } from "@shared/creatorSample";
+import { ATTACH_MAX } from "@shared/creatorTurn";
 import { generateClarifyQuestions } from "./creatorClarify";
 import { isAnthropicConfigured } from "./_core/anthropic";
 import { ENV } from "./_core/env";
@@ -110,6 +111,7 @@ import {
   releaseStaleCreatorRuns,
   restoreCreatorVersion,
   saveCreatorDoc,
+  undoCreatorTurn,
 } from "./creatorDb";
 import type { TrpcContext } from "./_core/context";
 
@@ -1063,13 +1065,19 @@ export const appRouter = router({
       });
     }),
     sendMessage: publicProcedure
-      .input(z.object({ role: roleSchema, id: z.number().int(), message: z.string().trim().min(2).max(CREATOR_LIMITS.messageMax) }))
+      .input(z.object({
+        role: roleSchema,
+        id: z.number().int(),
+        message: z.string().trim().min(2).max(CREATOR_LIMITS.messageMax),
+        /** Bloques que el docente señaló en la hoja: la solicitud se refiere a ellos. */
+        blockIds: z.array(z.string().min(1).max(24)).max(ATTACH_MAX).default([]),
+      }))
       .mutation(async ({ input, ctx }) => {
         const actor = await requireCreatorActor(ctx, input.role, true);
         await assertCreatorAiAvailable(actor);
         return creatorCall(async () => {
           if (isCreatorRunning(input.id)) throw new Error("La IA ya está trabajando en este recurso.");
-          const turn = await beginCreatorTurn(actor, { id: input.id, request: input.message });
+          const turn = await beginCreatorTurn(actor, { id: input.id, request: input.message, blockIds: input.blockIds });
           startCreatorRun({
             resource: { id: turn.row.id, schoolId: turn.row.schoolId, version: turn.row.version },
             userId: actor.userId,
@@ -1077,6 +1085,7 @@ export const appRouter = router({
             doc: turn.doc,
             history: turn.history,
             request: input.message,
+            focusBlockIds: turn.focusBlockIds,
             context: {
               kind: (RESOURCE_KINDS as readonly string[]).includes(turn.row.kind) ? (turn.row.kind as (typeof RESOURCE_KINDS)[number]) : "guia",
               schoolName: await getCreatorSchoolName(actor.schoolId),
@@ -1099,6 +1108,13 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const actor = await requireCreatorActor(ctx, input.role, true);
         return creatorCall(() => saveCreatorDoc(actor, { id: input.id, doc: input.doc, baseVersion: input.baseVersion, overwrite: input.overwrite }));
+      }),
+    /** Devuelve el recurso a como estaba antes de una respuesta de la IA. `force` confirma que también se van los cambios posteriores. */
+    undoTurn: publicProcedure
+      .input(z.object({ role: roleSchema, id: z.number().int(), messageId: z.number().int(), force: z.boolean().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const actor = await requireCreatorActor(ctx, input.role, true);
+        return creatorCall(() => undoCreatorTurn(actor, { id: input.id, messageId: input.messageId, force: input.force }));
       }),
     duplicate: publicProcedure.input(z.object({ role: roleSchema, id: z.number().int() })).mutation(async ({ input, ctx }) => {
       const actor = await requireCreatorActor(ctx, input.role, true);
