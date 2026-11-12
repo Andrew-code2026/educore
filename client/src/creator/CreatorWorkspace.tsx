@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, ArrowLeft, Check, CloudOff, Copy, History, Loader2, Maximize2, MessageSquare, Minimize2, Printer, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, CloudOff, Copy, History, Loader2, Maximize2, MessageSquare, Minimize2, Printer, Redo2, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { emptyDoc, type CreatorChatMessage, type CreatorEvent, type ResourceDoc } from "@shared/creator";
 import { applyDocOp, type DocOp, type OpResult } from "@shared/creatorOps";
@@ -19,6 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { trpc } from "@/lib/trpc";
 import { CreatorChat, type LiveTurn } from "./CreatorChat";
+import { historyKey, historyShortcut, locateChange, useDocHistory, type ChangeLocation } from "./docHistory";
 import { EditableDocument, type EditableDocumentHandle } from "./EditableDocument";
 import { ErrorCard, formatWhen } from "./parts";
 import { ResourceSheet } from "./ResourceSheet";
@@ -29,6 +30,7 @@ type Preview = Extract<CreatorEvent, { type: "preview" }>;
 
 /** Un solo aviso de guardado a la vez: el siguiente reemplaza al anterior en vez de apilarse. */
 const SAVE_TOAST = "crt-save";
+const DELETE_TOAST = "crt-deleted";
 
 const SAVE_LABELS: Record<SaveState, string> = {
   saved: "Guardado",
@@ -39,6 +41,36 @@ const SAVE_LABELS: Record<SaveState, string> = {
   conflict: "Cambió en otra ventana",
   error: "No se pudo guardar",
 };
+
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const UNDO_HINT = IS_MAC ? "⌘Z" : "Ctrl+Z";
+const REDO_HINT = IS_MAC ? "⌘⇧Z" : "Ctrl+Y";
+
+/** Dentro de un campo, del bloque que se edita en su sitio o de un diálogo, Ctrl+Z es suyo: el historial del documento no se toca. */
+function isEditingTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  if (target instanceof HTMLElement && target.isContentEditable) return true;
+  return target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), .crt-inplace, [role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]') !== null;
+}
+
+/** Tras deshacer o rehacer, lo que cambió se trae a la vista si quedó fuera de pantalla. */
+function revealChange(location: ChangeLocation | null) {
+  if (!location) return;
+  window.requestAnimationFrame(() => {
+    let target: HTMLElement | null;
+    if (location.sectionId === null) {
+      target = document.querySelector<HTMLElement>(".crt-stage .crt-paper");
+    } else {
+      const section = document.getElementById(`crt-${location.sectionId}`);
+      const blocks = section?.querySelectorAll<HTMLElement>(":scope > .crt-block");
+      target = (location.blockIndex !== null ? blocks?.[location.blockIndex] : undefined) ?? section;
+    }
+    if (!target) return;
+    const box = (target.closest(".crt-stage") ?? document.documentElement).getBoundingClientRect();
+    const rect = target.getBoundingClientRect();
+    if (rect.bottom < box.top + 24 || rect.top > box.bottom - 24) target.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+}
 
 interface CreatorWorkspaceProps {
   role: EduRole;
@@ -137,10 +169,14 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     ),
   );
   const { saveState, rejection, reset: resetAutosave, isDirty, update: updateAutosave, flush: flushAutosave, keepMine, retry: retryAutosave, lastFailure } = autosave;
+  const history = useDocHistory();
+  const { record: recordHistory, undo: popUndo, redo: popRedo, clear: clearHistory } = history;
   const [conflictOpen, setConflictOpen] = useState(false);
   const [resolving, setResolving] = useState(false);
 
   const working = running || live !== null;
+  const workingRef = useRef(working);
+  workingRef.current = working;
 
   // Lo que llega del servidor reemplaza al documento local, salvo que el docente tenga cambios sin guardar
   const detail = detailQuery.data;
@@ -160,9 +196,11 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     if (working && loadedRef.current) return;
     setDoc(detail.doc);
     resetAutosave(detail.doc, detail.version);
+    // Un documento que llega de fuera no se deshace paso a paso: para eso están las versiones
+    clearHistory();
     loadedRef.current = true;
     setLoaded(true);
-  }, [detail, isDirty, resetAutosave]);
+  }, [clearHistory, detail, isDirty, resetAutosave]);
 
   // Un aviso por causa, no uno por intento: los reintentos no cambian el estado
   const previousSave = useRef<SaveState>(saveState);
@@ -225,6 +263,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
         case "doc":
           setPreview(null);
           setDoc(event.doc);
+          clearHistory();
           break;
         case "done":
           finishTurn(event);
@@ -234,7 +273,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     onError: () => setStreamFailed(true),
   });
 
-  /** Una edición del docente se ve de inmediato y se manda a guardar. */
+  /** Una edición del docente (o deshacerla) se ve de inmediato y se manda a guardar. */
   const showLocal = useCallback(
     (next: ResourceDoc) => {
       docRef.current = next;
@@ -244,18 +283,59 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     [updateAutosave],
   );
 
+  const stepHistory = useCallback(
+    (command: "undo" | "redo") => {
+      if (workingRef.current) return;
+      const current = docRef.current;
+      const next = command === "undo" ? popUndo(current) : popRedo(current);
+      if (!next) return;
+      toast.dismiss(DELETE_TOAST);
+      showLocal(next);
+      revealChange(locateChange(current, next));
+    },
+    [popRedo, popUndo, showLocal],
+  );
+  const undo = useCallback(() => stepHistory("undo"), [stepHistory]);
+  const redo = useCallback(() => stepHistory("redo"), [stepHistory]);
+
   const applyOp = useCallback(
     (op: DocOp): OpResult => {
-      const result = applyDocOp(docRef.current, op);
+      const before = docRef.current;
+      const result = applyDocOp(before, op);
       if (!result.ok) {
         toast.error(result.error);
         return result;
       }
-      if (result.changed) showLocal(result.doc);
+      if (result.changed) {
+        recordHistory(before, historyKey(op));
+        showLocal(result.doc);
+        if (op.op === "delete_blocks" || op.op === "delete_section") {
+          const deleted = result.doc;
+          toast(op.op === "delete_section" ? "Sección eliminada." : op.blockIds.length > 1 ? "Bloques eliminados." : "Bloque eliminado.", {
+            id: DELETE_TOAST,
+            // Solo deshace el borrado si no hubo otra edición después
+            action: { label: "Deshacer", onClick: () => docRef.current === deleted && undo() },
+          });
+        } else {
+          toast.dismiss(DELETE_TOAST);
+        }
+      }
       return result;
     },
-    [showLocal],
+    [recordHistory, showLocal, undo],
   );
+
+  // Ctrl/Cmd+Z y Ctrl/Cmd+Shift+Z (o Ctrl+Y) fuera de los campos: dentro de un editor manda su propio historial
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const command = historyShortcut(event);
+      if (!command || event.defaultPrevented || event.isComposing || isEditingTarget(event.target)) return;
+      event.preventDefault();
+      stepHistory(command);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [stepHistory]);
 
   /** Conflicto: se descarta lo local sin guardar y se sigue desde lo último del servidor. */
   const loadLatest = async () => {
@@ -265,6 +345,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
       if (!fresh.data) throw fresh.error ?? new Error("sin datos");
       resetAutosave(fresh.data.doc, fresh.data.version);
       setDoc(fresh.data.doc);
+      clearHistory();
       setConflictOpen(false);
       toast.success("Cargaste la versión más reciente.", { id: SAVE_TOAST });
     } catch {
@@ -322,6 +403,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
       const restored = await restoreMutation.mutateAsync({ role, id: resourceId, versionId });
       setDoc(restored.doc);
       resetAutosave(restored.doc, restored.version);
+      clearHistory();
       toast.success("Versión restaurada.");
       void detailQuery.refetch();
     } catch (error) {
@@ -476,6 +558,14 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
             Resolver
           </button>
         )}
+        <div className="crt-bar__actions" role="group" aria-label="Historial de cambios">
+          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || !history.canUndo} aria-label="Deshacer" title={`Deshacer (${UNDO_HINT})`} onClick={undo}>
+            <Undo2 aria-hidden="true" />
+          </button>
+          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || !history.canRedo} aria-label="Rehacer" title={`Rehacer (${REDO_HINT})`} onClick={redo}>
+            <Redo2 aria-hidden="true" />
+          </button>
+        </div>
         <div className="crt-bar__actions">
           {narrow && (
             <button type="button" className="crt-btn crt-btn--outline" aria-pressed={pane === "chat"} onClick={() => setPane(current => (current === "chat" ? "doc" : "chat"))}>
