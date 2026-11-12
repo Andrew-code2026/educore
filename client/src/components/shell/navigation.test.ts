@@ -15,7 +15,7 @@ describe("EduCore Shell Navigation System", () => {
 
   describe("Role labels and basic configuration", () => {
     it("has Spanish display labels for all 4 roles", () => {
-      expect(ROLE_LABELS.admin).toBe("Administrador");
+      expect(ROLE_LABELS.admin).toBe("Rectoría / Coordinación");
       expect(ROLE_LABELS.teacher).toBe("Docente");
       expect(ROLE_LABELS.student).toBe("Estudiante");
       expect(ROLE_LABELS.guardian).toBe("Acudiente");
@@ -65,20 +65,25 @@ describe("EduCore Shell Navigation System", () => {
       expect(gradesItem?.label).toBe("Grade Center");
     });
 
-    it("returns structured groups for admin covering institution and operations", () => {
+    it("returns the rector/coordinator portal without teacher classroom workflows", () => {
       const groups = getNavGroupsForRole("admin");
-      const labels = groups.map(g => g.label);
-      expect(labels).toContain("Institución");
-      expect(labels).toContain("Operación Educativa");
-      expect(labels).toContain("Análisis & Comunidad");
+      expect(groups.map(g => g.label)).toEqual(["Gestión", "Seguimiento", "Comunidad", "Institución"]);
 
-      const allItems = groups.flatMap(g => g.items);
-      const sectionIds = allItems.map(i => i.id);
-      expect(sectionIds).toContain("overview");
-      expect(sectionIds).toContain("academic");
-      expect(sectionIds).toContain("grades");
-      expect(sectionIds).toContain("users");
-      expect(sectionIds).toContain("settings");
+      const sectionIds = groups.flatMap(g => g.items).map(i => i.id);
+      expect(sectionIds).toEqual([
+        "overview",
+        "users",
+        "academic",
+        "analytics",
+        "reports",
+        "piar",
+        "communications",
+        "calendar",
+        "settings",
+      ]);
+      expect(sectionIds).not.toContain("grades");
+      expect(sectionIds).not.toContain("classroom");
+      expect(sectionIds).not.toContain("attendance");
     });
 
     it("gives students only their learning and school sections, most used first", () => {
@@ -158,6 +163,42 @@ describe("EduCore Shell Navigation System", () => {
           }
         }
       }
+    });
+  });
+
+  describe("Section access", () => {
+    it("blocks teacher classroom workflows for the rector/coordinator portal", () => {
+      for (const section of ["grades", "classroom", "attendance"] as Section[]) {
+        expect(isSectionAllowed("admin", section)).toBe(false);
+      }
+      expect(isSectionAllowed("admin", "users")).toBe(true);
+      expect(isSectionAllowed("admin", "academic")).toBe(true);
+    });
+
+    it("keeps the existing restrictions for the other roles", () => {
+      expect(isSectionAllowed("teacher", "academic")).toBe(false);
+      expect(isSectionAllowed("teacher", "grades")).toBe(true);
+      expect(isSectionAllowed("student", "piar")).toBe(false);
+      expect(isSectionAllowed("guardian", "piar")).toBe(false);
+    });
+
+    it("offers the resource creator to teachers and keeps families out of it", () => {
+      expect(getFlatNavItemsForRole("teacher").map(i => i.id)).toContain("creator");
+      expect(isSectionAllowed("teacher", "creator")).toBe(true);
+      expect(isSectionAllowed("student", "creator")).toBe(false);
+      expect(isSectionAllowed("guardian", "creator")).toBe(false);
+    });
+
+    it("never lists a section in the sidebar that the role cannot open", () => {
+      for (const role of allRoles) {
+        for (const item of getFlatNavItemsForRole(role)) {
+          expect(isSectionAllowed(role, item.id)).toBe(true);
+        }
+      }
+    });
+
+    it("puts users and academic structure in the admin mobile bottom bar", () => {
+      expect(getMobileBottomNavItems("admin").map(i => i.id)).toEqual(["overview", "users", "academic"]);
     });
   });
 

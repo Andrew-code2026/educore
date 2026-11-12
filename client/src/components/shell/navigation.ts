@@ -15,7 +15,7 @@ import {
 import type { EduRole, NavGroup, NavItem, Section } from "./shell.types";
 
 export const ROLE_LABELS: Record<EduRole, string> = {
-  admin: "Administrador",
+  admin: "Rectoría / Coordinación",
   teacher: "Docente",
   student: "Estudiante",
   guardian: "Acudiente",
@@ -96,6 +96,12 @@ export const ALL_NAV_ITEMS: Record<Section, Omit<NavItem, "roles" | "groupKey" |
     icon: FileHeart,
     description: "Planes Individuales de Ajustes Razonables por curso",
   },
+  creator: {
+    id: "creator",
+    label: "Crear recursos",
+    icon: Sparkles,
+    description: "Guías, talleres y evaluaciones con IA, listos para imprimir",
+  },
   settings: {
     id: "settings",
     label: "Configuración",
@@ -115,6 +121,7 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
           { ...ALL_NAV_ITEMS.overview, roles: ["teacher"], groupKey: "teaching", mobilePriority: "bottom" },
           { ...ALL_NAV_ITEMS.grades, label: "Grade Center", roles: ["teacher"], groupKey: "teaching", mobilePriority: "bottom" },
           { ...ALL_NAV_ITEMS.classroom, label: "Classroom", roles: ["teacher"], groupKey: "teaching", mobilePriority: "bottom" },
+          { ...ALL_NAV_ITEMS.creator, roles: ["teacher"], groupKey: "teaching", mobilePriority: "more" },
         ],
       },
       {
@@ -196,59 +203,78 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
     ];
   }
 
-  // Admin / Rector
+  // Rectoría / Coordinación: gestión institucional, seguimiento y comunidad.
+  // Grade Center, Classroom y Asistencia son flujos del docente y no aparecen aquí.
   return [
+    {
+      key: "management",
+      label: "Gestión",
+      items: [
+        { ...ALL_NAV_ITEMS.overview, roles: ["admin"], groupKey: "management", mobilePriority: "bottom" },
+        { ...ALL_NAV_ITEMS.users, roles: ["admin"], groupKey: "management", mobilePriority: "bottom" },
+        { ...ALL_NAV_ITEMS.academic, roles: ["admin"], groupKey: "management", mobilePriority: "bottom" },
+      ],
+    },
+    {
+      key: "tracking",
+      label: "Seguimiento",
+      items: [
+        { ...ALL_NAV_ITEMS.analytics, roles: ["admin"], groupKey: "tracking", mobilePriority: "more" },
+        {
+          ...ALL_NAV_ITEMS.reports,
+          label: "Boletines y reportes",
+          roles: ["admin"],
+          groupKey: "tracking",
+          mobilePriority: "more",
+        },
+        { ...ALL_NAV_ITEMS.piar, roles: ["admin"], groupKey: "tracking", mobilePriority: "more" },
+      ],
+    },
+    {
+      key: "community",
+      label: "Comunidad",
+      items: [
+        {
+          ...ALL_NAV_ITEMS.communications,
+          roles: ["admin"],
+          groupKey: "community",
+          mobilePriority: "more",
+          badge: notificationCount > 0 ? notificationCount : undefined,
+        },
+        { ...ALL_NAV_ITEMS.calendar, roles: ["admin"], groupKey: "community", mobilePriority: "more" },
+      ],
+    },
     {
       key: "institution",
       label: "Institución",
       items: [
-        { ...ALL_NAV_ITEMS.overview, roles: ["admin"], groupKey: "institution", mobilePriority: "bottom" },
-        { ...ALL_NAV_ITEMS.academic, roles: ["admin"], groupKey: "institution", mobilePriority: "bottom" },
-        { ...ALL_NAV_ITEMS.users, roles: ["admin"], groupKey: "institution", mobilePriority: "more" },
         { ...ALL_NAV_ITEMS.settings, roles: ["admin"], groupKey: "institution", mobilePriority: "more" },
-      ],
-    },
-    {
-      key: "operation",
-      label: "Operación Educativa",
-      items: [
-        { ...ALL_NAV_ITEMS.grades, roles: ["admin"], groupKey: "operation", mobilePriority: "bottom" },
-        { ...ALL_NAV_ITEMS.attendance, roles: ["admin"], groupKey: "operation", mobilePriority: "more" },
-        { ...ALL_NAV_ITEMS.classroom, roles: ["admin"], groupKey: "operation", mobilePriority: "more" },
-        { ...ALL_NAV_ITEMS.calendar, roles: ["admin"], groupKey: "operation", mobilePriority: "more" },
-        { ...ALL_NAV_ITEMS.piar, roles: ["admin"], groupKey: "operation", mobilePriority: "more" },
-      ],
-    },
-    {
-      key: "analysis_comm",
-      label: "Análisis & Comunidad",
-      items: [
-        { ...ALL_NAV_ITEMS.analytics, roles: ["admin"], groupKey: "analysis_comm", mobilePriority: "more" },
-        { ...ALL_NAV_ITEMS.reports, roles: ["admin"], groupKey: "analysis_comm", mobilePriority: "more" },
-        {
-          ...ALL_NAV_ITEMS.communications,
-          roles: ["admin"],
-          groupKey: "analysis_comm",
-          mobilePriority: "more",
-          badge: notificationCount > 0 ? notificationCount : undefined,
-        },
       ],
     },
   ];
 }
 
 /**
- * ¿Puede el rol abrir la sección aunque llegue por URL?
- * - Estudiante: solo las secciones de su navegación (nada de vistas docentes o institucionales).
- * - Docente: la estructura académica es de la institución.
- * - Acudiente: el PIAR contiene información sensible.
+ * Secciones que un rol no puede abrir aunque llegue por URL.
+ * - Rectoría/Coordinación: los flujos de aula (notas, actividades, toma de
+ *   asistencia) son del docente; el directivo los sigue desde Análisis y Boletines.
+ * - Docente: la estructura académica, los usuarios y la configuración son de la institución.
+ * - Estudiante/acudiente: el PIAR contiene información sensible; el creador de recursos es
+ *   una herramienta de docentes y directivos; usuarios y configuración son exclusivos del
+ *   portal directivo.
+ * - Estudiante: además, solo abre las secciones de su navegación (nada de vistas docentes
+ *   o institucionales como Académico, Reportes o Análisis).
  */
+const DENIED_SECTIONS: Record<EduRole, ReadonlySet<Section>> = {
+  admin: new Set<Section>(["grades", "classroom", "attendance"]),
+  teacher: new Set<Section>(["academic", "users", "settings"]),
+  student: new Set<Section>(["piar", "creator", "users", "settings"]),
+  guardian: new Set<Section>(["piar", "creator", "users", "settings"]),
+};
+
 export function isSectionAllowed(role: EduRole, section: Section): boolean {
-  if (section === "overview") return true;
-  if (role === "student") return getFlatNavItemsForRole("student").some(item => item.id === section);
-  if (role === "teacher") return section !== "academic";
-  if (role === "guardian") return section !== "piar";
-  return true;
+  if (role === "student") return section === "overview" || getFlatNavItemsForRole("student").some(item => item.id === section);
+  return !DENIED_SECTIONS[role].has(section);
 }
 
 // Obtener lista plana de items visibles para el rol

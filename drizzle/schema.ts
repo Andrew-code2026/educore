@@ -431,6 +431,66 @@ export const piarRecords = mysqlTable(
   ]
 );
 
+/** Creador de recursos: guía, taller o evaluación generada con IA; el documento se guarda como JSON. */
+export const creatorResources = mysqlTable(
+  "creator_resources",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    schoolId: int("schoolId").notNull(),
+    ownerUserId: int("ownerUserId").notNull(),
+    title: varchar("title", { length: 200 }).notNull().default(""),
+    kind: varchar("kind", { length: 24 }).notNull().default("guia"),
+    courseLabel: varchar("courseLabel", { length: 120 }),
+    subjectLabel: varchar("subjectLabel", { length: 120 }),
+    gradeLabel: varchar("gradeLabel", { length: 60 }),
+    prompt: text("prompt").notNull(),
+    status: varchar("status", { length: 16 }).notNull().default("generating"),
+    errorMessage: varchar("errorMessage", { length: 500 }),
+    doc: mediumtext("doc").notNull(),
+    version: int("version").notNull().default(1),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => [index("creator_resources_owner_idx").on(table.schoolId, table.ownerUserId, table.updatedAt)]
+);
+
+/** Copias del documento para deshacer: una por generación, por turno de chat y por tanda de edición manual. */
+export const creatorVersions = mysqlTable(
+  "creator_versions",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    resourceId: int("resourceId").notNull(),
+    schoolId: int("schoolId").notNull(),
+    version: int("version").notNull(),
+    reason: varchar("reason", { length: 16 }).notNull(),
+    label: varchar("label", { length: 200 }).notNull().default(""),
+    doc: mediumtext("doc").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [index("creator_versions_resource_idx").on(table.resourceId, table.version)]
+);
+
+/** Conversación con la IA sobre un recurso, con los tokens consumidos en cada respuesta. */
+export const creatorMessages = mysqlTable(
+  "creator_messages",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    resourceId: int("resourceId").notNull(),
+    schoolId: int("schoolId").notNull(),
+    userId: int("userId").notNull(),
+    role: varchar("role", { length: 12 }).notNull(),
+    content: text("content").notNull(),
+    activity: text("activity"),
+    inputTokens: int("inputTokens").notNull().default(0),
+    outputTokens: int("outputTokens").notNull().default(0),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => [
+    index("creator_messages_resource_idx").on(table.resourceId, table.id),
+    index("creator_messages_usage_idx").on(table.schoolId, table.userId, table.createdAt),
+  ]
+);
+
 export const events = mysqlTable("events", {
   id: int("id").autoincrement().primaryKey(),
   schoolId: int("schoolId").notNull(),
@@ -660,3 +720,7 @@ export type InsertCourseResource = typeof courseResources.$inferInsert;
 
 export type PiarRecord = typeof piarRecords.$inferSelect;
 export type InsertPiarRecord = typeof piarRecords.$inferInsert;
+
+export type CreatorResourceRow = typeof creatorResources.$inferSelect;
+export type CreatorVersionRow = typeof creatorVersions.$inferSelect;
+export type CreatorMessageRow = typeof creatorMessages.$inferSelect;

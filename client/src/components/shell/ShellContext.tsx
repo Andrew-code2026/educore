@@ -145,7 +145,7 @@ export function ShellContextProvider({
         };
       case "academic":
         return {
-          title: "Estructura Académica",
+          title: "Académico",
           subtitle: "Cursos, materias y asignaciones",
           breadcrumbs: [{ label: "Institución" }, { label: "Académico", isCurrent: true }],
           contextPills: [{ label: "Año activo 2026", tone: "primary" }],
@@ -180,21 +180,21 @@ export function ShellContextProvider({
         };
       case "reports":
         return {
-          title: "Reportes & Analítica",
+          title: role === "admin" ? "Boletines y reportes" : "Reportes & Analítica",
           subtitle: "Consolidado institucional y boletines",
           breadcrumbs: [{ label: "Análisis" }, { label: "Reportes", isCurrent: true }],
           contextPills: [{ label: "Periodo 2", tone: "primary" }],
         };
       case "users":
         return {
-          title: "Directorio de Usuarios",
+          title: "Usuarios",
           subtitle: "Identidades, roles y vinculaciones",
           breadcrumbs: [{ label: "Administración" }, { label: "Usuarios", isCurrent: true }],
           contextPills: [{ label: "Comunidad activa", tone: "default" }],
         };
       case "settings":
         return {
-          title: "Configuración Institucional",
+          title: "Configuración",
           subtitle: "Identidad, tema y periodos escolares",
           breadcrumbs: [{ label: "Administración" }, { label: "Configuración", isCurrent: true }],
           contextPills: [{ label: schoolName, tone: "primary" }],
@@ -205,6 +205,13 @@ export function ShellContextProvider({
           subtitle: "Planes Individuales de Ajustes Razonables",
           breadcrumbs: [{ label: "Seguimiento" }, { label: "PIAR", isCurrent: true }],
           contextPills: [{ label: "Decreto 1421 de 2017", tone: "primary" }],
+        };
+      case "creator":
+        return {
+          title: "Crear recursos",
+          subtitle: "Guías, talleres y evaluaciones con IA",
+          breadcrumbs: [{ label: "Enseñanza" }, { label: "Crear recursos", isCurrent: true }],
+          contextPills: [{ label: "Asistente de IA", tone: "primary" }],
         };
       case "analytics":
         return {

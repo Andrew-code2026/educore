@@ -599,7 +599,11 @@ export async function createAcademicPeriod(input: { name: string; startDate: Dat
   const school = await ensureEduCoreSeeded();
   if (!db || !school) return null;
   const schoolId = targetSchoolId ?? school.id;
-  await db.insert(academicPeriods).values({ schoolId, ...input });
+  // El periodo queda en el año activo y al final del calendario: Grade Center busca los periodos por año
+  const activeYear = (await db.select({ id: academicYears.id }).from(academicYears).where(and(eq(academicYears.schoolId, schoolId), eq(academicYears.status, "ACTIVE"))).limit(1))[0];
+  const yearPeriods = activeYear ? await db.select({ orderIndex: academicPeriods.orderIndex }).from(academicPeriods).where(and(eq(academicPeriods.schoolId, schoolId), eq(academicPeriods.academicYearId, activeYear.id))) : [];
+  const orderIndex = yearPeriods.reduce((max, period) => Math.max(max, period.orderIndex ?? 0), 0) + 1;
+  await db.insert(academicPeriods).values({ schoolId, ...input, academicYearId: activeYear?.id ?? null, orderIndex });
   return (await db.select().from(academicPeriods).where(eq(academicPeriods.schoolId, schoolId)).orderBy(desc(academicPeriods.id)).limit(1))[0];
 }
 
@@ -821,7 +825,9 @@ export async function getDemoIdentityContext(role: DemoRole, schoolId = DEMO_SCH
   return getMembershipContext(membership.userId, schoolId);
 }
 
-export async function listSchoolUsers(input: { schoolId: number; search?: string; roleKey?: IdentityRole | "ALL"; status?: string | "ALL"; limit?: number; offset?: number }) {
+const MANAGEMENT_ROLE_KEYS: IdentityRole[] = ["SUPER_ADMIN", "SCHOOL_ADMIN", "RECTOR", "COORDINATOR"];
+
+export async function listSchoolUsers(input: { schoolId: number; search?: string; roleKey?: IdentityRole | "ALL" | "MANAGEMENT"; status?: string | "ALL"; limit?: number; offset?: number }) {
   const db = await getDb();
   if (!db) return { rows: [], total: 0 };
   await ensureIdentitySeeded(input.schoolId);
@@ -832,7 +838,9 @@ export async function listSchoolUsers(input: { schoolId: number; search?: string
     const needle = input.search.toLowerCase();
     rows = rows.filter(user => `${user.name ?? ""} ${user.email ?? ""}`.toLowerCase().includes(needle));
   }
-  if (input.roleKey && input.roleKey !== "ALL") rows = rows.filter(user => memberships.find(m => m.userId === user.id)?.roleKey === input.roleKey);
+  if (input.roleKey === "MANAGEMENT") rows = rows.filter(user => MANAGEMENT_ROLE_KEYS.includes(memberships.find(m => m.userId === user.id)?.roleKey as IdentityRole));
+  else if (input.roleKey && input.roleKey !== "ALL") rows = rows.filter(user => memberships.find(m => m.userId === user.id)?.roleKey === input.roleKey);
+  rows.sort((a, b) => (a.name ?? a.email ?? "").localeCompare(b.name ?? b.email ?? "", "es"));
   if (input.status && input.status !== "ALL") rows = rows.filter(user => user.status === input.status && memberships.find(m => m.userId === user.id)?.status === input.status);
   const total = rows.length;
   const offset = input.offset ?? 0;
@@ -1028,7 +1036,7 @@ export async function getAcademicSnapshot(actor: AcademicActor) {
   const db = await getDb();
   const school = await ensureEduCoreSeeded();
   if (!db || !school || school.id !== actor.schoolId) return null;
-  const [years, periods, grades, allCourses, allSubjects, links, assignmentsRows, enrollments, teacherRows, studentRows] = await Promise.all([
+  let [years, periods, grades, allCourses, allSubjects, links, assignmentsRows, enrollments, teacherRows, studentRows] = await Promise.all([
     db.select().from(academicYears).where(eq(academicYears.schoolId, actor.schoolId)).orderBy(desc(academicYears.year)),
     db.select().from(academicPeriods).where(eq(academicPeriods.schoolId, actor.schoolId)).orderBy(academicPeriods.orderIndex),
     db.select().from(gradeLevels).where(eq(gradeLevels.schoolId, actor.schoolId)).orderBy(gradeLevels.levelOrder),
@@ -1051,8 +1059,18 @@ export async function getAcademicSnapshot(actor: AcademicActor) {
   const visibleLinks = links.filter(link => visibleCourseIds.has(link.courseId));
   const visibleAssignments = assignmentsRows.filter(item => visibleCourseIds.has(item.courseId));
   const visibleEnrollments = enrollments.filter(item => visibleCourseIds.has(item.courseId) && (actor.roleKey !== "STUDENT" || item.studentUserId === actor.userId));
-  const userIds = Array.from(new Set([...visibleAssignments.map(item => item.teacherUserId), ...visibleEnrollments.map(item => item.studentUserId)]));
-  const people = userIds.length ? await db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(and(eq(users.schoolId, actor.schoolId), or(...userIds.map(id => eq(users.id, id))))) : [];
+  // Un perfil docente o estudiantil solo cuenta mientras la persona conserve ese rol
+  const roleByUser = new Map((await db.select({ userId: schoolMemberships.userId, roleKey: schoolMemberships.roleKey }).from(schoolMemberships).where(eq(schoolMemberships.schoolId, actor.schoolId))).map(row => [row.userId, row.roleKey]));
+  teacherRows = teacherRows.filter(row => roleByUser.get(row.userId) === "TEACHER");
+  studentRows = studentRows.filter(row => roleByUser.get(row.userId) === "STUDENT");
+  // Los directivos necesitan nombres de docentes sin carga y estudiantes sin matrícula
+  const isManagement = !["TEACHER", "STUDENT", "GUARDIAN"].includes(actor.roleKey);
+  const userIds = Array.from(new Set([
+    ...visibleAssignments.map(item => item.teacherUserId),
+    ...visibleEnrollments.map(item => item.studentUserId),
+    ...(isManagement ? [...teacherRows.map(item => item.userId), ...studentRows.map(item => item.userId)] : []),
+  ]));
+  const people = userIds.length ? await db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(and(eq(users.schoolId, actor.schoolId), inArray(users.id, userIds))) : [];
   const peopleById = new Map(people.map(person => [person.id, person]));
   return {
     years,
@@ -1060,7 +1078,8 @@ export async function getAcademicSnapshot(actor: AcademicActor) {
     periods: periods.filter(period => !period.academicYearId || years.some(year => year.id === period.academicYearId && visibleCourses.some(course => !course.academicYearId || course.academicYearId === year.id))),
     grades,
     courses: visibleCourses.map(course => ({ ...course, studentCount: visibleEnrollments.filter(item => item.courseId === course.id).length, subjectCount: visibleLinks.filter(item => item.courseId === course.id).length, teacherCount: visibleAssignments.filter(item => item.courseId === course.id).length })),
-    subjects: allSubjects.filter(subject => visibleLinks.some(link => link.subjectId === subject.id)),
+    // Una materia recién creada aún no tiene cursos: el directivo debe verla para asociarla
+    subjects: isManagement ? allSubjects : allSubjects.filter(subject => visibleLinks.some(link => link.subjectId === subject.id)),
     courseSubjects: visibleLinks,
     teacherAssignments: visibleAssignments.map(item => ({ ...item, teacher: peopleById.get(item.teacherUserId) ?? null })),
     studentEnrollments: visibleEnrollments.map(item => ({ ...item, student: peopleById.get(item.studentUserId) ?? null })),
@@ -1156,9 +1175,77 @@ export async function transferAcademicStudent(actor: AcademicActor, input: { enr
   if (!current || !newCourse || newCourse.academicYearId !== current.academicYearId || newCourse.id === current.courseId) throw new Error("El cambio requiere una matrícula activa y un curso válido del mismo año.");
   const now = new Date();
   await db.update(studentEnrollments).set({ enrollmentStatus: "TRANSFERRED", withdrawalDate: now }).where(eq(studentEnrollments.id, current.id));
-  await db.insert(studentEnrollments).values({ schoolId: actor.schoolId, studentUserId: current.studentUserId, academicYearId: current.academicYearId, courseId: input.newCourseId, enrollmentStatus: "ACTIVE", enrollmentDate: now });
+  const [inserted] = await db.insert(studentEnrollments).values({ schoolId: actor.schoolId, studentUserId: current.studentUserId, academicYearId: current.academicYearId, courseId: input.newCourseId, enrollmentStatus: "ACTIVE", enrollmentDate: now }).$returningId();
   await db.insert(enrollmentHistory).values({ schoolId: actor.schoolId, enrollmentId: current.id, studentUserId: current.studentUserId, fromCourseId: current.courseId, toCourseId: input.newCourseId, changedByUserId: actor.userId, changedAt: now, reason: input.reason ?? null });
-  return { previous: current, newCourseId: input.newCourseId };
+  await syncStudentCourseArtifacts(actor.schoolId, { studentUserId: current.studentUserId, courseId: input.newCourseId, enrollmentId: inserted.id, previousCourseId: current.courseId });
+  return { previous: current, newCourseId: input.newCourseId, enrollmentId: inserted.id };
+}
+
+const LEGACY_AVATAR_COLORS = ["#dbeafe", "#dcfce7", "#fef3c7", "#fce7f3", "#ede9fe", "#cffafe", "#ffedd5", "#f1f5f9"];
+
+/**
+ * Deja a un estudiante matriculado listo en los módulos que aún leen el modelo heredado:
+ * - filas `assessment_grades` para las evaluaciones que ya existen en el curso (Grade Center),
+ * - fila en `students` con el curso actual (Asistencia y snapshot institucional),
+ * - `courses.studentsCount` del curso nuevo y del anterior.
+ * Es idempotente: se puede llamar tras matricular, cambiar de curso o importar.
+ */
+export async function syncStudentCourseArtifacts(schoolId: number, input: { studentUserId: number; courseId: number; enrollmentId: number; previousCourseId?: number; guardianName?: string }) {
+  const db = await getDb();
+  if (!db) return;
+  const [course] = await db.select().from(courses).where(and(eq(courses.schoolId, schoolId), eq(courses.id, input.courseId))).limit(1);
+  const [user] = await db.select({ id: users.id, name: users.name, email: users.email }).from(users).where(eq(users.id, input.studentUserId)).limit(1);
+  if (!course || !user) return;
+
+  const courseAssessments = await db.select({ id: assessments.id, subjectId: assessments.subjectId, academicYearId: assessments.academicYearId, academicPeriodId: assessments.academicPeriodId }).from(assessments).where(and(eq(assessments.schoolId, schoolId), eq(assessments.courseId, course.id)));
+  if (courseAssessments.length) {
+    const existing = new Set((await db.select({ assessmentId: assessmentGrades.assessmentId }).from(assessmentGrades).where(and(eq(assessmentGrades.schoolId, schoolId), eq(assessmentGrades.studentId, user.id), eq(assessmentGrades.courseId, course.id)))).map(row => row.assessmentId));
+    const missing = courseAssessments.filter(assessment => !existing.has(assessment.id));
+    if (missing.length) {
+      await db.insert(assessmentGrades).values(missing.map(assessment => ({ schoolId, assessmentId: assessment.id, studentId: user.id, studentEnrollmentId: input.enrollmentId, courseId: course.id, subjectId: assessment.subjectId, academicYearId: assessment.academicYearId, academicPeriodId: assessment.academicPeriodId, value: null, comment: null, status: "PENDING" })));
+    }
+  }
+
+  // La tabla heredada `students` guarda un solo curso por estudiante: solo refleja el año activo
+  const [activeYear] = await db.select({ id: academicYears.id }).from(academicYears).where(and(eq(academicYears.schoolId, schoolId), eq(academicYears.status, "ACTIVE"))).limit(1);
+  if (user.email && activeYear && course.academicYearId === activeYear.id) {
+    const gradeLevel = (course.grade || course.name).replace(/[^0-9]/g, "") || course.grade || "";
+    const [legacy] = await db.select().from(students).where(and(eq(students.schoolId, schoolId), eq(students.email, user.email))).limit(1);
+    if (legacy) {
+      await db.update(students).set({ course: course.name, gradeLevel, status: "Activo", ...(input.guardianName ? { guardianName: input.guardianName } : {}) }).where(eq(students.id, legacy.id));
+    } else {
+      await db.insert(students).values({ schoolId, name: user.name ?? user.email, email: user.email, course: course.name, gradeLevel, guardianName: input.guardianName ?? "Por vincular", status: "Activo", avatarColor: LEGACY_AVATAR_COLORS[user.id % LEGACY_AVATAR_COLORS.length] });
+    }
+  }
+
+  for (const courseId of [course.id, ...(input.previousCourseId ? [input.previousCourseId] : [])]) {
+    const active = await db.select({ id: studentEnrollments.id }).from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, schoolId), eq(studentEnrollments.courseId, courseId), eq(studentEnrollments.enrollmentStatus, "ACTIVE")));
+    await db.update(courses).set({ studentsCount: active.length }).where(and(eq(courses.schoolId, schoolId), eq(courses.id, courseId)));
+  }
+}
+
+/** Matricula y deja al estudiante visible en asistencia y Grade Center del curso. */
+export async function enrollAndSyncStudent(actor: AcademicActor, input: { studentUserId: number; academicYearId: number; courseId: number; guardianName?: string }) {
+  const { guardianName, ...enrollInput } = input;
+  const enrollment = await enrollAcademicStudent(actor, enrollInput);
+  if (enrollment) await syncStudentCourseArtifacts(actor.schoolId, { studentUserId: input.studentUserId, courseId: input.courseId, enrollmentId: enrollment.id, guardianName });
+  return enrollment;
+}
+
+/** Conteos del directorio institucional (no dependen de la paginación de `listSchoolUsers`). */
+export async function getIdentitySummary(schoolId: number) {
+  const db = await getDb();
+  const byRole = Object.fromEntries(IDENTITY_ROLES.map(role => [role, 0])) as Record<IdentityRole, number>;
+  const byStatus: Record<string, number> = { ACTIVE: 0, INVITED: 0, SUSPENDED: 0, INACTIVE: 0 };
+  if (!db) return { total: 0, byRole, byStatus, pendingInvitations: 0 };
+  await ensureIdentitySeeded(schoolId);
+  const memberships = await db.select({ roleKey: schoolMemberships.roleKey, status: schoolMemberships.status }).from(schoolMemberships).where(eq(schoolMemberships.schoolId, schoolId));
+  for (const membership of memberships) {
+    if (membership.roleKey in byRole) byRole[membership.roleKey as IdentityRole] += 1;
+    byStatus[membership.status] = (byStatus[membership.status] ?? 0) + 1;
+  }
+  const pending = await db.select({ id: invitations.id }).from(invitations).where(and(eq(invitations.schoolId, schoolId), eq(invitations.status, "PENDING")));
+  return { total: memberships.length, byRole, byStatus, pendingInvitations: pending.length };
 }
 
 export async function writeAcademicAudit(actor: AcademicActor, action: string, targetType: string, detail: string) {
