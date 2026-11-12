@@ -17,6 +17,8 @@ import {
   vennRegionsFor,
 } from "@shared/creatorDiagrams";
 import { validateBlock, validateBlockOrder } from "@shared/creatorValidate";
+import { CREATOR_SYSTEM_PROMPT } from "./creatorAgent";
+import { CREATOR_TOOLS, executeCreatorTool } from "./creatorTools";
 
 const block = (input: unknown): BlockInput => blockInputSchema.parse(input);
 const CLASSROOM_TYPES = ["angle", "venn", "tree_diagram", "bar_model", "pictogram", "clock", "base_ten"] as const;
@@ -241,5 +243,27 @@ describe("recta numérica con intervalos y balanza con pesas", () => {
     expect(doc.sections[0].blocks).toHaveLength(2);
     expect(doc.sections[0].blocks[0]).toMatchObject({ intervals: [] });
     expect(doc.sections[0].blocks[1]).toMatchObject({ right: { weights: [] } });
+  });
+});
+
+describe("figuras de aula: lo que ve la IA", () => {
+  it("recibe los tipos y los campos nuevos en el esquema y en las instrucciones", () => {
+    const serialized = JSON.stringify(CREATOR_TOOLS.find(tool => tool.name === "write_section")!.input_schema);
+    for (const type of CLASSROOM_TYPES) {
+      expect(serialized, type).toContain(`"${type}"`);
+      expect(CREATOR_SYSTEM_PROMPT, type).toContain(type);
+    }
+    for (const field of ["intervals", "weights"]) {
+      expect(serialized, field).toContain(`"${field}"`);
+      expect(CREATOR_SYSTEM_PROMPT, field).toContain(field);
+    }
+  });
+
+  it("rechaza un árbol cuyas ramas no suman 1 y deja pasar el corregido", () => {
+    const write = (branches: unknown[]) => executeCreatorTool(emptyDoc(), "write_section", { title: "Guía", role: "student", blocks: [{ type: "tree_diagram", branches, showResults: true }] });
+    const wrong = write([{ label: "Roja", probability: "3/5" }, { label: "Azul", probability: "1/5" }]);
+    expect(wrong.isError).toBe(true);
+    expect(wrong.result).toContain("suman 0.8");
+    expect(write([{ label: "Roja", probability: "3/5" }, { label: "Azul", probability: "2/5" }]).isError).toBe(false);
   });
 });
