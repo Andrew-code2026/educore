@@ -510,7 +510,13 @@ export function ReviewSplitView({
               </span>
             </div>
             <div className="viewer-actions" aria-label="Herramientas de evidencia">
-              <span className="viewer-mode-label">Evidencia vinculada</span>
+              {student.fileUrl ? (
+                <a className="viewer-mode-label" href={student.fileUrl} target="_blank" rel="noreferrer">
+                  Abrir archivo
+                </a>
+              ) : (
+                <span className="viewer-mode-label">Evidencia vinculada</span>
+              )}
             </div>
           </div>
 

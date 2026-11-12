@@ -45,6 +45,8 @@ import {
 import { DEMO_SCHOOL_ID, ensureAttendanceTables, ensureCourseResourcesTable, ensureEduCoreSeeded, getDb } from "./db";
 import { ensureGradeCenterSeeded } from "./gradeCenterDb";
 import { resetDemoPiar } from "./piarDb";
+import { ensureStudentPortalSeeded } from "./studentPortalSeed";
+import { PORTAL_SUBJECTS } from "./studentDemoSeed";
 import { DEMO_ACTIVITIES, DEMO_COURSES, DEMO_STUDENTS } from "./demoSeed";
 
 /** Tablas con datos del colegio demo; roles y permisos se conservan porque son catálogo. */
@@ -58,7 +60,7 @@ const SCHOOL_TABLES = [
   guardianStudentRelationships, guardianProfiles, studentProfiles, teacherProfiles, invitations, schoolMemberships, users,
 ] as const;
 
-/** Vacía los datos del colegio demo y vuelve a sembrar el dataset del MVP docente. */
+/** Vacía los datos del colegio demo y vuelve a sembrar el dataset del MVP (docente y estudiante). */
 export async function resetDemoData(schoolId = DEMO_SCHOOL_ID) {
   const db = await getDb();
   if (!db) throw new Error("Base de datos no disponible. Revisa DATABASE_URL y que MariaDB esté corriendo.");
@@ -69,14 +71,15 @@ export async function resetDemoData(schoolId = DEMO_SCHOOL_ID) {
   }
   await ensureEduCoreSeeded();
   await ensureGradeCenterSeeded(schoolId);
+  await ensureStudentPortalSeeded(schoolId);
   await resetDemoPiar(schoolId);
 }
 
 async function runCli() {
   try {
-    console.log("Reseteando datos demo del colegio y sembrando el MVP docente...");
+    console.log("Reseteando datos demo del colegio y sembrando el MVP docente y estudiante...");
     await resetDemoData();
-    console.log(`Listo: ${DEMO_COURSES.length} cursos, ${DEMO_STUDENTS.length} estudiantes y ${DEMO_ACTIVITIES.length} evaluaciones de Biología.`);
+    console.log(`Listo: ${DEMO_COURSES.length} cursos, ${DEMO_STUDENTS.length} estudiantes, ${PORTAL_SUBJECTS.length + 1} materias y ${DEMO_ACTIVITIES.length} evaluaciones de Biología en el periodo activo.`);
     process.exit(0);
   } catch (error) {
     console.error("Error durante el reset:", error);

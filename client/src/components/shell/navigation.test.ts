@@ -6,6 +6,7 @@ import {
   getMoreNavGroups,
   ALL_NAV_ITEMS,
   ROLE_LABELS,
+  isSectionAllowed,
 } from "./navigation";
 import type { EduRole, Section } from "./shell.types";
 
@@ -80,23 +81,31 @@ describe("EduCore Shell Navigation System", () => {
       expect(sectionIds).toContain("settings");
     });
 
-    it("restricts student navigation to learning and personal academic context", () => {
+    it("gives students only their learning and school sections, most used first", () => {
       const groups = getNavGroupsForRole("student");
-      const labels = groups.map(g => g.label);
-      expect(labels).toContain("Mi Aprendizaje");
+      expect(groups.map(g => g.label)).toEqual(["Aprendizaje", "Mi colegio"]);
 
-      const allItems = groups.flatMap(g => g.items);
-      const sectionIds = allItems.map(i => i.id);
-      expect(sectionIds).toContain("overview");
-      expect(sectionIds).toContain("grades");
-      expect(sectionIds).toContain("classroom");
+      const sectionIds = groups.flatMap(g => g.items).map(i => i.id);
+      expect(sectionIds).toEqual(["overview", "classroom", "grades", "attendance", "calendar", "communications"]);
 
-      // Students should NOT see admin configuration or institutional management
-      expect(sectionIds).not.toContain("users");
-      expect(sectionIds).not.toContain("settings");
+      const items = groups.flatMap(g => g.items);
+      expect(items.find(i => i.id === "classroom")?.label).toBe("Tareas");
+      expect(items.find(i => i.id === "grades")?.label).toBe("Calificaciones");
+      expect(getMobileBottomNavItems("student").map(i => i.id)).toEqual(["overview", "classroom", "grades"]);
+    });
 
-      const gradesItem = allItems.find(i => i.id === "grades");
-      expect(gradesItem?.label).toBe("Calificaciones");
+    it("blocks by URL every section outside the student navigation", () => {
+      const blocked: Section[] = ["academic", "users", "settings", "reports", "analytics", "piar"];
+      for (const section of blocked) expect(isSectionAllowed("student", section)).toBe(false);
+      const allowed: Section[] = ["overview", "classroom", "grades", "attendance", "calendar", "communications"];
+      for (const section of allowed) expect(isSectionAllowed("student", section)).toBe(true);
+    });
+
+    it("keeps the existing guards for teachers and guardians", () => {
+      expect(isSectionAllowed("teacher", "academic")).toBe(false);
+      expect(isSectionAllowed("teacher", "grades")).toBe(true);
+      expect(isSectionAllowed("guardian", "piar")).toBe(false);
+      expect(isSectionAllowed("admin", "users")).toBe(true);
     });
 
     it("restricts guardian navigation to family monitoring", () => {

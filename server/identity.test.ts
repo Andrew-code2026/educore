@@ -75,7 +75,8 @@ describe("EduCore identity catalog", () => {
   });
 
   it("keeps student permissions limited to learner workflows", () => {
-    expect(hasPermission("STUDENT", "assignments.create")).toBe(true);
+    expect(hasPermission("STUDENT", "assignments.submit")).toBe(true);
+    expect(hasPermission("STUDENT", "assignments.create")).toBe(false);
     expect(hasPermission("STUDENT", "grades.update")).toBe(false);
     expect(hasPermission("STUDENT", "users.view")).toBe(false);
   });

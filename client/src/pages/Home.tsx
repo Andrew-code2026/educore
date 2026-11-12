@@ -57,8 +57,10 @@ import {
   type Section,
   ROLE_LABELS,
   ROLE_GREETINGS,
+  isSectionAllowed,
   useSectionRoute,
 } from "@/components/shell";
+import { StudentPortal } from "@/student/StudentPortal";
 
 const roleLabels: Record<EduRole, string> = ROLE_LABELS;
 const roleGreetings: Record<EduRole, string> = ROLE_GREETINGS;
@@ -441,16 +443,15 @@ export default function Home() {
   const [selectedStudentId, setSelectedStudentId] = useState<number | undefined>();
     const [section, setSection] = useSectionRoute();
   const effectiveRole = role;
-  const isTeacherAcademic = section === "academic" && effectiveRole === "teacher";
-  // El PIAR tiene información sensible: estudiantes y acudientes no tienen acceso
-  const isFamilyPiar = section === "piar" && (effectiveRole === "student" || effectiveRole === "guardian");
-  const activeSection = isTeacherAcademic || isFamilyPiar ? "overview" : section;
+  // Secciones fuera del alcance del rol (p. ej. un estudiante en /users) vuelven a Inicio
+  const sectionAllowed = isSectionAllowed(effectiveRole, section);
+  const activeSection = sectionAllowed ? section : "overview";
 
   useEffect(() => {
-    if (isTeacherAcademic || isFamilyPiar) {
+    if (!sectionAllowed) {
       setSection("overview", { replace: true });
     }
-  }, [isTeacherAcademic, isFamilyPiar, setSection]);
+  }, [sectionAllowed, setSection]);
   const snapshotInput = useMemo(() => ({ role: effectiveRole, selectedStudentId: effectiveRole === "guardian" ? selectedStudentId : undefined }), [effectiveRole, selectedStudentId]);
   const { data, isLoading, refetch } = trpc.educore.snapshot.useQuery(snapshotInput, { enabled: !loading });
 
@@ -480,19 +481,21 @@ export default function Home() {
   };
 
   const handleRoleChange = async (nextRole: EduRole) => {
-    setRole(nextRole);
-    setSelectedStudentId(undefined);
-    localStorage.setItem("educore-demo-role", nextRole);
-    setSection("overview");
+    // Primero la sesión del nuevo rol: si las consultas salen antes, el servidor responde con la sesión
+    // anterior (p. ej. datos del docente cacheados bajo la vista del estudiante)
     if (demoMode || user?.openId?.startsWith("educore-demo-")) {
       try {
         await loginDemoMutation.mutateAsync({ role: nextRole });
-        await utils.auth.me.invalidate();
-        await refetch();
       } catch {
         // En caso de fallo de red en cambio de rol
       }
     }
+    setRole(nextRole);
+    setSelectedStudentId(undefined);
+    localStorage.setItem("educore-demo-role", nextRole);
+    setSection("overview");
+    // Todas las consultas dependen del actor de la sesión: se descartan las del rol anterior
+    await utils.invalidate();
     toast.success(`Vista cambiada a ${roleLabels[nextRole]}`);
   };
 
@@ -509,6 +512,6 @@ export default function Home() {
   const isDemoSession = Boolean(demoMode || (isAuthenticated && user?.openId?.startsWith("educore-demo-")));
   if (!isAuthenticated && !isDemoSession) return <LoginScreen school={data?.school} onDemo={handleDemoLogin} />;
   if (!data) return <div className="flex min-h-screen items-center justify-center bg-[var(--edc-background)] p-6"><EmptyState title="No pudimos cargar tu espacio" detail="Revisa la conexión e inténtalo de nuevo." /></div>;
-  const content = activeSection === "overview" ? effectiveRole === "admin" ? <AdminDashboard data={data} setSection={setSection} /> : effectiveRole === "teacher" ? <TeacherDashboard data={data} user={user} setSection={setSection} /> : <StudentDashboard data={data} user={user} role={effectiveRole} setSection={setSection} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} /> : activeSection === "academic" ? <AcademicPage data={data} role={effectiveRole} setSection={setSection} onGradeSaved={refresh} /> : activeSection === "grades" ? <GradeCenterPage role={effectiveRole} school={data.school} onBack={() => setSection("overview")} /> : activeSection === "classroom" ? <ClassroomPage data={data} role={effectiveRole} onChanged={refresh} setSection={setSection} /> : activeSection === "attendance" ? <AttendancePage data={data} role={effectiveRole} user={user} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onNavigate={setSection} /> : activeSection === "calendar" ? <CalendarPage data={data} role={effectiveRole} onChanged={refresh} /> : activeSection === "communications" ? <CommunicationsPage data={data} role={effectiveRole} onChanged={refresh} /> : activeSection === "reports" ? <ReportsPage data={data} role={effectiveRole} setSection={setSection} />  : activeSection === "users" ? <UsersPage role={effectiveRole} onPreview={handleRoleChange} /> : activeSection === "analytics" ? <AnalyticsPage data={data} role={effectiveRole} setSection={setSection} /> : activeSection === "piar" ? <PiarPage data={data} role={effectiveRole} /> : <SettingsPage data={data} role={effectiveRole} onChanged={refresh} />;
+  const content = effectiveRole === "student" ? <StudentPortal section={activeSection} data={data} user={user} setSection={setSection} onChanged={refresh} /> : activeSection === "overview" ? effectiveRole === "admin" ? <AdminDashboard data={data} setSection={setSection} /> : effectiveRole === "teacher" ? <TeacherDashboard data={data} user={user} setSection={setSection} /> : <StudentDashboard data={data} user={user} role={effectiveRole} setSection={setSection} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} /> : activeSection === "academic" ? <AcademicPage data={data} role={effectiveRole} setSection={setSection} onGradeSaved={refresh} /> : activeSection === "grades" ? <GradeCenterPage role={effectiveRole} school={data.school} onBack={() => setSection("overview")} /> : activeSection === "classroom" ? <ClassroomPage data={data} role={effectiveRole} onChanged={refresh} setSection={setSection} /> : activeSection === "attendance" ? <AttendancePage data={data} role={effectiveRole} user={user} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onNavigate={setSection} /> : activeSection === "calendar" ? <CalendarPage data={data} role={effectiveRole} onChanged={refresh} /> : activeSection === "communications" ? <CommunicationsPage data={data} role={effectiveRole} onChanged={refresh} /> : activeSection === "reports" ? <ReportsPage data={data} role={effectiveRole} setSection={setSection} />  : activeSection === "users" ? <UsersPage role={effectiveRole} onPreview={handleRoleChange} /> : activeSection === "analytics" ? <AnalyticsPage data={data} role={effectiveRole} setSection={setSection} /> : activeSection === "piar" ? <PiarPage data={data} role={effectiveRole} /> : <SettingsPage data={data} role={effectiveRole} onChanged={refresh} />;
   return <EduCoreShell role={effectiveRole} section={activeSection} setSection={setSection} schoolName={schoolName} school={data.school} user={user} onRoleChange={handleRoleChange} onLogout={handleLogout} notificationCount={data.notifications.filter((item: any) => !item.read).length}>{content}</EduCoreShell>;
 }

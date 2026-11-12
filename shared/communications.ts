@@ -29,3 +29,14 @@ const READER_AUDIENCE: Record<AnnouncementReader, string> = {
 export function isAudienceFor(reader: AnnouncementReader, audience: string): boolean {
   return audience === "Todo el colegio" || audience.includes(READER_AUDIENCE[reader]);
 }
+
+/**
+ * Eventos del calendario para estudiantes y acudientes: los de su público, los de todo el colegio
+ * y los de su curso ("11-2"). Los de otros cursos o de otros públicos no se envían.
+ */
+export function isEventFor(reader: AnnouncementReader, audience: string | null | undefined, course: string | null | undefined): boolean {
+  const value = (audience ?? "").trim();
+  if (!value) return false;
+  if (isAudienceFor(reader, value)) return true;
+  return Boolean(course) && value === course;
+}

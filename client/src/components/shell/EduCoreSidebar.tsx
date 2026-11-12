@@ -15,7 +15,7 @@ interface EduCoreSidebarProps {
 }
 
 const getRoleAvatarInitials = (role: EduRole, user?: any) => {
-  if (role === "teacher" && user?.name) {
+  if ((role === "teacher" || role === "student") && user?.name) {
     const parts = user.name.trim().split(/\s+/);
     if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     return parts[0].slice(0, 2).toUpperCase();
@@ -182,7 +182,7 @@ export function EduCoreSidebar({
     };
   }, [indicator.visible, indicator.ready]);
 
-  const displayName = role === "teacher" ? (user?.name || "Juan Diego Loaiza") : role === "admin" ? "Rectoría / Admin" : ROLE_LABELS[role];
+  const displayName = role === "teacher" ? (user?.name || "Juan Diego Loaiza") : role === "admin" ? "Rectoría / Admin" : role === "student" ? (user?.name || ROLE_LABELS.student) : ROLE_LABELS[role];
 
   return (
     <aside className="edc-side edc-chrome" aria-label="Barra lateral" data-collapsed={sidebarCollapsed}>

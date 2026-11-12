@@ -6,6 +6,10 @@ interface TeacherAgendaProps {
   upcomingItems: TeacherAgendaItem[];
   onOpenCalendar: () => void;
   onNewActivity?: () => void;
+  /** Texto cuando no hay nada hoy (el estudiante no tiene horario de clases en la agenda). */
+  emptyTodayText?: string;
+  /** Pestaña inicial; por defecto "Hoy". */
+  initialTab?: "today" | "upcoming";
 }
 
 const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -38,8 +42,10 @@ export function TeacherAgenda({
   upcomingItems,
   onOpenCalendar,
   onNewActivity,
+  emptyTodayText = "No tienes clases programadas hoy.",
+  initialTab = "today",
 }: TeacherAgendaProps) {
-  const [activeTab, setActiveTab] = useState<"today" | "upcoming">("today");
+  const [activeTab, setActiveTab] = useState<"today" | "upcoming">(initialTab);
   const [weekOffset, setWeekOffset] = useState(0);
 
   const week = useMemo(() => buildWeek(weekOffset), [weekOffset]);
@@ -135,7 +141,7 @@ export function TeacherAgenda({
               </div>
             </button>
           ))}
-          {todayItems.length === 0 && <div className="edc-empty-note">No tienes clases programadas hoy.</div>}
+          {todayItems.length === 0 && <div className="edc-empty-note">{emptyTodayText}</div>}
         </div>
       ) : (
         <div className="edc-day__list edc-day__list--compact">

@@ -145,29 +145,24 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
   }
 
   if (role === "student") {
+    // Portal estudiante: lo del día a día arriba (tareas y notas), lo institucional abajo
     return [
       {
         key: "learning",
-        label: "Mi Aprendizaje",
+        label: "Aprendizaje",
         items: [
           { ...ALL_NAV_ITEMS.overview, roles: ["student"], groupKey: "learning", mobilePriority: "bottom" },
-          { ...ALL_NAV_ITEMS.grades, label: "Calificaciones", roles: ["student"], groupKey: "learning", mobilePriority: "bottom" },
-          { ...ALL_NAV_ITEMS.classroom, label: "Tareas", roles: ["student"], groupKey: "learning", mobilePriority: "bottom" },
-          { ...ALL_NAV_ITEMS.attendance, label: "Asistencia", roles: ["student"], groupKey: "learning", mobilePriority: "more" },
+          { ...ALL_NAV_ITEMS.classroom, label: "Tareas", description: "Actividades por entregar y su retroalimentación", roles: ["student"], groupKey: "learning", mobilePriority: "bottom" },
+          { ...ALL_NAV_ITEMS.grades, label: "Calificaciones", description: "Notas por materia, periodos y boletín", roles: ["student"], groupKey: "learning", mobilePriority: "bottom" },
+          { ...ALL_NAV_ITEMS.attendance, description: "Tu registro de asistencia y excusas", roles: ["student"], groupKey: "learning", mobilePriority: "more" },
         ],
       },
       {
-        key: "organization",
-        label: "Organización",
+        key: "school",
+        label: "Mi colegio",
         items: [
-          { ...ALL_NAV_ITEMS.calendar, roles: ["student"], groupKey: "organization", mobilePriority: "more" },
-          {
-            ...ALL_NAV_ITEMS.communications,
-            roles: ["student"],
-            groupKey: "organization",
-            mobilePriority: "more",
-            badge: notificationCount > 0 ? notificationCount : undefined,
-          },
+          { ...ALL_NAV_ITEMS.calendar, roles: ["student"], groupKey: "school", mobilePriority: "more" },
+          { ...ALL_NAV_ITEMS.communications, roles: ["student"], groupKey: "school", mobilePriority: "more" },
         ],
       },
     ];
@@ -240,6 +235,20 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
       ],
     },
   ];
+}
+
+/**
+ * ¿Puede el rol abrir la sección aunque llegue por URL?
+ * - Estudiante: solo las secciones de su navegación (nada de vistas docentes o institucionales).
+ * - Docente: la estructura académica es de la institución.
+ * - Acudiente: el PIAR contiene información sensible.
+ */
+export function isSectionAllowed(role: EduRole, section: Section): boolean {
+  if (section === "overview") return true;
+  if (role === "student") return getFlatNavItemsForRole("student").some(item => item.id === section);
+  if (role === "teacher") return section !== "academic";
+  if (role === "guardian") return section !== "piar";
+  return true;
 }
 
 // Obtener lista plana de items visibles para el rol

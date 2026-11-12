@@ -26,7 +26,6 @@ import {
   listCourseResources,
   recordDemoAttendance,
   saveAiConversation,
-  submitDemoAssignment,
   updateDemoGrade,
   updateSchoolSettings,
   createAcademicPeriod,
@@ -87,6 +86,8 @@ import {
 import { hasPermission, IDENTITY_ROLES, type IdentityRole } from "./identityModel";
 import { canUsePiar, createPiarRecord, deletePiarRecord, getPiarCourse, getPiarRecord, listPiarCourses, savePiarRecord } from "./piarDb";
 import { PIAR_MAX_KEYS, PIAR_VALUE_MAX } from "@shared/piar";
+import { StudentPortalError, getStudentCourseName, getStudentGrades, getStudentReportCard, submitStudentTask, type StudentActor } from "./studentPortalDb";
+import { ensureStudentPortalSeeded } from "./studentPortalSeed";
 import type { TrpcContext } from "./_core/context";
 
 const attendanceStatus = z.enum(["present", "absent", "late", "excused"]);
@@ -187,6 +188,23 @@ async function piarCall<T>(run: () => Promise<T>): Promise<T> {
   } catch (error) {
     if (error instanceof TRPCError) throw error;
     throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "No se pudo completar la operación del PIAR." });
+  }
+}
+
+/** Portal estudiante: solo el rol estudiante; los errores de dominio llegan con su mensaje. */
+async function requireStudentActor(ctx: TrpcContext, role: EduRole, permission: string, isMutation = false): Promise<StudentActor> {
+  const actor = await requirePermission(ctx, role, permission, isMutation);
+  if (actor.roleKey !== "STUDENT") throw new TRPCError({ code: "FORBIDDEN", message: "Esta sección es solo para estudiantes." });
+  await ensureStudentPortalSeeded(actor.schoolId);
+  return actor;
+}
+
+async function studentCall<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof StudentPortalError) throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+    throw error;
   }
 }
 
@@ -410,9 +428,33 @@ export const appRouter = router({
       return { text: text || `Borrador: ${input.studentName} ha mostrado avances observables en las actividades revisadas. Se recomienda continuar acompañando su proceso y revisar las próximas evidencias de aprendizaje.`, reviewed: false };
     }),
   }),
+  student: router({
+    grades: publicProcedure.input(z.object({ role: roleSchema, academicPeriodId: z.number().int().optional() })).query(async ({ input, ctx }) => {
+      const actor = await requireStudentActor(ctx, input.role, "grades.view");
+      return studentCall(() => getStudentGrades(actor, { academicPeriodId: input.academicPeriodId }));
+    }),
+    reportCard: publicProcedure.input(z.object({ role: roleSchema, academicPeriodId: z.number().int().optional() })).query(async ({ input, ctx }) => {
+      const actor = await requireStudentActor(ctx, input.role, "grades.view");
+      return studentCall(() => getStudentReportCard(actor, { academicPeriodId: input.academicPeriodId }));
+    }),
+    submitTask: publicProcedure.input(z.object({
+      role: roleSchema,
+      assignmentId: z.number().int(),
+      comment: z.string().max(500).default(""),
+      // Base64 de hasta 20 MB (~4/3 del tamaño original), con las reglas de formato de los recursos del curso
+      file: z.object({ name: z.string().min(1).max(180), dataBase64: z.string().min(1).max(Math.ceil(MAX_RESOURCE_BYTES * 1.4)) }).nullable(),
+    })).mutation(async ({ input, ctx }) => {
+      const actor = await requireStudentActor(ctx, input.role, "assignments.submit", true);
+      const result = await studentCall(() => submitStudentTask(actor, { assignmentId: input.assignmentId, comment: input.comment, file: input.file }));
+      await writeAuditLog(input.role, "submit_assignment", `${input.assignmentId}:${actor.userId}`, actor.schoolId);
+      return result;
+    }),
+  }),
   educore: router({
     snapshot: publicProcedure.input(z.object({ role: roleSchema, selectedStudentId: z.number().int().optional() })).query(async ({ input, ctx }) => {
       const actor = await resolveActor(ctx, input.role);
+      // Plan de estudios completo de 11° (6 materias e historial): idempotente y barato una vez sembrado
+      await ensureStudentPortalSeeded(actor.schoolId);
       return getEduCoreSnapshot(input.role, input.selectedStudentId, actor);
     }),
     createAssignment: publicProcedure.input(z.object({
@@ -441,13 +483,16 @@ export const appRouter = router({
     submitAssignment: publicProcedure.input(z.object({
       role: roleSchema,
       assignmentId: z.number().int(),
-      studentName: z.string().min(2),
+      // Solo como respaldo histórico: la entrega queda a nombre del estudiante autenticado
+      studentName: z.string().min(2).optional(),
       fileName: z.string().min(1),
       comment: z.string().max(500).default(""),
     })).mutation(async ({ input, ctx }) => {
-      const actor = await requirePermission(ctx, input.role, "assignments.create", true);
-      const result = await submitDemoAssignment(input);
-      await writeAuditLog(input.role, "submit_assignment", `${input.assignmentId}:${input.studentName}`, actor.schoolId);
+      const actor = await requirePermission(ctx, input.role, "assignments.submit", true);
+      const studentName = await getUserName(actor.userId);
+      if (!studentName) throw new TRPCError({ code: "FORBIDDEN", message: "No pudimos identificar al estudiante." });
+      const result = await studentCall(() => submitStudentTask(actor, { assignmentId: input.assignmentId, comment: input.comment, file: null, fileName: input.fileName }));
+      await writeAuditLog(input.role, "submit_assignment", `${input.assignmentId}:${studentName}`, actor.schoolId);
       return result;
     }),
     gradeSubmission: publicProcedure.input(z.object({
@@ -466,6 +511,10 @@ export const appRouter = router({
       course: z.string().min(1).max(64),
     })).query(async ({ input, ctx }) => {
       const actor = await requirePermission(ctx, input.role, "assignments.view");
+      // El estudiante solo consulta los materiales de su curso
+      if (actor.roleKey === "STUDENT" && (await getStudentCourseName(actor)) !== input.course) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "No tienes acceso a los materiales de este curso." });
+      }
       return listCourseResources(actor.schoolId, input.course);
     }),
     uploadCourseResource: publicProcedure.input(z.object({
