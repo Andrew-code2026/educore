@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { BLOCK_TYPE_LABELS, blockInputSchema, blockPreview, emptyDoc, resourceDocSchema, type BlockInput } from "@shared/creator";
 import {
   buildHistogramClasses,
+  describeComputed,
   fiveNumberSummary,
   histogramClassIssues,
   histogramCounts,
@@ -14,6 +15,8 @@ import {
   trendLineText,
 } from "@shared/creatorStats";
 import { validateBlock, validateBlockOrder } from "@shared/creatorValidate";
+import { CREATOR_SYSTEM_PROMPT } from "./creatorAgent";
+import { CREATOR_TOOLS, executeCreatorTool } from "./creatorTools";
 
 const block = (input: unknown): BlockInput => blockInputSchema.parse(input);
 const STAT_TYPES = ["histogram", "box_plot", "line_chart", "scatter_plot"] as const;
@@ -85,16 +88,16 @@ describe("recta de mínimos cuadrados", () => {
     expect(linearRegression([{ x: 1, y: 4 }, { x: 2, y: 4 }, { x: 3, y: 4 }])).toEqual({ slope: 0, intercept: 4, r: 0 });
   });
 
-  it("escribe la ecuación con punto para la IA y con coma para el estudiante", () => {
-    expect(trendLineText({ slope: 0.9, intercept: 1.3, r: 0.9 })).toBe("y = 0.9x + 1.3");
+  it("escribe la ecuación como la lee el estudiante, con coma decimal", () => {
+    expect(trendLineText({ slope: 0.9, intercept: 1.3, r: 0.9 })).toBe("y = 0,9x + 1,3");
     expect(trendLineLatex({ slope: 0.9, intercept: 1.3, r: 0.9 })).toBe("y = 0{,}9x + 1{,}3");
     expect(trendLineText({ slope: -2, intercept: 12, r: -1 })).toBe("y = -2x + 12");
-    expect(trendLineText({ slope: 1, intercept: -0.456, r: 1 })).toBe("y = x - 0.46");
+    expect(trendLineText({ slope: 1, intercept: -0.456, r: 1 })).toBe("y = x - 0,46");
     expect(trendLineText({ slope: -1, intercept: 0, r: -1 })).toBe("y = -x");
     expect(trendLineText({ slope: 0, intercept: 4, r: 0 })).toBe("y = 4");
-    expect(trendLineText({ slope: 2.5, intercept: 0.001, r: 1 })).toBe("y = 2.5x + 0.001");
+    expect(trendLineText({ slope: 2.5, intercept: 0.001, r: 1 })).toBe("y = 2,5x + 0,001");
     // Una pendiente pequeña no se redondea a cero
-    expect(trendLineText({ slope: 0.0042, intercept: 150, r: 0.8 })).toBe("y = 0.0042x + 150");
+    expect(trendLineText({ slope: 0.0042, intercept: 150, r: 0.8 })).toBe("y = 0,0042x + 150");
     expect(trendLineLatex({ slope: 1250.5, intercept: -20000, r: 0.8 })).toBe("y = 1.250{,}5x - 20.000");
   });
 });
@@ -269,5 +272,46 @@ describe("figuras estadísticas: esquema y validación", () => {
     ]) {
       expect(validateBlockOrder([{ title: "Guía", blocks: [exercise, block(figure)] }]), figure.type).toHaveLength(1);
     }
+  });
+});
+
+describe("figuras estadísticas: lo que ve la IA", () => {
+  it("recibe los cuatro tipos en el esquema y en las instrucciones", () => {
+    const serialized = JSON.stringify(CREATOR_TOOLS.find(tool => tool.name === "write_section")!.input_schema);
+    for (const type of STAT_TYPES) {
+      expect(serialized, type).toContain(`"${type}"`);
+      expect(CREATOR_SYSTEM_PROMPT, type).toContain(type);
+    }
+    // La confusión que se quiere evitar: unir con líneas lo que se pidió como dispersión
+    expect(CREATOR_SYSTEM_PROMPT).toMatch(/dispersión[^.]*nunca line_chart/);
+  });
+
+  it("le devuelve los valores calculados para que la clave use los de la figura", () => {
+    expect(describeComputed(block({ type: "box_plot", series: [{ label: "9A", data: [1, 2, 3, 4, 5, 6, 7, 8, 9] }] }))).toBe(
+      "Caja y bigotes: «9A»: mínimo 1 · Q1 2,5 · mediana 5 · Q3 7,5 · máximo 9.",
+    );
+    const points = [{ x: 1, y: 2 }, { x: 2, y: 3 }, { x: 3, y: 5 }, { x: 4, y: 4 }, { x: 5, y: 6 }];
+    expect(describeComputed(block({ type: "scatter_plot", points, trendLine: true }))).toBe("Dispersión: recta de tendencia y = 0,9x + 1,3 (r = 0,9).");
+    expect(describeComputed(block({ type: "scatter_plot", points }))).toBeNull();
+    expect(describeComputed(block({ type: "paragraph", md: "Hola" }))).toBeNull();
+
+    const outcome = executeCreatorTool(emptyDoc(), "write_section", {
+      title: "Guía",
+      role: "student",
+      blocks: [{ type: "box_plot", series: [{ data: [1, 2, 3, 4, 5, 6, 7, 8, 9] }] }, { type: "scatter_plot", points, trendLine: true }],
+    });
+    expect(outcome.isError, outcome.result).toBe(false);
+    expect(outcome.result).toContain("Q1 2,5");
+    expect(outcome.result).toContain("y = 0,9x + 1,3");
+  });
+
+  it("rechaza frecuencias que no salen de los datos y dice las correctas", () => {
+    const outcome = executeCreatorTool(emptyDoc(), "write_section", {
+      title: "Guía",
+      role: "student",
+      blocks: [{ type: "histogram", classes: [{ from: 0, to: 5, frequency: 2 }, { from: 5, to: 10, frequency: 2 }], data: [1, 2, 5, 7, 10] }],
+    });
+    expect(outcome.isError).toBe(true);
+    expect(outcome.result).toContain("2, 3");
   });
 });

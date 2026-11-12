@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { blockInputSchema, CREATOR_LIMITS, SECTION_ROLES, type BlockInput, type CreatorActivity, type ResourceDoc } from "@shared/creator";
 import { applyDocOp, normalizeBlock, type DocOp } from "@shared/creatorOps";
+import { describeComputed } from "@shared/creatorStats";
 import { validateBlockOrder, validateBlocks } from "@shared/creatorValidate";
 
 /**
@@ -154,10 +155,13 @@ export function executeCreatorTool(doc: ResourceDoc, name: string, rawInput: unk
   }
 
   const ids = applied.ids.length > 0 ? ` Ids: ${applied.ids.join(", ")}.` : "";
+  // Cuartiles, recta de tendencia…: el modelo los recibe ya calculados, para que la clave coincida con la figura
+  const facts = written.map(describeComputed).filter(Boolean);
+  const computed = facts.length > 0 ? ` Valores calculados por el sistema, tal como salen en la figura: ${facts.join(" ")}` : "";
   return {
     doc: applied.doc,
     isError: false,
-    result: `${applied.summary}.${applied.changed ? ids : " El documento quedó igual."}`,
+    result: `${applied.summary}.${applied.changed ? ids : " El documento quedó igual."}${computed}`,
     activity: { label: applied.summary, ok: true, changed: applied.changed },
   };
 }

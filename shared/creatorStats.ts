@@ -1,3 +1,4 @@
+import type { BlockInput } from "./creator";
 import { niceStep } from "./creatorFigures";
 import { formatNumber, formatNumberEs } from "./creatorMath";
 
@@ -103,10 +104,10 @@ function trendLineParts(line: TrendLine, format: (value: number, decimals: numbe
   return `y = ${term} ${intercept < 0 ? "-" : "+"} ${number(intercept)}`;
 }
 
-/** La recta en texto plano con punto decimal ("y = 0.9x + 1.3"): para los avisos que lee la IA. */
-export const trendLineText = (line: TrendLine): string => trendLineParts(line, formatNumber);
+/** La recta como la lee el estudiante, con coma decimal: "y = 0,9x + 1,3". */
+export const trendLineText = (line: TrendLine): string => trendLineParts(line, formatNumberEs);
 
-/** La recta en LaTeX como la lee el estudiante, con coma decimal: "y = 0{,}9x + 1{,}3". */
+/** La misma ecuación en LaTeX, para dibujarla dentro de la figura: "y = 0{,}9x + 1{,}3". */
 export const trendLineLatex = (line: TrendLine): string => trendLineParts(line, (value, decimals) => formatNumberEs(value, decimals).replace(",", "{,}"));
 
 /* ── Histograma ── */
@@ -255,4 +256,37 @@ export function spreadLabels(items: Array<{ x: number; w: number }>, gap: number
     }
   }
   return centers;
+}
+
+/* ── Lo que el sistema calculó, para devolvérselo a la IA ── */
+
+/**
+ * Valores que el sistema calculó de un bloque, en una línea. La herramienta se los devuelve
+ * al modelo para que la clave de respuestas use exactamente los que muestra la figura, y
+ * escritos igual que en ella (coma decimal): el modelo los copia tal cual en el texto.
+ */
+export function describeComputed(block: BlockInput): string | null {
+  switch (block.type) {
+    case "box_plot": {
+      const parts = block.series.map(series => {
+        const summary = fiveNumberSummary(series.data);
+        if (!summary) return null;
+        const name = series.label ? `«${series.label}»: ` : "";
+        return `${name}mínimo ${formatNumberEs(summary.min)} · Q1 ${formatNumberEs(summary.q1)} · mediana ${formatNumberEs(summary.median)} · Q3 ${formatNumberEs(summary.q3)} · máximo ${formatNumberEs(summary.max)}`;
+      });
+      const known = parts.filter(Boolean);
+      return known.length > 0 ? `Caja y bigotes${block.title ? ` «${block.title}»` : ""}: ${known.join("; ")}.` : null;
+    }
+    case "scatter_plot": {
+      if (!block.trendLine) return null;
+      const line = linearRegression(block.points);
+      return line ? `Dispersión${block.title ? ` «${block.title}»` : ""}: recta de tendencia ${trendLineText(line)} (r = ${formatNumberEs(line.r)}).` : null;
+    }
+    case "histogram": {
+      const total = block.classes.reduce((sum, item) => sum + item.frequency, 0);
+      return `Histograma${block.title ? ` «${block.title}»` : ""}: ${total} datos en ${block.classes.length} clases.`;
+    }
+    default:
+      return null;
+  }
 }
