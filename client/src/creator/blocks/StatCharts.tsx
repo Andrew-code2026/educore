@@ -2,7 +2,7 @@ import { memo, useId, useMemo, type ReactNode } from "react";
 import type { BlockInput } from "@shared/creator";
 import { niceMax, niceStep, tickValues, wrapLabel } from "@shared/creatorFigures";
 import { formatNumberEs } from "@shared/creatorMath";
-import { fiveNumberSummary, linearRegression, resolveAxis, spreadLabels, trendLineLatex } from "@shared/creatorStats";
+import { fiveNumberSummary, linearRegression, resolveAxis, spreadLabels, trendLineLatex, trendLineText } from "@shared/creatorStats";
 import { FigureFrame, figureColor, type FigureLabel } from "./FigureFrame";
 
 type HistogramSpec = Extract<BlockInput, { type: "histogram" }>;
@@ -478,7 +478,7 @@ export const ScatterPlot = memo(function ScatterPlot({ spec }: { spec: ScatterPl
   const base = top + SCATTER_H;
   const description = `Diagrama de dispersión${spec.title ? ` «${spec.title}»` : ""}${spec.xLabel && spec.yLabel ? ` de ${spec.yLabel} según ${spec.xLabel}` : ""}${
     spec.blank ? ", en blanco para ubicar los puntos" : `: ${spec.points.map(point => `(${formatNumberEs(point.x)}; ${formatNumberEs(point.y)})`).join(", ")}`
-  }.${line ? ` Recta de tendencia ${trendLineLatex(line).replace(/[{}]/g, "")}.` : ""}`;
+  }.${line ? ` Recta de tendencia ${trendLineText(line)}.` : ""}`;
 
   return (
     <FigureFrame width={SCATTER_W} height={height} description={description} labels={labels}>
