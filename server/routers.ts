@@ -11,6 +11,8 @@ import { TRPCError } from "@trpc/server";
 import { storageDeleteLocal, storagePut } from "./storage";
 import { MAX_RESOURCE_BYTES, checkResourceFile } from "@shared/courseResources";
 import { saveUploadedDocument } from "./documentStorage";
+import { enrollAndSyncStudent, getIdentitySummary } from "./db";
+import { IMPORT_KINDS, IMPORT_MAX_ROWS, IMPORT_RELATIONSHIPS, importSchoolUsers } from "./userImport";
 import {
   createAnnouncement,
   createDemoAssignment,
@@ -53,7 +55,6 @@ import {
   createAcademicSubject,
   attachSubjectToCourse,
   assignAcademicTeacher,
-  enrollAcademicStudent,
   transferAcademicStudent,
   writeAcademicAudit,
   addFollowUpNote,
@@ -222,7 +223,7 @@ export const appRouter = router({
     }),
   }),
   identity: router({
-    users: publicProcedure.input(z.object({ role: roleSchema, search: z.string().max(120).optional(), roleKey: z.enum(["ALL", ...IDENTITY_ROLES]).default("ALL"), status: z.enum(["ALL", "ACTIVE", "INVITED", "SUSPENDED", "INACTIVE"]).default("ALL"), limit: z.number().int().min(1).max(100).default(50), offset: z.number().int().min(0).default(0) })).query(async ({ input, ctx }) => {
+    users: publicProcedure.input(z.object({ role: roleSchema, search: z.string().max(120).optional(), roleKey: z.enum(["ALL", "MANAGEMENT", ...IDENTITY_ROLES]).default("ALL"), status: z.enum(["ALL", "ACTIVE", "INVITED", "SUSPENDED", "INACTIVE"]).default("ALL"), limit: z.number().int().min(1).max(100).default(50), offset: z.number().int().min(0).default(0) })).query(async ({ input, ctx }) => {
       const actor = await requirePermission(ctx, input.role, "users.view");
       return listSchoolUsers({ schoolId: actor.schoolId, search: input.search, roleKey: input.roleKey, status: input.status, limit: input.limit, offset: input.offset });
     }),
@@ -287,6 +288,53 @@ export const appRouter = router({
       await requirePermission(ctx, input.role, "settings.view");
       return getRolePermissionCatalog();
     }),
+    /** Conteos del directorio para el portal directivo (independientes de la paginación). */
+    summary: publicProcedure.input(z.object({ role: roleSchema })).query(async ({ input, ctx }) => {
+      const actor = await requirePermission(ctx, input.role, "users.view");
+      return getIdentitySummary(actor.schoolId);
+    }),
+    /**
+     * Carga masiva (CSV / Excel). Con `dryRun` solo valida y devuelve el estado por fila.
+     * Las filas se validan una a una en el servidor para reportar errores sin abortar el lote.
+     */
+    importUsers: publicProcedure
+      .input(
+        z.object({
+          role: roleSchema,
+          kind: z.enum(IMPORT_KINDS),
+          dryRun: z.boolean().default(true),
+          rows: z
+            .array(
+              z.object({
+                firstName: z.string().max(100),
+                lastName: z.string().max(100),
+                email: z.string().max(320),
+                phone: z.string().max(40).optional(),
+                documentId: z.string().max(60).optional(),
+                course: z.string().max(60).optional(),
+                specialty: z.string().max(120).optional(),
+                studentEmail: z.string().max(320).optional(),
+                relationship: z.enum(IMPORT_RELATIONSHIPS).optional(),
+              }),
+            )
+            .min(1)
+            .max(IMPORT_MAX_ROWS),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        const actor = await requirePermission(ctx, input.role, "users.create", true);
+        if (input.kind === "STUDENT" && input.rows.some(row => row.course?.trim()) && !hasPermission(actor.roleKey, "students.update")) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "No tienes permisos para matricular estudiantes." });
+        }
+        if (input.kind === "GUARDIAN" && input.rows.some(row => row.studentEmail?.trim()) && !hasPermission(actor.roleKey, "users.update")) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "No tienes permisos para vincular acudientes." });
+        }
+        try {
+          return await importSchoolUsers(actor, { kind: input.kind, dryRun: input.dryRun, rows: input.rows });
+        } catch (error) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: error instanceof Error ? error.message : "No se pudo procesar la carga." });
+        }
+      }),
   }),
   academic: router({
     snapshot: publicProcedure.input(z.object({ role: roleSchema })).query(async ({ input, ctx }) => {
@@ -332,14 +380,14 @@ export const appRouter = router({
     }),
     enrollStudent: publicProcedure.input(z.object({ role: roleSchema, studentUserId: z.number().int(), academicYearId: z.number().int(), courseId: z.number().int() })).mutation(async ({ input, ctx }) => {
       const actor = await requireAcademicActor(ctx, input.role, "students.update", true);
-      const result = await enrollAcademicStudent(actor, input);
+      const result = await enrollAndSyncStudent(actor, input);
       await writeAcademicAudit(actor, "student_enrolled", "student_enrollment", `${input.studentUserId}:${input.courseId}`);
       return result;
     }),
     bulkEnroll: publicProcedure.input(z.object({ role: roleSchema, studentUserIds: z.array(z.number().int()).min(1).max(100), academicYearId: z.number().int(), courseId: z.number().int() })).mutation(async ({ input, ctx }) => {
       const actor = await requireAcademicActor(ctx, input.role, "students.update", true);
       const results = [];
-      for (const studentUserId of input.studentUserIds) results.push(await enrollAcademicStudent(actor, { studentUserId, academicYearId: input.academicYearId, courseId: input.courseId }));
+      for (const studentUserId of input.studentUserIds) results.push(await enrollAndSyncStudent(actor, { studentUserId, academicYearId: input.academicYearId, courseId: input.courseId }));
       await writeAcademicAudit(actor, "students_bulk_enrolled", "student_enrollment", `${input.studentUserIds.length}:${input.courseId}`);
       return results;
     }),

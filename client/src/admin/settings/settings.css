@@ -1,0 +1,397 @@
+/*
+ * Configuración institucional — piezas propias sobre la primitiva .adm.
+ * Solo usa tokens --edc-* / --adm-*; el modo oscuro llega por herencia.
+ * La vista previa de Apariencia usa estilos en línea con los colores elegidos.
+ */
+
+/* ── Pestañas ──────────────────────────────────────────── */
+
+.adm .set-tabs {
+  display: flex;
+}
+
+/* ── Escudo ────────────────────────────────────────────── */
+
+.adm .set-logo {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 176px;
+  padding: 20px;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1.5px dashed var(--adm-outline-border);
+  background: var(--adm-tile-bg);
+}
+
+.adm .set-logo__img {
+  max-width: 80%;
+  max-height: 128px;
+  object-fit: contain;
+}
+
+.adm .set-logo__placeholder {
+  width: 80px;
+  height: 80px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background: var(--adm-icon-bg);
+  color: var(--adm-icon-fg);
+  font-size: 30px;
+  font-weight: 600;
+}
+
+.adm .set-logo__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--adm-dialog-bg) 84%, transparent);
+  backdrop-filter: blur(2px);
+  color: var(--edc-ink-2);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.adm .set-logo__overlay svg {
+  width: 24px;
+  height: 24px;
+  color: var(--adm-primary);
+}
+
+.adm .set-logo__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.adm .set-upload {
+  position: relative;
+  flex: 1 1 auto;
+}
+
+.adm .set-upload:has(.set-file:focus-visible) {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+}
+
+.adm .set-upload.is-disabled {
+  opacity: .5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Oculto a la vista pero enfocable con teclado. */
+.adm .set-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.adm .set-logo__remove {
+  width: 38px;
+  padding: 0;
+}
+
+/* Paleta sugerida */
+.adm .set-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--adm-tile-hl-bg);
+  border: 1px solid var(--adm-tile-hl-border);
+}
+
+.adm .set-palette__title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--edc-ink);
+}
+
+.adm .set-palette__text {
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--edc-muted);
+}
+
+.adm .set-palette__swatches {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.adm .set-swatch {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.adm .set-swatch__color {
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--adm-tile-border);
+}
+
+.adm .set-swatch__label {
+  font-size: 11.5px;
+  color: var(--edc-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm .set-palette__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ── Apariencia ────────────────────────────────────────── */
+
+.adm .set-colors {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: 16px 12px;
+}
+
+.adm .set-hex {
+  min-width: 0;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.adm .set-hex.is-invalid,
+.adm .set-hex.is-invalid:focus {
+  border-color: var(--adm-rose-fg);
+}
+
+.adm .adm-color input[type="color"]:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.adm .set-divider {
+  height: 1px;
+  background: var(--edc-hair);
+}
+
+.adm .set-preview-stage {
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--adm-tile-bg);
+  border: 1px solid var(--adm-tile-border);
+}
+
+.adm .set-preview {
+  overflow: hidden;
+  border: 1px solid;
+  border-radius: 16px;
+  box-shadow: var(--adm-card-shadow);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.adm .set-preview__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid;
+}
+
+.adm .set-preview__brand {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.adm .set-preview__brand > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm .set-preview__logo {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.adm .set-preview__body {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+}
+
+.adm .set-preview__side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-right: 1px solid;
+}
+
+.adm .set-preview__nav {
+  padding: 8px;
+}
+
+.adm .set-preview__nav--active {
+  font-weight: 600;
+}
+
+.adm .set-preview__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.adm .set-preview__heading {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.adm .set-preview__card {
+  padding: 16px;
+  border: 1px solid;
+}
+
+.adm .set-preview__value {
+  margin-top: 8px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.adm .set-preview__badge {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.adm .set-preview__btn {
+  align-self: flex-start;
+  padding: 8px 12px;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+/* ── Año y periodos ────────────────────────────────────── */
+
+.adm .set-year {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.adm .set-year .adm-field {
+  flex: 1 1 auto;
+}
+
+.adm .set-year .adm-btn {
+  height: 42px;
+}
+
+/* La lista llega al borde del panel para alinear el contenido con el encabezado. */
+.adm .set-periods {
+  margin: 0 -20px;
+}
+
+.adm .set-period-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.adm .set-period-icon--muted {
+  background: var(--adm-neutral-bg);
+  color: var(--adm-neutral-fg);
+}
+
+.adm .set-block-btn {
+  width: 100%;
+}
+
+/* ── Movimiento ────────────────────────────────────────── */
+
+.adm .set-spin {
+  animation: set-spin 1s linear infinite;
+}
+
+@keyframes set-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+
+@media (min-width: 1024px) {
+  .adm .adm-columns.set-columns--preview {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  }
+
+  .adm .set-sticky {
+    position: sticky;
+    top: 16px;
+  }
+}
+
+@media (max-width: 639px) {
+  .adm .set-tabs > .adm-segment {
+    flex: 1;
+  }
+
+  .adm .set-preview-stage {
+    padding: 10px;
+  }
+
+  .adm .set-preview__body {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+
+  .adm .set-preview__side {
+    padding: 8px;
+  }
+
+  .adm .set-preview__main {
+    padding: 12px;
+  }
+
+  .adm .set-year {
+    flex-wrap: wrap;
+  }
+
+  .adm .set-year .adm-btn {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm .set-spin {
+    animation: none;
+  }
+}

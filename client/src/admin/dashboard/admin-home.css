@@ -1,0 +1,518 @@
+/*
+ * Inicio de Rectoría / Coordinación. Reutiliza la anatomía del Inicio docente
+ * (teacher-home.css: .edc-home, .edc-card, .edc-chip-btn, .edc-dark-btn, .edc-todo__done)
+ * y añade piezas compactas: cada tarjeta mide lo que su contenido, sin estirarse.
+ */
+
+.adm-home {
+  gap: 20px;
+}
+
+.adm-home .adm-home__hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+
+.adm-home .adm-home__lede {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--edc-muted);
+}
+
+.adm-home .adm-home__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.adm-home .adm-home__actions .edc-dark-btn,
+.adm-home .adm-home__actions .edc-chip-btn {
+  margin: 0;
+  height: 38px;
+  padding: 0 16px;
+  gap: 7px;
+  font-size: 13.5px;
+}
+
+.adm-home .adm-home__actions svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Rejilla: decisiones a la izquierda, contexto a la derecha. Sin estirar alturas. */
+.adm-home .adm-home__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.adm-home .adm-home__side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.adm-home .adm-panel {
+  min-width: 0;
+  gap: 14px;
+}
+
+.adm-home .adm-count {
+  margin-left: auto;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: var(--home-soft-icon-bg);
+  color: var(--home-soft-icon-fg);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.adm-home .adm-panel__foot {
+  margin: 0;
+  font-size: 12px;
+  color: var(--edc-muted);
+}
+
+.adm-home .adm-empty-note {
+  padding: 14px;
+}
+
+/* ── Indicadores ───────────────────────────────────────── */
+
+.adm-home .adm-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 16px 6px;
+}
+
+.adm-home .adm-kpi {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 18px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adm-home .adm-kpi + .adm-kpi {
+  border-left: 1px solid var(--edc-hair);
+}
+
+.adm-home .adm-kpi__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--edc-muted);
+}
+
+.adm-home .adm-kpi__icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--home-soft-icon-bg);
+  color: var(--home-soft-icon-fg);
+}
+
+.adm-home .adm-kpi__icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.adm-home .adm-kpi__value {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  line-height: 1.05;
+  color: var(--edc-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-home .adm-kpi__value small {
+  margin-left: 4px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--edc-muted);
+}
+
+.adm-home .adm-kpi__value--alert {
+  color: #B42343;
+}
+
+.dark .adm-home .adm-kpi__value--alert {
+  color: #FF9BB0;
+}
+
+.adm-home .adm-kpi__note {
+  font-size: 12.5px;
+  color: var(--edc-muted);
+}
+
+.adm-home .adm-kpi__meter {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--home-tab-count-bg);
+  overflow: hidden;
+}
+
+.adm-home .adm-kpi__meter span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0080FA, #0C62B5);
+  transition: width .5s var(--edc-ease);
+}
+
+.adm-home .adm-kpi:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+  border-radius: 12px;
+}
+
+/* ── Por atender: lista compacta ───────────────────────── */
+
+.adm-home .adm-todo {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.adm-home .adm-todo__row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+}
+
+.adm-home .adm-todo__row + .adm-todo__row {
+  border-top: 1px solid var(--edc-hair);
+}
+
+.adm-home .adm-todo__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--home-soft-icon-bg);
+  color: var(--home-soft-icon-fg);
+}
+
+.adm-home .adm-todo__icon.is-high {
+  background: #FDEEF1;
+  color: #B42343;
+}
+
+.adm-home .adm-todo__icon.is-medium {
+  background: #FFF3DF;
+  color: #8A5300;
+}
+
+.dark .adm-home .adm-todo__icon.is-high {
+  background: rgba(180, 35, 67, .22);
+  color: #FF9BB0;
+}
+
+.dark .adm-home .adm-todo__icon.is-medium {
+  background: rgba(217, 138, 18, .2);
+  color: #F4C27A;
+}
+
+.adm-home .adm-todo__icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.adm-home .adm-todo__text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.adm-home .adm-todo__title {
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--edc-ink);
+}
+
+.adm-home .adm-todo__context {
+  font-size: 12.5px;
+  color: var(--edc-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adm-home .adm-todo__action {
+  margin: 0;
+  align-self: center;
+  height: 32px;
+}
+
+/* ── Cursos ────────────────────────────────────────────── */
+
+.adm-home .adm-courses,
+.adm-home .adm-events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.adm-home .adm-course,
+.adm-home .adm-event {
+  width: 100%;
+  display: grid;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--edc-ink);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.adm-home .adm-course:hover,
+.adm-home .adm-event:hover {
+  background: var(--home-chip-bg);
+}
+
+.adm-home .adm-course {
+  grid-template-columns: 42px minmax(0, 1fr);
+}
+
+.adm-home .adm-course__group {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: var(--home-bubble-bg);
+  color: var(--home-bubble-fg);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.adm-home .adm-course__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.adm-home .adm-course__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+}
+
+.adm-home .adm-course__meta {
+  font-size: 12.5px;
+  color: var(--edc-muted);
+}
+
+.adm-home .adm-course__risk {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--edc-blue-link);
+}
+
+.adm-home .adm-course__attendance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 10px;
+}
+
+.adm-home .adm-course__bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--home-progress-track);
+  border: 1px solid var(--home-progress-border);
+  overflow: hidden;
+}
+
+.adm-home .adm-course__bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0080FA, #0C62B5);
+  transition: width .5s var(--edc-ease);
+}
+
+.adm-home .adm-course__pct {
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--edc-blue-deep);
+}
+
+/* ── Próximos eventos ──────────────────────────────────── */
+
+.adm-home .adm-event {
+  grid-template-columns: 46px minmax(0, 1fr);
+}
+
+.adm-home .adm-event__date {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--home-day-block);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--edc-muted);
+}
+
+.adm-home .adm-event__date strong {
+  font-size: 17px;
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--edc-ink);
+}
+
+.adm-home .adm-event__date.is-today {
+  background: var(--edc-blue);
+  color: rgba(255, 255, 255, .85);
+}
+
+.adm-home .adm-event__date.is-today strong {
+  color: #FFFFFF;
+}
+
+.adm-home .adm-event__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.adm-home .adm-event__title {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adm-home .adm-event__meta {
+  font-size: 12.5px;
+  color: var(--edc-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Carga ─────────────────────────────────────────────── */
+
+.adm-home .adm-skeleton-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.adm-home .adm-skeleton-rows span {
+  height: 46px;
+  border-radius: 14px;
+  background: var(--home-chip-bg);
+}
+
+/* ── Responsive ────────────────────────────────────────── */
+
+@media (max-width: 1023px) {
+  .adm-home .adm-home__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 899px) {
+  .adm-home .adm-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 18px;
+  }
+
+  .adm-home .adm-kpi:nth-child(odd) {
+    border-left: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .adm-home .adm-kpi {
+    padding: 2px 12px;
+  }
+
+  .adm-home .adm-kpi__value {
+    font-size: 24px;
+  }
+
+  .adm-home .adm-home__actions {
+    width: 100%;
+  }
+
+  .adm-home .adm-home__actions > * {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  /* La acción baja bajo el texto para no recortar el título */
+  .adm-home .adm-todo__row {
+    grid-template-columns: 38px minmax(0, 1fr);
+    row-gap: 8px;
+  }
+
+  .adm-home .adm-todo__action {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .adm-home .adm-todo__context {
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-home .adm-kpi__meter span,
+  .adm-home .adm-course__bar span,
+  .adm-home .adm-course,
+  .adm-home .adm-event {
+    transition: none;
+  }
+}

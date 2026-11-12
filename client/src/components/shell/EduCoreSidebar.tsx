@@ -15,14 +15,14 @@ interface EduCoreSidebarProps {
 }
 
 const getRoleAvatarInitials = (role: EduRole, user?: any) => {
-  if (role === "teacher" && user?.name) {
+  if ((role === "teacher" || role === "admin") && user?.name) {
     const parts = user.name.trim().split(/\s+/);
     if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     return parts[0].slice(0, 2).toUpperCase();
   }
   switch (role) {
     case "admin":
-      return "RC";
+      return "VR";
     case "teacher":
       return "JD";
     case "guardian":
@@ -46,6 +46,9 @@ const NAV_ICON_PATHS: Partial<Record<Section, string>> = {
   calendar: rect(3, 4, 18, 18, 2) + "M16 2v4M8 2v4M3 10h18",
   reports: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v4a2 2 0 0 0 2 2h4M8 18v-2M12 18v-6M16 18v-4",
   communications: "M3 11l18-5v12L3 14v-3zM11.6 16.8a3 3 0 1 1-5.8-1.6",
+  users: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M5 7a4 4 0 1 0 8 0a4 4 0 1 0-8 0M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
+  academic: "M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0zM22 10v6M6 12.5V16a6 3 0 0 0 12 0v-3.5",
+  settings: "M20 7h-9M14 17H5M14 17a3 3 0 1 0 6 0a3 3 0 1 0-6 0M4 7a3 3 0 1 0 6 0a3 3 0 1 0-6 0",
   piar: "M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v2M14 2v4a2 2 0 0 0 2 2h4M10.29 10.7a2.43 2.43 0 0 0-2.66-.52c-.29.12-.56.3-.78.53l-.35.34-.35-.34a2.43 2.43 0 0 0-2.65-.53c-.3.12-.56.3-.79.53-.95.94-1 2.53.2 3.74L6.5 18l3.6-3.55c1.2-1.21 1.14-2.8.19-3.74Z",
 };
 
@@ -162,12 +165,33 @@ export function EduCoreSidebar({
 
   // Indicador activo compartido: la primera colocación es instantánea, los cambios posteriores se animan.
   React.useLayoutEffect(() => {
-    const el = navRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
-    if (!el) {
-      setIndicator(prev => (prev.visible ? { ...prev, visible: false } : prev));
-      return;
+    const measure = () => {
+      const el = navRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+      if (!el) {
+        setIndicator(prev => (prev.visible ? { ...prev, visible: false } : prev));
+        return;
+      }
+      setIndicator(prev => (prev.y === el.offsetTop && prev.visible ? prev : { ...prev, y: el.offsetTop, visible: true }));
+    };
+    measure();
+    // La primera medición puede ocurrir antes de que carguen las fuentes o termine el layout del riel:
+    // se vuelve a medir cuando el menú cambia de tamaño y cuando las fuentes están listas.
+    const nav = navRef.current;
+    let cancelled = false;
+    void document.fonts?.ready.then(() => {
+      if (!cancelled) measure();
+    });
+    if (!nav || typeof ResizeObserver === "undefined") {
+      return () => {
+        cancelled = true;
+      };
     }
-    setIndicator(prev => (prev.y === el.offsetTop && prev.visible ? prev : { ...prev, y: el.offsetTop, visible: true }));
+    const observer = new ResizeObserver(measure);
+    observer.observe(nav);
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
   }, [section, role, sidebarCollapsed]);
 
   React.useEffect(() => {
@@ -182,7 +206,8 @@ export function EduCoreSidebar({
     };
   }, [indicator.visible, indicator.ready]);
 
-  const displayName = role === "teacher" ? (user?.name || "Juan Diego Loaiza") : role === "admin" ? "Rectoría / Admin" : ROLE_LABELS[role];
+  const displayName = role === "teacher" ? (user?.name || "Juan Diego Loaiza") : role === "admin" ? (user?.name || "Valentina Ríos") : ROLE_LABELS[role];
+  const displaySub = role === "admin" ? ROLE_LABELS.admin : schoolName;
 
   return (
     <aside className="edc-side edc-chrome" aria-label="Barra lateral" data-collapsed={sidebarCollapsed}>
@@ -298,7 +323,7 @@ export function EduCoreSidebar({
           </span>
           <div className="edc-side__user-text edc-fade">
             <span className="edc-side__user-name">{displayName}</span>
-            <span className="edc-side__user-sub">{schoolName}</span>
+            <span className="edc-side__user-sub">{displaySub}</span>
           </div>
           <button
             type="button"

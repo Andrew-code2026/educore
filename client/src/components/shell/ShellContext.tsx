@@ -126,7 +126,7 @@ export function ShellContextProvider({
         };
       case "academic":
         return {
-          title: "Estructura Académica",
+          title: "Académico",
           subtitle: "Cursos, materias y asignaciones",
           breadcrumbs: [{ label: "Institución" }, { label: "Académico", isCurrent: true }],
           contextPills: [{ label: "Año activo 2026", tone: "primary" }],
@@ -161,21 +161,21 @@ export function ShellContextProvider({
         };
       case "reports":
         return {
-          title: "Reportes & Analítica",
+          title: role === "admin" ? "Boletines y reportes" : "Reportes & Analítica",
           subtitle: "Consolidado institucional y boletines",
           breadcrumbs: [{ label: "Análisis" }, { label: "Reportes", isCurrent: true }],
           contextPills: [{ label: "Periodo 2", tone: "primary" }],
         };
       case "users":
         return {
-          title: "Directorio de Usuarios",
+          title: "Usuarios",
           subtitle: "Identidades, roles y vinculaciones",
           breadcrumbs: [{ label: "Administración" }, { label: "Usuarios", isCurrent: true }],
           contextPills: [{ label: "Comunidad activa", tone: "default" }],
         };
       case "settings":
         return {
-          title: "Configuración Institucional",
+          title: "Configuración",
           subtitle: "Identidad, tema y periodos escolares",
           breadcrumbs: [{ label: "Administración" }, { label: "Configuración", isCurrent: true }],
           contextPills: [{ label: schoolName, tone: "primary" }],
