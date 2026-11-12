@@ -73,7 +73,8 @@ function FormatBar({ active, heading = false, children }: FormatBarProps) {
     const element = bar.current;
     if (!host || !element) return;
     const place = () => {
-      host.style.top = `${element.offsetHeight}px`;
+      // Si la hoja tiene algo pegado arriba (el resumen del turno de la IA), la barra queda debajo
+      host.style.top = `calc(${element.offsetHeight}px + var(--crt-sticky-top, 0px))`;
     };
     place();
     const observer = new ResizeObserver(place);
@@ -433,6 +434,8 @@ interface InlineBlockEditorProps {
   entry: EditEntry;
   onCommit: (next: BlockInput) => void;
   onClose: (reason: CloseReason) => void;
+  /** Acciones de la hoja que van al final de la barra (señalar el bloque en el chat). */
+  barEnd?: ReactNode;
 }
 
 const listOf = (draft: InlineDraft): unknown[] => (draft.type === "exercise" ? draft.parts : draft.type === "solution" ? draft.steps : []);
@@ -442,7 +445,7 @@ const listOf = (draft: InlineDraft): unknown[] => (draft.type === "exercise" ? d
  * bloque no cambia de tamaño al entrar. No hay Guardar ni Cancelar: lo escrito se confirma al
  * salir del bloque, Escape lo descarta, y lo que no valida deja el editor abierto con su aviso.
  */
-export const InlineBlockEditor = forwardRef<BlockEditorHandle, InlineBlockEditorProps>(function InlineBlockEditor({ block, entry, onCommit, onClose }, ref) {
+export const InlineBlockEditor = forwardRef<BlockEditorHandle, InlineBlockEditorProps>(function InlineBlockEditor({ block, entry, onCommit, onClose, barEnd }, ref) {
   const wrapper = useRef<HTMLDivElement>(null);
   const original = useRef(block);
   original.current = block;
@@ -622,6 +625,12 @@ export const InlineBlockEditor = forwardRef<BlockEditorHandle, InlineBlockEditor
     >
       <FormatBar active={active} heading={block.type === "heading"}>
         {tools}
+        {barEnd && (
+          <>
+            <Sep />
+            {barEnd}
+          </>
+        )}
       </FormatBar>
       {content}
       {issues.length > 0 && (

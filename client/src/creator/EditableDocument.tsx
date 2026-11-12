@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, MessageSquarePlus, Pencil, Plus, Trash2 } from "lucide-react";
 import { BLOCK_TYPE_LABELS, CREATOR_LIMITS, type Block, type BlockInput, type BlockType, type CreatorEvent, type ResourceDoc, type Section } from "@shared/creator";
 import type { DocOp, OpResult } from "@shared/creatorOps";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { InlineBlockEditor, type BlockEditorHandle, type CloseReason } from "./e
 import { isInlineBlock, isInlineType } from "./editing/inlineDraft";
 import type { EditEntry } from "./editing/InlineText";
 import { ResourceSheet } from "./ResourceSheet";
+import type { MarkKind } from "./turnReview";
 
 type Preview = Extract<CreatorEvent, { type: "preview" }>;
 
@@ -22,7 +23,16 @@ interface EditableDocumentProps {
   /** Sección que la IA está escribiendo ahora mismo. */
   preview: Preview | null;
   working: boolean;
+  /** Bloques señalados para el próximo mensaje al asistente. */
+  attachedIds: ReadonlySet<string>;
+  /** Señala un bloque para el chat o lo suelta. Sin esto la acción no se ofrece (la IA no está disponible). */
+  onToggleAttach?: (blockId: string) => void;
+  /** Bloques que la IA añadió o cambió en su último turno y que el docente aún no da por vistos. */
+  marks: ReadonlyMap<string, MarkKind>;
+  onAcceptMark: (blockId: string) => void;
 }
+
+const MARK_LABELS: Record<MarkKind, string> = { added: "Añadido por la IA", changed: "Cambiado por la IA" };
 
 export interface EditableDocumentHandle {
   /** Guarda el bloque que esté abierto, si es válido. Devuelve `false` si sigue abierto con datos por corregir. */
@@ -144,7 +154,10 @@ function TitleEditor({ doc, readOnly, applyOp }: Pick<EditableDocumentProps, "do
 }
 
 /** El recurso en pantalla: cada bloque se edita en su sitio, con las mismas reglas que sigue la IA. */
-export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocumentProps>(function EditableDocument({ doc, readOnly, applyOp, schoolName, logoUrl, preview, working }, ref) {
+export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocumentProps>(function EditableDocument(
+  { doc, readOnly, applyOp, schoolName, logoUrl, preview, working, attachedIds, onToggleAttach, marks, onAcceptMark },
+  ref,
+) {
   const [editing, setEditing] = useState<Editing | null>(null);
   const editingRef = useRef(editing);
   editingRef.current = editing;
@@ -198,15 +211,22 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     const canEdit = !readOnly && block.type !== "page_break";
     const active = !readOnly && !isEditing && activeId === block.id;
     const showTools = !readOnly && (noHover || active);
+    const mark = readOnly ? undefined : marks.get(block.id);
+    const canAttach = !readOnly && onToggleAttach !== undefined && block.type !== "page_break";
+    const attached = canAttach && attachedIds.has(block.id);
+    const attachLabel = attached ? "Quitar del chat" : "Llevar al chat";
     return (
       <div
-        className={cn("crt-block", `crt-block--${block.type}`, isEditing && (inline ? "is-inplace" : "is-editing"), !readOnly && "is-editable", active && "is-active")}
+        className={cn("crt-block", `crt-block--${block.type}`, isEditing && (inline ? "is-inplace" : "is-editing"), !readOnly && "is-editable", active && "is-active", attached && "is-attached")}
         data-block-id={block.id}
         onPointerEnter={event => event.pointerType !== "touch" && enter(block.id)}
         onPointerLeave={() => leave(block.id)}
         onFocus={() => focus(block.id)}
         onBlur={event => !event.currentTarget.contains(event.relatedTarget) && blur(block.id)}
       >
+        {mark && (
+          <button type="button" className="crt-block__mark" data-kind={mark} title={`${MARK_LABELS[mark]}. Clic para darlo por visto.`} aria-label={`${MARK_LABELS[mark]}: darlo por visto`} onClick={() => onAcceptMark(block.id)} />
+        )}
         {isEditing && inline ? (
           <InlineBlockEditor
             ref={editor}
@@ -214,6 +234,14 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
             entry={editing.entry}
             onCommit={(next: BlockInput) => void applyOp({ op: "update_block", blockId: block.id, block: next })}
             onClose={reason => close(block.id, reason)}
+            barEnd={
+              canAttach && (
+                <button type="button" title={attached ? "Quitar este bloque del chat" : "Señalar este bloque en el chat para pedirle un cambio al asistente"} aria-pressed={attached} onClick={() => onToggleAttach(block.id)}>
+                  <MessageSquarePlus aria-hidden="true" />
+                  {attached ? "En el chat" : "Al chat"}
+                </button>
+              )
+            }
           />
         ) : isEditing ? (
           <BlockEditor
@@ -254,6 +282,11 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                     <Pencil aria-hidden="true" />
                   </button>
                 )}
+                {canAttach && (
+                  <button type="button" title={attachLabel} aria-label={attachLabel} aria-pressed={attached} onClick={() => onToggleAttach(block.id)}>
+                    <MessageSquarePlus aria-hidden="true" />
+                  </button>
+                )}
                 <button type="button" title="Subir" aria-label="Subir" disabled={index === 0} onClick={() => applyOp({ op: "move_block", blockId: block.id, direction: "up" })}>
                   <ArrowUp aria-hidden="true" />
                 </button>
@@ -267,6 +300,11 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                   <Trash2 aria-hidden="true" />
                 </button>
               </div>
+            )}
+            {attached && !showTools && (
+              <button type="button" className="crt-block__pin" title="Señalado en el chat. Clic para quitarlo." aria-label="Quitar del chat" onClick={() => onToggleAttach(block.id)}>
+                <MessageSquarePlus aria-hidden="true" />
+              </button>
             )}
           </>
         )}

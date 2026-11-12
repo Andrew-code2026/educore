@@ -150,5 +150,8 @@ export function useDocHistory() {
 
   const peek = useCallback(() => peekUndo(history.current), []);
 
-  return useMemo(() => ({ canUndo: sizes.past > 0, canRedo: sizes.future > 0, record, undo, redo, clear, turn, peek }), [clear, peek, record, redo, sizes, turn, undo]);
+  /** ¿Se llegaría a este documento rehaciendo? Es decir: ya se deshizo más allá de él. */
+  const ahead = useCallback((doc: ResourceDoc) => history.current.future.some(step => step.doc === doc), []);
+
+  return useMemo(() => ({ canUndo: sizes.past > 0, canRedo: sizes.future > 0, record, undo, redo, clear, turn, peek, ahead }), [ahead, clear, peek, record, redo, sizes, turn, undo]);
 }
