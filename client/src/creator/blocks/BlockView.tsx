@@ -1,7 +1,7 @@
 import { memo, type ReactNode } from "react";
 import type { Block, BlockOf } from "@shared/creator";
-import { formatNumber } from "@shared/creatorMath";
-import { computeValueTable } from "@shared/creatorValidate";
+import { formatNumberEs } from "@shared/creatorMath";
+import { computeValueTable, valueTableVariable } from "@shared/creatorValidate";
 import { BarChart, PieChart } from "./Charts";
 import { CoordinatePlane } from "./CoordinatePlane";
 import { Formula } from "./Formula";
@@ -100,19 +100,21 @@ function TableView({ block }: { block: BlockOf<"table"> }) {
   );
 }
 
-/** Tabla de valores: los `y` se calculan aquí desde la función, no vienen escritos. */
+/** Tabla de valores: los resultados se calculan aquí desde la función, no vienen escritos. */
 function ValueTableView({ block }: { block: BlockOf<"value_table"> }) {
-  const ys = computeValueTable(block.expr, block.xs);
+  // La primera fila lleva la variable de la función: s en A(s) = 4000s + 20000, no siempre x
+  const variable = valueTableVariable(block);
+  const ys = computeValueTable(block.expr, block.xs, variable);
   return (
     <figure className="crt-table crt-table--values">
       <table>
         <tbody>
           <tr>
             <th scope="row">
-              <Formula latex="x" />
+              <Formula latex={variable} />
             </th>
             {block.xs.map((x, index) => (
-              <td key={index}>{formatNumber(x)}</td>
+              <td key={index}>{formatNumberEs(x)}</td>
             ))}
           </tr>
           <tr>
@@ -120,7 +122,7 @@ function ValueTableView({ block }: { block: BlockOf<"value_table"> }) {
               <Formula latex={block.exprLatex} />
             </th>
             {ys.map((y, index) => (
-              <td key={index}>{block.blankY ? " " : y === null ? "—" : formatNumber(y)}</td>
+              <td key={index}>{block.blankY ? " " : y === null ? "—" : formatNumberEs(y)}</td>
             ))}
           </tr>
         </tbody>

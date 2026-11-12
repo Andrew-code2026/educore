@@ -1,8 +1,7 @@
 import { memo, type ReactNode } from "react";
-import ReactMarkdown, { type Components } from "react-markdown";
+import ReactMarkdown, { type Components, type ExtraProps } from "react-markdown";
 import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
+import { Formula } from "./Formula";
 
 interface RichTextProps {
   md: string;
@@ -12,14 +11,42 @@ interface RichTextProps {
 }
 
 const REMARK_PLUGINS = [remarkMath];
-const REHYPE_PLUGINS: [typeof rehypeKatex, { strict: "ignore"; throwOnError: false; errorColor: string }][] = [
-  [rehypeKatex, { strict: "ignore", throwOnError: false, errorColor: "#B42343" }],
-];
 
 /** El documento es para imprimir: sin imágenes externas y sin enlaces navegables. */
 const DISALLOWED = ["img", "iframe", "script"];
 
+type HastNode = NonNullable<ExtraProps["node"]>;
+
+const classNames = (node: HastNode | undefined): string[] => {
+  const value = node?.properties?.className;
+  return Array.isArray(value) ? value.map(String) : typeof value === "string" ? value.split(/\s+/) : [];
+};
+
+const hastText = (node: HastNode["children"][number]): string =>
+  node.type === "text" ? node.value : node.type === "element" ? node.children.map(hastText).join("") : "";
+
+/**
+ * remark-math deja cada fórmula como `<code class="language-math math-inline|math-display">`.
+ * Se dibuja con `Formula`, es decir, con el mismo KaTeX del proyecto que valida el LaTeX y
+ * cuya hoja de estilos se carga: una sola versión para el marcado y el CSS. (Con rehype-katex
+ * el marcado salía de otra versión y los exponentes quedaban del tamaño de la base.)
+ */
+const MATH_COMPONENTS: Components = {
+  code: ({ node, className, children }) => {
+    const classes = classNames(node);
+    if (!classes.includes("language-math")) return <code className={className}>{children}</code>;
+    return <Formula latex={node ? node.children.map(hastText).join("") : ""} display={classes.includes("math-display")} />;
+  },
+  // La fórmula en bloque llega envuelta en <pre>; se quita para que no herede su estilo de código
+  pre: ({ node, children }) => {
+    const only = node?.children.length === 1 ? node.children[0] : undefined;
+    if (only?.type === "element" && classNames(only).includes("math-display")) return <>{children}</>;
+    return <pre>{children}</pre>;
+  },
+};
+
 const INLINE_COMPONENTS: Components = {
+  ...MATH_COMPONENTS,
   p: ({ children }: { children?: ReactNode }) => <>{children}</>,
 };
 
@@ -34,13 +61,7 @@ function isolateDisplayMath(md: string): string {
 /** Texto en Markdown con fórmulas LaTeX (`$...$` en línea, `$$...$$` en bloque). */
 export const RichText = memo(function RichText({ md, inline = false, className }: RichTextProps) {
   const content = (
-    <ReactMarkdown
-      remarkPlugins={REMARK_PLUGINS}
-      rehypePlugins={REHYPE_PLUGINS}
-      disallowedElements={DISALLOWED}
-      unwrapDisallowed
-      components={inline ? INLINE_COMPONENTS : undefined}
-    >
+    <ReactMarkdown remarkPlugins={REMARK_PLUGINS} disallowedElements={DISALLOWED} unwrapDisallowed components={inline ? INLINE_COMPONENTS : MATH_COMPONENTS}>
       {inline ? md : isolateDisplayMath(md)}
     </ReactMarkdown>
   );

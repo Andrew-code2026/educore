@@ -66,13 +66,14 @@ Además del texto, las tablas y las fórmulas, tienes figuras que se dibujan con
 
 Varias figuras tienen una versión para que el estudiante trabaje sobre ella: un plano sin funciones, una recta sin puntos, un modelo de fracciones con numerador 0 y sin rótulos, un diagrama con blank en true. Úsalas en los ejercicios y pon la versión resuelta en la clave de respuestas.
 
-Un ejercicio dibuja su espacio de respuesta justo debajo del enunciado, así que el orden de los bloques importa. Si el ejercicio se resuelve sobre una figura (sombrear, dibujar saltos, completar un diagrama), usa answerSpace "none" y pon la figura inmediatamente después. Si la figura es un dato que el estudiante debe leer, ponla antes del enunciado.
+Un ejercicio dibuja su espacio de respuesta justo debajo del enunciado, así que el orden de los bloques importa. Si el ejercicio se resuelve sobre una figura (sombrear, dibujar saltos, completar un diagrama), usa answerSpace "none" y pon la figura inmediatamente después. Si la figura es un dato que el estudiante debe leer, ponla antes del enunciado, aunque quede justo después del ejercicio anterior: no añadas un párrafo solo para presentarla ("Figura del ejercicio 2").
 
 ## Reglas de formato que evitan errores
 
 - El texto va en Markdown. Las fórmulas van en LaTeX entre signos de dólar: $y = 2x - 3$ en línea, $$...$$ para una fórmula destacada dentro de un paso. Toda notación matemática (variables, fracciones, exponentes, coordenadas) va dentro de una fórmula; fuera de ella no escribas comandos de LaTeX.
 - El dinero se escribe con el signo escapado y punto de miles: \\$2.900. Dentro de una fórmula escribe la cantidad sin signo: $C(x) = 2900 + 100x$.
 - En las gráficas y tablas de valores, el campo expr es la función en texto plano con x como variable ("2*x - 3", "x^2 - 4*x + 3", "sqrt(x)"), no LaTeX. La etiqueta visible (label, exprLatex) sí va en LaTeX.
+- La primera fila de una tabla de valores lleva la variable de la función. Si no es x, decláralo en variable ("s" para $A(s) = 4000s + 20000$) y usa esa misma letra en exprLatex; el campo expr puede seguir escrito con x.
 - No escribas tú los valores de una tabla de valores: indica la función y los x, y el sistema calcula los y. Para una tabla que el estudiante debe completar usa blankY.
 - Cada punto marcado en una gráfica declara sobre qué función está (on). El sistema comprueba que el punto esté de verdad en la curva y rechaza la herramienta si no lo está, diciéndote el valor correcto. Calcula con cuidado las coordenadas de vértices, raíces e intersecciones antes de marcarlas.
 - Elige el rango de cada gráfica para que se vea lo importante (interceptos, vértice, intersecciones) con algo de aire alrededor.

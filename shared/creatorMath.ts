@@ -277,6 +277,19 @@ export function formatNumber(value: number, maxDecimals = 2): string {
   return String(rounded === 0 ? 0 : rounded);
 }
 
+/**
+ * El mismo número como se escribe en Colombia, para lo que lee el estudiante (tablas, ejes,
+ * barras): punto de miles y coma decimal, 20000 → "20.000" y 1.5 → "1,5". Los avisos de
+ * validación siguen con `formatNumber`: los lee la IA, que escribe las expresiones con punto.
+ */
+export function formatNumberEs(value: number, maxDecimals = 2): string {
+  const plain = formatNumber(value, maxDecimals);
+  if (!Number.isFinite(value)) return plain;
+  const [whole, decimals] = plain.split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return decimals ? `${grouped},${decimals}` : grouped;
+}
+
 /** Igualdad con tolerancia relativa: para comprobar que un punto está sobre su curva. */
 export function nearlyEqual(a: number, b: number, tolerance = 0.02): boolean {
   if (!Number.isFinite(a) || !Number.isFinite(b)) return false;

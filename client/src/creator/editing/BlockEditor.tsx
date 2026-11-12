@@ -3,7 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { BLOCK_TYPE_LABELS, blockInputSchema, CREATOR_LIMITS, graphSpecSchema, type Block, type BlockInput, type BlockType } from "@shared/creator";
 import { normalizeBlock } from "@shared/creatorOps";
-import { validateBlock } from "@shared/creatorValidate";
+import { validateBlock, valueTableVariable } from "@shared/creatorValidate";
 import { CoordinatePlane } from "../blocks/CoordinatePlane";
 import { Formula } from "../blocks/Formula";
 import { Field, NumberInput, type Draft, type FormProps } from "./fields";
@@ -279,10 +279,13 @@ const parseNumbers = (text: string) =>
     .map(value => Number(value.replace("−", "-")));
 
 function ValueTableForm({ draft, onChange }: FormProps<"value_table">) {
+  // Sin variable escrita se usa la del encabezado ("A(s) = …" → s), y si no, x
+  const fallback = valueTableVariable({ exprLatex: draft.exprLatex });
+  const shown = draft.variable ?? fallback;
   return (
     <>
       <div className="crt-form__row">
-        <Field label="Función de x" wide>
+        <Field label={`Función de ${shown}`} wide>
           <input className="crt-input crt-input--code" autoFocus spellCheck={false} value={draft.expr} placeholder="x^2 - 4*x + 3" onChange={event => onChange({ ...draft, expr: event.target.value })} />
         </Field>
         <Field label="Como se muestra (LaTeX)" wide>
@@ -290,15 +293,26 @@ function ValueTableForm({ draft, onChange }: FormProps<"value_table">) {
         </Field>
       </div>
       <div className="crt-form__row">
-        <Field label="Valores de x, separados por comas" wide>
+        <Field label="Variable">
+          <input
+            className="crt-input crt-input--tiny"
+            spellCheck={false}
+            maxLength={1}
+            aria-label="Variable de la tabla"
+            value={draft.variable ?? ""}
+            placeholder={fallback}
+            onChange={event => onChange({ ...draft, variable: /^[A-Za-z]$/.test(event.target.value) ? event.target.value : undefined })}
+          />
+        </Field>
+        <Field label={`Valores de ${shown}, separados por comas`} wide>
           <input className="crt-input" defaultValue={draft.xs.join(", ")} onChange={event => onChange({ ...draft, xs: parseNumbers(event.target.value) })} />
         </Field>
         <label className="crt-check">
           <input type="checkbox" checked={draft.blankY} onChange={event => onChange({ ...draft, blankY: event.target.checked })} />
-          El estudiante completa los valores de y
+          El estudiante completa los resultados
         </label>
       </div>
-      <p className="crt-form__hint">Los valores de y se calculan solos a partir de la función.</p>
+      <p className="crt-form__hint">Los resultados se calculan solos a partir de la función. Puedes escribirla con {shown === "x" ? "x" : `${shown} o con x`}.</p>
     </>
   );
 }
