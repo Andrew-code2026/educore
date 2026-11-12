@@ -736,6 +736,28 @@ export interface CreatorActivity {
   label: string;
   ok: boolean;
   changed: boolean;
+  /** Bloques que la operación creó o cambió: la ficha lleva a ellos. */
+  blockIds?: string[];
+  /** Sección donde ocurrió, para cuando no queda un bloque al que ir (renombrarla, borrarle bloques). */
+  sectionId?: string;
+}
+
+/** Bloque que el docente señaló al escribirle al asistente, como se ve en el chat. */
+export interface CreatorAttachment {
+  id: string;
+  type: BlockType;
+  preview: string;
+}
+
+/** Lo que un turno de la IA cambió en el documento (ver `diffTurn` en creatorTurn.ts). */
+export interface CreatorTurn {
+  /** Versión del recurso sobre la que trabajó el turno: a ella se vuelve al deshacerlo. */
+  baseVersion: number;
+  added: string[];
+  changed: string[];
+  removed: number;
+  /** Cambió el título, el subtítulo o el encabezado de una sección. */
+  meta: boolean;
 }
 
 export interface CreatorChatMessage {
@@ -744,6 +766,12 @@ export interface CreatorChatMessage {
   content: string;
   activity: CreatorActivity[];
   createdAt: Date | string;
+  /** Bloques señalados por el docente en este mensaje. */
+  attachments?: CreatorAttachment[];
+  /** Solo en respuestas de la IA que cambiaron un recurso ya escrito. */
+  turn?: CreatorTurn;
+  /** Siguientes pasos que la IA propone al cerrar su respuesta. */
+  suggestions?: string[];
 }
 
 /** Lo que el servidor va contando mientras la IA trabaja sobre un recurso. */

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { blockInputSchema, CREATOR_LIMITS, SECTION_ROLES, type BlockInput, type CreatorActivity, type ResourceDoc } from "@shared/creator";
+import { blockInputSchema, CREATOR_LIMITS, findBlock, SECTION_ROLES, type BlockInput, type CreatorActivity, type ResourceDoc } from "@shared/creator";
 import { applyDocOp, normalizeBlock, type DocOp } from "@shared/creatorOps";
 import { describeComputed } from "@shared/creatorStats";
 import { validateBlockOrder, validateBlocks } from "@shared/creatorValidate";
@@ -120,6 +120,19 @@ function toOp(name: CreatorToolName, input: unknown): { op: DocOp; blocks: Block
 
 export const isCreatorTool = (name: string): name is CreatorToolName => name in TOOL_INPUTS;
 
+/** A dónde lleva la ficha de una operación: los bloques que creó o cambió y la sección donde ocurrió, si sigue en el documento. */
+function locateActivity(before: ResourceDoc, after: ResourceDoc, op: DocOp, ids: string[]): Pick<CreatorActivity, "blockIds" | "sectionId"> {
+  const blockIds = ids.filter(id => findBlock(after, id) !== null);
+  const touched =
+    op.op === "delete_blocks"
+      ? findBlock(before, op.blockIds[0])?.section.id
+      : "sectionId" in op && op.sectionId
+        ? op.sectionId
+        : (ids.find(id => after.sections.some(section => section.id === id)) ?? (blockIds[0] ? findBlock(after, blockIds[0])?.section.id : undefined));
+  const sectionId = after.sections.some(section => section.id === touched) ? touched : undefined;
+  return { ...(blockIds.length > 0 ? { blockIds } : {}), ...(sectionId ? { sectionId } : {}) };
+}
+
 /** Ejecuta una llamada de herramienta sobre el documento. No toca la base de datos. */
 export function executeCreatorTool(doc: ResourceDoc, name: string, rawInput: unknown, random?: () => number): ToolOutcome {
   if (!isCreatorTool(name)) return failure(doc, "Herramienta desconocida", `No existe la herramienta "${name}".`);
@@ -162,7 +175,7 @@ export function executeCreatorTool(doc: ResourceDoc, name: string, rawInput: unk
     doc: applied.doc,
     isError: false,
     result: `${applied.summary}.${applied.changed ? ids : " El documento quedó igual."}${computed}`,
-    activity: { label: applied.summary, ok: true, changed: applied.changed },
+    activity: { label: applied.summary, ok: true, changed: applied.changed, ...(applied.changed ? locateActivity(doc, applied.doc, op, applied.ids) : {}) },
   };
 }
 

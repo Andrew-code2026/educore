@@ -6,9 +6,11 @@ import {
   type CreatorActivity,
   type CreatorChatMessage,
   type CreatorEvent,
+  type CreatorTurn,
   type ResourceDoc,
   type ResourceKind,
 } from "@shared/creator";
+import { describeFocus, diffTurn, hasTurnChanges, splitSuggestions, visibleReply } from "@shared/creatorTurn";
 import { describeAnthropicError, getAnthropic } from "./_core/anthropic";
 import { ENV } from "./_core/env";
 import { addCreatorMessage, commitCreatorDoc, setCreatorStatus } from "./creatorDb";
@@ -108,11 +110,22 @@ Pon primero el título y el subtítulo con set_document_meta y luego escribe cad
 
 Recibes el documento actual con los ids de sus secciones y bloques. Haz el cambio más pequeño que cumpla lo pedido: update_block para modificar un bloque, insert_blocks para añadir, delete_blocks para quitar. Reescribe una sección entera solo si el docente lo pide o si el cambio la afecta toda. Si cambias un ejercicio, actualiza también su solución en la clave. Si lo que piden es ambiguo y elegir mal estropearía el recurso, pregunta antes de tocar nada.
 
+Si la solicitud llega con <bloques_señalados>, el docente marcó esos bloques en la hoja y su solicitud se refiere a ellos: «este», «esto» o «aquí» son esos bloques. Trabaja sobre ellos y deja los demás como están, salvo lo que dependa directamente de ellos (la solución de un ejercicio señalado) o lo que la solicitud pida de forma expresa.
+
 Si el docente solo hace una pregunta, respóndela sin usar herramientas.
 
 ## Tu mensaje en el chat
 
-Al terminar, escribe al docente en español, en dos o tres frases, qué hiciste o qué cambió. Sé exacto: si una herramienta respondió "sin cambios" o un cambio no se pudo aplicar, dilo tal cual en lugar de afirmar que quedó hecho. No repitas el contenido del recurso ni expliques cómo funcionan las herramientas.`;
+Al terminar, escribe al docente en español, en dos o tres frases, qué hiciste o qué cambió. Sé exacto: si una herramienta respondió "sin cambios" o un cambio no se pudo aplicar, dilo tal cual en lugar de afirmar que quedó hecho. No repitas el contenido del recurso ni expliques cómo funcionan las herramientas.
+
+Cierra el mensaje con dos o tres sugerencias de lo que el docente podría pedirte a continuación, en un bloque aparte y una por línea:
+
+<sugerencias>
+- primera sugerencia
+- segunda sugerencia
+</sugerencias>
+
+El docente las ve como botones y al pulsar una te la envía tal cual. Escribe cada una como la orden que él te daría, en ocho palabras como mucho, concreta para este recurso y para lo que acabas de hacer (nombra el ejercicio, la sección o el tema), y que no pida algo que el recurso ya tiene. No las anuncies ni las comentes en el mensaje. Si tu mensaje es una pregunta al docente, omite el bloque.`;
 
 export interface CreatorRunContext {
   kind: ResourceKind;
@@ -130,6 +143,8 @@ export interface CreatorRunInput {
   /** Mensajes anteriores del chat, sin la solicitud actual. */
   history: CreatorChatMessage[];
   request: string;
+  /** Bloques que el docente señaló en la hoja; ya comprobados contra el documento. */
+  focusBlockIds?: string[];
   context: CreatorRunContext;
 }
 
@@ -239,11 +254,15 @@ function describeContext(context: CreatorRunContext): string {
   return lines.join("\n");
 }
 
-export function buildCreatorMessages(input: Pick<CreatorRunInput, "doc" | "history" | "request" | "context" | "mode">): BetaMessageParam[] {
+export function buildCreatorMessages(input: Pick<CreatorRunInput, "doc" | "history" | "request" | "context" | "mode" | "focusBlockIds">): BetaMessageParam[] {
   const history: BetaMessageParam[] = input.history
     .slice(-16)
     .filter(message => message.content.trim().length > 0)
-    .map(message => ({ role: message.role, content: message.content }));
+    // Lo que se señaló en un mensaje anterior da sentido a un «ahora hazlo más corto» que llega sin nada señalado
+    .map(message => ({
+      role: message.role,
+      content: message.attachments?.length ? `${message.content}\n\n(Bloques señalados: ${message.attachments.map(item => `«${item.preview}»`).join("; ")})` : message.content,
+    }));
   // La conversación debe abrir con un mensaje del docente
   while (history.length > 0 && history[0].role !== "user") history.shift();
 
@@ -253,9 +272,12 @@ export function buildCreatorMessages(input: Pick<CreatorRunInput, "doc" | "histo
       ? "Crea el recurso completo que pide el docente."
       : "Atiende la solicitud del docente sobre el recurso que ya existe.";
 
+  const focus = describeFocus(input.doc, input.focusBlockIds ?? []);
+
   const content = [
     `<contexto_del_recurso>\n${describeContext(input.context)}\n</contexto_del_recurso>`,
     `<documento_actual>\n${document}\n</documento_actual>`,
+    ...(focus ? [`<bloques_señalados>\n${focus}\n</bloques_señalados>`] : []),
     `<solicitud_del_docente>\n${input.request}\n</solicitud_del_docente>`,
     task,
   ].join("\n\n");
@@ -277,6 +299,7 @@ async function executeRun(input: CreatorRunInput): Promise<void> {
   let outputTokens = 0;
   let jsonRetries = 0;
   let stopNote: string | null = null;
+  let suggestions: string[] = [];
   const activities: CreatorActivity[] = [];
 
   emit(resource.id, { type: "status", phase: "thinking" });
@@ -296,13 +319,20 @@ async function executeRun(input: CreatorRunInput): Promise<void> {
     });
 
     let turnText = "";
+    let shown = 0;
     let currentTool: string | null = null;
     let lastPreviewAt = 0;
     let lastPreviewCount = -1;
 
+    // El bloque de sugerencias con que el modelo cierra su mensaje no es texto para el chat: se corta antes de mostrarlo
+    const showReply = (visible: string) => {
+      if (visible.length <= shown) return;
+      emit(resource.id, { type: "text", delta: visible.slice(shown) });
+      shown = visible.length;
+    };
     stream.on("text", delta => {
       turnText += delta;
-      emit(resource.id, { type: "text", delta });
+      showReply(visibleReply(turnText));
     });
     stream.on("streamEvent", event => {
       if (event.type === "content_block_start") {
@@ -333,7 +363,11 @@ async function executeRun(input: CreatorRunInput): Promise<void> {
 
     inputTokens += message.usage.input_tokens + (message.usage.cache_read_input_tokens ?? 0) + (message.usage.cache_creation_input_tokens ?? 0);
     outputTokens += message.usage.output_tokens;
-    if (turnText.trim()) reply = reply ? `${reply}\n\n${turnText.trim()}` : turnText.trim();
+    // Lo retenido por si abría el bloque de sugerencias y resultó ser texto
+    showReply(visibleReply(turnText, true));
+    const said = splitSuggestions(turnText);
+    if (said.suggestions.length > 0) suggestions = said.suggestions;
+    if (said.text) reply = reply ? `${reply}\n\n${said.text}` : said.text;
 
     if (message.stop_reason === "refusal") {
       stopNote = "La IA no pudo atender esta solicitud. Intenta formularla de otra manera.";
@@ -384,8 +418,29 @@ async function executeRun(input: CreatorRunInput): Promise<void> {
   }
 
   const content = [reply, stopNote].filter(Boolean).join("\n\n") || (changed ? "Listo, ya apliqué los cambios." : "No hice cambios en el recurso.");
-  await addCreatorMessage({ resourceId: resource.id, schoolId: resource.schoolId, userId: input.userId, role: "assistant", content, activity: activities, inputTokens, outputTokens });
+  await addCreatorMessage({
+    resourceId: resource.id,
+    schoolId: resource.schoolId,
+    userId: input.userId,
+    role: "assistant",
+    content,
+    activity: activities,
+    turn: changed ? describeRunTurn(input, doc) : undefined,
+    suggestions,
+    inputTokens,
+    outputTokens,
+  });
   await setCreatorStatus(resource.id, "ready");
+}
+
+/**
+ * Lo que el turno cambió en un recurso que ya estaba escrito, para marcarlo en la hoja y poder deshacerlo.
+ * Un recurso recién generado no lo lleva: no hay un «antes» al que volver ni cambios que revisar.
+ */
+function describeRunTurn(input: CreatorRunInput, doc: ResourceDoc): CreatorTurn | undefined {
+  if (input.mode !== "chat") return undefined;
+  const changes = diffTurn(input.doc, doc);
+  return hasTurnChanges(changes) ? { baseVersion: input.resource.version, ...changes } : undefined;
 }
 
 /**
@@ -411,8 +466,11 @@ export function startCreatorRun(input: CreatorRunInput): void {
       try {
         // Lo que la IA alcanzó a escribir antes del fallo no se pierde
         const partial = run.doc;
-        if (partial && countBlocks(partial) > 0) await commitCreatorDoc(resource, partial, input.mode === "generate" ? "generate" : "chat", "Guardado parcial");
-        await addCreatorMessage({ resourceId: resource.id, schoolId: resource.schoolId, userId: input.userId, role: "assistant", content: message, activity: run.activities });
+        const saved = partial !== null && countBlocks(partial) > 0;
+        if (saved) await commitCreatorDoc(resource, partial, input.mode === "generate" ? "generate" : "chat", "Guardado parcial");
+        // Lo que quedó a medias también se marca en la hoja y se puede deshacer
+        const turn = saved ? describeRunTurn(input, partial) : undefined;
+        await addCreatorMessage({ resourceId: resource.id, schoolId: resource.schoolId, userId: input.userId, role: "assistant", content: message, activity: run.activities, turn });
         await setCreatorStatus(resource.id, "error", message);
       } catch (persistError) {
         console.error("[Creator] No se pudo registrar el fallo:", persistError);
