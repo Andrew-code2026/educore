@@ -139,7 +139,8 @@ describe("EduCore Grade Center", () => {
     const selected = seededContext!.selected!;
     const period1 = seededContext!.periods.find(period => period.orderIndex === 1);
     if (!period1) return;
-    const assessment = await createGradeCenterAssessment(actor(admin, "SCHOOL_ADMIN"), { academicYearId: selected.academicYearId, academicPeriodId: period1.id, courseId: selected.course.id, subjectId: selected.subject.id, title: `Periodo cerrado ${Date.now()}`, assessmentType: "QUIZ", date: new Date(), maxValue: 5, weight: 5 });
+    // Peso 0: el Periodo 1 ya tiene su historial completo (100 %); lo que se prueba es el bloqueo por periodo cerrado
+    const assessment = await createGradeCenterAssessment(actor(admin, "SCHOOL_ADMIN"), { academicYearId: selected.academicYearId, academicPeriodId: period1.id, courseId: selected.course.id, subjectId: selected.subject.id, title: `Periodo cerrado ${Date.now()}`, assessmentType: "QUIZ", date: new Date(), maxValue: 5, weight: 0 });
     try {
       await expect(saveGradeCenterGrades(actor(admin, "SCHOOL_ADMIN"), { assessmentId: assessment!.id, grades: [{ studentId: student!.user.id, value: 4 }] })).rejects.toThrow(/cerrado/);
     } finally {

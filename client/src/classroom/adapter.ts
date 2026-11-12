@@ -265,6 +265,7 @@ export function adaptEduCoreStudents(
       time: sub.submittedAt ? formatDateShort(sub.submittedAt) : undefined,
       submittedAt: sub.submittedAt ? new Date(sub.submittedAt).toISOString() : undefined,
       file: fileName,
+      fileUrl: sub.fileUrl || undefined,
       fileType: ext,
       color,
       submissionId: sub.id,

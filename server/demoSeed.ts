@@ -56,7 +56,8 @@ type StudentRow = [firstName: string, lastName: string, guardianFirstName: strin
 
 const COURSE_ROSTERS: Record<DemoCourseName, StudentRow[]> = {
   "11-2": [
-    ["Sofía", "Martínez", "Mariana", [4.5, 4.7, 4.1]],
+    // Login demo del estudiante: una ausencia sin justificar y una tardanza para el portal estudiante
+    ["Sofía", "Martínez", "Mariana", [4.5, 4.7, 4.1], { absent: [3], late: [6] }],
     ["Laura", "Gómez", "Paola", [4.0, 4.3, 3.8], { late: [1, 4, 7] }],
     ["Carlos", "Rojas", "Andrés", [3.6, 3.9, "R"]],
     ["Valentina", "Ruiz", "Felipe", [4.2, 4.0, "R"], { excused: [3] }],

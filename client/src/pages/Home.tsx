@@ -27,6 +27,7 @@ import {
   isSectionAllowed,
   useSectionRoute,
 } from "@/components/shell";
+import { StudentPortal } from "@/student/StudentPortal";
 
 const roleLabels: Record<EduRole, string> = ROLE_LABELS;
 
@@ -55,7 +56,7 @@ export default function Home() {
   const [selectedStudentId, setSelectedStudentId] = useState<number | undefined>();
   const [section, setSection] = useSectionRoute();
   const effectiveRole = role;
-  // Cada rol solo abre sus secciones (p. ej. Rectoría/Coordinación no entra a los flujos de aula)
+  // Cada rol solo abre sus secciones (p. ej. un estudiante en /users o Rectoría en los flujos de aula vuelven a Inicio)
   const sectionAllowed = isSectionAllowed(effectiveRole, section);
   const activeSection = sectionAllowed ? section : "overview";
 
@@ -93,19 +94,21 @@ export default function Home() {
   };
 
   const handleRoleChange = async (nextRole: EduRole) => {
-    setRole(nextRole);
-    setSelectedStudentId(undefined);
-    localStorage.setItem("educore-demo-role", nextRole);
-    setSection("overview");
+    // Primero la sesión del nuevo rol: si las consultas salen antes, el servidor responde con la sesión
+    // anterior (p. ej. datos del docente cacheados bajo la vista del estudiante)
     if (demoMode || user?.openId?.startsWith("educore-demo-")) {
       try {
         await loginDemoMutation.mutateAsync({ role: nextRole });
-        // Las consultas que salieron con la sesión anterior se repiten con la nueva identidad
-        await utils.invalidate();
       } catch {
         // En caso de fallo de red en cambio de rol
       }
     }
+    setRole(nextRole);
+    setSelectedStudentId(undefined);
+    localStorage.setItem("educore-demo-role", nextRole);
+    setSection("overview");
+    // Todas las consultas dependen del actor de la sesión: se descartan las del rol anterior
+    await utils.invalidate();
     toast.success(`Vista cambiada a ${roleLabels[nextRole]}`);
   };
 
@@ -124,7 +127,8 @@ export default function Home() {
   if (!data) return <div className="flex min-h-screen items-center justify-center bg-[var(--edc-background)] p-6"><EmptyState title="No pudimos cargar tu espacio" detail="Revisa la conexión e inténtalo de nuevo." /></div>;
   const isAdmin = effectiveRole === "admin";
   const content =
-    activeSection === "overview" ? (isAdmin ? <AdminDashboard data={data} user={user} setSection={setSection} /> : effectiveRole === "teacher" ? <TeacherDashboard data={data} user={user} setSection={setSection} /> : <StudentDashboard data={data} user={user} role={effectiveRole} setSection={setSection} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} />)
+    effectiveRole === "student" ? <StudentPortal section={activeSection} data={data} user={user} setSection={setSection} onChanged={refresh} />
+    : activeSection === "overview" ? (isAdmin ? <AdminDashboard data={data} user={user} setSection={setSection} /> : effectiveRole === "teacher" ? <TeacherDashboard data={data} user={user} setSection={setSection} /> : <StudentDashboard data={data} user={user} role={effectiveRole} setSection={setSection} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} />)
     : activeSection === "academic" ? (isAdmin ? <AcademicPage setSection={setSection} /> : <LegacyAcademicPage data={data} role={effectiveRole} setSection={setSection} onGradeSaved={refresh} />)
     : activeSection === "grades" ? <GradeCenterPage role={effectiveRole} school={data.school} onBack={() => setSection("overview")} />
     : activeSection === "classroom" ? <ClassroomPage data={data} role={effectiveRole} onChanged={refresh} setSection={setSection} />

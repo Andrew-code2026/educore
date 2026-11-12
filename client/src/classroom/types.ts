@@ -42,6 +42,8 @@ export interface Student {
   /** Momento de la entrega en ISO. */
   submittedAt?: string;
   file?: string;
+  /** Archivo real subido por el estudiante; las entregas antiguas solo registran el nombre. */
+  fileUrl?: string;
   fileType?: string;
   fileSize?: string;
   color: string;

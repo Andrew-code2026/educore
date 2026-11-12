@@ -60,7 +60,7 @@ import {
 import { ENV } from "./_core/env";
 import { DEMO_ROLE_MAP, IDENTITY_ROLES, PERMISSIONS, PERMISSION_METADATA, ROLE_DESCRIPTIONS, ROLE_HIERARCHY, ROLE_LABELS, type DemoRole, type IdentityRole, hasPermission, permissionsForRole } from "./identityModel";
 import { ensureDatabaseRunning } from "./_core/ensureDatabase";
-import { ANNOUNCEMENT_STATUS, isAudienceFor, type AnnouncementReader } from "@shared/communications";
+import { ANNOUNCEMENT_STATUS, isAudienceFor, isEventFor, type AnnouncementReader } from "@shared/communications";
 import {
   DEMO_ACTIVITIES,
   DEMO_ANNOUNCEMENTS,
@@ -87,6 +87,23 @@ let _db: ReturnType<typeof drizzle> | null = null;
 let _dbInitPromise: Promise<void> | null = null;
 export const DEMO_SCHOOL_ID = 1;
 
+/**
+ * Columnas agregadas después de la última migración generada. Se aplican al conectar para que
+ * las bases locales existentes no fallen al leer el esquema nuevo (MySQL no admite ADD COLUMN IF NOT EXISTS).
+ */
+async function ensureRuntimeColumns(db: NonNullable<typeof _db>) {
+  try {
+    const [rows] = (await db.execute(sql`SELECT COUNT(*) AS total FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'submissions' AND COLUMN_NAME = 'fileUrl'`)) as unknown as [Array<{ total: number | string }>];
+    const [tables] = (await db.execute(sql`SELECT COUNT(*) AS total FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'submissions'`)) as unknown as [Array<{ total: number | string }>];
+    // Archivo real de la entrega del estudiante (ruta servida por /uploads o el almacenamiento externo)
+    if (Number(tables[0]?.total) > 0 && Number(rows[0]?.total) === 0) {
+      await db.execute(sql`ALTER TABLE \`submissions\` ADD COLUMN \`fileUrl\` varchar(512) NULL AFTER \`fileName\``);
+    }
+  } catch (error) {
+    console.warn("[Database] No se pudo asegurar submissions.fileUrl:", error instanceof Error ? error.message : error);
+  }
+}
+
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     if (!_dbInitPromise) {
@@ -94,6 +111,7 @@ export async function getDb() {
         try {
           await ensureDatabaseRunning();
           _db = drizzle(process.env.DATABASE_URL!);
+          await ensureRuntimeColumns(_db);
         } catch (error) {
           console.warn("[Database] Failed to connect:", error);
           _db = null;
@@ -444,9 +462,11 @@ export async function getEduCoreSnapshot(
         studentMap.set(String(s.id), s.name);
         studentMap.set(s.name, s.name);
       });
+      // Los registros usan el id del roster: un id de `users` nunca reemplaza al del roster
+      // (si no, el user 6 "Sofía" se quedaría con las ausencias del roster 6 "Tomás").
       const userRows = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.schoolId, schoolId));
       userRows.forEach(u => {
-        if (u.name) studentMap.set(String(u.id), u.name);
+        if (u.name && !studentMap.has(String(u.id))) studentMap.set(String(u.id), u.name);
       });
 
       realAttendanceRows = rawAttendanceRecords.map(rec => {
@@ -491,31 +511,55 @@ export async function getEduCoreSnapshot(
   } else if (isStudentOrGuardian) {
     scopedCourseNames = [studentRows.find(row => row.name === targetStudentName)?.course ?? DEMO_COURSES[0].name];
   }
+  // El docente ve solo sus materias: las notas y actividades de otras materias del curso no son suyas
+  const teacherSubjectNames = new Set(subjectRows.filter(row => teacherSubjectIds.includes(row.id)).map(row => row.name));
+  const isTeacherSubject = (subject: string) => teacherSubjectNames.has(subject);
+  // Estudiantes y acudientes: materias y docentes del curso del estudiante, nunca borradores
+  const familyCourse = isStudentOrGuardian ? courseRows.find(row => row.name === scopedCourseNames[0]) : undefined;
+  let familySubjectIds = new Set<number>();
+  let familyTeacherNames = new Set<string>();
+  if (familyCourse) {
+    const [links, teacherLinks] = await Promise.all([
+      db.select({ subjectId: courseSubjects.subjectId }).from(courseSubjects).where(and(eq(courseSubjects.schoolId, schoolId), eq(courseSubjects.courseId, familyCourse.id), eq(courseSubjects.status, "ACTIVE"))),
+      db.select({ name: users.name }).from(teacherAssignments).innerJoin(users, eq(users.id, teacherAssignments.teacherUserId)).where(and(eq(teacherAssignments.schoolId, schoolId), eq(teacherAssignments.courseId, familyCourse.id), eq(teacherAssignments.status, "ACTIVE"))),
+    ]);
+    familySubjectIds = new Set(links.map(link => link.subjectId));
+    familyTeacherNames = new Set(teacherLinks.map(link => link.name ?? "").filter(Boolean));
+  }
+  const isDraftAssignment = (status: string) => status === "Borrador";
+
   const scopedStudents = isStudentOrGuardian ? studentRows.filter(row => row.name === targetStudentName) : isTeacher ? studentRows.filter(row => scopedCourseNames.includes(row.course)) : studentRows;
-  const scopedAssignments = isStudentOrGuardian || isTeacher ? assignmentRows.filter(row => scopedCourseNames.includes(row.course)) : assignmentRows;
-  const scopedGrades = isStudentOrGuardian ? gradeRows.filter(row => row.studentName === targetStudentName) : isTeacher ? gradeRows.filter(row => scopedCourseNames.includes(row.course)) : gradeRows;
+  const scopedAssignments = isStudentOrGuardian
+    ? assignmentRows.filter(row => scopedCourseNames.includes(row.course) && !isDraftAssignment(row.status))
+    : isTeacher ? assignmentRows.filter(row => scopedCourseNames.includes(row.course) && isTeacherSubject(row.subject)) : assignmentRows;
+  const scopedAssignmentIds = new Set(scopedAssignments.map(row => row.id));
+  const scopedGrades = isStudentOrGuardian ? gradeRows.filter(row => row.studentName === targetStudentName) : isTeacher ? gradeRows.filter(row => scopedCourseNames.includes(row.course) && isTeacherSubject(row.subject)) : gradeRows;
   const scopedAttendance = isStudentOrGuardian ? combinedAttendance.filter(row => row.studentName.toLowerCase() === targetStudentName.toLowerCase()) : isTeacher ? combinedAttendance.filter(row => scopedCourseNames.includes(row.course)) : combinedAttendance;
-  const scopedSubmissions = isStudentOrGuardian ? submissionRows.filter(row => row.studentName === targetStudentName) : isTeacher ? submissionRows.filter(row => scopedCourseNames.includes(assignmentRows.find(a => a.id === row.assignmentId)?.course ?? "")) : submissionRows;
+  const scopedSubmissions = isStudentOrGuardian
+    ? submissionRows.filter(row => row.studentName === targetStudentName && scopedAssignmentIds.has(row.assignmentId))
+    : isTeacher ? submissionRows.filter(row => scopedAssignmentIds.has(row.assignmentId)) : submissionRows;
+  const reader = effectiveRoleKey as AnnouncementReader;
 
   return {
     school: currentSchool,
     courses: courseRows.filter(row => scopedCourseNames.includes(row.name)),
     students: scopedStudents,
-    teachers: teacherRows,
-    subjects: isTeacher ? subjectRows.filter(row => teacherSubjectIds.includes(row.id)) : subjectRows,
+    teachers: isStudentOrGuardian ? teacherRows.filter(row => familyTeacherNames.has(row.name)) : teacherRows,
+    subjects: isTeacher ? subjectRows.filter(row => teacherSubjectIds.includes(row.id)) : isStudentOrGuardian ? subjectRows.filter(row => familySubjectIds.has(row.id)) : subjectRows,
     grades: scopedGrades,
     attendance: scopedAttendance,
     assignments: scopedAssignments,
     submissions: scopedSubmissions,
-    events: eventRows,
+    events: isStudentOrGuardian ? eventRows.filter(row => isEventFor(reader, row.audience, scopedCourseNames[0])) : eventRows,
     // Los borradores solo los ve quien puede redactar; estudiantes y acudientes, solo lo dirigido a ellos
     announcements: announcementRows.filter(row =>
       (hasPermission(effectiveRoleKey, "communications.create") || row.status === ANNOUNCEMENT_STATUS.published)
-      && (isStudentOrGuardian ? isAudienceFor(effectiveRoleKey as AnnouncementReader, row.audience) : true)
+      && (isStudentOrGuardian ? isAudienceFor(reader, row.audience) : true)
     ),
-    notifications: notificationRows,
+    // Las notificaciones y la planeación son del equipo docente
+    notifications: isStudentOrGuardian ? [] : notificationRows,
     reportCards: isStudentOrGuardian ? reportCardRows.filter(row => row.studentName === targetStudentName) : reportCardRows,
-    planning: planningRows,
+    planning: isStudentOrGuardian ? [] : planningRows,
     academicPeriods: periodRows,
     role,
     roleName: ROLE_NAMES[role],
@@ -678,9 +722,11 @@ export async function ensureIdentitySeeded(schoolId = DEMO_SCHOOL_ID) {
   if (!db) return;
   const existingRoles = await db.select().from(roles);
   if (existingRoles.length === 0) await db.insert(roles).values(identityRoleRows);
-  const existingPermissions = await db.select().from(permissions);
-  if (existingPermissions.length === 0) {
-    await db.insert(permissions).values(PERMISSIONS.map(key => ({ key, ...PERMISSION_METADATA[key] })));
+  // Catálogo: se agregan los permisos nuevos sin tocar los existentes
+  const existingPermissionKeys = new Set((await db.select({ key: permissions.key }).from(permissions)).map(row => row.key));
+  const missingPermissions = PERMISSIONS.filter(key => !existingPermissionKeys.has(key));
+  if (missingPermissions.length > 0) {
+    await db.insert(permissions).values(missingPermissions.map(key => ({ key, ...PERMISSION_METADATA[key] })));
   }
   const roleRows = await db.select().from(roles);
   const permissionRows = await db.select().from(permissions);
@@ -1464,12 +1510,21 @@ export async function getStudentEquivalence(
     matchedUser = await findUserByNameOrEmail(matchedStudent.name, matchedStudent.email);
   }
 
-  const allIdsSet = new Set<string>([idStr]);
+  // Los registros de asistencia guardan el id del roster legacy. Un id numérico de `users` solo se
+  // agrega si no pertenece a OTRO estudiante del roster (p. ej. user 6 = Sofía, roster 6 = Tomás).
+  const allIdsSet = new Set<string>();
+  if (!isNumeric) allIdsSet.add(idStr);
   if (matchedStudent) {
     allIdsSet.add(String(matchedStudent.id));
   }
+  const numericCandidates = [isNumeric ? idNum : null, matchedUser?.id ?? null].filter((value): value is number => value !== null);
+  for (const candidate of numericCandidates) {
+    if (allIdsSet.has(String(candidate))) continue;
+    const owner = (await db.select({ id: students.id, name: students.name }).from(students).where(and(eq(students.schoolId, schoolId), eq(students.id, candidate))).limit(1))[0];
+    const ownedBySomeoneElse = owner && (!matchedStudent || owner.id !== matchedStudent.id) && normalizePersonName(owner.name) !== normalizePersonName(matchedUser?.name ?? matchedStudent?.name);
+    if (!ownedBySomeoneElse) allIdsSet.add(String(candidate));
+  }
   if (matchedUser) {
-    allIdsSet.add(String(matchedUser.id));
     if (matchedUser.openId) allIdsSet.add(matchedUser.openId);
 
     const profile = (await db.select().from(studentProfiles).where(and(

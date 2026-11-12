@@ -127,7 +127,10 @@ export async function getGradeCenterContext(actor: GradeCenterActor, input: Grad
   const period = periods.find(row => row.id === input.academicPeriodId) ?? periods.find(row => row.status === "Activo" || row.status === "ACTIVE") ?? periods[0];
   if (!period) return { courses: courseRows, subjects: subjectRows, periods: [], assessments: [], students: [], rows: [], stats: { average: null, max: null, min: null, assessments: 0, students: 0, graded: 0, total: 0, completion: 0, weightTotal: 0, remainingWeight: 100, weightStatus: "INCOMPLETE" as const }, distribution: [], insights: [], observations: [], scale: null, selected: { course, subject }, reportCards: [] };
   const valid = await assertContext(actor, { courseId: course.id, subjectId: subject.id, academicPeriodId: period.id });
-  const assessmentsRows = await db.select().from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), eq(assessments.academicYearId, valid.academicYearId), eq(assessments.academicPeriodId, period.id), eq(assessments.courseId, course.id), eq(assessments.subjectId, subject.id), ne(assessments.status, "DELETED"))).orderBy(desc(assessments.date), desc(assessments.id));
+  // Estudiantes y acudientes no ven evaluaciones en preparación ni observaciones sin publicar
+  const isFamilyReader = actor.roleKey === "STUDENT" || actor.roleKey === "GUARDIAN";
+  const assessmentsRows = (await db.select().from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), eq(assessments.academicYearId, valid.academicYearId), eq(assessments.academicPeriodId, period.id), eq(assessments.courseId, course.id), eq(assessments.subjectId, subject.id), ne(assessments.status, "DELETED"))).orderBy(desc(assessments.date), desc(assessments.id)))
+    .filter(row => !isFamilyReader || row.status !== "DRAFT");
   const enrollmentRows = await db.select().from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, actor.schoolId), eq(studentEnrollments.academicYearId, valid.academicYearId), eq(studentEnrollments.courseId, course.id), eq(studentEnrollments.enrollmentStatus, "ACTIVE")));
   let visibleEnrollments = enrollmentRows;
   if (actor.roleKey === "STUDENT") visibleEnrollments = enrollmentRows.filter(row => row.studentUserId === actor.userId);
@@ -159,7 +162,8 @@ export async function getGradeCenterContext(actor: GradeCenterActor, input: Grad
     const lowest = assessmentsRows.map(assessment => ({ assessment, average: weightedAverage(rows.map(row => ({ value: row.values.find(item => item.assessment.id === assessment.id)?.grade?.value ?? null, maxValue: assessment.maxValue, weight: 1 }))) })).filter(item => item.average !== null).sort((a, b) => (a.average ?? 0) - (b.average ?? 0))[0];
     if (lowest) insights.push(`La evaluación con menor promedio visible es ${lowest.assessment.title} (${lowest.average?.toFixed(2)}).`);
   }
-  const observations = studentIds.length ? await db.select().from(academicObservations).where(and(eq(academicObservations.schoolId, actor.schoolId), eq(academicObservations.academicYearId, valid.academicYearId), eq(academicObservations.academicPeriodId, period.id), inArray(academicObservations.studentId, studentIds))) : [];
+  const observations = studentIds.length ? (await db.select().from(academicObservations).where(and(eq(academicObservations.schoolId, actor.schoolId), eq(academicObservations.academicYearId, valid.academicYearId), eq(academicObservations.academicPeriodId, period.id), inArray(academicObservations.studentId, studentIds))))
+    .filter(row => !isFamilyReader || row.status === "PUBLISHED") : [];
   const scale = (await db.select().from(gradingScales).where(and(eq(gradingScales.schoolId, actor.schoolId), eq(gradingScales.status, "ACTIVE"))).limit(1))[0] ?? null;
   const reportCards = studentIds.length ? await db.select().from(reportCardRuns).where(and(eq(reportCardRuns.schoolId, actor.schoolId), eq(reportCardRuns.academicYearId, valid.academicYearId), eq(reportCardRuns.academicPeriodId, period.id), eq(reportCardRuns.courseId, course.id), inArray(reportCardRuns.studentId, studentIds))).orderBy(desc(reportCardRuns.generatedAt)) : [];
   const weightTotal = assessmentsRows.reduce((sum, item) => sum + Number(item.weight), 0);
@@ -415,14 +419,14 @@ export type CourseReportCards = {
   students: StudentReportCard[];
 };
 
-type ReportCardScope = { courseId: number; academicYearId: number; academicPeriodId: number };
+export type ReportCardScope = { courseId: number; academicYearId: number; academicPeriodId: number };
 
 /**
  * Boletín de cada estudiante matriculado en el curso para el periodo dado.
  * Única fuente del cálculo: lo usan la consulta en vivo y la generación oficial,
  * así el boletín que ve el docente y el que se congela nunca difieren.
  */
-async function computeCourseReportCards(schoolId: number, scope: ReportCardScope): Promise<StudentReportCard[]> {
+export async function computeCourseReportCards(schoolId: number, scope: ReportCardScope): Promise<StudentReportCard[]> {
   const db = await getDb();
   if (!db) return [];
   const [links, enrollments, evaluations] = await Promise.all([
@@ -652,28 +656,35 @@ export async function generateGradeCenterReportCards(actor: GradeCenterActor, in
   ]);
   if (!course || course.academicYearId !== input.academicYearId) throw new Error("Curso inválido para generar boletines.");
   if (!period || (period.academicYearId !== null && period.academicYearId !== input.academicYearId)) throw new Error("Periodo inválido para generar boletines.");
-  // Congela exactamente el boletín que se ve en vivo
-  const cards = await computeCourseReportCards(actor.schoolId, input);
-  if (cards.length) {
-    await db.insert(reportCardRuns).values(cards.map(card => ({
-      schoolId: actor.schoolId,
-      academicYearId: input.academicYearId,
-      academicPeriodId: input.academicPeriodId,
-      courseId: input.courseId,
+  const generated = await freezeReportCards(actor.schoolId, input, actor.userId);
+  await writeAcademicAudit(actor, "report_cards_generated", "report_card_run", `${input.courseId}:${generated}`);
+  return { status: "COMPLETED", generated, total: generated };
+}
+
+/** Congela exactamente el boletín que se ve en vivo; `generatedAt` permite fechar boletines históricos del seed. */
+export async function freezeReportCards(schoolId: number, scope: ReportCardScope, createdByUserId: number, generatedAt?: Date): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const cards = await computeCourseReportCards(schoolId, scope);
+  if (!cards.length) return 0;
+  await db.insert(reportCardRuns).values(cards.map(card => ({
+    schoolId,
+    academicYearId: scope.academicYearId,
+    academicPeriodId: scope.academicPeriodId,
+    courseId: scope.courseId,
+    studentId: card.studentId,
+    status: "COMPLETED",
+    createdByUserId,
+    ...(generatedAt ? { generatedAt } : {}),
+    dataJson: JSON.stringify({
+      schoolId,
       studentId: card.studentId,
-      status: "COMPLETED",
-      createdByUserId: actor.userId,
-      dataJson: JSON.stringify({
-        schoolId: actor.schoolId,
-        studentId: card.studentId,
-        courseId: input.courseId,
-        academicYearId: input.academicYearId,
-        academicPeriodId: input.academicPeriodId,
-        average: card.average,
-        subjects: card.subjects.map(({ subjectId, subjectName, average }) => ({ subjectId, subjectName, average })),
-      }),
-    })));
-  }
-  await writeAcademicAudit(actor, "report_cards_generated", "report_card_run", `${input.courseId}:${cards.length}`);
-  return { status: "COMPLETED", generated: cards.length, total: cards.length };
+      courseId: scope.courseId,
+      academicYearId: scope.academicYearId,
+      academicPeriodId: scope.academicPeriodId,
+      average: card.average,
+      subjects: card.subjects.map(({ subjectId, subjectName, average }) => ({ subjectId, subjectName, average })),
+    }),
+  })));
+  return cards.length;
 }

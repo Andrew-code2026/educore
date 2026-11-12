@@ -38,7 +38,7 @@ export const PERMISSIONS = [
   "courses.view", "courses.create", "courses.update",
   "grades.view", "grades.create", "grades.update",
   "attendance.view", "attendance.create", "attendance.update",
-  "assignments.view", "assignments.create", "assignments.update", "assignments.delete",
+  "assignments.view", "assignments.create", "assignments.update", "assignments.delete", "assignments.submit",
   "reports.view", "reports.create", "reports.export",
   "communications.view", "communications.create", "communications.send",
   "settings.view", "settings.update", "ai.use",
@@ -77,7 +77,8 @@ const rolePermissionSets: Record<IdentityRole, PermissionKey[]> = {
     "students.view", "courses.view", "grades.view", "grades.create", "grades.update", "attendance.view", "attendance.create", "attendance.update",
     "assignments.view", "assignments.create", "assignments.update", "communications.view", "communications.create", "ai.use",
   ],
-  STUDENT: ["courses.view", "grades.view", "attendance.view", "assignments.view", "assignments.create", "communications.view", "ai.use"],
+  // El estudiante entrega sus actividades (assignments.submit); crear actividades es del docente
+  STUDENT: ["courses.view", "grades.view", "attendance.view", "assignments.view", "assignments.submit", "communications.view", "ai.use"],
   GUARDIAN: ["students.view", "grades.view", "attendance.view", "assignments.view", "communications.view", "reports.view"],
 };
 

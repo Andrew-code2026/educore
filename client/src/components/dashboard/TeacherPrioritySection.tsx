@@ -3,6 +3,10 @@ import type { TeacherPriorityItem } from "./types";
 
 interface TeacherPrioritySectionProps {
   items: TeacherPriorityItem[];
+  /** Texto cuando no hay pendientes; por defecto, el del docente. */
+  emptyText?: string;
+  /** Texto junto al contador; por defecto, el del docente. */
+  hint?: string;
 }
 
 function PriorityIcon({ id }: { id: string }) {
@@ -12,6 +16,14 @@ function PriorityIcon({ id }: { id: string }) {
         <rect width="8" height="4" x="8" y="2" rx="1" />
         <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
         <path d="m9 14 2 2 4-4" />
+      </svg>
+    );
+  }
+  if (id.startsWith("grade")) {
+    return (
+      <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9}>
+        <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+        <path d="m19 9-5 5-4-4-3 3" />
       </svg>
     );
   }
@@ -33,7 +45,7 @@ function PriorityIcon({ id }: { id: string }) {
 }
 
 /** "Por hacer": pendientes accionables del día. */
-export function TeacherPrioritySection({ items }: TeacherPrioritySectionProps) {
+export function TeacherPrioritySection({ items, emptyText = "No tienes asistencia, entregas ni seguimientos pendientes.", hint = "pendientes para hoy" }: TeacherPrioritySectionProps) {
   const hasItems = items.length > 0;
 
   return (
@@ -49,7 +61,7 @@ export function TeacherPrioritySection({ items }: TeacherPrioritySectionProps) {
         {hasItems && (
           <>
             <span className="edc-count">{items.length}</span>
-            <span className="edc-todo__hint">pendientes para hoy</span>
+            <span className="edc-todo__hint">{hint}</span>
           </>
         )}
       </div>
@@ -86,7 +98,7 @@ export function TeacherPrioritySection({ items }: TeacherPrioritySectionProps) {
           </span>
           <div>
             <div className="edc-todo__done-title">Estás al día</div>
-            <div className="edc-todo__done-text">No tienes asistencia, entregas ni seguimientos pendientes.</div>
+            <div className="edc-todo__done-text">{emptyText}</div>
           </div>
         </div>
       )}

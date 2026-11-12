@@ -25,6 +25,16 @@ const ShellContext = createContext<ShellContextType | undefined>(undefined);
 
 const COLLAPSED_STORAGE_KEY = "educore-sidebar-collapsed";
 
+/** Como en el portal docente: la barra superior nombra el módulo y la página titula la vista ("Mis tareas"). */
+const STUDENT_TITLES: Partial<Record<Section, string>> = {
+  overview: "Inicio",
+  classroom: "Tareas",
+  grades: "Calificaciones",
+  attendance: "Asistencia",
+  calendar: "Calendario",
+  communications: "Comunicaciones",
+};
+
 interface ShellProviderProps {
   children: React.ReactNode;
   section: Section;
@@ -105,6 +115,15 @@ export function ShellContextProvider({
     }
 
     const item = ALL_NAV_ITEMS[section] ?? ALL_NAV_ITEMS.overview;
+
+    // Portal estudiante: títulos de sus módulos, sin migas de módulos docentes
+    if (role === "student" && STUDENT_TITLES[section]) {
+      return {
+        title: STUDENT_TITLES[section]!,
+        subtitle: schoolName,
+        breadcrumbs: [{ label: STUDENT_TITLES[section]!, isCurrent: true }],
+      };
+    }
 
     switch (section) {
       case "overview":

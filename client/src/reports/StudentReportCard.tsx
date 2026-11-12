@@ -15,10 +15,12 @@ interface StudentReportCardProps {
   student: StudentReportCardModel;
   school: ReportCardSchool;
   onBack: () => void;
+  /** Texto del botón de volver; por defecto, la lista de boletines del curso (vista docente). */
+  backLabel?: string;
 }
 
 /** Boletín de un estudiante: barra de acciones y la hoja imprimible. */
-export function StudentReportCard({ course, student, school: rawSchool, onBack }: StudentReportCardProps) {
+export function StudentReportCard({ course, student, school: rawSchool, onBack, backLabel }: StudentReportCardProps) {
   const { printing, print } = usePrint(reportCardFileName(course, student));
   // Se resuelve una vez para la hoja en pantalla y la de impresión: la copia impresa
   // no alcanzaría a descartar un escudo roto antes de que se abra el diálogo
@@ -30,7 +32,7 @@ export function StudentReportCard({ course, student, school: rawSchool, onBack }
       <div className="rcd-toolbar">
         <button type="button" className="rpt-btn rpt-btn--outline" onClick={onBack}>
           <ArrowLeft aria-hidden="true" strokeWidth={1.9} />
-          Boletines de {course.group}
+          {backLabel ?? `Boletines de ${course.group}`}
         </button>
         <button
           type="button"

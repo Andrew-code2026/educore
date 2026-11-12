@@ -77,7 +77,8 @@ export function EduCoreHeader({
   };
 
   const activeProfile = ROLE_PROFILES[role] || ROLE_PROFILES.teacher;
-  const avatarInitials = (role === "teacher" || role === "admin") && user?.name ? initialsOf(user.name) : activeProfile.initials;
+  // Docente, directivo y estudiante muestran sus propias iniciales; las demás vistas demo usan el perfil de rol
+  const avatarInitials = (role === "teacher" || role === "admin" || role === "student") && user?.name ? initialsOf(user.name) : activeProfile.initials;
 
   return (
     <header className="edc-topbar edc-chrome">

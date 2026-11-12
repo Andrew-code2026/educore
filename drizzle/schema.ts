@@ -381,6 +381,8 @@ export const submissions = mysqlTable("submissions", {
   submittedAt: timestamp("submittedAt").defaultNow().notNull(),
   status: varchar("status", { length: 30 }).notNull().default("Entregada"),
   fileName: varchar("fileName", { length: 180 }),
+  /** Archivo entregado por el estudiante; `null` en entregas antiguas que solo registraban el nombre. */
+  fileUrl: varchar("fileUrl", { length: 512 }),
   comment: text("comment"),
   grade: double("grade"),
 });
