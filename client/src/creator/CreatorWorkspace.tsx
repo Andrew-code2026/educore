@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, Check, CloudOff, Copy, History, Loader2, Maximize2, MessageSquare, Minimize2, Printer, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, CloudOff, Copy, History, Loader2, Maximize2, MessageSquare, Minimize2, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { emptyDoc, type CreatorChatMessage, type CreatorEvent, type ResourceDoc } from "@shared/creator";
 import { applyDocOp, type DocOp, type OpResult } from "@shared/creatorOps";
@@ -22,10 +22,23 @@ import { CreatorChat, type LiveTurn } from "./CreatorChat";
 import { EditableDocument, type EditableDocumentHandle } from "./EditableDocument";
 import { ErrorCard, formatWhen } from "./parts";
 import { ResourceSheet } from "./ResourceSheet";
-import { useCreatorAutosave } from "./useCreatorAutosave";
+import { useCreatorAutosave, type SaveState } from "./useCreatorAutosave";
 import "./creator.css";
 
 type Preview = Extract<CreatorEvent, { type: "preview" }>;
+
+/** Un solo aviso de guardado a la vez: el siguiente reemplaza al anterior en vez de apilarse. */
+const SAVE_TOAST = "crt-save";
+
+const SAVE_LABELS: Record<SaveState, string> = {
+  saved: "Guardado",
+  pending: "Sin guardar",
+  saving: "Guardando…",
+  offline: "Sin conexión",
+  waiting: "Esperando a la IA",
+  conflict: "Cambió en otra ventana",
+  error: "No se pudo guardar",
+};
 
 interface CreatorWorkspaceProps {
   role: EduRole;
@@ -110,16 +123,24 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     refetchInterval: running && streamFailed ? 3000 : false,
   });
   const versionsQuery = trpc.creator.versions.useQuery(input, { enabled: versionsOpen, staleTime: 0 });
-  const { mutateAsync: saveDoc } = trpc.creator.saveDoc.useMutation();
+  // Sin red, React Query pausaría el guardado sin avisar: mejor que falle y decida la política de reintento
+  const { mutateAsync: saveDoc } = trpc.creator.saveDoc.useMutation({ networkMode: "always" });
   const { mutateAsync: sendMessage } = trpc.creator.sendMessage.useMutation();
   const restoreMutation = trpc.creator.restoreVersion.useMutation();
   const duplicateMutation = trpc.creator.duplicate.useMutation();
   const removeMutation = trpc.creator.remove.useMutation();
 
   const autosave = useCreatorAutosave(
-    useCallback((next: ResourceDoc, baseVersion: number) => saveDoc({ role, id: resourceId, doc: next, baseVersion }), [resourceId, role, saveDoc]),
+    useCallback(
+      (next: ResourceDoc, baseVersion: number, { overwrite }: { overwrite: boolean }) => saveDoc({ role, id: resourceId, doc: next, baseVersion, ...(overwrite ? { overwrite } : {}) }),
+      [resourceId, role, saveDoc],
+    ),
   );
-  const { reset: resetAutosave, isDirty } = autosave;
+  const { saveState, rejection, reset: resetAutosave, isDirty, update: updateAutosave, flush: flushAutosave, keepMine, retry: retryAutosave, lastFailure } = autosave;
+  const [conflictOpen, setConflictOpen] = useState(false);
+  const [resolving, setResolving] = useState(false);
+
+  const working = running || live !== null;
 
   // Lo que llega del servidor reemplaza al documento local, salvo que el docente tenga cambios sin guardar
   const detail = detailQuery.data;
@@ -143,9 +164,36 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     setLoaded(true);
   }, [detail, isDirty, resetAutosave]);
 
+  // Un aviso por causa, no uno por intento: los reintentos no cambian el estado
+  const previousSave = useRef<SaveState>(saveState);
   useEffect(() => {
-    if (autosave.saveState === "error") toast.error("No pudimos guardar tus cambios. Revisa la conexión; se reintentará al seguir editando.");
-  }, [autosave.saveState]);
+    const before = previousSave.current;
+    previousSave.current = saveState;
+    if (before === saveState) return;
+    if (saveState === "offline") toast.error("Sin conexión. Tus cambios siguen en esta ventana y se guardarán cuando vuelva.", { id: SAVE_TOAST });
+    else if (saveState === "error") toast.error(rejection ?? "No pudimos guardar tus cambios.", { id: SAVE_TOAST });
+    else if (saveState === "conflict") setConflictOpen(true);
+    else if (before === "offline" && saveState === "saved") toast.success("Volvió la conexión. Tus cambios quedaron guardados.", { id: SAVE_TOAST });
+  }, [rejection, saveState]);
+
+  // Lo que esperaba a la IA se guarda en cuanto termina el turno
+  useEffect(() => {
+    if (!working) retryAutosave();
+  }, [retryAutosave, working]);
+
+  /** Por qué no se pudo guardar antes de una acción que lo necesita. Ante un conflicto, se vuelve a mostrar la decisión. */
+  const explainUnsaved = useCallback(
+    (action: string) => {
+      const failure = lastFailure();
+      if (failure === "conflict") {
+        setConflictOpen(true);
+        return;
+      }
+      const reason = failure === "busy" ? "La IA está trabajando en este recurso; espera a que termine." : failure === "rejected" ? (rejection ?? "No pudimos guardar tus cambios.") : "Revisa la conexión.";
+      toast.error(`Guarda tus cambios antes de ${action}. ${reason}`, { id: SAVE_TOAST });
+    },
+    [lastFailure, rejection],
+  );
 
   const finishTurn = useCallback(
     (event: Extract<CreatorEvent, { type: "done" }>) => {
@@ -186,6 +234,16 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     onError: () => setStreamFailed(true),
   });
 
+  /** Una edición del docente se ve de inmediato y se manda a guardar. */
+  const showLocal = useCallback(
+    (next: ResourceDoc) => {
+      docRef.current = next;
+      setDoc(next);
+      updateAutosave(next);
+    },
+    [updateAutosave],
+  );
+
   const applyOp = useCallback(
     (op: DocOp): OpResult => {
       const result = applyDocOp(docRef.current, op);
@@ -193,15 +251,43 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
         toast.error(result.error);
         return result;
       }
-      if (result.changed) {
-        docRef.current = result.doc;
-        setDoc(result.doc);
-        autosave.update(result.doc);
-      }
+      if (result.changed) showLocal(result.doc);
       return result;
     },
-    [autosave],
+    [showLocal],
   );
+
+  /** Conflicto: se descarta lo local sin guardar y se sigue desde lo último del servidor. */
+  const loadLatest = async () => {
+    setResolving(true);
+    try {
+      const fresh = await detailQuery.refetch();
+      if (!fresh.data) throw fresh.error ?? new Error("sin datos");
+      resetAutosave(fresh.data.doc, fresh.data.version);
+      setDoc(fresh.data.doc);
+      setConflictOpen(false);
+      toast.success("Cargaste la versión más reciente.", { id: SAVE_TOAST });
+    } catch {
+      toast.error("No pudimos traer la versión más reciente. Revisa la conexión.", { id: SAVE_TOAST });
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  /** Conflicto: la versión de esta ventana se guarda encima; la otra queda en «Versiones». */
+  const keepLocal = async () => {
+    setResolving(true);
+    try {
+      const fresh = await detailQuery.refetch();
+      if (!fresh.data) throw fresh.error ?? new Error("sin datos");
+      setConflictOpen(false);
+      if (await keepMine(fresh.data.version)) toast.success("Guardamos tu versión. La otra quedó en «Versiones».", { id: SAVE_TOAST });
+    } catch {
+      toast.error("No pudimos consultar la versión más reciente. Revisa la conexión.", { id: SAVE_TOAST });
+    } finally {
+      setResolving(false);
+    }
+  };
 
   const handleSend = useCallback(
     async (message: string) => {
@@ -211,8 +297,8 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
         throw new Error("editing");
       }
       // La IA debe partir de lo último que escribió el docente
-      if (!(await autosave.flush())) {
-        toast.error("Guarda tus cambios antes de escribirle al asistente. Revisa la conexión.");
+      if (!(await flushAutosave())) {
+        explainUnsaved("escribirle al asistente");
         throw new Error("unsaved");
       }
       setPendingMessage(message);
@@ -227,11 +313,11 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
         throw error;
       }
     },
-    [autosave, resourceId, role, sendMessage],
+    [explainUnsaved, flushAutosave, resourceId, role, sendMessage],
   );
 
   const handleRestore = async (versionId: number) => {
-    if (!(await autosave.flush())) return;
+    if (!(await flushAutosave())) return explainUnsaved("restaurar una versión");
     try {
       const restored = await restoreMutation.mutateAsync({ role, id: resourceId, versionId });
       setDoc(restored.doc);
@@ -244,7 +330,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   };
 
   const handleDuplicate = async () => {
-    if (!(await autosave.flush())) return;
+    if (!(await flushAutosave())) return explainUnsaved("duplicar el recurso");
     try {
       const copy = await duplicateMutation.mutateAsync({ role, id: resourceId });
       void utils.creator.list.invalidate();
@@ -266,10 +352,16 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     }
   };
 
-  const handleBack = async () => {
-    await autosave.flush();
+  const leave = () => {
     void utils.creator.list.invalidate();
     onBack();
+  };
+
+  const handleBack = async () => {
+    if (await flushAutosave()) return leave();
+    // Salir con cambios sin guardar es decisión del docente, nunca algo que pase en silencio
+    if (lastFailure() === "conflict") return setConflictOpen(true);
+    toast.error("Tus últimos cambios aún no se guardan.", { id: SAVE_TOAST, action: { label: "Salir sin guardar", onClick: leave } });
   };
 
   // Imprimir: se monta una copia limpia de la hoja y se abre el diálogo del navegador
@@ -320,8 +412,18 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     : remaining !== null && remaining <= 0 && !running
       ? "Alcanzaste el límite de solicitudes a la IA por hoy. Puedes seguir editando a mano."
       : null;
-  const working = running || live !== null;
-  const saveLabel = working ? "La IA está trabajando" : { saved: "Guardado", pending: "Sin guardar", saving: "Guardando…", error: "Sin conexión" }[autosave.saveState];
+  const saveLabel = working ? "La IA está trabajando" : SAVE_LABELS[saveState];
+  const saveTone = working || saveState === "waiting" ? "working" : saveState === "offline" || saveState === "conflict" || saveState === "error" ? "error" : saveState;
+  const saveIcon =
+    working || saveState === "saving" || saveState === "waiting" ? (
+      <Loader2 className="crt-spin" aria-hidden="true" />
+    ) : saveState === "offline" ? (
+      <CloudOff aria-hidden="true" />
+    ) : saveState === "conflict" || saveState === "error" ? (
+      <AlertTriangle aria-hidden="true" />
+    ) : (
+      <Check aria-hidden="true" />
+    );
 
   const chat = <CreatorChat messages={messages} live={working ? (live ?? { phase: "thinking", text: "", activities: [] }) : null} blocked={blocked} suggestions={doc.sections.length > 0 ? SUGGESTIONS : []} onSend={handleSend} />;
 
@@ -365,10 +467,15 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
         <span className="crt-bar__title" title={doc.title}>
           {doc.title || "Recurso sin título"}
         </span>
-        <span className={`crt-save crt-save--${working ? "working" : autosave.saveState}`} role="status">
-          {working || autosave.saveState === "saving" ? <Loader2 className="crt-spin" aria-hidden="true" /> : autosave.saveState === "error" ? <CloudOff aria-hidden="true" /> : <Check aria-hidden="true" />}
+        <span className={`crt-save crt-save--${saveTone}`} role="status">
+          {saveIcon}
           {saveLabel}
         </span>
+        {saveState === "conflict" && !conflictOpen && (
+          <button type="button" className="crt-btn crt-btn--outline crt-btn--sm" onClick={() => setConflictOpen(true)}>
+            Resolver
+          </button>
+        )}
         <div className="crt-bar__actions">
           {narrow && (
             <button type="button" className="crt-btn crt-btn--outline" aria-pressed={pane === "chat"} onClick={() => setPane(current => (current === "chat" ? "doc" : "chat"))}>
@@ -445,6 +552,45 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
           </ResizablePanelGroup>
         )}
       </div>
+
+      <AlertDialog open={conflictOpen && saveState === "conflict"} onOpenChange={setConflictOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Este recurso cambió en otra ventana</AlertDialogTitle>
+            <AlertDialogDescription>
+              Mientras editabas aquí se guardó otra versión, desde otra pestaña o equipo. Tus últimos cambios en esta ventana aún no se guardan. Elige con cuál seguir.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+            <li>
+              <strong>Cargar la más reciente:</strong> descarta los cambios de esta ventana que no se han guardado.
+            </li>
+            <li>
+              <strong>Conservar la mía:</strong> guarda esta ventana encima. La otra versión queda en «Versiones».
+            </li>
+          </ul>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={resolving}
+              onClick={event => {
+                event.preventDefault();
+                void loadLatest();
+              }}
+            >
+              Cargar la más reciente
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={resolving}
+              onClick={event => {
+                event.preventDefault();
+                void keepLocal();
+              }}
+            >
+              Conservar la mía
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>

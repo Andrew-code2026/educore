@@ -1,96 +1,193 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ResourceDoc } from "@shared/creator";
+import { classifySaveError, retryDelay, type SaveFailure } from "./autosavePolicy";
 
-export type SaveState = "saved" | "pending" | "saving" | "error";
+/**
+ * - `offline`: no se pudo llegar al servidor; se reintenta solo.
+ * - `waiting`: la IA está generando en el recurso; se guarda cuando termine.
+ * - `conflict`: el recurso cambió en otra ventana; no se reintenta hasta que el docente elija.
+ * - `error`: el servidor rechazó el guardado; se reintenta con la próxima edición.
+ */
+export type SaveState = "saved" | "pending" | "saving" | "offline" | "waiting" | "conflict" | "error";
 
 /** Espera tras la última edición antes de guardar. */
-const AUTOSAVE_DELAY_MS = 900;
+export const AUTOSAVE_DELAY_MS = 900;
+
+export type SaveFn = (doc: ResourceDoc, baseVersion: number, options: { overwrite: boolean }) => Promise<{ version: number }>;
+
+const errorText = (error: unknown) => (error instanceof Error && error.message ? error.message : null);
 
 /**
  * Guardado automático del recurso, con el mismo criterio que el PIAR: una sola petición
  * en vuelo, la última versión gana y lo pendiente se guarda al salir. Cada guardado
  * envía la versión sobre la que se editó para no pisar cambios de la IA o de otra pestaña.
+ *
+ * Si un guardado falla, la causa decide (ver `autosavePolicy.ts`): sin conexión se reintenta
+ * con espera creciente y de inmediato al volver la red; si la IA está generando se espera;
+ * ante un conflicto de versión se detiene hasta que el docente elija con `keepMine` o `reset`.
+ * Lo editado mientras se guardaba sale en la siguiente petición.
+ *
+ * Vive fuera de React para poder probarlo con relojes falsos; `useCreatorAutosave` lo envuelve.
  */
-export function useCreatorAutosave(save: (doc: ResourceDoc, baseVersion: number) => Promise<{ version: number }>) {
-  const [saveState, setSaveState] = useState<SaveState>("saved");
-  const latest = useRef<ResourceDoc | null>(null);
-  const version = useRef(0);
-  const dirty = useRef(false);
-  const inFlight = useRef<Promise<unknown> | null>(null);
-  const timer = useRef<number | undefined>(undefined);
-  const mounted = useRef(true);
-  const saveRef = useRef(save);
-  saveRef.current = save;
+export function createAutosaveController(options: { save: () => SaveFn; onState: (state: SaveState) => void; onRejection: (message: string | null) => void }) {
+  let latest: ResourceDoc | null = null;
+  let version = 0;
+  let dirty = false;
+  let inFlight: Promise<unknown> | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let failure: SaveFailure | null = null;
+  let attempt = 0;
+  /** El docente eligió guardar su versión encima de la que llegó de otra ventana. */
+  let overwrite = false;
+  /** Desmontado: termina lo que tenga en curso, pero ya no programa reintentos ni avisa. */
+  let active = true;
 
-  const flush = useCallback(async (): Promise<boolean> => {
-    window.clearTimeout(timer.current);
-    if (inFlight.current) await inFlight.current.catch(() => undefined);
-    if (!dirty.current || !latest.current) return true;
-    dirty.current = false;
-    if (mounted.current) setSaveState("saving");
-    const request = saveRef.current(latest.current, version.current);
-    inFlight.current = request;
+  let shown: SaveState = "saved";
+  /** Solo se avisa cuando el estado cambia: los reintentos de una misma caída no cuentan como avisos nuevos. */
+  const show = (state: SaveState) => {
+    if (!active || state === shown) return;
+    shown = state;
+    options.onState(state);
+  };
+  const schedule = (delay: number) => {
+    clearTimeout(timer);
+    if (active) timer = setTimeout(() => void flush(), delay);
+  };
+
+  async function flush(): Promise<boolean> {
+    clearTimeout(timer);
+    if (inFlight) await inFlight.catch(() => undefined);
+    if (failure === "conflict") return false;
+    if (!dirty || !latest) return true;
+    dirty = false;
+    // Durante una caída el indicador sigue en «Sin conexión» mientras se reintenta
+    if (failure !== "offline" && failure !== "busy") show("saving");
+    const request = options.save()(latest, version, { overwrite });
+    inFlight = request;
     try {
       const result = await request;
-      version.current = result.version;
-      if (mounted.current) setSaveState(dirty.current ? "pending" : "saved");
+      version = result.version;
+      overwrite = false;
+      failure = null;
+      attempt = 0;
+      if (active) options.onRejection(null);
+      show(dirty ? "pending" : "saved");
+      if (dirty) schedule(AUTOSAVE_DELAY_MS);
       return true;
-    } catch {
-      dirty.current = true;
-      if (mounted.current) setSaveState("error");
+    } catch (error) {
+      dirty = true;
+      const kind = classifySaveError(error);
+      if (kind !== failure) attempt = 0;
+      failure = kind;
+      if (kind === "conflict") {
+        show("conflict");
+        return false;
+      }
+      if (kind === "rejected") {
+        if (active) options.onRejection(errorText(error));
+        show("error");
+        return false;
+      }
+      show(kind === "busy" ? "waiting" : "offline");
+      const delay = retryDelay(kind, attempt++);
+      if (delay !== null) schedule(delay);
       return false;
     } finally {
-      inFlight.current = null;
-      // Lo editado mientras se guardaba sale en la siguiente petición; tras un error se espera a la próxima edición
-      if (dirty.current && mounted.current && version.current > 0) {
-        window.clearTimeout(timer.current);
-        timer.current = window.setTimeout(() => void flush(), AUTOSAVE_DELAY_MS * 4);
-      }
+      inFlight = null;
     }
-  }, []);
+  }
 
-  /** El docente cambió el documento. */
-  const update = useCallback(
-    (doc: ResourceDoc) => {
-      latest.current = doc;
-      dirty.current = true;
-      setSaveState("pending");
-      window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => void flush(), AUTOSAVE_DELAY_MS);
+  return {
+    flush,
+
+    /** El docente cambió el documento. */
+    update(doc: ResourceDoc) {
+      latest = doc;
+      dirty = true;
+      // En conflicto se espera la decisión; sin conexión o con la IA trabajando ya hay un reintento programado
+      if (failure === "conflict" || failure === "offline" || failure === "busy") return;
+      show("pending");
+      schedule(AUTOSAVE_DELAY_MS);
     },
-    [flush],
-  );
 
-  /** El servidor trajo una versión nueva (carga inicial, turno de IA, restauración): se parte de ahí. */
-  const reset = useCallback((doc: ResourceDoc, serverVersion: number) => {
-    window.clearTimeout(timer.current);
-    latest.current = doc;
-    version.current = serverVersion;
-    dirty.current = false;
-    setSaveState("saved");
-  }, []);
+    /** El servidor trajo una versión nueva (carga inicial, turno de IA, restauración, «cargar la más reciente»): se parte de ahí. */
+    reset(doc: ResourceDoc, serverVersion: number) {
+      clearTimeout(timer);
+      latest = doc;
+      version = serverVersion;
+      dirty = false;
+      failure = null;
+      attempt = 0;
+      overwrite = false;
+      if (active) options.onRejection(null);
+      show("saved");
+    },
 
-  const isDirty = useCallback(() => dirty.current || inFlight.current !== null, []);
+    /** Ante un conflicto, el docente conserva su versión: se guarda encima de `serverVersion` sin fundirse con ella. */
+    keepMine(serverVersion: number) {
+      if (failure === "conflict") {
+        version = serverVersion;
+        failure = null;
+        attempt = 0;
+        overwrite = true;
+        dirty = latest !== null;
+      }
+      return flush();
+    },
+
+    /** Reintenta ya lo que espera por red o por la IA (volvió la conexión, terminó el turno). */
+    retry() {
+      if (failure !== "offline" && failure !== "busy") return;
+      attempt = 0;
+      void flush();
+    },
+
+    isDirty: () => dirty || inFlight !== null,
+    lastFailure: () => failure,
+
+    setActive(next: boolean) {
+      active = next;
+      if (!next) clearTimeout(timer);
+      // Al volver a montarse, el estado de React parte de nuevo: se vuelve a avisar lo actual
+      else options.onState(shown);
+    },
+  };
+}
+
+export type AutosaveController = ReturnType<typeof createAutosaveController>;
+
+/** El controlador de guardado de un recurso. Todo lo que devuelve es estable salvo `saveState` y `rejection`. */
+export function useCreatorAutosave(save: SaveFn) {
+  const [saveState, setSaveState] = useState<SaveState>("saved");
+  const [rejection, setRejection] = useState<string | null>(null);
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  const [controller] = useState(() => createAutosaveController({ save: () => saveRef.current, onState: setSaveState, onRejection: setRejection }));
 
   useEffect(() => {
-    mounted.current = true;
+    controller.setActive(true);
     return () => {
-      mounted.current = false;
-      window.clearTimeout(timer.current);
-      if (dirty.current) void flush();
+      controller.setActive(false);
+      // Lo pendiente se guarda al salir del editor
+      if (controller.isDirty()) void controller.flush();
     };
-  }, [flush]);
+  }, [controller]);
+
+  useEffect(() => {
+    window.addEventListener("online", controller.retry);
+    return () => window.removeEventListener("online", controller.retry);
+  }, [controller]);
 
   // Cerrar la pestaña con cambios sin guardar pide confirmación al navegador
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
-      if (!dirty.current && !inFlight.current) return;
+      if (!controller.isDirty()) return;
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, []);
+  }, [controller]);
 
-  return { saveState, update, reset, flush, isDirty };
+  return useMemo(() => ({ ...controller, saveState, rejection }), [controller, rejection, saveState]);
 }
