@@ -3,6 +3,7 @@ import type { Block, BlockOf } from "@shared/creator";
 import { formatNumberEs } from "@shared/creatorMath";
 import { computeValueTable, valueTableVariable } from "@shared/creatorValidate";
 import { BarChart, PieChart } from "./Charts";
+import { Angle, BarModel, BaseTen, Clock, Pictogram, TreeDiagram, Venn } from "./ClassroomFigures";
 import { CoordinatePlane } from "./CoordinatePlane";
 import { Formula } from "./Formula";
 import { FractionModel } from "./FractionModel";
@@ -253,6 +254,48 @@ export const BlockView = memo(function BlockView({ block }: { block: Block }) {
       return (
         <Figure caption={block.caption}>
           <ScatterPlot spec={block} />
+        </Figure>
+      );
+    case "angle":
+      return (
+        <Figure caption={block.caption}>
+          <Angle spec={block} />
+        </Figure>
+      );
+    case "venn":
+      return (
+        <Figure caption={block.caption}>
+          <Venn spec={block} />
+        </Figure>
+      );
+    case "tree_diagram":
+      return (
+        <Figure caption={block.caption}>
+          <TreeDiagram spec={block} />
+        </Figure>
+      );
+    case "bar_model":
+      return (
+        <Figure caption={block.caption}>
+          <BarModel spec={block} />
+        </Figure>
+      );
+    case "pictogram":
+      return (
+        <Figure caption={block.caption}>
+          <Pictogram spec={block} />
+        </Figure>
+      );
+    case "clock":
+      return (
+        <Figure caption={block.caption}>
+          <Clock spec={block} />
+        </Figure>
+      );
+    case "base_ten":
+      return (
+        <Figure caption={block.caption}>
+          <BaseTen spec={block} />
         </Figure>
       );
     case "shapes":

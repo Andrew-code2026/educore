@@ -1,5 +1,6 @@
 import katex from "katex";
 import { blockTexts, CREATOR_LIMITS, extractMath, type BlockInput, type GraphSpec } from "./creator";
+import { parseProbability, pictogramIcons, probabilityValue, siblingGroups, sumProbabilities, treePaths, vennRegionsFor } from "./creatorDiagrams";
 import { isMultipleOfFraction, polygonArea } from "./creatorFigures";
 import { formatNumber, nearlyEqual, tryCompile, type CompileResult } from "./creatorMath";
 import { histogramClassIssues, histogramCounts, linearRegression, resolveAxis, type AxisOverride } from "./creatorStats";
@@ -257,6 +258,47 @@ export function validateBlock(block: BlockInput): string[] {
       if (block.trendLine && !linearRegression(block.points)) issues.push("Dispersión: todos los puntos tienen la misma x, así que no hay recta de tendencia. Quita trendLine o corrige los puntos.");
       break;
     }
+    case "angle":
+      if (block.protractor && block.angles.some(angle => angle.degrees > 180)) issues.push("Ángulos: el transportador mide hasta 180°; quítalo (protractor) o usa ángulos de hasta 180°.");
+      if (block.protractor && block.angles.length > 2) issues.push("Ángulos: con transportador caben como máximo dos ángulos; quita uno o divídelos en dos bloques.");
+      break;
+    case "venn": {
+      const valid = vennRegionsFor(block.sets.length);
+      const seen = new Set<string>();
+      for (const item of block.regions) {
+        if (!valid.includes(item.region)) issues.push(`Diagrama de Venn: la zona "${item.region}" no existe con ${block.sets.length} conjuntos; las zonas son ${valid.join(", ")}.`);
+        if (seen.has(item.region)) issues.push(`Diagrama de Venn: la zona "${item.region}" está repetida; déjala una sola vez.`);
+        seen.add(item.region);
+      }
+      break;
+    }
+    case "tree_diagram":
+      issues.push(...validateTree(block));
+      break;
+    case "bar_model": {
+      // Todas las barras van a la misma escala: una parte mínima frente a la barra más larga no se puede dibujar
+      const longest = Math.max(...block.bars.map(bar => bar.parts.reduce((sum, part) => sum + part.value, 0)));
+      block.bars.forEach((bar, index) => {
+        const small = bar.parts.find(part => part.value / longest < 1 / 30);
+        if (small) issues.push(`Modelo de barras: en la barra ${index + 1}, la parte de ${formatNumber(small.value, 4)} es demasiado pequeña frente al total de ${formatNumber(longest, 4)} para dibujarla a escala.`);
+      });
+      break;
+    }
+    case "pictogram": {
+      if (!block.blank && !block.rows.some(row => row.value > 0)) issues.push("Pictograma: todas las cantidades valen cero.");
+      for (const row of block.rows) {
+        const icons = pictogramIcons(row.value, block.iconValue);
+        if (!icons.exact) {
+          issues.push(`Pictograma: «${row.label}» vale ${formatNumber(row.value, 4)}, que no se puede dibujar con dibujos de ${formatNumber(block.iconValue, 4)} y medios dibujos. Cambia la cantidad o el valor de cada dibujo (iconValue).`);
+        } else if (icons.full + (icons.half ? 1 : 0) > 12) {
+          issues.push(`Pictograma: «${row.label}» necesita más de 12 dibujos; aumenta el valor de cada dibujo (iconValue).`);
+        }
+      }
+      break;
+    }
+    case "base_ten":
+      if (block.hundreds + block.tens + block.ones === 0) issues.push("Bloques de base 10: no hay ningún bloque.");
+      break;
     case "shapes":
       block.figures.forEach((figure, index) => {
         if (figure.kind !== "polygon") return;
@@ -273,6 +315,42 @@ export function validateBlock(block: BlockInput): string[] {
       break;
   }
 
+  return issues;
+}
+
+/** Hojas que caben en un árbol sin que la figura pase de media hoja. */
+const TREE_LEAVES_MAX = 12;
+
+function validateTree(block: Extract<BlockInput, { type: "tree_diagram" }>): string[] {
+  const issues: string[] = [];
+  const paths = treePaths(block.branches);
+  if (paths.length > TREE_LEAVES_MAX) issues.push(`Diagrama de árbol: tiene ${paths.length} caminos y caben ${TREE_LEAVES_MAX}; quita un nivel o ramas.`);
+
+  let unreadable = false;
+  for (const group of siblingGroups(block.branches)) {
+    const parsed = group.nodes.map(node => ({ node, probability: node.probability ? parseProbability(node.probability) : null }));
+    for (const { node, probability } of parsed) {
+      if (!node.probability) continue;
+      if (!probability) {
+        unreadable = true;
+        issues.push(`Diagrama de árbol: no se entiende la probabilidad "${node.probability}" de «${node.label}». Escríbela como fracción (1/2), decimal (0.5) o porcentaje (50%).`);
+      } else if (probabilityValue(probability) > 1) {
+        issues.push(`Diagrama de árbol: la probabilidad de «${node.label}» (${node.probability}) es mayor que 1.`);
+      }
+    }
+    // Solo se puede revisar la suma cuando están todas las ramas que salen del mismo punto
+    const known = parsed.map(item => item.probability);
+    if (known.every((probability): probability is NonNullable<typeof probability> => probability !== null)) {
+      const sum = sumProbabilities(known);
+      const exact = known.every(probability => probability.style === "fraction");
+      if (Math.abs(sum - 1) > (exact ? 1e-9 : 0.011)) {
+        issues.push(`Diagrama de árbol: las probabilidades de las ramas que salen de ${group.parent} suman ${formatNumber(sum, 4)} y deben sumar 1 (${group.nodes.map(node => `${node.label} ${node.probability}`).join(", ")}).`);
+      }
+    }
+  }
+  if (block.showResults && !unreadable && paths.some(path => path.probability === null)) {
+    issues.push("Diagrama de árbol: para escribir la probabilidad de cada camino (showResults) todas las ramas necesitan su probabilidad.");
+  }
   return issues;
 }
 
@@ -359,10 +437,10 @@ function validateNumberLine(block: Extract<BlockInput, { type: "number_line" }>)
   return issues;
 }
 
-const FIGURE_TYPES: ReadonlySet<string> = new Set(["graph", "number_line", "fraction_model", "bar_chart", "pie_chart", "histogram", "box_plot", "line_chart", "scatter_plot", "shapes", "balance"]);
+const FIGURE_TYPES: ReadonlySet<string> = new Set(["graph", "number_line", "fraction_model", "bar_chart", "pie_chart", "histogram", "box_plot", "line_chart", "scatter_plot", "angle", "venn", "tree_diagram", "bar_model", "pictogram", "clock", "base_ten", "shapes", "balance"]);
 
 /** Palabras con las que un enunciado se refiere a una figura. */
-const FIGURE_MENTION = /\b(gr[aá]fic[ao]s?|figuras?|planos?|diagramas?|histogramas?|balanzas?|rectas?\s+num[eé]ricas?|dibujos?|modelos?)\b/i;
+const FIGURE_MENTION = /\b(gr[aá]fic[ao]s?|figuras?|planos?|diagramas?|histogramas?|pictogramas?|reloj(?:es)?|transportador|balanzas?|rectas?\s+num[eé]ricas?|dibujos?|modelos?)\b/i;
 
 const isFigure = (block: BlockInput | undefined): boolean => block !== undefined && FIGURE_TYPES.has(block.type);
 const solvedOnFigure = (block: BlockInput | undefined): boolean => block?.type === "exercise" && block.answerSpace === "none";

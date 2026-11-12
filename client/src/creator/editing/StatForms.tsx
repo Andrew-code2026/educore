@@ -46,7 +46,7 @@ export const STAT_TEMPLATES: { [T in StatType]: Extract<BlockInput, { type: T }>
 };
 
 /** Los datos se escriben como en la tabla de valores: separados por comas o espacios, con punto decimal. */
-const parseNumbers = (text: string) =>
+export const parseNumbers = (text: string) =>
   text
     .split(/[,;\s]+/)
     .filter(Boolean)
@@ -68,7 +68,7 @@ const parseLabels = (text: string) =>
 
 const DATA_HINT = "Separa los datos con comas o espacios y escribe los decimales con punto.";
 
-function TextField({ label, value, onChange, wide }: { label: string; value: string | undefined; onChange: (value: string | undefined) => void; wide?: boolean }) {
+export function TextField({ label, value, onChange, wide }: { label: string; value: string | undefined; onChange: (value: string | undefined) => void; wide?: boolean }) {
   return (
     <Field label={label} wide={wide}>
       <input className="crt-input" value={value ?? ""} onChange={event => onChange(event.target.value || undefined)} />
