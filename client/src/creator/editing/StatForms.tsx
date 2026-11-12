@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { CREATOR_LIMITS, type BlockInput } from "@shared/creator";
+import { parseNumberList } from "@shared/creatorFigures";
 import { formatNumberEs } from "@shared/creatorMath";
 import { buildHistogramClasses, fiveNumberSummary, histogramCounts, linearRegression, trendLineLatex } from "@shared/creatorStats";
 import { Formula } from "../blocks/Formula";
-import { BlockPreview, CaptionField, Check, Field, NumberInput, OptionalNumberInput, type Draft, type FormProps } from "./fields";
+import { BlockPreview, CaptionField, Check, Field, NumberInput, OptionalNumberInput, TextField, type Draft, type FormProps } from "./fields";
 import { AddButton, RemoveButton, useListVersion } from "./FigureForms";
 
 type StatType = "histogram" | "box_plot" | "line_chart" | "scatter_plot";
@@ -45,13 +46,6 @@ export const STAT_TEMPLATES: { [T in StatType]: Extract<BlockInput, { type: T }>
   },
 };
 
-/** Los datos se escriben como en la tabla de valores: separados por comas o espacios, con punto decimal. */
-export const parseNumbers = (text: string) =>
-  text
-    .split(/[,;\s]+/)
-    .filter(Boolean)
-    .map(value => Number(value.replace("−", "-")));
-
 const parsePoints = (text: string) =>
   text
     .split(";")
@@ -67,14 +61,6 @@ const parseLabels = (text: string) =>
     .filter(Boolean);
 
 const DATA_HINT = "Separa los datos con comas o espacios y escribe los decimales con punto.";
-
-export function TextField({ label, value, onChange, wide }: { label: string; value: string | undefined; onChange: (value: string | undefined) => void; wide?: boolean }) {
-  return (
-    <Field label={label} wide={wide}>
-      <input className="crt-input" value={value ?? ""} onChange={event => onChange(event.target.value || undefined)} />
-    </Field>
-  );
-}
 
 /** Inicio, fin y paso de un eje; vacío significa que lo calcula el sistema. */
 function AxisFields({ name, min, max, step, onChange }: { name: string; min?: number; max?: number; step?: number; onChange: (patch: { min?: number; max?: number; step?: number }) => void }) {
@@ -168,7 +154,7 @@ export function HistogramForm({ draft, onChange }: FormProps<"histogram">) {
 
       <div className="crt-form__row">
         <Field label="Datos crudos (opcional): las frecuencias se cuentan solas" wide>
-          <input className="crt-input" spellCheck={false} placeholder="152, 147.5, 160, 158…" defaultValue={draft.data?.join(", ") ?? ""} onChange={event => rebuild(origin.start, origin.width, frequencies, parseNumbers(event.target.value))} />
+          <input className="crt-input" spellCheck={false} placeholder="152, 147.5, 160, 158…" defaultValue={draft.data?.join(", ") ?? ""} onChange={event => rebuild(origin.start, origin.width, frequencies, parseNumberList(event.target.value))} />
         </Field>
       </div>
       <p className="crt-form__hint">
@@ -210,7 +196,7 @@ export function BoxPlotForm({ draft, onChange }: FormProps<"box_plot">) {
           <div className="crt-form__row">
             <TextField label={draft.series.length > 1 ? `Grupo ${index + 1}` : "Nombre del grupo (opcional)"} value={series.label} onChange={label => setSeries(index, { label })} />
             <Field label="Datos" wide>
-              <input className="crt-input" spellCheck={false} aria-label={`Datos del grupo ${index + 1}`} defaultValue={series.data.join(", ")} onChange={event => setSeries(index, { data: parseNumbers(event.target.value) })} />
+              <input className="crt-input" spellCheck={false} aria-label={`Datos del grupo ${index + 1}`} defaultValue={series.data.join(", ")} onChange={event => setSeries(index, { data: parseNumberList(event.target.value) })} />
             </Field>
             {draft.series.length > 1 && (
               <RemoveButton
@@ -262,7 +248,7 @@ export function LineChartForm({ draft, onChange }: FormProps<"line_chart">) {
         <div key={`${version}-${index}`} className="crt-form__row">
           <TextField label={draft.series.length > 1 ? `Serie ${index + 1}` : "Nombre (opcional)"} value={series.label} onChange={label => setSeries(index, { label })} />
           <Field label={series.values.length === count ? `Valores (${count})` : `Valores: hay ${series.values.length} y son ${count} rótulos`} wide>
-            <input className="crt-input" spellCheck={false} aria-label={`Valores de la serie ${index + 1}`} defaultValue={series.values.join(", ")} onChange={event => setSeries(index, { values: parseNumbers(event.target.value) })} />
+            <input className="crt-input" spellCheck={false} aria-label={`Valores de la serie ${index + 1}`} defaultValue={series.values.join(", ")} onChange={event => setSeries(index, { values: parseNumberList(event.target.value) })} />
           </Field>
           {draft.series.length > 1 && (
             <RemoveButton

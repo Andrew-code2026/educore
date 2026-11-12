@@ -38,6 +38,22 @@ export const FIGURE_COLORS = [
 
 export const figureColor = (index: number) => FIGURE_COLORS[index % FIGURE_COLORS.length];
 
+/** Alto que ocupa el título de una figura, o el margen superior si no lo lleva. */
+export const figureTitleHeight = (title: string | undefined) => (title ? 30 : 8);
+
+/** Título centrado sobre la figura. */
+export function FigureTitle({ text, width }: { text: string | undefined; width: number }) {
+  if (!text) return null;
+  return (
+    <text x={width / 2} y={20} textAnchor="middle" className="crt-figure__title">
+      {text}
+    </text>
+  );
+}
+
+/** Halo blanco bajo un texto que cae sobre la cuadrícula o una línea: sigue legible en papel. */
+export const TEXT_HALO = { paintOrder: "stroke", stroke: "#FFFFFF", strokeWidth: 3, strokeLinejoin: "round" } as const;
+
 /**
  * Marco común de las figuras: un SVG que se adapta al ancho disponible y rótulos HTML
  * colocados en porcentaje, de modo que la figura se ve igual en pantalla y en papel.

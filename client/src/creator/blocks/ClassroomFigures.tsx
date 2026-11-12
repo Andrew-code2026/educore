@@ -1,9 +1,9 @@
 import { memo, useId, useMemo, type ReactNode } from "react";
 import type { BlockInput } from "@shared/creator";
-import { baseTenValue, clockAngles, clockText, formatProbability, pictogramIcons, treePaths, vennRegionName, type VennRegion } from "@shared/creatorDiagrams";
+import { baseTenValue, clockAngles, clockText, formatProbability, pictogramIcons, treePaths, vennRegionName, vennRegionsFor, vennZoneChars, type VennRegion } from "@shared/creatorDiagrams";
 import { wrapLabel } from "@shared/creatorFigures";
 import { formatNumberEs } from "@shared/creatorMath";
-import { FigureFrame, figureColor, type FigureLabel } from "./FigureFrame";
+import { FigureFrame, FigureTitle, figureColor, figureTitleHeight, TEXT_HALO, type FigureLabel } from "./FigureFrame";
 
 type AngleSpec = Extract<BlockInput, { type: "angle" }>;
 type VennSpec = Extract<BlockInput, { type: "venn" }>;
@@ -17,18 +17,6 @@ const INK = "#111B24";
 const WIDTH = 520;
 /** Ancho medio de un carácter de los rótulos de 12 px. */
 const CHAR_W = 6.8;
-const HALO = { paintOrder: "stroke", stroke: "#FFFFFF", strokeWidth: 3.5, strokeLinejoin: "round" } as const;
-
-const titleHeight = (title: string | undefined) => (title ? 30 : 8);
-
-function Title({ text, width = WIDTH }: { text: string | undefined; width?: number }) {
-  if (!text) return null;
-  return (
-    <text x={width / 2} y={20} textAnchor="middle" className="crt-figure__title">
-      {text}
-    </text>
-  );
-}
 
 /** Texto en uno o dos renglones, centrado en vertical sobre `y`. */
 function Lines({ lines, x, y, anchor = "middle", className }: { lines: string[]; x: number; y: number; anchor?: "start" | "middle" | "end"; className?: string }) {
@@ -156,7 +144,7 @@ export const Venn = memo(function Venn({ spec }: { spec: VennSpec }) {
   const r = three ? 74 : 84;
   const dx = three ? 46 : 52;
   const cx = VENN_W / 2;
-  const frameTop = titleHeight(spec.title) + 2;
+  const frameTop = figureTitleHeight(spec.title) + 2;
   const top = frameTop + 10 + Math.max(names[0].length, names[1].length) * 14;
   const cy = top + r;
   const circles = [
@@ -171,28 +159,20 @@ export const Venn = memo(function Venn({ spec }: { spec: VennSpec }) {
   const universe = Boolean(spec.universe) || Boolean(outside?.text) || Boolean(outside?.shaded);
   const height = frameBottom + 8;
 
-  // Centro de cada zona y cuántos caracteres caben por renglón
-  const spots: Record<Exclude<VennRegion, "outside">, { x: number; y: number; chars: number }> = three
+  // Centro de cada zona; cuánto texto cabe en cada una lo dice vennZoneChars, que también usa el validador
+  const spots: Partial<Record<VennRegion, { x: number; y: number }>> = three
     ? {
-        a: { x: cx - dx - 30, y: cy - 22, chars: 9 },
-        b: { x: cx + dx + 30, y: cy - 22, chars: 9 },
-        c: { x: cx, y: cy + 116, chars: 10 },
-        ab: { x: cx, y: cy - 30, chars: 6 },
-        ac: { x: cx - 44, y: cy + 52, chars: 6 },
-        bc: { x: cx + 44, y: cy + 52, chars: 6 },
-        abc: { x: cx, y: cy + 24, chars: 5 },
+        a: { x: cx - dx - 30, y: cy - 22 },
+        b: { x: cx + dx + 30, y: cy - 22 },
+        c: { x: cx, y: cy + 116 },
+        ab: { x: cx, y: cy - 30 },
+        ac: { x: cx - 44, y: cy + 52 },
+        bc: { x: cx + 44, y: cy + 52 },
+        abc: { x: cx, y: cy + 24 },
       }
-    : {
-        a: { x: cx - dx - 36, y: cy, chars: 12 },
-        b: { x: cx + dx + 36, y: cy, chars: 12 },
-        ab: { x: cx, y: cy, chars: 8 },
-        c: { x: cx, y: cy, chars: 0 },
-        ac: { x: cx, y: cy, chars: 0 },
-        bc: { x: cx, y: cy, chars: 0 },
-        abc: { x: cx, y: cy, chars: 0 },
-      };
-  const valid = (region: VennRegion) => three || region === "a" || region === "b" || region === "ab" || region === "outside";
-  const regions = spec.regions.filter(item => valid(item.region));
+    : { a: { x: cx - dx - 36, y: cy }, b: { x: cx + dx + 36, y: cy }, ab: { x: cx, y: cy } };
+  const zones = vennRegionsFor(spec.sets.length);
+  const regions = spec.regions.filter(item => zones.includes(item.region));
   const shaded = regions.filter(item => item.shaded);
   const members = (region: VennRegion) => (region === "outside" ? [] : Array.from(region).map(letter => "abc".indexOf(letter)));
 
@@ -220,7 +200,7 @@ export const Venn = memo(function Venn({ spec }: { spec: VennSpec }) {
           </mask>
         ))}
       </defs>
-      <Title text={spec.title} width={VENN_W} />
+      <FigureTitle text={spec.title} width={VENN_W} />
       {/* Una zona es lo que queda dentro de sus conjuntos y fuera de los demás */}
       {shaded.map(item => {
         let node: ReactNode = <rect x={frame.x} y={frame.y} width={frame.w} height={frame.h} fill={SHADE} mask={`url(#${uid}m${item.region})`} />;
@@ -262,7 +242,7 @@ export const Venn = memo(function Venn({ spec }: { spec: VennSpec }) {
             );
           }
           const spot = spots[item.region];
-          return <Lines key={item.region} lines={wrapLabel(item.text, spot.chars)} x={spot.x} y={spot.y} className="crt-figure__axis-name" />;
+          return spot ? <Lines key={item.region} lines={wrapLabel(item.text, vennZoneChars(item.region, spec.sets.length))} x={spot.x} y={spot.y} className="crt-figure__axis-name" /> : null;
         })}
       </g>
     </FigureFrame>
@@ -302,7 +282,7 @@ export const TreeDiagram = memo(function TreeDiagram({ spec }: { spec: TreeSpec 
     };
     const first = spec.branches.map(branch => place(branch, 0, null));
     const depth = Math.max(...nodes.map(node => node.level)) + 1;
-    const labelW = Array.from({ length: depth }, (_, level) => Math.min(150, Math.max(...nodes.filter(node => node.level === level).map(node => node.label.length)) * CHAR_W + 10));
+    const labelW = Array.from({ length: depth }, (_, level) => Math.min(175, Math.max(...nodes.filter(node => node.level === level).map(node => node.label.length)) * CHAR_W + 10));
     const rootW = spec.root ? spec.root.length * CHAR_W + 8 : 8;
     const resultW = spec.showResults ? 64 : 0;
     // Las ramas se reparten el ancho que dejan los rótulos; si no alcanza, la figura se ensancha
@@ -359,7 +339,7 @@ export const TreeDiagram = memo(function TreeDiagram({ spec }: { spec: TreeSpec 
           const x2 = xs[node.level] - 3;
           // Algo más cerca de la punta que del origen, y por fuera del abanico: encima de la rama que sube y debajo de la que baja
           return (
-            <text key={index} x={x1 + (x2 - x1) * 0.58} y={y1 + (node.y - y1) * 0.58 + (node.y > y1 + 0.5 ? 14 : -5)} textAnchor="middle" {...HALO}>
+            <text key={index} x={x1 + (x2 - x1) * 0.58} y={y1 + (node.y - y1) * 0.58 + (node.y > y1 + 0.5 ? 14 : -5)} textAnchor="middle" {...TEXT_HALO}>
               {node.probability.replace(".", ",")}
             </text>
           );
@@ -478,7 +458,7 @@ export const Pictogram = memo(function Pictogram({ spec }: { spec: PictogramSpec
   const uid = useId();
   const names = spec.rows.map(row => wrapLabel(row.label, 14));
   const left = 16 + Math.min(100, Math.max(...names.flat().map(line => line.length)) * CHAR_W + 14);
-  const top = titleHeight(spec.title) + 4;
+  const top = figureTitleHeight(spec.title) + 4;
   const bottom = top + spec.rows.length * ICON_ROW;
   const height = bottom + 40;
   const paint = { fill: figureColor(0).fill, stroke: figureColor(0).stroke, strokeWidth: 1.4, strokeLinejoin: "round" } as const;
@@ -495,7 +475,7 @@ export const Pictogram = memo(function Pictogram({ spec }: { spec: PictogramSpec
           <rect x={0} y={0} width={0.5} height={1} />
         </clipPath>
       </defs>
-      <Title text={spec.title} />
+      <FigureTitle text={spec.title} width={WIDTH} />
       <g className="crt-figure__grid">
         {spec.rows.map((_, index) => (
           <line key={index} x1={left} x2={WIDTH - 12} y1={top + (index + 1) * ICON_ROW} y2={top + (index + 1) * ICON_ROW} />
@@ -586,7 +566,7 @@ export const Clock = memo(function Clock({ spec }: { spec: ClockSpec }) {
               {Array.from({ length: 12 }, (_, at) => {
                 const point = tip((at + 1) * 30, CLOCK_R - 17);
                 return (
-                  <text key={at} x={point.x} y={point.y + 4} textAnchor="middle" {...HALO}>
+                  <text key={at} x={point.x} y={point.y + 4} textAnchor="middle" {...TEXT_HALO}>
                     {at + 1}
                   </text>
                 );

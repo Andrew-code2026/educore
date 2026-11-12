@@ -157,6 +157,31 @@ export function vennRegionName(region: VennRegion, sets: string[]): string {
   return names.length === 1 ? `solo ${names[0]}` : names.length === 2 ? `${names[0]} y ${names[1]}` : names.join(", ").replace(/, ([^,]*)$/, " y $1");
 }
 
+/**
+ * Caracteres por renglón que caben en cada zona. Las zonas de dentro llevan hasta dos
+ * renglones; la de fuera, uno solo, y con tres conjuntos comparte el borde inferior con el
+ * nombre del tercero.
+ */
+export function vennZoneChars(region: VennRegion, sets: number): number {
+  if (region === "outside") return sets >= 3 ? 14 : 24;
+  if (sets >= 3) return region.length === 3 ? 5 : region.length === 2 ? 6 : region === "c" ? 10 : 9;
+  return region === "ab" ? 8 : 12;
+}
+
+/** Lo que cabe en el rótulo del conjunto universal, por la misma razón. */
+export const vennUniverseChars = (sets: number): number => (sets >= 3 ? 14 : 24);
+
+/* ── Modelo de barras ── */
+
+/** Ancho mínimo de la zona de barras (con el nombre más largo a la izquierda) y de un carácter del texto de una parte. */
+const BAR_MODEL_WIDTH = 380;
+const BAR_MODEL_CHAR_W = 7.6;
+
+/** true si el texto de una parte cabe dentro de ella, con la barra más larga ocupando todo el ancho. */
+export function barPartFits(text: string, value: number, longest: number): boolean {
+  return text.length * BAR_MODEL_CHAR_W + 6 <= (value / longest) * BAR_MODEL_WIDTH;
+}
+
 /* ── Reloj ── */
 
 /** Ángulo de cada manecilla en grados, desde las 12 y en sentido horario. La de la hora avanza con los minutos. */

@@ -14,6 +14,15 @@ export function Field({ label, children, wide }: { label: string; children: Reac
   );
 }
 
+/** Campo de texto opcional: vacío significa que la figura no lleva ese rótulo. */
+export function TextField({ label, value, onChange, wide }: { label: string; value: string | undefined; onChange: (value: string | undefined) => void; wide?: boolean }) {
+  return (
+    <Field label={label} wide={wide}>
+      <input className="crt-input" value={value ?? ""} onChange={event => onChange(event.target.value || undefined)} />
+    </Field>
+  );
+}
+
 /** Número sin controlar: permite escribir "-" o "1." a medias sin que el campo se borre. */
 export function NumberInput({ value, onChange, label }: { value: number; onChange: (value: number) => void; label: string }) {
   return (

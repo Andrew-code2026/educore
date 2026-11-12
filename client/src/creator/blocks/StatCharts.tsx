@@ -1,9 +1,9 @@
 import { memo, useId, useMemo, type ReactNode } from "react";
 import type { BlockInput } from "@shared/creator";
-import { niceMax, niceStep, tickValues, wrapLabel } from "@shared/creatorFigures";
+import { niceMax, niceStep, wrapLabel } from "@shared/creatorFigures";
 import { formatNumberEs } from "@shared/creatorMath";
-import { fiveNumberSummary, linearRegression, resolveAxis, spreadLabels, trendLineLatex, trendLineText } from "@shared/creatorStats";
-import { FigureFrame, figureColor, type FigureLabel } from "./FigureFrame";
+import { axisTicks, fiveNumberSummary, linearRegression, resolveAxis, spreadLabels, trendLineLatex, trendLineText } from "@shared/creatorStats";
+import { FigureFrame, FigureTitle, figureColor, figureTitleHeight, TEXT_HALO, type FigureLabel } from "./FigureFrame";
 
 type HistogramSpec = Extract<BlockInput, { type: "histogram" }>;
 type BoxPlotSpec = Extract<BlockInput, { type: "box_plot" }>;
@@ -17,19 +17,10 @@ const INK = "#111B24";
 /** Ancho medio de un carácter de los números de los ejes (Outfit, 11,5 px). */
 const CHAR_W = 6.4;
 
-const titleHeight = (title: string | undefined) => (title ? 30 : 8);
 
 /** Margen izquierdo: caben los números del eje vertical, por largos que sean, y su nombre. */
 const leftMargin = (ticks: number[], named: boolean) => Math.max(46, Math.max(...ticks.map(tick => formatNumberEs(tick).length)) * CHAR_W + 18) + (named ? 20 : 0);
 
-function Title({ text, width = WIDTH }: { text: string | undefined; width?: number }) {
-  if (!text) return null;
-  return (
-    <text x={width / 2} y={20} textAnchor="middle" className="crt-figure__title">
-      {text}
-    </text>
-  );
-}
 
 function AxisNames({ xLabel, yLabel, centerX, bottom, centerY }: { xLabel?: string; yLabel?: string; centerX: number; bottom: number; centerY: number }) {
   return (
@@ -48,8 +39,6 @@ function AxisNames({ xLabel, yLabel, centerX, bottom, centerY }: { xLabel?: stri
   );
 }
 
-/** Halo blanco bajo un número que cae sobre la cuadrícula o una línea: sigue legible en papel. */
-const HALO = { paintOrder: "stroke", stroke: "#FFFFFF", strokeWidth: 3, strokeLinejoin: "round" } as const;
 
 /* ───────────────────────── Histograma ───────────────────────── */
 
@@ -60,9 +49,9 @@ export const Histogram = memo(function Histogram({ spec }: { spec: HistogramSpec
     // Las frecuencias son conteos: el eje no baja de uno en uno
     const step = spec.yStep ?? Math.max(1, niceStep(spec.yMax ?? (highest || 10)));
     const yMax = Math.max(spec.yMax ?? niceMax(highest || step * 5, step), step);
-    const ticks = tickValues(0, yMax, step);
+    const ticks = axisTicks({ min: 0, max: yMax, step });
     const left = leftMargin(ticks, Boolean(spec.yLabel));
-    const top = titleHeight(spec.title) + 12;
+    const top = figureTitleHeight(spec.title) + 12;
     const plotW = WIDTH - left - 16;
     // Un poco de aire a los lados: la primera barra no se pega al eje vertical
     const inset = 14;
@@ -87,7 +76,7 @@ export const Histogram = memo(function Histogram({ spec }: { spec: HistogramSpec
 
   return (
     <FigureFrame width={WIDTH} height={height} description={description}>
-      <Title text={spec.title} />
+      <FigureTitle text={spec.title} width={WIDTH} />
       <g className="crt-figure__grid">
         {ticks.map(tick => (
           <line key={tick} x1={left} x2={left + plotW} y1={y(tick)} y2={y(tick)} />
@@ -153,10 +142,10 @@ export const BoxPlot = memo(function BoxPlot({ spec }: { spec: BoxPlotSpec }) {
     const right = WIDTH - 26;
     const valuesShown = spec.showValues && !spec.blank;
     const rowH = valuesShown ? 70 : 54;
-    const top = titleHeight(spec.title) + 4;
+    const top = figureTitleHeight(spec.title) + 4;
     const axisY = top + rowH * spec.series.length + 6;
     const x = (value: number) => left + ((Math.min(Math.max(value, axis.min), axis.max) - axis.min) / (axis.max - axis.min)) * (right - left);
-    const ticks = tickValues(axis.min, axis.max, axis.step);
+    const ticks = axisTicks(axis);
 
     const rows = spec.series.map((series, index) => {
       const summary = fiveNumberSummary(series.data);
@@ -187,7 +176,7 @@ export const BoxPlot = memo(function BoxPlot({ spec }: { spec: BoxPlotSpec }) {
 
   return (
     <FigureFrame width={WIDTH} height={height} description={description}>
-      <Title text={spec.title} />
+      <FigureTitle text={spec.title} width={WIDTH} />
       <g className="crt-figure__grid">
         {ticks.map(tick => (
           <line key={tick} x1={x(tick)} x2={x(tick)} y1={top} y2={axisY} />
@@ -230,7 +219,7 @@ export const BoxPlot = memo(function BoxPlot({ spec }: { spec: BoxPlotSpec }) {
         <g className="crt-figure__text crt-figure__text--strong">
           {rows.map((row, index) =>
             row.numbers.map((number, at) => (
-              <text key={`${index}-${at}`} x={number.x} y={row.cy - BOX_HALF - 7} textAnchor="middle" {...HALO}>
+              <text key={`${index}-${at}`} x={number.x} y={row.cy - BOX_HALF - 7} textAnchor="middle" {...TEXT_HALO}>
                 {number.text}
               </text>
             )),
@@ -288,10 +277,10 @@ export const LineChart = memo(function LineChart({ spec }: { spec: LineChartSpec
     const series = spec.series.map(item => item.values.slice(0, count));
     const all = series.flat();
     const axis = resolveAxis(Math.min(...all), Math.max(...all), { min: spec.yMin, max: spec.yMax, step: spec.yStep });
-    const ticks = tickValues(axis.min, axis.max, axis.step);
+    const ticks = axisTicks(axis);
     const legend = spec.series.some(item => item.label) ? legendRows(spec.series.map((item, index) => item.label ?? `Serie ${index + 1}`), WIDTH - 40) : [];
     const left = leftMargin(ticks, Boolean(spec.yLabel));
-    const legendTop = titleHeight(spec.title) + 6;
+    const legendTop = figureTitleHeight(spec.title) + 6;
     const top = legendTop + legend.length * 18 + (legend.length > 0 ? 12 : 6);
     const plotW = WIDTH - left - 16;
     const band = plotW / count;
@@ -322,7 +311,7 @@ export const LineChart = memo(function LineChart({ spec }: { spec: LineChartSpec
 
   return (
     <FigureFrame width={WIDTH} height={height} description={description}>
-      <Title text={spec.title} />
+      <FigureTitle text={spec.title} width={WIDTH} />
       {legend.length > 0 && (
         <g className="crt-figure__text">
           {legend.map((row, rowIndex) =>
@@ -382,7 +371,7 @@ export const LineChart = memo(function LineChart({ spec }: { spec: LineChartSpec
         <g className="crt-figure__text crt-figure__text--strong">
           {values.map(value =>
             value ? (
-              <text key={value.key} x={value.x} y={value.y} textAnchor="middle" {...HALO}>
+              <text key={value.key} x={value.x} y={value.y} textAnchor="middle" {...TEXT_HALO}>
                 {value.text}
               </text>
             ) : null,
@@ -417,10 +406,10 @@ export const ScatterPlot = memo(function ScatterPlot({ spec }: { spec: ScatterPl
     const ys = spec.points.map(point => point.y);
     const xAxis = resolveAxis(Math.min(...xs), Math.max(...xs), { min: spec.xMin, max: spec.xMax, step: spec.xStep }, 8);
     const yAxis = resolveAxis(Math.min(...ys), Math.max(...ys), { min: spec.yMin, max: spec.yMax, step: spec.yStep });
-    const xTicks = tickValues(xAxis.min, xAxis.max, xAxis.step);
-    const yTicks = tickValues(yAxis.min, yAxis.max, yAxis.step);
+    const xTicks = axisTicks(xAxis);
+    const yTicks = axisTicks(yAxis);
     const left = leftMargin(yTicks, Boolean(spec.yLabel));
-    const top = titleHeight(spec.title) + 10;
+    const top = figureTitleHeight(spec.title) + 10;
     const plotW = SCATTER_W - left - 22;
     const sx = (value: number) => left + ((value - xAxis.min) / (xAxis.max - xAxis.min)) * plotW;
     const sy = (value: number) => top + SCATTER_H - ((value - yAxis.min) / (yAxis.max - yAxis.min)) * SCATTER_H;
@@ -487,7 +476,7 @@ export const ScatterPlot = memo(function ScatterPlot({ spec }: { spec: ScatterPl
           <rect x={left} y={top} width={plotW} height={SCATTER_H} />
         </clipPath>
       </defs>
-      <Title text={spec.title} width={SCATTER_W} />
+      <FigureTitle text={spec.title} width={SCATTER_W} />
       <g className="crt-figure__grid">
         {xTicks.map(tick => (
           <line key={`x${tick}`} x1={sx(tick)} x2={sx(tick)} y1={top} y2={base} />

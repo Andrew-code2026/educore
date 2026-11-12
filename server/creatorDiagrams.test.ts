@@ -267,3 +267,36 @@ describe("figuras de aula: lo que ve la IA", () => {
     expect(write([{ label: "Roja", probability: "3/5" }, { label: "Azul", probability: "2/5" }]).isError).toBe(false);
   });
 });
+
+describe("lo que encontró la revisión de las figuras de aula", () => {
+  it("avisa cuando el contenido de una zona de Venn no cabe y se recortaría", () => {
+    const three = (regions: unknown[], extra: Record<string, unknown> = {}) => validateBlock(block({ type: "venn", sets: ["A", "B", "C"], regions, ...extra }));
+    expect(three([{ region: "ac", text: "10, 20" }, { region: "abc", text: "30" }, { region: "outside", text: "1, 7, 11" }])).toEqual([]);
+    const cut = three([{ region: "ac", text: "10, 20, 40, 50, 70" }]);
+    expect(cut).toHaveLength(1);
+    expect(cut[0]).toContain("no cabe");
+    expect(three([{ region: "outside", text: "1, 7, 11, 13, 17, 19" }])).toHaveLength(1);
+    expect(three([], { universe: "Estudiantes del grado 6A" })).toHaveLength(1);
+    // Con dos conjuntos las zonas son más anchas
+    expect(validateBlock(block({ type: "venn", sets: ["A", "B"], universe: "Estudiantes del grado 6A", regions: [{ region: "a", text: "2, 4, 8, 10, 14, 16" }] }))).toEqual([]);
+  });
+
+  it("avisa cuando el texto de una parte no cabe en su tramo de la barra", () => {
+    const bars = (parts: unknown[]) => validateBlock(block({ type: "bar_model", bars: [{ parts }] }));
+    expect(bars([{ value: 3, label: "1 parte" }, { value: 3, label: "1 parte" }, { value: 3, label: "1 parte" }])).toEqual([]);
+    const tight = bars([{ value: 1, label: "1 parte" }, { value: 20 }]);
+    expect(tight).toHaveLength(1);
+    expect(tight[0]).toContain("no cabe");
+    expect(bars([{ value: 1 }, { value: 20 }])).toEqual([]);
+  });
+
+  it("rechaza fórmulas en conjuntos, ramas y partes, que son texto plano", () => {
+    const venn = validateBlock(block({ type: "venn", sets: ["$A$", "$B$"] }));
+    expect(venn).toHaveLength(2);
+    expect(venn[0]).toContain("texto plano");
+    expect(validateBlock(block({ type: "tree_diagram", branches: [{ label: "$A$" }, { label: "No A" }] }))).toHaveLength(1);
+    expect(validateBlock(block({ type: "bar_model", bars: [{ label: "Ahorro", parts: [{ value: 3, label: "$x$" }, { value: 2 }], total: "$20.000" }] }))).toHaveLength(1);
+    expect(validateBlock(block({ type: "pictogram", unit: "\\text{kg}", rows: [{ label: "A", value: 2 }, { label: "B", value: 1 }] }))).toHaveLength(1);
+    expect(validateBlock(block({ type: "clock", clocks: [{ hour: 7, label: "Salida ($7.000)" }] }))).toEqual([]);
+  });
+});

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { SHAPE_KIND_LABELS, type ShapeFigure } from "@shared/creator";
+import { parseNumberList } from "@shared/creatorFigures";
 import { BlockPreview, CaptionField, Check, Field, NumberInput, OptionalNumberInput, type FormProps } from "./fields";
 
 /**
@@ -91,17 +92,17 @@ export function NumberLineForm({ draft, onChange }: FormProps<"number_line">) {
 
       <span className="crt-form__legend">Intervalos e inecuaciones</span>
       {draft.intervals.map((interval, index) => {
-        const setInterval = (patch: Partial<typeof interval>) => onChange({ ...draft, intervals: draft.intervals.map((current, i) => (i === index ? { ...current, ...patch } : current)) });
+        const patchInterval = (patch: Partial<typeof interval>) => onChange({ ...draft, intervals: draft.intervals.map((current, i) => (i === index ? { ...current, ...patch } : current)) });
         return (
           <div key={`${version}-i${index}`} className="crt-form__row">
             <Field label="Desde">
-              <OptionalNumberInput label={`Extremo izquierdo del intervalo ${index + 1}`} value={interval.from ?? undefined} onChange={from => setInterval({ from: from ?? null })} />
+              <OptionalNumberInput label={`Extremo izquierdo del intervalo ${index + 1}`} value={interval.from ?? undefined} onChange={from => patchInterval({ from: from ?? null })} />
             </Field>
             <Field label="Hasta">
-              <OptionalNumberInput label={`Extremo derecho del intervalo ${index + 1}`} value={interval.to ?? undefined} onChange={to => setInterval({ to: to ?? null })} />
+              <OptionalNumberInput label={`Extremo derecho del intervalo ${index + 1}`} value={interval.to ?? undefined} onChange={to => patchInterval({ to: to ?? null })} />
             </Field>
-            <Check label="Incluye el izquierdo" checked={interval.fromClosed} onChange={fromClosed => setInterval({ fromClosed })} />
-            <Check label="Incluye el derecho" checked={interval.toClosed} onChange={toClosed => setInterval({ toClosed })} />
+            <Check label="Incluye el izquierdo" checked={interval.fromClosed} onChange={fromClosed => patchInterval({ fromClosed })} />
+            <Check label="Incluye el derecho" checked={interval.toClosed} onChange={toClosed => patchInterval({ toClosed })} />
             <RemoveButton
               label={`Quitar el intervalo ${index + 1}`}
               onClick={() => {
@@ -392,7 +393,7 @@ export function BalanceForm({ draft, onChange }: FormProps<"balance">) {
           placeholder="15"
           defaultValue={draft[name].weights.join(", ")}
           onChange={event =>
-            onChange({ ...draft, [name]: { ...draft[name], weights: event.target.value.split(/[,;s]+/).filter(Boolean).map(Number) } })
+            onChange({ ...draft, [name]: { ...draft[name], weights: parseNumberList(event.target.value) } })
           }
         />
       </Field>

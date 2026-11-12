@@ -352,12 +352,12 @@ const scatterPlotBlock = z.object({
     .min(3)
     .max(CREATOR_LIMITS.scatterPointsMax)
     .describe("Pares (x, y) observados. Se dibujan sueltos, sin unirlos con líneas."),
-  xMin: axisBound,
-  xMax: axisBound,
-  xStep: axisStep,
-  yMin: axisBound,
-  yMax: axisBound,
-  yStep: axisStep.describe("Los seis límites de los ejes son opcionales: si se omiten se calculan a partir de los puntos."),
+  xMin: axisBound.describe("Inicio del eje horizontal. Si se omite se calcula a partir de los puntos."),
+  xMax: axisBound.describe("Fin del eje horizontal. Si se omite se calcula."),
+  xStep: axisStep.describe("Separación de las marcas del eje horizontal. Si se omite se calcula."),
+  yMin: axisBound.describe("Inicio del eje vertical. Si se omite se calcula a partir de los puntos."),
+  yMax: axisBound.describe("Fin del eje vertical. Si se omite se calcula."),
+  yStep: axisStep.describe("Separación de las marcas del eje vertical. Si se omite se calcula."),
   trendLine: z.boolean().default(false).describe("Dibuja la recta de mejor ajuste. El sistema la calcula por mínimos cuadrados a partir de los puntos: no la escribas tú."),
   showEquation: z.boolean().default(false).describe("Con trendLine, escribe la ecuación de la recta dentro de la figura."),
   blank: z.boolean().default(false).describe("true dibuja los ejes y la cuadrícula sin puntos, para que el estudiante los ubique."),

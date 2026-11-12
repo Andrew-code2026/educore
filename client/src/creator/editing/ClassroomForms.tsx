@@ -1,9 +1,9 @@
 import { PICTOGRAM_ICONS, type BlockInput } from "@shared/creator";
 import { baseTenValue, clockText, formatProbability, textToTree, treePaths, treeToText, vennRegionName, vennRegionsFor, type VennRegion } from "@shared/creatorDiagrams";
+import { parseNumberList } from "@shared/creatorFigures";
 import { formatNumberEs } from "@shared/creatorMath";
-import { BlockPreview, CaptionField, Check, Field, NumberInput, type Draft, type FormProps } from "./fields";
+import { BlockPreview, CaptionField, Check, Field, NumberInput, TextField, type Draft, type FormProps } from "./fields";
 import { AddButton, DataRows, RemoveButton, useListVersion } from "./FigureForms";
-import { parseNumbers, TextField } from "./StatForms";
 
 type ClassroomType = "angle" | "venn" | "tree_diagram" | "bar_model" | "pictogram" | "clock" | "base_ten";
 
@@ -208,7 +208,7 @@ export function BarModelForm({ draft, onChange }: FormProps<"bar_model">) {
                 spellCheck={false}
                 aria-label={`Tamaño de las partes de la barra ${index + 1}`}
                 defaultValue={bar.parts.map(part => part.value).join(", ")}
-                onChange={event => setBar(index, { parts: build(parseNumbers(event.target.value), bar.parts.map(part => part.label)) })}
+                onChange={event => setBar(index, { parts: build(parseNumberList(event.target.value), bar.parts.map(part => part.label)) })}
               />
             </Field>
             <Field label="Texto de cada parte, separados por ; (vacío = el valor)" wide>

@@ -2,6 +2,7 @@ import { forwardRef, useImperativeHandle, useRef, useState, type ReactNode } fro
 import { Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { BLOCK_TYPE_LABELS, blockInputSchema, CREATOR_LIMITS, graphSpecSchema, type Block, type BlockInput, type BlockType } from "@shared/creator";
+import { parseNumberList } from "@shared/creatorFigures";
 import { normalizeBlock } from "@shared/creatorOps";
 import { validateBlock, valueTableVariable } from "@shared/creatorValidate";
 import { CoordinatePlane } from "../blocks/CoordinatePlane";
@@ -288,12 +289,6 @@ function TableForm({ draft, onChange }: FormProps<"table">) {
   );
 }
 
-const parseNumbers = (text: string) =>
-  text
-    .split(/[,;\s]+/)
-    .filter(Boolean)
-    .map(value => Number(value.replace("−", "-")));
-
 function ValueTableForm({ draft, onChange }: FormProps<"value_table">) {
   // Sin variable escrita se usa la del encabezado ("A(s) = …" → s), y si no, x
   const fallback = valueTableVariable({ exprLatex: draft.exprLatex });
@@ -321,7 +316,7 @@ function ValueTableForm({ draft, onChange }: FormProps<"value_table">) {
           />
         </Field>
         <Field label={`Valores de ${shown}, separados por comas`} wide>
-          <input className="crt-input" defaultValue={draft.xs.join(", ")} onChange={event => onChange({ ...draft, xs: parseNumbers(event.target.value) })} />
+          <input className="crt-input" defaultValue={draft.xs.join(", ")} onChange={event => onChange({ ...draft, xs: parseNumberList(event.target.value) })} />
         </Field>
         <label className="crt-check">
           <input type="checkbox" checked={draft.blankY} onChange={event => onChange({ ...draft, blankY: event.target.checked })} />
