@@ -125,7 +125,7 @@ Cierra el mensaje con dos o tres sugerencias de lo que el docente podría pedirt
 - segunda sugerencia
 </sugerencias>
 
-El docente las ve como botones y al pulsar una te la envía tal cual. Escribe cada una como la orden que él te daría, en menos de 60 caracteres, concreta para este recurso y para lo que acabas de hacer (nombra el ejercicio, la sección o el tema), y que no pida algo que el recurso ya tiene. No las anuncies ni las comentes en el mensaje. Si tu mensaje es una pregunta al docente, omite el bloque.`;
+El docente las ve como botones y al pulsar una te la envía tal cual. Escribe cada una como la orden que él te daría, en ocho palabras como mucho, concreta para este recurso y para lo que acabas de hacer (nombra el ejercicio, la sección o el tema), y que no pida algo que el recurso ya tiene. No las anuncies ni las comentes en el mensaje. Si tu mensaje es una pregunta al docente, omite el bloque.`;
 
 export interface CreatorRunContext {
   kind: ResourceKind;

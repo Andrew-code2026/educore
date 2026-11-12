@@ -168,8 +168,11 @@ export function sanitizeSuggestions(raw: readonly unknown[]): string[] {
   const clean: string[] = [];
   for (const item of raw) {
     if (typeof item !== "string") continue;
+    // Es el texto de un botón, no Markdown: fuera el escape de los pesos y las negritas
     const text = item
       .replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "")
+      .replace(/\\\$/g, "$")
+      .replace(/\*\*/g, "")
       .replace(/^["«“]+|["»”]+$/g, "")
       .replace(/\s+/g, " ")
       .trim();

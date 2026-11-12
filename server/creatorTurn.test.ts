@@ -248,6 +248,10 @@ describe("sugerencias de seguimiento", () => {
     expect(sanitizeSuggestions(["- Hazlo más corto", "hazlo más corto", "", "  ", 4, "x".repeat(SUGGESTION_CHARS_MAX + 1), "* Añade un reto"])).toEqual(["Hazlo más corto", "Añade un reto"]);
   });
 
+  it("las deja como texto de botón, sin marcas de Markdown", () => {
+    expect(sanitizeSuggestions(["- Cambia el costo fijo a \\$75.000", "- Haz **más corto** el Ejercicio 4"])).toEqual(["Cambia el costo fijo a $75.000", "Haz más corto el Ejercicio 4"]);
+  });
+
   it("nunca muestra el bloque mientras la respuesta va llegando", () => {
     let shown = "";
     for (let length = 1; length <= reply.length; length++) {

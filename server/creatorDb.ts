@@ -461,7 +461,9 @@ export async function beginCreatorTurn(actor: AcademicActor, input: { id: number
  * como versión nueva (la que dejó la IA y todo lo posterior siguen en «Versiones»). Si el recurso
  * cambió después del turno no se toca hasta que el docente lo confirme (`force`).
  */
-export async function undoCreatorTurn(actor: AcademicActor, input: { id: number; messageId: number; force?: boolean }) {
+export type TurnUndoResult = { status: "already" | "confirm" } | { status: "undone"; doc: ResourceDoc; version: number };
+
+export async function undoCreatorTurn(actor: AcademicActor, input: { id: number; messageId: number; force?: boolean }): Promise<TurnUndoResult> {
   assertCreatorActor(actor);
   const row = await loadOwned(actor, input.id);
   if (row.status === "generating") throw new Error("La IA está trabajando en este recurso. Espera a que termine para deshacer.");
@@ -488,7 +490,7 @@ export async function undoCreatorTurn(actor: AcademicActor, input: { id: number;
   const decision = decideTurnUndo({ current: parseDoc(row.doc), before: beforeDoc, after: after ? parseDoc(after.doc) : null, force: input.force });
   if (decision !== "restore") return { status: decision };
   const saved = await commitCreatorDoc(row, beforeDoc, "restore", `Deshecho: ${after?.label || "cambio de la IA"}`);
-  return { status: "undone" as const, doc: beforeDoc, version: saved.version };
+  return { status: "undone", doc: beforeDoc, version: saved.version };
 }
 
 /** Recursos que quedaron "generando" porque el servidor se reinició a mitad de un turno. */
