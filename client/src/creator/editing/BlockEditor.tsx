@@ -10,6 +10,7 @@ import { Formula } from "../blocks/Formula";
 import { AngleForm, BarModelForm, BaseTenForm, CLASSROOM_TEMPLATES, ClockForm, PictogramForm, TreeDiagramForm, VennForm } from "./ClassroomForms";
 import { Field, NumberInput, type Draft, type FormProps } from "./fields";
 import { BalanceForm, BarChartForm, FractionModelForm, NumberLineForm, PieChartForm, ShapesForm } from "./FigureForms";
+import { FormulaInput } from "./FormulaInput";
 import type { BlockEditorHandle } from "./InlineBlockEditor";
 import { RichTextEditor } from "./RichTextEditor";
 import { BoxPlotForm, HistogramForm, LineChartForm, ScatterPlotForm, STAT_TEMPLATES } from "./StatForms";
@@ -136,12 +137,16 @@ function CalloutForm({ draft, onChange }: FormProps<"callout">) {
   );
 }
 
-function MathForm({ draft, onChange }: FormProps<"math">) {
+/** Lo que un formulario puede pedirle al editor del bloque desde un campo que atiende su propio teclado. */
+interface FormActions {
+  submit: () => void;
+  cancel: () => void;
+}
+
+function MathForm({ draft, onChange, actions }: FormProps<"math"> & { actions: FormActions }) {
   return (
     <>
-      <Field label="Fórmula en LaTeX" wide>
-        <textarea className="crt-input crt-input--code" rows={2} autoFocus spellCheck={false} value={draft.latex} onChange={event => onChange({ ...draft, latex: event.target.value })} />
-      </Field>
+      <FormulaInput value={draft.latex} display autoFocus onChange={latex => onChange({ ...draft, latex })} onEnter={actions.submit} onEscape={actions.cancel} />
       <div className="crt-form__preview">{draft.latex.trim() ? <Formula latex={draft.latex} display /> : <span className="crt-muted">Vista previa</span>}</div>
     </>
   );
@@ -477,7 +482,7 @@ function SolutionForm({ draft, onChange }: FormProps<"solution">) {
   );
 }
 
-function renderForm(draft: BlockInput, onChange: (next: BlockInput) => void): ReactNode {
+function renderForm(draft: BlockInput, onChange: (next: BlockInput) => void, actions: FormActions): ReactNode {
   switch (draft.type) {
     case "paragraph":
       return <ParagraphForm draft={draft} onChange={onChange} />;
@@ -486,7 +491,7 @@ function renderForm(draft: BlockInput, onChange: (next: BlockInput) => void): Re
     case "callout":
       return <CalloutForm draft={draft} onChange={onChange} />;
     case "math":
-      return <MathForm draft={draft} onChange={onChange} />;
+      return <MathForm draft={draft} onChange={onChange} actions={actions} />;
     case "header_fields":
       return <HeaderFieldsForm draft={draft} onChange={onChange} />;
     case "exercise":
@@ -593,10 +598,14 @@ export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(funct
       }}
     >
       <span className="crt-form__title">{BLOCK_TYPE_LABELS[block.type]}</span>
-      {renderForm(draft, next => {
-        setDraft(next);
-        if (issues.length > 0) setIssues([]);
-      })}
+      {renderForm(
+        draft,
+        next => {
+          setDraft(next);
+          if (issues.length > 0) setIssues([]);
+        },
+        { submit: () => saveRef.current(), cancel: onCancel },
+      )}
       {issues.length > 0 && (
         <ul className="crt-form__issues" role="alert">
           {issues.map((issue, index) => (

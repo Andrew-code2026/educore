@@ -1188,6 +1188,86 @@
 .crt-rte__popover-preview { min-height: 28px; display: flex; align-items: center; overflow-x: auto; }
 .crt-rte__popover-error { color: #B42343; font-size: 12.5px; }
 
+/* ── Campo matemático (tanda 6) ─────────────────────────── */
+
+.crt-mf-popover { width: min(380px, 92vw); }
+.crt-mf { display: flex; flex-direction: column; gap: 8px; min-width: 0; font-size: 13px; font-weight: 400; font-style: normal; scroll-margin: 24px; }
+.crt-mf [hidden] { display: none; }
+.crt-mf__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.crt-mf__tools { display: flex; gap: 4px; }
+.crt-mf__tool { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border: 1px solid var(--sheet-hair); border-radius: 999px; background: #FFFFFF; color: var(--sheet-muted); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; }
+.crt-mf__tool svg { width: 14px; height: 14px; }
+.crt-mf__tool:hover:not(:disabled) { border-color: var(--sheet-accent-line); color: var(--sheet-accent); }
+.crt-mf__tool:is([aria-pressed="true"], [aria-checked="true"]) { border-color: var(--sheet-accent-line); background: var(--sheet-accent-soft); color: var(--sheet-accent); }
+.crt-mf__tool:disabled { opacity: .5; cursor: default; }
+.crt-mf__field { display: block; min-height: 40px; outline: none; }
+.crt-mf__loading { display: flex; align-items: center; height: 40px; padding: 0 12px; border: 1px solid #C9D1DA; border-radius: 12px; color: var(--sheet-muted); }
+.crt-mf__note { font-size: 12px; line-height: 1.35; color: var(--sheet-muted); }
+.crt-mf__note--warn { color: #8A5A00; }
+.crt-mf textarea.crt-input { height: auto; padding: 8px 12px; resize: vertical; }
+
+.crt-mf math-field {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  padding: 4px 10px;
+  border: 1px solid #C9D1DA;
+  border-radius: 12px;
+  background: #FFFFFF;
+  color: var(--sheet-ink);
+  font-size: 17px;
+  outline: none;
+  --caret-color: var(--sheet-accent);
+  --selection-background-color: #CFE4FB;
+  --selection-color: var(--sheet-ink);
+  --contains-highlight-background-color: transparent;
+  --placeholder-color: var(--sheet-accent);
+}
+.crt-mf--display math-field { min-height: 56px; font-size: 20px; }
+.crt-mf math-field:focus-within { border-color: var(--sheet-accent); box-shadow: 0 0 0 3px rgba(3, 119, 223, .14); }
+.crt-mf math-field::part(menu-toggle), .crt-mf math-field::part(virtual-keyboard-toggle) { display: none; }
+
+/* El teclado en pantalla va dentro del cuadro, con los colores de la hoja */
+.crt-mf__keyboard {
+  display: block;
+  position: relative;
+  box-sizing: content-box;
+  min-width: 308px;
+  padding: 4px 6px 6px;
+  border-radius: 12px;
+  background: #F3F6FA;
+  overflow: hidden;
+  /* La tecla pulsada se dibuja cinco niveles por debajo: con menos de 6 quedaría detrás de su fila y no se podría soltar sobre ella */
+  --keyboard-zindex: 10;
+  --keyboard-background: transparent;
+  --keyboard-border: transparent;
+  --keyboard-accent-color: var(--sheet-accent);
+  --keyboard-toolbar-text: var(--sheet-muted);
+  --keyboard-toolbar-text-active: var(--sheet-accent);
+  --keyboard-toolbar-background-hover: #E4E9EF;
+  --keyboard-toolbar-font-size: 13px;
+  --keyboard-horizontal-rule: 1px solid var(--sheet-hair);
+  --keyboard-padding-horizontal: 0px;
+  --keyboard-padding-top: 0px;
+  --keyboard-padding-bottom: 0px;
+  --keycap-height: 40px;
+  --keycap-gap: 4px;
+  --keycap-font-size: 18px;
+  --keycap-text-hover: var(--sheet-ink);
+  --keycap-background: #FFFFFF;
+  --keycap-background-hover: var(--sheet-accent-soft);
+  --keycap-border: var(--sheet-hair);
+  --keycap-border-bottom: #C9D1DA;
+  --keycap-text: var(--sheet-ink);
+  --keycap-secondary-background: #E4E9EF;
+  --keycap-secondary-background-hover: #D5DCE5;
+  --keycap-secondary-text: var(--sheet-ink);
+  --keycap-secondary-border: #D5DCE5;
+  --keycap-secondary-border-bottom: #B9C2CD;
+}
+
+/* ── Fin del campo matemático ───────────────────────────── */
+
 /* Edición en sitio: el texto se edita donde está, con la letra, los márgenes y el ancho de la vista.
    Nada de lo que sigue puede ocupar sitio en el flujo: el bloque siguiente no se mueve al entrar. */
 
