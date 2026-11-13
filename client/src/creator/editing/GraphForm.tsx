@@ -61,12 +61,12 @@ const conicTemplate = (kind: ConicKind, h = 0, k = 0): GraphConic => {
 };
 
 const PARABOLA_AXIS_OPTIONS: readonly SelectOption<"vertical" | "horizontal">[] = [
-  { value: "vertical", label: "Abre hacia arriba o abajo" },
+  { value: "vertical", label: "Abre arriba o abajo" },
   { value: "horizontal", label: "Abre hacia un lado" },
 ];
 
 const HYPERBOLA_AXIS_OPTIONS: readonly SelectOption<"horizontal" | "vertical">[] = [
-  { value: "horizontal", label: "Ramas a izquierda y derecha" },
+  { value: "horizontal", label: "Ramas a los lados" },
   { value: "vertical", label: "Ramas arriba y abajo" },
 ];
 
@@ -312,7 +312,7 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
                     <Field label="Rectángulos de Riemann">
                       <OptionalNumberInput
                         label={`Rectángulos de la región ${index + 1}`}
-                        placeholder="ninguno"
+                        placeholder="no"
                         value={area.rectangles}
                         onChange={rectangles => setArea(rectangles === undefined ? { rectangles, sample: undefined } : { rectangles })}
                       />
@@ -418,18 +418,20 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
                 />
               </Field>
               <ConicFields conic={conic} index={index} onChange={next => setConic(index, next)} />
-              <RemoveButton
-                label={`Quitar la cónica ${index + 1}`}
-                onClick={() => {
-                  setConics(conics.filter((_, i) => i !== index));
-                  bump();
-                }}
-              />
             </div>
             <div className="crt-form__row">
               {CONIC_SHOWS[conic.kind].map(item => (
                 <Check key={item} label={CONIC_SHOW_LABELS[item]} checked={shown.includes(item)} onChange={on => toggle(item, on)} />
               ))}
+              <span className="crt-form__end">
+                <RemoveButton
+                  label={`Quitar la cónica ${index + 1}`}
+                  onClick={() => {
+                    setConics(conics.filter((_, i) => i !== index));
+                    bump();
+                  }}
+                />
+              </span>
             </div>
             {equation && (
               <p className="crt-form__hint">
@@ -503,9 +505,11 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
       })}
       {spec.points.length < CREATOR_LIMITS.pointsMax && <AddButton onClick={() => setSpec({ points: [...spec.points, { x: 0, y: 0, on: null }] })}>Añadir punto</AddButton>}
 
-      <Field label="Pie de la gráfica (opcional)" wide>
-        <input className="crt-input" value={draft.caption ?? ""} onChange={event => onChange({ ...draft, caption: event.target.value || undefined })} />
-      </Field>
+      <div className="crt-form__row">
+        <Field label="Pie de la gráfica (opcional)" wide>
+          <input className="crt-input" value={draft.caption ?? ""} onChange={event => onChange({ ...draft, caption: event.target.value || undefined })} />
+        </Field>
+      </div>
       <div className="crt-form__preview">{preview.success ? <CoordinatePlane spec={preview.data} /> : <span className="crt-muted">Completa los rangos para ver la gráfica.</span>}</div>
     </>
   );

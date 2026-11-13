@@ -11,6 +11,8 @@ const PAD = { left: 30, right: 24, top: 22, bottom: 28 };
 const MAX_W = 320;
 const MAX_H = 320;
 const LABEL_H = 20;
+/** Alto de una etiqueta con fracciones a tamaño de texto (la ecuación de una elipse o una hipérbola). */
+const TALL_LABEL_H = 32;
 const TONES = ["a", "b", "c", "d"] as const;
 /** Radio de los puntos marcados y de los círculos de extremos y saltos. */
 const POINT_R = 4.2;
@@ -60,6 +62,11 @@ function estimateWidth(latex: string): number {
   const plain = latex.replace(/\\[a-zA-Z]+/g, "x").replace(/[{}\\^_]/g, "");
   return Math.max(2, plain.length) * 7 + 10;
 }
+
+const FRACTION = /\\d?frac\{((?:[^{}]|\{[^{}]*\})*)\}\{((?:[^{}]|\{[^{}]*\})*)\}/g;
+
+/** Ancho de una fórmula con fracciones: cada fracción ocupa lo que su parte más larga, no la suma de las dos. */
+const estimateFractionWidth = (latex: string) => estimateWidth(latex.replace(FRACTION, (_, top: string, bottom: string) => (top.length >= bottom.length ? top : bottom)));
 
 const overlaps = (a: Box, b: Box) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
@@ -145,6 +152,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     ];
 
     // Las cónicas siguen la paleta después de las funciones
+    const lineY = (line: ConicLine, x: number) => line.slope! * x + line.intercept!;
+    /** Puntos de una recta auxiliar dentro del plano: trazo que una etiqueta no debería tapar. */
+    const lineSamples = (line: ConicLine): Array<[number, number]> =>
+      Array.from({ length: 33 }, (_, i): [number, number] =>
+        line.vertical !== undefined ? [line.vertical, spec.yMin + (ySpan * i) / 32] : [spec.xMin + (xSpan * i) / 32, lineY(line, spec.xMin + (xSpan * i) / 32)],
+      ).filter(([x, y]) => inPlane(x, y));
     const linePath = (line: ConicLine) =>
       line.vertical !== undefined
         ? `M${sx(line.vertical).toFixed(2)} ${PAD.top} V${PAD.top + h}`
@@ -158,6 +171,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
         paths: branches.map(pathOf),
         samples: branches.flat().filter(([x, y]) => inPlane(x, y)),
         lines: shown.lines.map(linePath),
+        lineSamples: shown.lines.flatMap(lineSamples),
         points: shown.points.filter(point => inPlane(point.x, point.y)),
         equation: (conic.show ?? []).includes("equation") ? conicEquation(conic) : null,
       };
@@ -190,7 +204,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     ];
     const curvePixels = [
       ...curves.flatMap(curve => curve.samples.map(([x, y]) => [sx(x), sy(y)] as const)),
-      ...conics.flatMap(conic => conic.samples.filter((_, i) => i % 2 === 0).map(([x, y]) => [sx(x), sy(y)] as const)),
+      ...conics.flatMap(conic => [...conic.samples.filter((_, i) => i % 2 === 0), ...conic.lineSamples].map(([x, y]) => [sx(x), sy(y)] as const)),
       ...lines.flatMap(item =>
         Array.from({ length: 41 }, (_, i) => spec.xMin + (xSpan * i) / 40)
           .map(x => [x, item.line.slope * x + item.line.intercept] as const)
@@ -212,11 +226,10 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       return total + Math.min(24, onCurve * 3);
     };
 
-    const place = (latex: string, tone: string, candidates: Array<{ x: number; y: number }>) => {
-      const labelW = estimateWidth(latex);
+    const place = (latex: string, tone: string, candidates: Array<{ x: number; y: number }>, labelW = estimateWidth(latex), labelH = LABEL_H) => {
       const fits = (box: Box) =>
         box.x >= plot.x - 4 && box.x + box.w <= plot.x + plot.w + PAD.right - 2 && box.y >= plot.y - 8 && box.y + box.h <= plot.y + plot.h + 8;
-      const boxes = candidates.map(candidate => ({ x: candidate.x, y: candidate.y, w: labelW, h: LABEL_H }));
+      const boxes = candidates.map(candidate => ({ x: candidate.x, y: candidate.y, w: labelW, h: labelH }));
       const fitting = boxes.filter(fits);
       const pool = fitting.length > 0 ? fitting : boxes;
       // Gana el sitio que menos estorba; a igual costo, el primero de la lista (el preferido)
@@ -233,23 +246,6 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       labels.push({ ...chosen, latex, tone });
     };
 
-    for (const point of spec.points) {
-      if (!point.label) continue;
-      const px = sx(point.x);
-      const py = sy(point.y);
-      const labelW = estimateWidth(point.label);
-      place(point.label, "crt-plane__label--point", [
-        { x: px + 8, y: py - LABEL_H - 2 },
-        { x: px + 8, y: py + 4 },
-        { x: px - labelW - 8, y: py - LABEL_H - 2 },
-        { x: px - labelW - 8, y: py + 4 },
-        { x: px - labelW / 2, y: py - LABEL_H - 8 },
-        { x: px - labelW / 2, y: py + 10 },
-        { x: px + 12, y: py - LABEL_H / 2 },
-        { x: px - labelW - 12, y: py - LABEL_H / 2 },
-      ]);
-    }
-
     /** Sitios alrededor de un punto, del preferido (arriba a la derecha) al último. */
     const around = (px: number, py: number, labelW: number) => [
       { x: px + 8, y: py - LABEL_H - 2 },
@@ -261,6 +257,13 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       { x: px + 12, y: py - LABEL_H / 2 },
       { x: px - labelW - 12, y: py - LABEL_H / 2 },
     ];
+
+    for (const point of spec.points) {
+      if (!point.label) continue;
+      // La etiqueta de un hueco lleva el color de su curva, como el círculo
+      const tone = point.open && point.on != null ? `crt-plane__label--${toneOf(point.on)}` : "crt-plane__label--point";
+      place(point.label, tone, around(sx(point.x), sy(point.y), estimateWidth(point.label)));
+    }
 
     for (const conic of conics) {
       for (const point of conic.points) place(point.name, `crt-plane__label--${conic.tone}`, around(sx(point.x), sy(point.y), estimateWidth(point.name)));
@@ -281,26 +284,34 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       ]);
     }
 
-    // La pendiente o la ecuación de una tangente o una secante va junto a la recta, lejos de sus puntos
+    // La pendiente o la ecuación de una tangente o una secante va pegada a su recta y cerca de su punto:
+    // con dos tangentes en el plano, cada rótulo se lee con la suya
     for (const item of lines) {
-      if (!item.label) continue;
+      if (!item.label || item.line.points.length === 0) continue;
       const labelW = estimateWidth(item.label);
-      const visible = Array.from({ length: 81 }, (_, i) => spec.xMin + (xSpan * i) / 80)
-        .map(x => [x, item.line.slope * x + item.line.intercept] as const)
-        .filter(([x, y]) => inPlane(x, y));
-      if (visible.length === 0) continue;
-      const candidates = [0.8, 0.2, 0.92, 0.08, 0.65, 0.35].flatMap(t => {
-        const [x, y] = visible[Math.min(visible.length - 1, Math.floor(visible.length * t))];
-        const px = sx(x);
-        const py = sy(y);
-        return [
-          { x: px + 8, y: py + 4 },
-          { x: px - labelW - 8, y: py - LABEL_H - 4 },
-          { x: px + 8, y: py - LABEL_H - 4 },
-          { x: px - labelW - 8, y: py + 4 },
-        ];
+      const ax = sx(item.line.points.reduce((sum, [x]) => sum + x, 0) / item.line.points.length);
+      const ay = sy(item.line.points.reduce((sum, [, y]) => sum + y, 0) / item.line.points.length);
+      // Dirección de la recta en pantalla
+      const dx = sx(1) - sx(0);
+      const dy = sy(item.line.slope) - sy(0);
+      const length = Math.hypot(dx, dy);
+      const rising = dy < 0;
+      const candidates = [46, -46, 84, -84, 128, -128, 180, -180].flatMap(distance => {
+        const px = ax + (dx / length) * distance;
+        const py = ay + (dy / length) * distance;
+        if (px < PAD.left || px > PAD.left + w || py < PAD.top || py > PAD.top + h) return [];
+        // A un lado y otro de la recta sin pisarla: si sube, abajo a la derecha y arriba a la izquierda
+        return rising
+          ? [
+              { x: px + 8, y: py + 4 },
+              { x: px - labelW - 8, y: py - LABEL_H - 4 },
+            ]
+          : [
+              { x: px + 8, y: py - LABEL_H - 4 },
+              { x: px - labelW - 8, y: py + 4 },
+            ];
       });
-      place(item.label, `crt-plane__label--${item.tone}`, candidates);
+      if (candidates.length > 0) place(item.label, `crt-plane__label--${item.tone}`, candidates);
     }
 
     for (const line of verticals) {
@@ -338,19 +349,35 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
 
     for (const conic of conics) {
       if (!conic.equation || conic.samples.length === 0) continue;
-      const labelW = estimateWidth(conic.equation);
-      const candidates = [0.13, 0.37, 0.63, 0.87, 0.5, 0.25, 0.75].flatMap(t => {
+      // Las fracciones de la ecuación van a tamaño de texto para que se lean en papel: la etiqueta es más alta
+      const tall = conic.equation.includes("\\frac");
+      const latex = tall ? conic.equation.replaceAll("\\frac", "\\dfrac") : conic.equation;
+      const labelH = tall ? TALL_LABEL_H : LABEL_H;
+      const labelW = estimateFractionWidth(latex);
+      const xs = conic.samples.map(([x]) => sx(x));
+      const ys = conic.samples.map(([, y]) => sy(y));
+      const center = (Math.min(...xs) + Math.max(...xs)) / 2;
+      // Primero fuera de la curva (encima, debajo, las esquinas del plano); si no hay sitio, pegada a ella
+      const outside = [
+        { x: center - labelW / 2, y: Math.min(...ys) - labelH - 6 },
+        { x: center - labelW / 2, y: Math.max(...ys) + 6 },
+        { x: PAD.left + w - labelW - 4, y: PAD.top + 2 },
+        { x: PAD.left + 4, y: PAD.top + 2 },
+        { x: PAD.left + w - labelW - 4, y: PAD.top + h - labelH - 2 },
+        { x: PAD.left + 4, y: PAD.top + h - labelH - 2 },
+      ];
+      const beside = [0.13, 0.37, 0.63, 0.87, 0.5, 0.25, 0.75].flatMap(t => {
         const [x, y] = conic.samples[Math.min(conic.samples.length - 1, Math.floor(conic.samples.length * t))];
         const px = sx(x);
         const py = sy(y);
         return [
-          { x: px + 10, y: py - LABEL_H - 4 },
+          { x: px + 10, y: py - labelH - 4 },
           { x: px + 10, y: py + 4 },
-          { x: px - labelW - 10, y: py - LABEL_H - 4 },
+          { x: px - labelW - 10, y: py - labelH - 4 },
           { x: px - labelW - 10, y: py + 4 },
         ];
       });
-      place(conic.equation, `crt-plane__label--${conic.tone}`, candidates);
+      place(latex, `crt-plane__label--${conic.tone}${tall ? " crt-plane__label--tall" : ""}`, [...outside, ...beside], labelW, labelH);
     }
 
     return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, conics, areas, lines, labels, toneOf };

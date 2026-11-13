@@ -1920,6 +1920,7 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 }
 
 .crt-plane__label .katex { font-size: 1em; }
+.crt-plane__label--tall { line-height: 32px; }
 .crt-plane__label--point { color: #B42318; }
 .crt-plane__label--a { color: #1F5FE0; }
 .crt-plane__label--b { color: #0F8A5F; }
@@ -2048,6 +2049,7 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 /* Un elemento de lista con una segunda fila de opciones (dominio de una función, datos de una cónica) */
 .crt-form__stack { display: flex; flex-direction: column; gap: 6px; }
 .crt-form__row--sub { padding-left: 12px; border-left: 2px solid var(--sheet-hair); }
+.crt-form__end { margin-left: auto; display: inline-flex; align-items: center; height: 36px; }
 .crt-form__index { flex: none; width: 22px; padding-top: 8px; font-weight: 600; color: var(--sheet-muted); text-align: right; }
 .crt-form__group { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--sheet-hair); background: #FAFBFD; }
 .crt-form__legend { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--sheet-muted); }
@@ -2436,6 +2438,7 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
   /* En papel las gráficas van algo más pequeñas: caben más cosas por hoja sin perder legibilidad */
   .crt-print .crt-plane { width: calc(var(--plane-w) * .8); }
   .crt-print .crt-plane__label { font-size: 10px; line-height: 16px; padding: 0 3px; }
+  .crt-print .crt-plane__label--tall { line-height: 26px; }
   .crt-print .crt-figure { width: calc(var(--fig-w) * .86); }
   .crt-print .crt-figure__label { font-size: 12px; }
   .crt-print .crt-answer--lines span { height: 22pt; }
