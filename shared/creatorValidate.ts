@@ -4,7 +4,7 @@ import { BLOCK_TYPE_LABELS, blockTexts, CREATOR_LIMITS, extractMath, findMath, t
 import { barPartFits, parseProbability, pictogramIcons, probabilityValue, siblingGroups, sumProbabilities, treePaths, vennRegionsFor, vennUniverseChars, vennZoneChars } from "./creatorDiagrams";
 import { isMultipleOfFraction, labelFits, polygonArea } from "./creatorFigures";
 import { formatNumber, tryCompile, type CompileResult } from "./creatorMath";
-import { planeAreaIssues } from "./creatorCalculus";
+import { planeAreaIssues, planeLineIssues } from "./creatorCalculus";
 import { planeConicIssues } from "./creatorConics";
 import { planeFunctionIssues, planePointIssue } from "./creatorPlane";
 import { histogramClassIssues, histogramCounts, linearRegression, resolveAxis, type AxisOverride } from "./creatorStats";
@@ -132,6 +132,7 @@ export function validateGraphSpec(spec: GraphSpec): string[] {
 
   issues.push(...planeConicIssues(spec));
   issues.push(...planeAreaIssues(spec));
+  issues.push(...planeLineIssues(spec));
 
   return issues;
 }

@@ -1,7 +1,7 @@
 import { memo, useId, useMemo, type CSSProperties } from "react";
 import type { GraphSpec } from "@shared/creator";
 import { formatNumber, formatNumberEs, tryCompile } from "@shared/creatorMath";
-import { areaLabel, areaShape } from "@shared/creatorCalculus";
+import { areaLabel, areaShape, lineLabel, secantLine, tangentLine, type PlaneLine } from "@shared/creatorCalculus";
 import { CONIC_LABELS, conicCurves, conicEquation, shownConicElements, type ConicLine } from "@shared/creatorConics";
 import { hasEqualUnits, sampleFunction, type CurveMark } from "@shared/creatorPlane";
 import { Formula } from "./Formula";
@@ -125,6 +125,25 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       return [{ index, tone: toneOf(area.fn), d: `${pathOf(shape.outline)} Z`, rectangles, label: areaLabel(spec, area), anchor: shape.anchor }];
     });
 
+    // Tangentes y secantes: la recta entera, recortada por el plano, y los puntos de la curva por los que pasa
+    const lineOf = (line: PlaneLine | null, index: number, tone: "t" | "s", show: "none" | "slope" | "equation" | undefined) =>
+      line
+        ? [
+            {
+              key: `${tone}${index}`,
+              tone,
+              line,
+              d: `M${PAD.left} ${sy(line.slope * spec.xMin + line.intercept).toFixed(2)} L${PAD.left + w} ${sy(line.slope * spec.xMax + line.intercept).toFixed(2)}`,
+              points: line.points.filter(([x, y]) => inPlane(x, y)),
+              label: lineLabel(line, show),
+            },
+          ]
+        : [];
+    const lines = [
+      ...(spec.tangents ?? []).flatMap((tangent, index) => lineOf(tangentLine(spec, tangent), index, "t", tangent.show)),
+      ...(spec.secants ?? []).flatMap((secant, index) => lineOf(secantLine(spec, secant), index, "s", secant.show)),
+    ];
+
     // Las cónicas siguen la paleta después de las funciones
     const linePath = (line: ConicLine) =>
       line.vertical !== undefined
@@ -150,6 +169,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       ...spec.points.map(point => ({ x: sx(point.x) - 6, y: sy(point.y) - 6, w: 12, h: 12 })),
       ...curves.flatMap(curve => curve.marks.map(mark => ({ x: sx(mark.x) - 5, y: sy(mark.y) - 5, w: 10, h: 10 }))),
       ...conics.flatMap(conic => conic.points.map(point => ({ x: sx(point.x) - 5, y: sy(point.y) - 5, w: 10, h: 10 }))),
+      ...lines.flatMap(item => item.points.map(([x, y]) => ({ x: sx(x) - 5, y: sy(y) - 5, w: 10, h: 10 }))),
     ];
     const labels: PlacedLabel[] = [];
 
@@ -171,6 +191,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     const curvePixels = [
       ...curves.flatMap(curve => curve.samples.map(([x, y]) => [sx(x), sy(y)] as const)),
       ...conics.flatMap(conic => conic.samples.filter((_, i) => i % 2 === 0).map(([x, y]) => [sx(x), sy(y)] as const)),
+      ...lines.flatMap(item =>
+        Array.from({ length: 41 }, (_, i) => spec.xMin + (xSpan * i) / 40)
+          .map(x => [x, item.line.slope * x + item.line.intercept] as const)
+          .filter(([x, y]) => inPlane(x, y))
+          .map(([x, y]) => [sx(x), sy(y)] as const),
+      ),
       // Las rectas verticales también son trazo que una etiqueta no debería tapar
       ...verticals.flatMap(line => Array.from({ length: 25 }, (_, i) => [sx(line.x), PAD.top + (h * i) / 24] as const)),
     ];
@@ -255,6 +281,28 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       ]);
     }
 
+    // La pendiente o la ecuación de una tangente o una secante va junto a la recta, lejos de sus puntos
+    for (const item of lines) {
+      if (!item.label) continue;
+      const labelW = estimateWidth(item.label);
+      const visible = Array.from({ length: 81 }, (_, i) => spec.xMin + (xSpan * i) / 80)
+        .map(x => [x, item.line.slope * x + item.line.intercept] as const)
+        .filter(([x, y]) => inPlane(x, y));
+      if (visible.length === 0) continue;
+      const candidates = [0.8, 0.2, 0.92, 0.08, 0.65, 0.35].flatMap(t => {
+        const [x, y] = visible[Math.min(visible.length - 1, Math.floor(visible.length * t))];
+        const px = sx(x);
+        const py = sy(y);
+        return [
+          { x: px + 8, y: py + 4 },
+          { x: px - labelW - 8, y: py - LABEL_H - 4 },
+          { x: px + 8, y: py - LABEL_H - 4 },
+          { x: px - labelW - 8, y: py + 4 },
+        ];
+      });
+      place(item.label, `crt-plane__label--${item.tone}`, candidates);
+    }
+
     for (const line of verticals) {
       if (!line.label) continue;
       const px = sx(line.x);
@@ -305,12 +353,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       place(conic.equation, `crt-plane__label--${conic.tone}`, candidates);
     }
 
-    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, conics, areas, labels, toneOf };
+    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, conics, areas, lines, labels, toneOf };
   }, [spec]);
 
   if (!view) return <div className="crt-plane crt-plane--invalid">Rango de la gráfica no válido.</div>;
 
-  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, conics, areas, labels, toneOf } = view;
+  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, conics, areas, lines, labels, toneOf } = view;
   const axisXpx = sy(axisX);
   const axisYpx = sx(axisY);
   // Con el origen a la vista, el cero se escribe una sola vez junto al cruce de los ejes
@@ -400,6 +448,9 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
             )),
           )}
           {conics.map(conic => conic.paths.map((d, index) => <path key={`c${conic.index}-${index}`} className={`crt-plane__curve crt-plane__curve--${conic.tone}`} d={d} />))}
+          {lines.map(item => (
+            <path key={item.key} className={`crt-plane__line crt-plane__tone--${item.tone}${item.tone === "s" ? " crt-plane__line--secant" : ""}`} d={item.d} />
+          ))}
         </g>
 
         <g className="crt-plane__marks">
@@ -418,6 +469,10 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
 
         <g className="crt-plane__marks">
           {conics.map(conic => conic.points.map((point, index) => <circle key={`${conic.index}-${index}`} className={`crt-plane__dot crt-plane__tone--${conic.tone}`} cx={sx(point.x)} cy={sy(point.y)} r={3.2} />))}
+        </g>
+
+        <g className="crt-plane__marks">
+          {lines.map(item => item.points.map(([x, y], index) => <circle key={`${item.key}-${index}`} className={`crt-plane__dot crt-plane__tone--${item.tone}`} cx={sx(x)} cy={sy(y)} r={3.6} />))}
         </g>
 
         <g className="crt-plane__points">

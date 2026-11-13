@@ -1698,6 +1698,11 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-plane__tone--b { --plane-tone: #0F8A5F; }
 .crt-plane__tone--c { --plane-tone: #7A3FD1; }
 .crt-plane__tone--d { --plane-tone: #C2570C; }
+/* Tangente y secante: color propio, y la secante además punteada para distinguirlas en blanco y negro */
+.crt-plane__tone--t { --plane-tone: #B4235A; }
+.crt-plane__tone--s { --plane-tone: #0E7C86; }
+.crt-plane__line { fill: none; stroke: var(--plane-tone, #111B24); stroke-width: 1.7; }
+.crt-plane__line--secant { stroke-dasharray: 10 4; }
 .crt-plane__mark { fill: var(--plane-tone, #111B24); stroke: var(--plane-tone, #111B24); stroke-width: 1.8; }
 .crt-plane__mark--open { fill: #FFFFFF; }
 .crt-plane__points .crt-plane__hole { fill: #FFFFFF; stroke: var(--plane-tone, #D92D20); stroke-width: 1.8; }
@@ -1720,6 +1725,8 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-plane__label--c { color: #7A3FD1; }
 .crt-plane__label--d { color: #C2570C; }
 .crt-plane__label--line { color: #3F4A56; }
+.crt-plane__label--t { color: #B4235A; }
+.crt-plane__label--s { color: #0E7C86; }
 
 /* Figuras (recta numérica, fracciones, diagramas, figuras geométricas, balanza) */
 

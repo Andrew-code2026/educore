@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { OptionSelect, type SelectOption } from "@/components/option-select";
-import { CREATOR_LIMITS, graphSpecSchema, type GraphArea, type GraphConic, type GraphFunction, type GraphVerticalLine } from "@shared/creator";
+import { CREATOR_LIMITS, graphSpecSchema, type GraphArea, type GraphConic, type GraphFunction, type GraphSecant, type GraphTangent, type GraphVerticalLine } from "@shared/creator";
 import { RIEMANN_SAMPLE_LABELS, type RiemannSample } from "@shared/creatorCalculus";
 import { CONIC_LABELS, CONIC_SHOW_LABELS, CONIC_SHOWS, conicEquation, type ConicKind, type ConicShow } from "@shared/creatorConics";
 import type { EndStyle } from "@shared/creatorPlane";
@@ -29,6 +29,14 @@ const COLOR_OPTIONS: readonly SelectOption<number | "">[] = [
   { value: 1, label: "Verde" },
   { value: 2, label: "Morado" },
   { value: 3, label: "Naranja" },
+];
+
+type LineShow = NonNullable<GraphTangent["show"]>;
+
+const LINE_SHOW_OPTIONS: readonly SelectOption<LineShow>[] = [
+  { value: "none", label: "Sin rótulo" },
+  { value: "slope", label: "Escribir la pendiente" },
+  { value: "equation", label: "Escribir la ecuación" },
 ];
 
 const RIEMANN_SAMPLE_OPTIONS: readonly SelectOption<RiemannSample>[] = (Object.keys(RIEMANN_SAMPLE_LABELS) as RiemannSample[]).map(sample => ({
@@ -137,6 +145,10 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
   const areas = spec.areas ?? [];
   const setAreas = (next: GraphArea[]) => setSpec({ areas: next.length > 0 ? next : undefined });
   const functionOptions = spec.functions.map((_, i) => ({ value: i, label: functionName(i) }));
+  const tangents = spec.tangents ?? [];
+  const setTangents = (next: GraphTangent[]) => setSpec({ tangents: next.length > 0 ? next : undefined });
+  const secants = spec.secants ?? [];
+  const setSecants = (next: GraphSecant[]) => setSpec({ secants: next.length > 0 ? next : undefined });
 
   return (
     <>
@@ -189,9 +201,17 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
                   // Los puntos que estaban sobre esta función quedan libres; los de las siguientes se reindexan
                   const shift = (i: number) => (i > index ? i - 1 : i);
                   const points = spec.points.map(point => (point.on == null ? point : point.on === index ? { ...point, on: null } : { ...point, on: shift(point.on) }));
-                  // Lo que se medía sobre esta función (regiones) se va con ella
+                  // Lo que se medía sobre esta función (regiones, tangentes y secantes) se va con ella
                   const keptAreas = areas.filter(area => area.fn !== index && area.between !== index).map(area => ({ ...area, fn: shift(area.fn), between: area.between === undefined ? undefined : shift(area.between) }));
-                  setSpec({ functions: spec.functions.filter((_, i) => i !== index), points, areas: keptAreas.length > 0 ? keptAreas : undefined });
+                  const keptTangents = tangents.filter(tangent => tangent.fn !== index).map(tangent => ({ ...tangent, fn: shift(tangent.fn) }));
+                  const keptSecants = secants.filter(secant => secant.fn !== index).map(secant => ({ ...secant, fn: shift(secant.fn) }));
+                  setSpec({
+                    functions: spec.functions.filter((_, i) => i !== index),
+                    points,
+                    areas: keptAreas.length > 0 ? keptAreas : undefined,
+                    tangents: keptTangents.length > 0 ? keptTangents : undefined,
+                    secants: keptSecants.length > 0 ? keptSecants : undefined,
+                  });
                   setExpanded(new Set());
                   bump();
                 }}
@@ -315,6 +335,62 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
             );
           })}
           {areas.length < CREATOR_LIMITS.areasMax && <AddButton onClick={() => setAreas([...areas, { fn: 0, from: 0, to: 1 }])}>Añadir región</AddButton>}
+
+          <span className="crt-form__legend">Tangentes y secantes</span>
+          {tangents.map((tangent, index) => {
+            const setTangent = (patch: Partial<GraphTangent>) => setTangents(tangents.map((current, i) => (i === index ? { ...current, ...patch } : current)));
+            return (
+              <div key={`${listVersion}-t${index}`} className="crt-form__row">
+                <Field label={`Tangente ${index + 1} a`}>
+                  <OptionSelect className="crt-input" aria-label={`Función de la tangente ${index + 1}`} value={tangent.fn} onValueChange={fn => setTangent({ fn })} options={functionOptions} />
+                </Field>
+                <Field label="En x =">
+                  <NumberInput label={`Punto de la tangente ${index + 1}`} value={tangent.x} onChange={x => setTangent({ x })} />
+                </Field>
+                <Field label="Rótulo">
+                  <OptionSelect className="crt-input" aria-label={`Rótulo de la tangente ${index + 1}`} value={tangent.show ?? "none"} onValueChange={show => setTangent({ show: show === "none" ? undefined : show })} options={LINE_SHOW_OPTIONS} />
+                </Field>
+                <RemoveButton
+                  label={`Quitar la tangente ${index + 1}`}
+                  onClick={() => {
+                    setTangents(tangents.filter((_, i) => i !== index));
+                    bump();
+                  }}
+                />
+              </div>
+            );
+          })}
+          {secants.map((secant, index) => {
+            const setSecant = (patch: Partial<GraphSecant>) => setSecants(secants.map((current, i) => (i === index ? { ...current, ...patch } : current)));
+            return (
+              <div key={`${listVersion}-s${index}`} className="crt-form__row">
+                <Field label={`Secante ${index + 1} de`}>
+                  <OptionSelect className="crt-input" aria-label={`Función de la secante ${index + 1}`} value={secant.fn} onValueChange={fn => setSecant({ fn })} options={functionOptions} />
+                </Field>
+                <Field label="Entre x =">
+                  <NumberInput label={`Primer punto de la secante ${index + 1}`} value={secant.x1} onChange={x1 => setSecant({ x1 })} />
+                </Field>
+                <Field label="Y x =">
+                  <NumberInput label={`Segundo punto de la secante ${index + 1}`} value={secant.x2} onChange={x2 => setSecant({ x2 })} />
+                </Field>
+                <Field label="Rótulo">
+                  <OptionSelect className="crt-input" aria-label={`Rótulo de la secante ${index + 1}`} value={secant.show ?? "none"} onValueChange={show => setSecant({ show: show === "none" ? undefined : show })} options={LINE_SHOW_OPTIONS} />
+                </Field>
+                <RemoveButton
+                  label={`Quitar la secante ${index + 1}`}
+                  onClick={() => {
+                    setSecants(secants.filter((_, i) => i !== index));
+                    bump();
+                  }}
+                />
+              </div>
+            );
+          })}
+          <div className="crt-form__actions">
+            {tangents.length < CREATOR_LIMITS.tangentsMax && <AddButton onClick={() => setTangents([...tangents, { fn: 0, x: 1, show: "slope" }])}>Añadir tangente</AddButton>}
+            {secants.length < CREATOR_LIMITS.secantsMax && <AddButton onClick={() => setSecants([...secants, { fn: 0, x1: 0, x2: 1, show: "slope" }])}>Añadir secante</AddButton>}
+          </div>
+          <p className="crt-form__hint">El área, la pendiente de la tangente (la derivada en ese punto) y la de la secante (la razón de cambio promedio) las calcula el sistema.</p>
         </>
       )}
 

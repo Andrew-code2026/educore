@@ -34,6 +34,8 @@ export const CREATOR_LIMITS = {
   areasMax: 2,
   /** Rectángulos de una suma de Riemann: con más, ya no se distinguen en media hoja. */
   riemannMax: 40,
+  tangentsMax: 3,
+  secantsMax: 3,
   /** Marcas por eje: más que esto deja la cuadrícula ilegible al imprimir. */
   ticksMax: 40,
   /** Datos crudos de un histograma o de una caja y bigotes: hasta cinco cursos de 40 estudiantes. */
@@ -156,6 +158,22 @@ export const graphAreaSchema = z.object({
   showValue: z.boolean().optional().describe("true escribe dentro de la región su área, calculada por el sistema; con rectángulos, la suma de Riemann."),
 });
 
+const lineShow = z.enum(["none", "slope", "equation"]);
+const lineShowHelp = 'Rótulo junto a la recta, calculado por el sistema: "slope" escribe la pendiente (m = …) y "equation" la ecuación (y = mx + b). Por defecto, ninguno.';
+
+export const graphTangentSchema = z.object({
+  fn: functionIndex.describe("Índice (desde 0) de la función a la que se traza la tangente."),
+  x: z.number().describe("Abscisa del punto de tangencia. La pendiente (la derivada ahí) la calcula el sistema."),
+  show: lineShow.optional().describe(lineShowHelp),
+});
+
+export const graphSecantSchema = z.object({
+  fn: functionIndex.describe("Índice (desde 0) de la función que corta la secante."),
+  x1: z.number().describe("Abscisa del primer punto."),
+  x2: z.number().describe("Abscisa del segundo punto."),
+  show: lineShow.optional().describe(lineShowHelp),
+});
+
 export const graphSpecSchema = z.object({
   xMin: z.number(),
   xMax: z.number(),
@@ -184,6 +202,8 @@ export const graphSpecSchema = z.object({
     .max(CREATOR_LIMITS.areasMax)
     .optional()
     .describe("Regiones sombreadas bajo una curva o entre dos curvas, para integrales y áreas. El valor lo calcula el sistema."),
+  tangents: z.array(graphTangentSchema).max(CREATOR_LIMITS.tangentsMax).optional().describe("Rectas tangentes a una función en un punto, para la derivada."),
+  secants: z.array(graphSecantSchema).max(CREATOR_LIMITS.secantsMax).optional().describe("Rectas secantes por dos puntos de una función, para la razón de cambio promedio."),
 });
 
 const headerFieldsBlock = z.object({
@@ -765,6 +785,8 @@ export type GraphPoint = z.infer<typeof graphPointSchema>;
 export type GraphVerticalLine = z.infer<typeof graphVerticalLineSchema>;
 export type GraphConic = z.infer<typeof graphConicSchema>;
 export type GraphArea = z.infer<typeof graphAreaSchema>;
+export type GraphTangent = z.infer<typeof graphTangentSchema>;
+export type GraphSecant = z.infer<typeof graphSecantSchema>;
 export type BlockInput = z.infer<typeof blockInputSchema>;
 export type Block = z.infer<typeof blockSchema>;
 export type BlockType = Block["type"];

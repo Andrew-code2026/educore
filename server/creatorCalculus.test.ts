@@ -1,6 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { blockInputSchema, emptyDoc, type BlockInput, type GraphSpec } from "@shared/creator";
-import { areaLabel, areaShape, computeArea, describeArea, integrate, measureLatex, measureText, riemannRectangles } from "@shared/creatorCalculus";
+import {
+  areaLabel,
+  areaShape,
+  computeArea,
+  derivativeAt,
+  describeArea,
+  describeSecant,
+  describeTangent,
+  integrate,
+  lineEquationLatex,
+  lineLabel,
+  measureLatex,
+  measureText,
+  riemannRectangles,
+  secantLine,
+  tangentLine,
+} from "@shared/creatorCalculus";
 import { compileExpression } from "@shared/creatorMath";
 import { describeComputed } from "@shared/creatorStats";
 import { checkLatex, validateBlock } from "@shared/creatorValidate";
@@ -198,5 +214,135 @@ describe("lo que se le devuelve a la IA sobre las regiones", () => {
     const schema = JSON.stringify(CREATOR_TOOLS.find(tool => tool.name === "write_section")!.input_schema);
     for (const word of ["areas", "rectangles", "midpoint", "showValue"]) expect(schema, word).toContain(word);
     expect(CREATOR_SYSTEM_PROMPT).toContain("areas");
+  });
+});
+
+describe("derivada en un punto", () => {
+  const derivative = (expr: string, x: number) => derivativeAt(compileExpression(expr), x);
+
+  it("coincide con la derivada exacta de las funciones de clase", () => {
+    expect(derivative("x^2", 1).value).toBe(2);
+    expect(derivative("x^2", -3).value).toBe(-6);
+    expect(derivative("x^3 - 2*x", 2).value).toBe(10);
+    expect(derivative("sin(x)", 0).value).toBe(1);
+    expect(derivative("exp(x)", 0).value).toBe(1);
+    expect(derivative("1/x", 2).value).toBe(-0.25);
+    expect(derivative("sqrt(x)", 4).value).toBe(0.25);
+    expect(derivative("x^3", 0).value).toBe(0);
+    expect(derivative("3", 5).value).toBe(0);
+    expect(derivative("cos(x)", 1).value).toBeCloseTo(-Math.sin(1), 10);
+    expect(derivative("sin(50*x)", 0.3).value).toBeCloseTo(50 * Math.cos(15), 6);
+  });
+
+  it("no da derivada en una esquina, un salto o un borde, y dice la pendiente de cada lado", () => {
+    expect(derivative("abs(x)", 0)).toEqual({ value: null, left: -1, right: 1 });
+    expect(derivative("abs(x^2 - 4)", 2)).toEqual({ value: null, left: -4, right: 4 });
+    expect(derivative("floor(x)", 2).value).toBeNull();
+    expect(derivative("sqrt(x)", 0).value).toBeNull();
+    expect(derivative("1/x", 0).value).toBeNull();
+    // Lejos de la esquina, la misma función sí es derivable
+    expect(derivative("abs(x)", 1).value).toBe(1);
+    expect(derivative("floor(x)", 2.5).value).toBe(0);
+  });
+});
+
+describe("tangente y secante", () => {
+  const spec = specOf({
+    functions: [{ expr: "x^2" }, { expr: "sin(x)" }],
+    tangents: [{ fn: 0, x: 1, show: "equation" }, { fn: 1, x: 1 }],
+    secants: [{ fn: 0, x1: 1, x2: 3 }, { fn: 0, x1: -1, x2: 1 }],
+  });
+
+  it("la tangente pasa por el punto con la pendiente de la derivada", () => {
+    expect(tangentLine(spec, spec.tangents![0])).toEqual({ slope: 2, intercept: -1, points: [[1, 1]] });
+    const sine = tangentLine(spec, spec.tangents![1])!;
+    expect(sine.slope).toBeCloseTo(Math.cos(1), 10);
+    expect(sine.points[0][1]).toBeCloseTo(Math.sin(1), 10);
+    expect(sine.slope * 1 + sine.intercept).toBeCloseTo(Math.sin(1), 9);
+  });
+
+  it("la secante pasa por los dos puntos: su pendiente es la razón de cambio promedio", () => {
+    expect(secantLine(spec, spec.secants![0])).toEqual({
+      slope: 4,
+      intercept: -3,
+      points: [
+        [1, 1],
+        [3, 9],
+      ],
+    });
+    expect(secantLine(spec, spec.secants![1])).toMatchObject({ slope: 0, intercept: 1 });
+    expect(secantLine(spec, { fn: 0, x1: 2, x2: 2 })).toBeNull();
+    expect(tangentLine(specOf({ functions: [{ expr: "abs(x)" }] }), { fn: 0, x: 0 })).toBeNull();
+  });
+
+  it("escribe la ecuación como en el cuaderno", () => {
+    const equation = (slope: number, intercept: number) => lineEquationLatex({ slope, intercept, points: [] });
+    expect(equation(2, -1)).toBe("y = 2x - 1");
+    expect(equation(-1, 0)).toBe("y = -x");
+    expect(equation(1, 3)).toBe("y = x + 3");
+    expect(equation(0, 3)).toBe("y = 3");
+    expect(equation(0.5, 2)).toBe("y = 0{,}5x + 2");
+    expect(equation(-2.25, -0.5)).toBe("y = -2{,}25x - 0{,}5");
+    expect(equation(Math.cos(1), Math.sin(1) - Math.cos(1))).toBe("y \\approx 0{,}54x + 0{,}3");
+    // Una pendiente que al redondear queda en cero no se escribe como «0x»
+    expect(equation(0.001234567, 2)).toBe("y \\approx 2");
+    for (const [m, b] of [[2, -1], [Math.cos(1), 0.3], [-2.25, -0.5]]) expect(checkLatex(equation(m, b))).toBeNull();
+  });
+
+  it("el rótulo es la pendiente o la ecuación, calculadas", () => {
+    const line = tangentLine(spec, spec.tangents![0])!;
+    expect(lineLabel(line, "slope")).toBe("m = 2");
+    expect(lineLabel(line, "equation")).toBe("y = 2x - 1");
+    expect(lineLabel(line, "none")).toBeNull();
+    expect(lineLabel(line, undefined)).toBeNull();
+    expect(lineLabel(tangentLine(spec, spec.tangents![1])!, "slope")).toBe("m \\approx 0{,}54");
+  });
+
+  it("acepta tangentes y secantes sobre funciones a trozos, dentro de su dominio", () => {
+    expect(issuesOf({ functions: [{ expr: "x^2" }], tangents: [{ fn: 0, x: 1, show: "slope" }], secants: [{ fn: 0, x1: 1, x2: 3, show: "equation" }] })).toEqual([]);
+    expect(issuesOf({ functions: [{ expr: "x^2", from: 0, to: 3 }], tangents: [{ fn: 0, x: 2 }] })).toEqual([]);
+  });
+
+  it("rechaza una tangente donde no la hay", () => {
+    const corner = issuesOf({ functions: [{ expr: "abs(x)" }], tangents: [{ fn: 0, x: 0 }] });
+    expect(corner).toHaveLength(1);
+    expect(corner[0]).toContain("no es derivable en x = 0");
+    expect(corner[0]).toContain("por la izquierda la pendiente es -1 y por la derecha 1");
+    expect(issuesOf({ functions: [{ expr: "floor(x)" }], tangents: [{ fn: 0, x: 2 }] })[0]).toContain("no es derivable en x = 2");
+    expect(issuesOf({ functions: [{ expr: "sqrt(x)" }], tangents: [{ fn: 0, x: 0 }] })[0]).toContain("no es derivable en x = 0");
+    expect(issuesOf({ functions: [{ expr: "1/x" }], tangents: [{ fn: 0, x: 0 }] })[0]).toContain("no está definida en x = 0");
+    expect(issuesOf({ functions: [{ expr: "x^2" }], tangents: [{ fn: 1, x: 0 }] })[0]).toContain("la función 1, que no existe");
+    expect(issuesOf({ functions: [{ expr: "x^2" }], tangents: [{ fn: 0, x: 3.5 }] })[0]).toContain("queda fuera del plano");
+    expect(issuesOf({ functions: [{ expr: "x^2", from: 0, to: 2 }], tangents: [{ fn: 0, x: 3 }] })[0]).toContain("no pertenece al dominio");
+    // En el extremo de un trozo solo hay curva a un lado
+    expect(issuesOf({ functions: [{ expr: "x^2", from: 0, to: 2 }], tangents: [{ fn: 0, x: 2 }] })[0]).toContain("no es derivable en x = 2");
+  });
+
+  it("rechaza una secante sin dos puntos distintos sobre la curva", () => {
+    expect(issuesOf({ functions: [{ expr: "x^2" }], secants: [{ fn: 0, x1: 1, x2: 1 }] })[0]).toContain("dos puntos distintos");
+    expect(issuesOf({ functions: [{ expr: "x^2" }], secants: [{ fn: 0, x1: 1, x2: 3.5 }] })[0]).toContain("queda fuera del plano");
+    expect(issuesOf({ functions: [{ expr: "sqrt(x)" }], secants: [{ fn: 0, x1: -1, x2: 1 }] })[0]).toContain("no está definida en x = -1");
+    expect(issuesOf({ functions: [{ expr: "x^2" }], secants: [{ fn: 4, x1: 0, x2: 1 }] })[0]).toContain("que no existe");
+    expect(blockInputSchema.safeParse({ type: "graph", spec: { ...PLANE, functions: [{ expr: "x" }], tangents: [{ fn: 0, x: 1, show: "angle" }] } }).success).toBe(false);
+  });
+
+  it("le devuelve a la IA el punto, la pendiente y la ecuación", () => {
+    expect(describeTangent(spec, spec.tangents![0])).toBe('Tangente a "x^2" en x = 1: punto (1, 1), pendiente m = 2, ecuación $y = 2x - 1$.');
+    expect(describeTangent(spec, spec.tangents![1])).toBe('Tangente a "sin(x)" en x = 1: punto ≈ (1; 0,84), pendiente m ≈ 0,54, ecuación $y \\approx 0{,}54x + 0{,}3$.');
+    expect(describeSecant(spec, spec.secants![0])).toBe('Secante de "x^2" entre x = 1 y x = 3: puntos (1, 1) y (3, 9), pendiente m = 4 (razón de cambio promedio), ecuación $y = 4x - 3$.');
+
+    const derivada = graph({ functions: [{ expr: "x^2" }], tangents: [{ fn: 0, x: 1 }], secants: [{ fn: 0, x1: 1, x2: 3 }] });
+    expect(describeComputed(derivada)).toContain("pendiente m = 2");
+    const outcome = executeCreatorTool(emptyDoc("Derivadas"), "write_section", { title: "Guía", role: "student", blocks: [derivada] }, Math.random);
+    expect(outcome.isError).toBe(false);
+    expect(outcome.result).toContain("ecuación $y = 2x - 1$");
+    expect(outcome.result).toContain("razón de cambio promedio");
+  });
+
+  it("el esquema de las herramientas y las instrucciones conocen las tangentes y las secantes", () => {
+    const schema = JSON.stringify(CREATOR_TOOLS.find(tool => tool.name === "write_section")!.input_schema);
+    for (const word of ["tangents", "secants", "equation"]) expect(schema, word).toContain(word);
+    expect(CREATOR_SYSTEM_PROMPT).toContain("tangents");
+    expect(CREATOR_SYSTEM_PROMPT).toContain("secants");
   });
 });

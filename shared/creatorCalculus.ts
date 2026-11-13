@@ -1,11 +1,13 @@
-import type { GraphArea, GraphSpec } from "./creator";
+import type { GraphArea, GraphSecant, GraphSpec, GraphTangent } from "./creator";
+import { pointText } from "./creatorConics";
 import { formatNumber, tryCompile, type CompiledExpression } from "./creatorMath";
 import { figureNumber, figureNumberLatex, inDomain, isExactNumber, oneSidedLimit, restrictToDomain, sampleFunction, tidy } from "./creatorPlane";
 
 /**
- * Cálculo sobre las funciones del plano cartesiano: el área de una región y las sumas de
- * Riemann. La IA y el docente indican la función y el intervalo; la región, los rectángulos
- * y los números que se escriben en la figura los calcula el sistema.
+ * Cálculo sobre las funciones del plano cartesiano: el área de una región, las sumas de
+ * Riemann, la derivada en un punto y las rectas tangente y secante. La IA y el docente
+ * indican la función y dónde; la región, la pendiente y los números que se escriben en la
+ * figura los calcula el sistema.
  */
 
 /** La función `index` del plano limitada a su dominio, o null si no existe o no compila. */
@@ -300,4 +302,161 @@ export function describeArea(spec: GraphSpec, area: GraphArea): string | null {
   if (Math.abs(result.integral - result.area) > 1e-9) parts.push(`integral ${measureText(result.integral)} (lo que queda por debajo resta)`);
   if (result.sum !== null) parts.push(`suma de Riemann con ${area.rectangles} rectángulos (${RIEMANN_SAMPLE_LABELS[area.sample ?? "left"]}) ${measureText(result.sum)}`);
   return `${where}: ${parts.join("; ")}.`;
+}
+
+/* ── Derivada, tangente y secante ── */
+
+export interface Derivative {
+  /** La derivada, o null si la función no es derivable en ese punto. */
+  value: number | null;
+  /** Pendiente por cada lado: en una esquina existen las dos y no coinciden. */
+  left: number | null;
+  right: number | null;
+}
+
+/** Una pendiente mayor que esta es, para el dibujo, una tangente vertical. */
+const SLOPE_MAX = 1e6;
+
+/**
+ * Derivada numérica en x: diferencias centradas afinadas con la extrapolación de Richardson,
+ * con una docena de cifras buenas. También se mide la pendiente por cada lado, para no
+ * trazar una tangente donde la curva tiene una esquina (|x| en 0) o un salto.
+ */
+export function derivativeAt(fn: CompiledExpression, x: number): Derivative {
+  const h = 1e-4 * Math.max(1, Math.abs(x));
+  const f0 = fn(x);
+  const sided = (side: -1 | 1): number | null => {
+    const estimate = (step: number) => (-3 * f0 + 4 * fn(x + side * step) - fn(x + 2 * side * step)) / (2 * side * step);
+    const value = (4 * estimate(h / 2) - estimate(h)) / 3;
+    return Number.isFinite(value) ? value : null;
+  };
+  const centered = (step: number) => (fn(x + step) - fn(x - step)) / (2 * step);
+  const value = (4 * centered(h / 2) - centered(h)) / 3;
+  const left = sided(-1);
+  const right = sided(1);
+  const smooth =
+    Number.isFinite(f0) && Number.isFinite(value) && Math.abs(value) < SLOPE_MAX && left !== null && right !== null && Math.abs(left - right) <= 1e-4 * Math.max(1, Math.abs(left), Math.abs(right));
+  return { value: smooth ? tidy(value) : null, left: left === null ? null : tidy(left), right: right === null ? null : tidy(right) };
+}
+
+/** Recta y = slope·x + intercept con los puntos de la curva por los que pasa. */
+export interface PlaneLine {
+  slope: number;
+  intercept: number;
+  points: Array<[number, number]>;
+}
+
+/** La tangente a la función en x, con la pendiente que calcula el sistema; null si no la hay. */
+export function tangentLine(spec: GraphSpec, tangent: GraphTangent): PlaneLine | null {
+  const fn = planeFunction(spec, tangent.fn);
+  if (!fn) return null;
+  const y = fn(tangent.x);
+  const slope = derivativeAt(fn, tangent.x).value;
+  if (!Number.isFinite(y) || slope === null) return null;
+  return { slope, intercept: tidy(y - slope * tangent.x), points: [[tangent.x, tidy(y)]] };
+}
+
+/** La secante por los puntos de la curva en x1 y x2: su pendiente es la razón de cambio promedio. */
+export function secantLine(spec: GraphSpec, secant: GraphSecant): PlaneLine | null {
+  const fn = planeFunction(spec, secant.fn);
+  if (!fn || secant.x1 === secant.x2) return null;
+  const y1 = fn(secant.x1);
+  const y2 = fn(secant.x2);
+  if (!Number.isFinite(y1) || !Number.isFinite(y2)) return null;
+  const slope = tidy((y2 - y1) / (secant.x2 - secant.x1));
+  return {
+    slope,
+    intercept: tidy(y1 - slope * secant.x1),
+    points: [
+      [secant.x1, tidy(y1)],
+      [secant.x2, tidy(y2)],
+    ],
+  };
+}
+
+/** El número como se va a escribir: exacto, o redondeado a dos decimales. */
+const shown = (value: number) => (isExactNumber(value) ? value : Number(value.toFixed(2)));
+
+/** Ecuación de la recta en LaTeX: «y = 2x - 1», «y = -x», «y = 3», o con ≈ si algún número va redondeado. */
+export function lineEquationLatex(line: PlaneLine): string {
+  const relation = isExactNumber(line.slope) && isExactNumber(line.intercept) ? "=" : "\\approx";
+  const m = shown(line.slope);
+  const b = shown(line.intercept);
+  if (m === 0) return `y ${relation} ${figureNumberLatex(b)}`;
+  const slope = m === 1 ? "x" : m === -1 ? "-x" : `${figureNumberLatex(m)}x`;
+  const intercept = b === 0 ? "" : ` ${b > 0 ? "+" : "-"} ${figureNumberLatex(Math.abs(b))}`;
+  return `y ${relation} ${slope}${intercept}`;
+}
+
+/** El rótulo que acompaña a una tangente o una secante: su pendiente o su ecuación, en LaTeX. */
+export function lineLabel(line: PlaneLine, show: GraphTangent["show"]): string | null {
+  if (show === "slope") return `m ${measureLatex(line.slope)}`;
+  if (show === "equation") return lineEquationLatex(line);
+  return null;
+}
+
+const insidePlane = (spec: GraphSpec, x: number, y: number) => x >= spec.xMin - EPS && x <= spec.xMax + EPS && y >= spec.yMin - EPS && y <= spec.yMax + EPS;
+
+/** Problema de un punto de la curva por el que debe pasar una recta, o null. */
+function curvePointIssue(spec: GraphSpec, index: number, x: number, what: string): string | null {
+  const fn = spec.functions[index];
+  const source = planeFunction(spec, index);
+  if (!fn || !source) return null;
+  const at = formatNumber(x, 4);
+  if (!inDomain(fn, x)) return `Gráfica: ${what}: x = ${at} no pertenece al dominio de "${fn.expr}".`;
+  const y = source(x);
+  if (!Number.isFinite(y)) return `Gráfica: ${what}: "${fn.expr}" no está definida en x = ${at}.`;
+  if (!insidePlane(spec, x, y)) return `Gráfica: ${what}: el punto (${at}, ${formatNumber(y, 4)}) queda fuera del plano; amplía el rango.`;
+  return null;
+}
+
+/** Problemas de las tangentes y secantes de un plano. */
+export function planeLineIssues(spec: GraphSpec): string[] {
+  const issues: string[] = [];
+  (spec.tangents ?? []).forEach((tangent, position) => {
+    const what = `la tangente ${position + 1}`;
+    const fn = spec.functions[tangent.fn];
+    if (!fn) return void issues.push(`Gráfica: ${what} usa la función ${tangent.fn}, que no existe.`);
+    const source = planeFunction(spec, tangent.fn);
+    if (!source) return;
+    const pointIssue = curvePointIssue(spec, tangent.fn, tangent.x, what);
+    if (pointIssue) return void issues.push(pointIssue);
+    const derivative = derivativeAt(source, tangent.x);
+    if (derivative.value !== null) return;
+    const at = formatNumber(tangent.x, 4);
+    const sides =
+      derivative.left !== null && derivative.right !== null && Math.abs(derivative.left) < SLOPE_MAX && Math.abs(derivative.right) < SLOPE_MAX
+        ? `por la izquierda la pendiente es ${formatNumber(derivative.left, 4)} y por la derecha ${formatNumber(derivative.right, 4)}`
+        : "la curva salta, termina o sube en vertical ahí";
+    issues.push(`Gráfica: no hay ${what.replace("la ", "")}: "${fn.expr}" no es derivable en x = ${at} (${sides}). Elige otro punto.`);
+  });
+  (spec.secants ?? []).forEach((secant, position) => {
+    const what = `la secante ${position + 1}`;
+    const fn = spec.functions[secant.fn];
+    if (!fn) return void issues.push(`Gráfica: ${what} usa la función ${secant.fn}, que no existe.`);
+    if (secant.x1 === secant.x2) return void issues.push(`Gráfica: ${what} necesita dos puntos distintos, y x1 y x2 valen lo mismo (${formatNumber(secant.x1, 4)}). Para un solo punto usa una tangente.`);
+    for (const x of [secant.x1, secant.x2]) {
+      const pointIssue = curvePointIssue(spec, secant.fn, x, what);
+      if (pointIssue) issues.push(pointIssue);
+    }
+  });
+  return issues;
+}
+
+const exactPoint = ([x, y]: [number, number]) => `${isExactNumber(x) && isExactNumber(y) ? "" : "≈ "}${pointText(x, y)}`;
+
+/** Una línea con el punto, la pendiente y la ecuación de una tangente, como salen en la figura. */
+export function describeTangent(spec: GraphSpec, tangent: GraphTangent): string | null {
+  const line = tangentLine(spec, tangent);
+  const fn = spec.functions[tangent.fn];
+  if (!line || !fn) return null;
+  return `Tangente a "${fn.expr}" en x = ${figureNumber(tangent.x)}: punto ${exactPoint(line.points[0])}, pendiente m ${measureText(line.slope)}, ecuación $${lineEquationLatex(line)}$.`;
+}
+
+/** Lo mismo para una secante: su pendiente es la razón de cambio promedio entre los dos puntos. */
+export function describeSecant(spec: GraphSpec, secant: GraphSecant): string | null {
+  const line = secantLine(spec, secant);
+  const fn = spec.functions[secant.fn];
+  if (!line || !fn) return null;
+  return `Secante de "${fn.expr}" entre x = ${figureNumber(secant.x1)} y x = ${figureNumber(secant.x2)}: puntos ${exactPoint(line.points[0])} y ${exactPoint(line.points[1])}, pendiente m ${measureText(line.slope)} (razón de cambio promedio), ecuación $${lineEquationLatex(line)}$.`;
 }
