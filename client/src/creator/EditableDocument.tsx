@@ -113,6 +113,9 @@ function useActiveBlock() {
 const isTypingTarget = (target: EventTarget | null) =>
   target instanceof Element && target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), .crt-inplace, .crt-picker') !== null;
 
+/** En lugar de un texto vacío se ofrece cualquier otro bloque. */
+const SLASH_EXCLUDE: readonly BlockType[] = ["paragraph"];
+
 const PICKER_TITLES: Record<InsertPlace["kind"], string> = {
   after: "Insertar debajo",
   before: "Insertar encima",
@@ -400,7 +403,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                 <PickerAnchor>
                   <BlockPicker
                     title="Cambiar este texto por…"
-                    exclude={["paragraph"]}
+                    exclude={SLASH_EXCLUDE}
                     onPick={type => replace(block.id, BLOCK_TEMPLATES[type], "all")}
                     onClose={reason => {
                       setSlashFor(null);
@@ -473,7 +476,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                       <DropdownMenuItem onSelect={blockMenu.later(() => open(block.id, block.type, "end"))}>
                         <Pencil aria-hidden="true" />
                         Editar
-                        <DropdownMenuShortcut>Intro</DropdownMenuShortcut>
+                        <DropdownMenuShortcut className="crt-keys">Intro</DropdownMenuShortcut>
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem
@@ -498,7 +501,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                     >
                       <ArrowUp aria-hidden="true" />
                       Subir
-                      <DropdownMenuShortcut>{MOVE_HINT.up}</DropdownMenuShortcut>
+                      <DropdownMenuShortcut className="crt-keys">{MOVE_HINT.up}</DropdownMenuShortcut>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       disabled={!canDown}
@@ -509,7 +512,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                     >
                       <ArrowDown aria-hidden="true" />
                       Bajar
-                      <DropdownMenuShortcut>{MOVE_HINT.down}</DropdownMenuShortcut>
+                      <DropdownMenuShortcut className="crt-keys">{MOVE_HINT.down}</DropdownMenuShortcut>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
@@ -559,7 +562,6 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
               else titles.current.delete(section.id);
             }}
             section={section}
-            readOnly={readOnly}
             applyOp={applyOp}
           />
         ))}

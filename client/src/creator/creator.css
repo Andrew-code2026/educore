@@ -1373,8 +1373,7 @@
 
 /* El nombre de la sección se renombra en su sitio: el mismo texto, con un filete al pasar por encima */
 .crt-section-title { border-radius: 6px; outline: 1px solid transparent; outline-offset: 3px; cursor: text; transition: outline-color .12s ease; }
-.crt-section-title[contenteditable="false"] { cursor: default; }
-.crt-section-title:hover:not([contenteditable="false"]) { outline-color: var(--sheet-hair); }
+.crt-section-title:hover { outline-color: var(--sheet-hair); }
 .crt-section-title:focus { outline: 2px solid var(--sheet-accent-line); }
 .crt-section-title:empty::before { content: "Nombre de la sección"; color: #8A929B; font-weight: 400; }
 
@@ -1546,8 +1545,8 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-picker__foot { margin: 0; padding: 6px 12px; border-top: 1px solid var(--sheet-hair); font-size: 11.5px; color: var(--sheet-muted); }
 .crt-picker__foot kbd { display: inline-block; min-width: 18px; margin-right: 2px; padding: 0 4px; border: 1px solid var(--sheet-hair); border-radius: 4px; background: #F7F9FB; font-family: inherit; font-size: 11px; text-align: center; }
 
-/* Sin teclado físico la leyenda de teclas sobra */
-@media (hover: none) { .crt-picker__foot { display: none; } }
+/* Sin teclado físico la leyenda de teclas sobra (también los atajos del menú del bloque, que va fuera de la hoja) */
+@media (hover: none) { .crt-picker__foot, .crt-keys { display: none; } }
 
 /* Bloque señalado para el chat: el filete del bloque activo, en el color de acento, y una señal en el
    margen que queda cuando el puntero se va (sirve también para soltarlo) */

@@ -36,15 +36,15 @@ export interface SectionTitleHandle {
 
 interface SectionTitleProps {
   section: Section;
-  readOnly: boolean;
   applyOp: (op: DocOp) => unknown;
 }
 
 /**
  * El título de una sección, renombrable en su sitio: es el mismo `h2` de la hoja con su texto
  * editable, así que no cambia de tamaño al entrar. Intro o salir lo guardan; Escape lo deja como estaba.
+ * Mientras la IA trabaja la hoja dibuja el `h2` de siempre en su lugar.
  */
-export const SectionTitle = forwardRef<SectionTitleHandle, SectionTitleProps>(function SectionTitle({ section, readOnly, applyOp }, ref) {
+export const SectionTitle = forwardRef<SectionTitleHandle, SectionTitleProps>(function SectionTitle({ section, applyOp }, ref) {
   const text = useRef<HTMLSpanElement>(null);
 
   // El texto lo lleva el elemento: React no lo toca mientras el docente escribe. Desde fuera solo cambia sin el foco
@@ -56,7 +56,7 @@ export const SectionTitle = forwardRef<SectionTitleHandle, SectionTitleProps>(fu
   useImperativeHandle(ref, () => ({
     rename: () => {
       const element = text.current;
-      if (!element || readOnly) return;
+      if (!element) return;
       element.focus();
       getSelection()?.selectAllChildren(element);
     },
@@ -80,11 +80,11 @@ export const SectionTitle = forwardRef<SectionTitleHandle, SectionTitleProps>(fu
       <span
         ref={text}
         className="crt-section-title"
-        contentEditable={readOnly ? false : PLAINTEXT_ONLY ? "plaintext-only" : true}
+        contentEditable={PLAINTEXT_ONLY ? "plaintext-only" : true}
         suppressContentEditableWarning
-        role={readOnly ? undefined : "textbox"}
-        aria-label={readOnly ? undefined : "Título de la sección"}
-        title={readOnly ? undefined : "Clic para cambiar el nombre de la sección"}
+        role="textbox"
+        aria-label="Título de la sección"
+        title="Clic para cambiar el nombre de la sección"
         spellCheck={false}
         onBlur={commit}
         onKeyDown={event => {
