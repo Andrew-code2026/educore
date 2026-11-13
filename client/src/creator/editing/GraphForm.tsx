@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { OptionSelect, type SelectOption } from "@/components/option-select";
-import { CREATOR_LIMITS, type GraphArea, type GraphConic, type GraphFunction, type GraphNotable, type GraphSecant, type GraphTangent, type GraphVerticalLine } from "@shared/creator";
+import { CREATOR_LIMITS, type GraphArea, type GraphConic, type GraphFigure, type GraphFunction, type GraphNotable, type GraphSecant, type GraphTangent, type GraphTransform, type GraphVerticalLine } from "@shared/creator";
 import { RIEMANN_SAMPLE_LABELS, type RiemannSample } from "@shared/creatorCalculus";
 import { CONIC_LABELS, CONIC_SHOW_LABELS, CONIC_SHOWS, conicEquation, type ConicKind, type ConicShow } from "@shared/creatorConics";
 import { NOTABLE_KIND_LABELS, describeNotable, type NotableKind } from "@shared/creatorNotable";
 import type { EndStyle } from "@shared/creatorPlane";
 import { AXIS_NAME_MAX } from "@shared/creatorPlaneAxes";
+import { FIGURE_KIND_LABELS, FIGURE_SHOW_LABELS, FIGURE_SHOWS, MIRROR_LABELS, TRANSFORM_LABELS, describeFigure, type FigureKind, type FigureShow, type Mirror, type TransformKind } from "@shared/creatorPlaneGeometry";
 import { Formula } from "../blocks/Formula";
 import { Check, Field, NumberInput, OptionalNumberInput, type FormProps } from "./fields";
 import { AddButton, RemoveButton, useListVersion } from "./FigureForms";
@@ -127,6 +128,109 @@ function ConicFields({ conic, index, onChange }: { conic: GraphConic; index: num
   }
 }
 
+const FIGURE_KIND_OPTIONS: readonly SelectOption<FigureKind>[] = (Object.keys(FIGURE_KIND_LABELS) as FigureKind[]).map(kind => ({ value: kind, label: FIGURE_KIND_LABELS[kind] }));
+const TRANSFORM_OPTIONS: readonly SelectOption<TransformKind | "">[] = [{ value: "", label: "Ninguna" }, ...(Object.keys(TRANSFORM_LABELS) as TransformKind[]).map(kind => ({ value: kind, label: TRANSFORM_LABELS[kind] }))];
+const MIRROR_OPTIONS: readonly SelectOption<Mirror>[] = (Object.keys(MIRROR_LABELS) as Mirror[]).map(over => ({ value: over, label: MIRROR_LABELS[over] }));
+
+/** Vértices que necesita cada figura como mínimo. */
+const FIGURE_MIN_VERTICES: Record<FigureKind, number> = { points: 1, segment: 2, polygon: 3 };
+
+/** Lo que el campo del nombre deja escribir: una letra, un dígito opcional y hasta dos primas. */
+const vertexNameOf = (raw: string): string | undefined => /^[A-Za-z]\d?'{0,2}/.exec(raw.trim())?.[0];
+
+/** El vértice que sigue: junto al último y con la primera letra que no esté usada. */
+function nextVertex(vertices: GraphFigure["vertices"]): GraphFigure["vertices"][number] {
+  const last = vertices[vertices.length - 1];
+  const used = new Set(vertices.map(vertex => vertex.name));
+  const name = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").find(letter => !used.has(letter));
+  return { x: (last?.x ?? 0) + 1, y: (last?.y ?? 0) + 1, name };
+}
+
+/** Una figura de cada tipo para empezar a editarla. */
+const figureTemplate = (kind: FigureKind): GraphFigure => {
+  switch (kind) {
+    case "points":
+      return { kind, vertices: [{ x: 2, y: 3, name: "P" }], show: ["coordinates"] };
+    case "segment":
+      return { kind, vertices: [{ x: 1, y: 1, name: "A" }, { x: 4, y: 3, name: "B" }], show: ["lengths"] };
+    case "polygon":
+      return { kind, vertices: [{ x: 1, y: 1, name: "A" }, { x: 4, y: 1, name: "B" }, { x: 2, y: 3, name: "C" }] };
+  }
+};
+
+/** La misma figura con otro tipo: conserva los vértices que sirven, completa los que faltan y quita lo que ya no puede mostrar. */
+function withKind(figure: GraphFigure, kind: FigureKind): GraphFigure {
+  let vertices = kind === "segment" ? figure.vertices.slice(0, 2) : [...figure.vertices];
+  while (vertices.length < FIGURE_MIN_VERTICES[kind]) vertices = [...vertices, nextVertex(vertices)];
+  const show = (figure.show ?? []).filter(item => FIGURE_SHOWS[kind].includes(item));
+  return { ...figure, kind, vertices, show: show.length > 0 ? show : undefined };
+}
+
+const transformTemplate = (kind: TransformKind): GraphTransform => {
+  switch (kind) {
+    case "translation":
+      return { kind, dx: 3, dy: -2 };
+    case "reflection":
+      return { kind, over: "y" };
+    case "rotation":
+      return { kind, cx: 0, cy: 0, angle: 90 };
+    case "dilation":
+      return { kind, cx: 0, cy: 0, factor: 2 };
+  }
+};
+
+/** Los datos propios de cada transformación. */
+function TransformFields({ transform, index, onChange }: { transform: GraphTransform; index: number; onChange: (next: GraphTransform) => void }) {
+  const number = (label: string, value: number, set: (value: number) => GraphTransform) => (
+    <Field label={label}>
+      <NumberInput label={`${label} de la transformación de la figura ${index + 1}`} value={value} onChange={next => onChange(set(next))} />
+    </Field>
+  );
+  switch (transform.kind) {
+    case "translation":
+      return (
+        <>
+          {number("Vector: en x", transform.dx, dx => ({ ...transform, dx }))}
+          {number("Vector: en y", transform.dy, dy => ({ ...transform, dy }))}
+        </>
+      );
+    case "reflection":
+      return (
+        <>
+          <Field label="Eje de reflexión">
+            <OptionSelect
+              className="crt-input"
+              aria-label={`Eje de reflexión de la figura ${index + 1}`}
+              value={transform.over}
+              // Cada eje lleva sus propios datos: los de otro no se arrastran
+              onValueChange={over => onChange(over === "vertical" ? { kind: "reflection", over, at: 1 } : over === "line" ? { kind: "reflection", over, slope: 1, intercept: 0 } : { kind: "reflection", over })}
+              options={MIRROR_OPTIONS}
+            />
+          </Field>
+          {transform.over === "vertical" && number("Recta x =", transform.at ?? 0, at => ({ ...transform, at }))}
+          {transform.over === "line" && number("Pendiente m", transform.slope ?? 0, slope => ({ ...transform, slope }))}
+          {transform.over === "line" && number("Corte b", transform.intercept ?? 0, intercept => ({ ...transform, intercept }))}
+        </>
+      );
+    case "rotation":
+      return (
+        <>
+          {number("Centro: x", transform.cx, cx => ({ ...transform, cx }))}
+          {number("Centro: y", transform.cy, cy => ({ ...transform, cy }))}
+          {number("Ángulo (°, antihorario)", transform.angle, angle => ({ ...transform, angle }))}
+        </>
+      );
+    case "dilation":
+      return (
+        <>
+          {number("Centro: x", transform.cx, cx => ({ ...transform, cx }))}
+          {number("Centro: y", transform.cy, cy => ({ ...transform, cy }))}
+          {number("Razón", transform.factor, factor => ({ ...transform, factor }))}
+        </>
+      );
+  }
+}
+
 /** ¿La función usa alguna de las opciones que el formulario guarda plegadas? */
 const hasOptions = (fn: GraphFunction) => fn.from !== undefined || fn.to !== undefined || fn.color !== undefined || fn.style !== undefined;
 
@@ -151,6 +255,9 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
   const setTangents = (next: GraphTangent[]) => setSpec({ tangents: next.length > 0 ? next : undefined });
   const secants = spec.secants ?? [];
   const setSecants = (next: GraphSecant[]) => setSpec({ secants: next.length > 0 ? next : undefined });
+  const figures = spec.figures ?? [];
+  const setFigures = (next: GraphFigure[]) => setSpec({ figures: next.length > 0 ? next : undefined });
+  const setFigure = (index: number, next: GraphFigure) => setFigures(figures.map((current, i) => (i === index ? next : current)));
   const notable = spec.notable ?? [];
   const setNotable = (next: GraphNotable[]) => setSpec({ notable: next.length > 0 ? next : undefined });
   const piAxis = spec.xUnit === "pi";
@@ -474,6 +581,97 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
           <p className="crt-form__hint">El área, la pendiente de la tangente (la derivada en ese punto) y la de la secante (la razón de cambio promedio) las calcula el sistema.</p>
         </>
       )}
+
+      <span className="crt-form__legend">Geometría: puntos, segmentos y polígonos</span>
+      {figures.map((figure, index) => {
+        const shown = figure.show ?? [];
+        const toggle = (item: FigureShow, on: boolean) => {
+          const next = FIGURE_SHOWS[figure.kind].filter(value => (value === item ? on : shown.includes(value)));
+          setFigure(index, { ...figure, show: next.length > 0 ? next : undefined });
+        };
+        const setVertex = (at: number, patch: Partial<GraphFigure["vertices"][number]>) => setFigure(index, { ...figure, vertices: figure.vertices.map((vertex, v) => (v === at ? { ...vertex, ...patch } : vertex)) });
+        const removable = figure.vertices.length > FIGURE_MIN_VERTICES[figure.kind];
+        return (
+          <div key={`${listVersion}-g${index}`} className="crt-form__group crt-form__stack">
+            <div className="crt-form__row">
+              <Field label={`Figura ${index + 1}`}>
+                <OptionSelect
+                  className="crt-input"
+                  aria-label={`Tipo de la figura ${index + 1}`}
+                  value={figure.kind}
+                  onValueChange={kind => {
+                    setFigure(index, withKind(figure, kind));
+                    bump();
+                  }}
+                  options={FIGURE_KIND_OPTIONS}
+                />
+              </Field>
+              {FIGURE_SHOWS[figure.kind].map(item => (
+                <Check key={item} label={FIGURE_SHOW_LABELS[item]} checked={shown.includes(item)} onChange={on => toggle(item, on)} />
+              ))}
+              <span className="crt-form__end">
+                <RemoveButton
+                  label={`Quitar la figura ${index + 1}`}
+                  onClick={() => {
+                    setFigures(figures.filter((_, i) => i !== index));
+                    bump();
+                  }}
+                />
+              </span>
+            </div>
+            {figure.vertices.map((vertex, at) => (
+              <div key={at} className="crt-form__item">
+                <input
+                  className="crt-input crt-input--tiny"
+                  aria-label={`Nombre del vértice ${at + 1} de la figura ${index + 1}`}
+                  spellCheck={false}
+                  maxLength={4}
+                  placeholder="A"
+                  value={vertex.name ?? ""}
+                  onChange={event => setVertex(at, { name: vertexNameOf(event.target.value) })}
+                />
+                <NumberInput label={`x del vértice ${at + 1} de la figura ${index + 1}`} value={vertex.x} onChange={x => setVertex(at, { x })} />
+                <NumberInput label={`y del vértice ${at + 1} de la figura ${index + 1}`} value={vertex.y} onChange={y => setVertex(at, { y })} />
+                {removable && (
+                  <RemoveButton
+                    label={`Quitar el vértice ${at + 1} de la figura ${index + 1}`}
+                    onClick={() => {
+                      setFigure(index, { ...figure, vertices: figure.vertices.filter((_, v) => v !== at) });
+                      bump();
+                    }}
+                  />
+                )}
+              </div>
+            ))}
+            {figure.kind !== "segment" && figure.vertices.length < CREATOR_LIMITS.planeVerticesMax && (
+              <AddButton onClick={() => setFigure(index, { ...figure, vertices: [...figure.vertices, nextVertex(figure.vertices)] })}>{figure.kind === "polygon" ? "Añadir vértice" : "Añadir punto"}</AddButton>
+            )}
+            <div key={`${figure.transform?.kind}-${figure.transform?.kind === "reflection" ? figure.transform.over : ""}`} className="crt-form__row">
+              <Field label="Transformación">
+                <OptionSelect<TransformKind | "">
+                  className="crt-input"
+                  aria-label={`Transformación de la figura ${index + 1}`}
+                  value={figure.transform?.kind ?? ""}
+                  onValueChange={kind => setFigure(index, { ...figure, transform: kind === "" ? undefined : transformTemplate(kind) })}
+                  options={TRANSFORM_OPTIONS}
+                />
+              </Field>
+              {figure.transform && <TransformFields transform={figure.transform} index={index} onChange={transform => setFigure(index, { ...figure, transform })} />}
+            </div>
+            <p className="crt-form__hint">{describeFigure(figure).replace(/\$/g, "")}</p>
+          </div>
+        );
+      })}
+      {figures.length < CREATOR_LIMITS.planeFiguresMax && (
+        <div className="crt-form__actions">
+          {FIGURE_KIND_OPTIONS.map(option => (
+            <AddButton key={option.value} onClick={() => setFigures([...figures, figureTemplate(option.value)])}>
+              Añadir {FIGURE_KIND_LABELS[option.value].toLowerCase()}
+            </AddButton>
+          ))}
+        </div>
+      )}
+      {figures.length > 0 && <p className="crt-form__hint">Las longitudes, el punto medio, el perímetro, el área y la imagen por la transformación (A′, B′, C′) los calcula el sistema. Con figuras, deja el plano más o menos cuadrado para que las distancias y los ángulos no se deformen.</p>}
 
       <span className="crt-form__legend">Cónicas</span>
       {conics.map((conic, index) => {

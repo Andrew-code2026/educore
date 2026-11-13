@@ -6,6 +6,7 @@ import { CONIC_LABELS, conicCurves, conicEquation, shownConicElements, type Coni
 import { describeNotable, shownNotablePoints } from "@shared/creatorNotable";
 import { functionColors, insidePlane, sampleFunction, type CurveMark } from "@shared/creatorPlane";
 import { labelEvery, planeLayout, planeTicks, planeXTicks } from "@shared/creatorPlaneAxes";
+import { describeFigure, figureShows, midpointLabel, mirrorLine, planeFigure, sideLabel, transformCenter, vertexLabel } from "@shared/creatorPlaneGeometry";
 import { FigureNotes, useHasNotes } from "./FigureNotes";
 import { Formula } from "./Formula";
 
@@ -16,6 +17,9 @@ const TONES = ["a", "b", "c", "d"] as const;
 /** Radio de los puntos marcados y de los círculos de extremos y saltos. */
 const POINT_R = 4.2;
 const MARK_R = 3.6;
+
+/** Una recta que cruza el plano: vertical (x = `vertical`) o y = slope·x + intercept. */
+type AuxLine = Pick<ConicLine, "vertical" | "slope" | "intercept">;
 
 interface Box {
   x: number;
@@ -54,8 +58,9 @@ function describe(spec: GraphSpec): string {
   const axes = [spec.xLabel && `eje x: ${spec.xLabel}`, spec.yLabel && `eje y: ${spec.yLabel}`].filter(Boolean).join(", ");
   const unit = spec.xUnit === "pi" ? "Eje x en múltiplos de π" : "";
   const notable = (spec.notable ?? []).map(item => describeNotable(spec, item)).filter(Boolean).join(" ");
+  const figures = (spec.figures ?? []).map(describeFigure).join(" ").replace(/\$/g, "");
   return (
-    [base, axes && `Ejes con nombre, ${axes}`, unit, notable.replace(/\.$/, ""), lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, tangents && `Recta tangente en ${tangents}`, secants && `Recta secante entre ${secants}`, points && `Puntos marcados: ${points}`]
+    [base, axes && `Ejes con nombre, ${axes}`, unit, notable.replace(/\.$/, ""), figures.replace(/\.$/, ""), lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, tangents && `Recta tangente en ${tangents}`, secants && `Recta secante entre ${secants}`, points && `Puntos marcados: ${points}`]
       .filter(Boolean)
       .join(". ") + "."
   );
@@ -134,13 +139,13 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     ];
 
     // Las cónicas siguen la paleta después de las funciones
-    const lineY = (line: ConicLine, x: number) => line.slope! * x + line.intercept!;
+    const lineY = (line: AuxLine, x: number) => line.slope! * x + line.intercept!;
     /** Puntos de una recta auxiliar dentro del plano: trazo que una etiqueta no debería tapar. */
-    const lineSamples = (line: ConicLine): Array<[number, number]> =>
+    const lineSamples = (line: AuxLine): Array<[number, number]> =>
       Array.from({ length: 33 }, (_, i): [number, number] =>
         line.vertical !== undefined ? [line.vertical, spec.yMin + (ySpan * i) / 32] : [spec.xMin + (xSpan * i) / 32, lineY(line, spec.xMin + (xSpan * i) / 32)],
       ).filter(([x, y]) => inPlane(x, y));
-    const linePath = (line: ConicLine) =>
+    const linePath = (line: AuxLine) =>
       line.vertical !== undefined
         ? `M${sx(line.vertical).toFixed(2)} ${PAD.top} V${PAD.top + h}`
         : `M${PAD.left} ${sy(line.slope! * spec.xMin + line.intercept!).toFixed(2)} L${PAD.left + w} ${sy(line.slope! * spec.xMax + line.intercept!).toFixed(2)}`;
@@ -163,6 +168,63 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       };
     });
 
+    // Figuras geométricas: la original y, si se transforma, su imagen en el color siguiente
+    const figureBase = spec.functions.length + (spec.conics ?? []).length;
+    const figures = (spec.figures ?? []).map((figure, index) => {
+      const { original, image } = planeFigure(figure);
+      const shapes = [original, ...(image ? [image] : [])].map((shape, order) => {
+        const pixels = shape.vertices.map(vertex => [sx(vertex.x), sy(vertex.y)] as const);
+        return {
+          shape,
+          tone: TONES[(figureBase + 2 * index + order) % TONES.length],
+          d: shape.kind === "points" ? null : `${pathOf(shape.vertices.map(vertex => [vertex.x, vertex.y]))}${shape.kind === "polygon" ? " Z" : ""}`,
+          // Centro de la figura en pantalla: los rótulos se alejan de él
+          center: [pixels.reduce((sum, [x]) => sum + x, 0) / pixels.length, pixels.reduce((sum, [, y]) => sum + y, 0) / pixels.length] as const,
+        };
+      });
+      // Trazos de ayuda: el vector de una traslación, el eje de una reflexión, los radios de una rotación y los rayos de una homotecia
+      const guides: string[] = [];
+      const guideSamples: Array<[number, number]> = [];
+      let arrow: { d: string; head: string } | null = null;
+      const transform = figure.transform;
+      const center = transform && image ? transformCenter(transform) : null;
+      const ray = (from: readonly [number, number], to: readonly [number, number]) => `M${sx(from[0]).toFixed(2)} ${sy(from[1]).toFixed(2)} L${sx(to[0]).toFixed(2)} ${sy(to[1]).toFixed(2)}`;
+      if (transform && image) {
+        const first = [original.vertices[0].x, original.vertices[0].y] as const;
+        const moved = [image.vertices[0].x, image.vertices[0].y] as const;
+        if (transform.kind === "translation") {
+          const [x1, y1, x2, y2] = [sx(first[0]), sy(first[1]), sx(moved[0]), sy(moved[1])];
+          const length = Math.hypot(x2 - x1, y2 - y1) || 1;
+          const ux = (x2 - x1) / length;
+          const uy = (y2 - y1) / length;
+          // La punta queda a un paso del punto imagen, para no taparlo
+          const tip = [x2 - ux * 5, y2 - uy * 5];
+          arrow = {
+            d: `M${x1.toFixed(2)} ${y1.toFixed(2)} L${(tip[0] - ux * 7).toFixed(2)} ${(tip[1] - uy * 7).toFixed(2)}`,
+            head: `M${tip[0].toFixed(2)} ${tip[1].toFixed(2)} L${(tip[0] - ux * 8 - uy * 3.5).toFixed(2)} ${(tip[1] - uy * 8 + ux * 3.5).toFixed(2)} L${(tip[0] - ux * 8 + uy * 3.5).toFixed(2)} ${(tip[1] - uy * 8 - ux * 3.5).toFixed(2)} Z`,
+          };
+        } else if (transform.kind === "reflection") {
+          const line = mirrorLine(transform);
+          // Los ejes ya están dibujados: solo se traza una recta distinta de ellos
+          if (line && (transform.over === "line" || transform.over === "vertical")) {
+            guides.push(linePath(line));
+            guideSamples.push(...lineSamples(line));
+          }
+        } else if (center) {
+          if (transform.kind === "rotation") guides.push(ray(center, first), ray(center, moved));
+          else {
+            original.vertices.forEach((vertex, at) => {
+              const other = image.vertices[at];
+              const far = Math.hypot(vertex.x - center[0], vertex.y - center[1]) >= Math.hypot(other.x - center[0], other.y - center[1]) ? vertex : other;
+              guides.push(ray(center, [far.x, far.y]));
+            });
+          }
+        }
+      }
+      return { index, shapes, guides, guideSamples, arrow, center: center && inPlane(center[0], center[1]) ? center : null, show: figureShows(figure) };
+    });
+    const figureShapes = figures.flatMap(figure => figure.shapes.map(item => ({ ...item, show: figure.show })));
+
     // Puntos notables que halló el sistema: raíces, cortes y extremos, con el color de su función
     const notable = shownNotablePoints(spec).map(point => ({ ...point, tone: toneOf(point.fn) }));
 
@@ -174,6 +236,11 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       ...conics.flatMap(conic => conic.points.map(point => ({ x: sx(point.x) - 5, y: sy(point.y) - 5, w: 10, h: 10 }))),
       ...lines.flatMap(item => item.points.map(([x, y]) => ({ x: sx(x) - 5, y: sy(y) - 5, w: 10, h: 10 }))),
       ...notable.map(point => ({ x: sx(point.x) - 5, y: sy(point.y) - 5, w: 10, h: 10 })),
+      ...figureShapes.flatMap(item => [
+        ...item.shape.vertices.map(vertex => ({ x: sx(vertex.x) - 5, y: sy(vertex.y) - 5, w: 10, h: 10 })),
+        ...(item.show.midpoint && item.shape.midpoint ? [{ x: sx(item.shape.midpoint[0]) - 5, y: sy(item.shape.midpoint[1]) - 5, w: 10, h: 10 }] : []),
+      ]),
+      ...figures.flatMap(figure => (figure.center ? [{ x: sx(figure.center[0]) - 5, y: sy(figure.center[1]) - 5, w: 10, h: 10 }] : [])),
     ];
     const labels: PlacedLabel[] = [];
 
@@ -201,6 +268,9 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
           .filter(([x, y]) => inPlane(x, y))
           .map(([x, y]) => [sx(x), sy(y)] as const),
       ),
+      // Los lados de las figuras y el eje de una reflexión
+      ...figureShapes.flatMap(item => item.shape.sides.flatMap(side => Array.from({ length: 13 }, (_, i) => [sx(side.from.x + ((side.to.x - side.from.x) * i) / 12), sy(side.from.y + ((side.to.y - side.from.y) * i) / 12)] as const))),
+      ...figures.flatMap(figure => figure.guideSamples.map(([x, y]) => [sx(x), sy(y)] as const)),
       // Las rectas verticales también son trazo que una etiqueta no debería tapar
       ...verticals.flatMap(line => Array.from({ length: 25 }, (_, i) => [sx(line.x), PAD.top + (h * i) / 24] as const)),
     ];
@@ -253,6 +323,43 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       // La etiqueta de un hueco lleva el color de su curva, como el círculo
       const tone = point.open && point.on != null ? `crt-plane__label--${toneOf(point.on)}` : "crt-plane__label--point";
       place(point.label, tone, around(sx(point.x), sy(point.y), estimateWidth(point.label)));
+    }
+
+    // Los vértices de una figura se rotulan hacia fuera de ella: primero los sitios más lejos de su centro
+    for (const item of figureShapes) {
+      const tone = `crt-plane__label--${item.tone}`;
+      const [cx, cy] = item.center;
+      for (const vertex of item.shape.vertices) {
+        const label = vertexLabel(vertex, item.show.coordinates);
+        if (!label) continue;
+        const labelW = estimateWidth(label);
+        const away = (candidate: { x: number; y: number }) => Math.hypot(candidate.x + labelW / 2 - cx, candidate.y + LABEL_H / 2 - cy);
+        place(label, tone, around(sx(vertex.x), sy(vertex.y), labelW).sort((a, b) => away(b) - away(a)), labelW);
+      }
+      if (item.show.midpoint && item.shape.midpoint) {
+        const label = midpointLabel(item.shape.midpoint);
+        place(label, tone, around(sx(item.shape.midpoint[0]), sy(item.shape.midpoint[1]), estimateWidth(label)));
+      }
+    }
+
+    // La longitud de un lado va junto a su punto medio, del lado de fuera de la figura
+    for (const item of figureShapes) {
+      if (!item.show.lengths) continue;
+      const [cx, cy] = item.center;
+      for (const side of item.shape.sides) {
+        const label = sideLabel(side);
+        const labelW = estimateWidth(label);
+        const [x1, y1, x2, y2] = [sx(side.from.x), sy(side.from.y), sx(side.to.x), sy(side.to.y)];
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+        const length = Math.hypot(x2 - x1, y2 - y1) || 1;
+        // Perpendicular al lado, apuntando lejos del centro de la figura
+        let nx = -(y2 - y1) / length;
+        let ny = (x2 - x1) / length;
+        if ((mx - cx) * nx + (my - cy) * ny < 0) [nx, ny] = [-nx, -ny];
+        const at = (distance: number) => ({ x: mx + nx * (distance + (Math.abs(nx) * labelW) / 2) - labelW / 2, y: my + ny * (distance + (Math.abs(ny) * LABEL_H) / 2) - LABEL_H / 2 });
+        place(label, `crt-plane__label--${item.tone}`, [at(6), at(-6), at(16), at(-16)], labelW);
+      }
     }
 
     for (const point of notable) {
@@ -394,12 +501,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       .flatMap(curve => curve.marks.map((mark, index) => ({ ...mark, tone: curve.tone, key: `${curve.index}-${index}` })))
       .sort((a, b) => Number(a.filled) - Number(b.filled));
 
-    return { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, notable, labels, toneOf };
+    return { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, notable, figures, figureShapes, labels, toneOf };
   }, [spec]);
 
   if (!view) return <div className="crt-plane crt-plane--invalid">Rango de la gráfica no válido.</div>;
 
-  const { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, notable, labels, toneOf } = view;
+  const { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, notable, figures, figureShapes, labels, toneOf } = view;
   const { w, h, width, height, pad: PAD } = layout;
   const axisXpx = sy(axisX);
   const axisYpx = sx(axisY);
@@ -508,6 +615,34 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
           )}
           {lines.map(item => (
             <path key={item.key} className={`crt-plane__line crt-plane__tone--${item.tone}${item.tone === "s" ? " crt-plane__line--secant" : ""}`} d={item.d} />
+          ))}
+          {figures.map(figure => (
+            <g key={`f${figure.index}`}>
+              {figure.guides.map((d, index) => (
+                <path key={`g${index}`} className="crt-plane__guide" d={d} />
+              ))}
+              {figure.arrow && (
+                <>
+                  <path className="crt-plane__guide" d={figure.arrow.d} />
+                  <path className="crt-plane__guide-head" d={figure.arrow.head} />
+                </>
+              )}
+              {figure.shapes.map((item, index) =>
+                item.d ? <path key={`s${index}`} className={`crt-plane__shape crt-plane__tone--${item.tone}${item.shape.kind === "polygon" ? " crt-plane__shape--filled" : ""}`} d={item.d} /> : null,
+              )}
+            </g>
+          ))}
+        </g>
+
+        <g className="crt-plane__marks">
+          {figures.map(figure => (figure.center ? <circle key={`fc${figure.index}`} className="crt-plane__dot" cx={sx(figure.center[0])} cy={sy(figure.center[1])} r={3.4} /> : null))}
+          {figureShapes.map((item, index) => (
+            <g key={`fv${index}`} className={`crt-plane__tone--${item.tone}`}>
+              {item.shape.vertices.map((vertex, at) => (
+                <circle key={at} className="crt-plane__dot" cx={sx(vertex.x)} cy={sy(vertex.y)} r={3.6} />
+              ))}
+              {item.show.midpoint && item.shape.midpoint && <circle className="crt-plane__dot" cx={sx(item.shape.midpoint[0])} cy={sy(item.shape.midpoint[1])} r={3.2} />}
+            </g>
           ))}
         </g>
 

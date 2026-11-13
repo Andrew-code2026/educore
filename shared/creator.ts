@@ -41,6 +41,9 @@ export const CREATOR_LIMITS = {
   secantsMax: 3,
   /** Peticiones de puntos notables de un plano: raíces, corte con y y extremos de dos funciones, y sus cortes. */
   notableMax: 8,
+  /** Figuras geométricas de un plano (cada una con su imagen, si se transforma) y vértices de cada una. */
+  planeFiguresMax: 4,
+  planeVerticesMax: 8,
   /** Marcas por eje: más que esto deja la cuadrícula ilegible al imprimir. */
   ticksMax: 40,
   /** Datos crudos de un histograma o de una caja y bigotes: hasta cinco cursos de 40 estudiantes. */
@@ -223,6 +226,50 @@ export const graphNotableSchema = z.object({
   labels: z.boolean().optional().describe("false marca los puntos sin escribir sus coordenadas, para que el estudiante las halle. Por defecto se escriben."),
 });
 
+/** Nombre de un vértice: una letra, con un dígito o hasta dos primas si hacen falta (A, B, P1, A'). Texto plano; el sistema lo compone. */
+const vertexName = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z]\d?'{0,2}$/);
+
+/** Una transformación del plano; la imagen de la figura la calcula y la dibuja el sistema (creatorPlaneGeometry.ts). */
+export const graphTransformSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("translation"), dx: z.number().describe("Desplazamiento en x del vector de traslación."), dy: z.number().describe("Desplazamiento en y.") }),
+  z.object({
+    kind: z.literal("reflection"),
+    over: z.enum(["x", "y", "vertical", "line"]).describe('Eje de la reflexión: "x" el eje x, "y" el eje y, "vertical" la recta x = at, "line" la recta y = slope·x + intercept.'),
+    at: z.number().optional().describe('Solo con over "vertical": la recta es x = at.'),
+    slope: z.number().optional().describe('Solo con over "line": pendiente de la recta. Para y = x es 1; para una horizontal y = c es 0.'),
+    intercept: z.number().optional().describe('Solo con over "line": corte de la recta con el eje y.'),
+  }),
+  z.object({
+    kind: z.literal("rotation"),
+    cx: z.number().describe("Coordenada x del centro de rotación."),
+    cy: z.number().describe("Coordenada y del centro de rotación."),
+    angle: z.number().min(-360).max(360).describe("Ángulo en grados: positivo en sentido antihorario, negativo en sentido horario."),
+  }),
+  z.object({
+    kind: z.literal("dilation"),
+    cx: z.number().describe("Coordenada x del centro de la homotecia."),
+    cy: z.number().describe("Coordenada y del centro de la homotecia."),
+    factor: z.number().describe("Razón de la homotecia: mayor que 1 amplía, entre 0 y 1 reduce, negativa pasa la figura al otro lado del centro."),
+  }),
+]);
+
+export const graphFigureSchema = z.object({
+  kind: z.enum(["points", "segment", "polygon"]).describe('"points" puntos sueltos, "segment" un segmento (dos vértices) o "polygon" un polígono cerrado (tres o más, en orden).'),
+  vertices: z
+    .array(z.object({ x: z.number(), y: z.number(), name: vertexName.optional().describe('Nombre del punto en texto plano: "A", "B", "P1". Su imagen por la transformación se llama A\'.') }))
+    .min(1)
+    .max(CREATOR_LIMITS.planeVerticesMax),
+  show: z
+    .array(z.enum(["coordinates", "lengths", "midpoint"]))
+    .max(3)
+    .optional()
+    .describe('Lo que el sistema calcula y escribe en la figura: "coordinates" las coordenadas de cada vértice junto a su nombre, "lengths" la longitud de cada lado (la distancia entre los extremos de un segmento) y "midpoint" el punto medio de un segmento.'),
+  transform: graphTransformSchema.optional().describe("Transformación que se aplica a la figura: el sistema calcula la imagen y la dibuja junto a la original, con los nombres primados (A', B', C')."),
+});
+
 /** Nombre de un eje del plano: texto plano, corto para que quepa a lo largo del eje (AXIS_NAME_MAX en creatorPlaneAxes.ts). */
 const planeAxisName = z.string().trim().min(1).max(40);
 
@@ -261,6 +308,11 @@ export const graphSpecSchema = z.object({
     .max(CREATOR_LIMITS.notableMax)
     .optional()
     .describe("Puntos notables que el sistema calcula y marca con sus coordenadas: raíces, corte con el eje y, máximos y mínimos, y cortes entre dos funciones. Úsalos en vez de escribir esos puntos en points."),
+  figures: z
+    .array(graphFigureSchema)
+    .max(CREATOR_LIMITS.planeFiguresMax)
+    .optional()
+    .describe("Geometría en el plano: puntos con nombre, segmentos y polígonos por sus vértices, con sus longitudes y su punto medio calculados, y su imagen por una traslación, reflexión, rotación u homotecia."),
   xLabel: planeAxisName.optional().describe('Nombre del eje x con su unidad, en texto plano, para problemas de contexto: "Tiempo (h)". Se escribe bajo el plano. Si se omite, el eje se llama x.'),
   yLabel: planeAxisName.optional().describe('Nombre del eje y con su unidad, en texto plano: "Costo ($)". Se escribe a la izquierda del plano, de abajo arriba. Si se omite, el eje se llama y.'),
   xUnit: z
@@ -992,6 +1044,8 @@ export type GraphArea = z.infer<typeof graphAreaSchema>;
 export type GraphTangent = z.infer<typeof graphTangentSchema>;
 export type GraphSecant = z.infer<typeof graphSecantSchema>;
 export type GraphNotable = z.infer<typeof graphNotableSchema>;
+export type GraphFigure = z.infer<typeof graphFigureSchema>;
+export type GraphTransform = z.infer<typeof graphTransformSchema>;
 export type BlockInput = z.infer<typeof blockInputSchema>;
 export type Block = z.infer<typeof blockSchema>;
 export type BlockType = Block["type"];
