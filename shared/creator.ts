@@ -212,6 +212,9 @@ export const graphSecantSchema = z.object({
   show: lineShow.optional().describe(lineShowHelp),
 });
 
+/** Nombre de un eje del plano: texto plano, corto para que quepa a lo largo del eje (AXIS_NAME_MAX en creatorPlaneAxes.ts). */
+const planeAxisName = z.string().trim().min(1).max(40);
+
 export const graphSpecSchema = z.object({
   xMin: z.number(),
   xMax: z.number(),
@@ -242,6 +245,8 @@ export const graphSpecSchema = z.object({
     .describe("Regiones sombreadas bajo una curva o entre dos curvas, para integrales y áreas. El valor lo calcula el sistema."),
   tangents: z.array(graphTangentSchema).max(CREATOR_LIMITS.tangentsMax).optional().describe("Rectas tangentes a una función en un punto, para la derivada."),
   secants: z.array(graphSecantSchema).max(CREATOR_LIMITS.secantsMax).optional().describe("Rectas secantes por dos puntos de una función, para la razón de cambio promedio."),
+  xLabel: planeAxisName.optional().describe('Nombre del eje x con su unidad, en texto plano, para problemas de contexto: "Tiempo (h)". Se escribe bajo el plano. Si se omite, el eje se llama x.'),
+  yLabel: planeAxisName.optional().describe('Nombre del eje y con su unidad, en texto plano: "Costo ($)". Se escribe a la izquierda del plano, de abajo arriba. Si se omite, el eje se llama y.'),
 });
 
 const headerFieldsBlock = z.object({

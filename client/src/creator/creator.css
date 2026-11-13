@@ -1926,6 +1926,8 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-plane__axis path { fill: #111B24; }
 .crt-plane__ticks text { font-family: 'Outfit', system-ui, sans-serif; font-size: 10.5px; fill: #36404A; }
 .crt-plane__ticks .crt-plane__name { font-size: 13px; font-style: italic; fill: #111B24; }
+/* Nombre de un eje con su unidad («Tiempo (h)»): fuera de la cuadrícula, en su propia franja */
+.crt-plane__ticks .crt-plane__axis-name { font-size: 11.5px; font-weight: 500; fill: #111B24; }
 .crt-plane__curve { fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .crt-plane__curve--a { stroke: #1F5FE0; }
 .crt-plane__curve--b { stroke: #0F8A5F; }

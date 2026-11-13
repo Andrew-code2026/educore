@@ -3,14 +3,11 @@ import type { GraphSpec } from "@shared/creator";
 import { formatNumber, formatNumberEs, tryCompile } from "@shared/creatorMath";
 import { areaLabel, areaShape, lineLabel, secantLine, tangentLine, type PlaneLine } from "@shared/creatorCalculus";
 import { CONIC_LABELS, conicCurves, conicEquation, shownConicElements, type ConicLine } from "@shared/creatorConics";
-import { functionColors, hasEqualUnits, insidePlane, sampleFunction, type CurveMark } from "@shared/creatorPlane";
+import { functionColors, insidePlane, sampleFunction, type CurveMark } from "@shared/creatorPlane";
+import { labelEvery, planeLayout, planeTicks } from "@shared/creatorPlaneAxes";
 import { FigureNotes, useHasNotes } from "./FigureNotes";
 import { Formula } from "./Formula";
 
-/** Márgenes alrededor de la cuadrícula: caben las flechas de los ejes y los números. */
-const PAD = { left: 30, right: 24, top: 22, bottom: 28 };
-const MAX_W = 320;
-const MAX_H = 320;
 const LABEL_H = 20;
 /** Alto de una etiqueta con fracciones a tamaño de texto (la ecuación de una elipse o una hipérbola). */
 const TALL_LABEL_H = 32;
@@ -29,33 +26,6 @@ interface Box {
 interface PlacedLabel extends Box {
   latex: string;
   tone: string;
-}
-
-/**
- * Tamaño de la cuadrícula. Con rangos parecidos se usan unidades iguales en ambos ejes
- * (una recta de pendiente 1 se ve a 45°); si son muy distintos, cada eje toma su escala.
- */
-function plotSize(xSpan: number, ySpan: number): { w: number; h: number } {
-  const ratio = ySpan / xSpan;
-  if (hasEqualUnits(xSpan, ySpan)) {
-    let w = MAX_W;
-    let h = w * ratio;
-    if (h > MAX_H) {
-      h = MAX_H;
-      w = h / ratio;
-    }
-    return { w, h };
-  }
-  return ratio > 1 ? { w: 240, h: MAX_H } : { w: MAX_W, h: 200 };
-}
-
-/** Múltiplos de `step` dentro de [min, max], contados con enteros para no acumular error. */
-function ticks(min: number, max: number, step: number): number[] {
-  const values: number[] = [];
-  const first = Math.ceil(min / step - 1e-9);
-  const last = Math.floor(max / step + 1e-9);
-  for (let k = first; k <= last; k++) values.push(Number((k * step).toFixed(10)));
-  return values;
 }
 
 /** Ancho aproximado de una etiqueta LaTeX en pantalla, para ubicarla sin medir el DOM. */
@@ -80,8 +50,9 @@ function describe(spec: GraphSpec): string {
   const shaded = (spec.areas ?? []).map(area => `de x = ${formatNumber(area.from)} a x = ${formatNumber(area.to)}`).join("; ");
   const tangents = (spec.tangents ?? []).map(tangent => `x = ${formatNumber(tangent.x)}`).join(", ");
   const secants = (spec.secants ?? []).map(secant => `x = ${formatNumber(secant.x1)} y x = ${formatNumber(secant.x2)}`).join("; ");
+  const axes = [spec.xLabel && `eje x: ${spec.xLabel}`, spec.yLabel && `eje y: ${spec.yLabel}`].filter(Boolean).join(", ");
   return (
-    [base, lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, tangents && `Recta tangente en ${tangents}`, secants && `Recta secante entre ${secants}`, points && `Puntos marcados: ${points}`]
+    [base, axes && `Ejes con nombre, ${axes}`, lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, tangents && `Recta tangente en ${tangents}`, secants && `Recta secante entre ${secants}`, points && `Puntos marcados: ${points}`]
       .filter(Boolean)
       .join(". ") + "."
   );
@@ -93,23 +64,23 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
   const noted = useHasNotes();
 
   const view = useMemo(() => {
+    const layout = planeLayout(spec);
+    if (!layout) return null;
     const xSpan = spec.xMax - spec.xMin;
     const ySpan = spec.yMax - spec.yMin;
-    if (!(xSpan > 0) || !(ySpan > 0)) return null;
 
-    const { w, h } = plotSize(xSpan, ySpan);
-    const width = PAD.left + w + PAD.right;
-    const height = PAD.top + h + PAD.bottom;
+    // Los márgenes dependen del plano: el nombre de un eje añade su franja
+    const { w, h, width, height, pad: PAD } = layout;
     const sx = (x: number) => PAD.left + ((x - spec.xMin) / xSpan) * w;
     const sy = (y: number) => PAD.top + ((spec.yMax - y) / ySpan) * h;
 
-    const xTicks = ticks(spec.xMin, spec.xMax, spec.xStep);
-    const yTicks = ticks(spec.yMin, spec.yMax, spec.yStep);
+    const xTicks = planeTicks(spec.xMin, spec.xMax, spec.xStep);
+    const yTicks = planeTicks(spec.yMin, spec.yMax, spec.yStep);
     // Si el cero no está en el rango, el eje se dibuja en el borde más cercano
     const axisX = Math.min(Math.max(0, spec.yMin), spec.yMax);
     const axisY = Math.min(Math.max(0, spec.xMin), spec.xMax);
-    const everyX = Math.max(1, Math.ceil(xTicks.length / 14));
-    const everyY = Math.max(1, Math.ceil(yTicks.length / 14));
+    const everyX = labelEvery(xTicks.length);
+    const everyY = labelEvery(yTicks.length);
 
     const inPlane = (x: number, y: number) => insidePlane(spec, x, y);
     const pathOf = (points: Array<[number, number]>) => points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${sx(x).toFixed(2)} ${sy(y).toFixed(2)}`).join(" ");
@@ -413,12 +384,13 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       .flatMap(curve => curve.marks.map((mark, index) => ({ ...mark, tone: curve.tone, key: `${curve.index}-${index}` })))
       .sort((a, b) => Number(a.filled) - Number(b.filled));
 
-    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf };
+    return { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf };
   }, [spec]);
 
   if (!view) return <div className="crt-plane crt-plane--invalid">Rango de la gráfica no válido.</div>;
 
-  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf } = view;
+  const { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf } = view;
+  const { w, h, width, height, pad: PAD } = layout;
   const axisXpx = sy(axisX);
   const axisYpx = sx(axisY);
   // Con el origen a la vista, el cero se escribe una sola vez junto al cruce de los ejes
@@ -482,12 +454,25 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
               0
             </text>
           )}
-          <text className="crt-plane__name" x={right + 2} y={axisXpx - 8} textAnchor="middle">
-            x
-          </text>
-          <text className="crt-plane__name" x={axisYpx + 12} y={top - 2} textAnchor="middle">
-            y
-          </text>
+          {/* Un eje con nombre lo lleva fuera de la cuadrícula, en su propia franja; sin nombre, la letra de siempre junto a la flecha */}
+          {layout.xName ? (
+            <text className="crt-plane__axis-name" x={layout.xName.x} y={layout.xName.y} textAnchor="middle">
+              {spec.xLabel}
+            </text>
+          ) : (
+            <text className="crt-plane__name" x={right + 2} y={axisXpx - 8} textAnchor="middle">
+              x
+            </text>
+          )}
+          {layout.yName ? (
+            <text className="crt-plane__axis-name" x={layout.yName.x} y={layout.yName.y} textAnchor="middle" transform={`rotate(-90 ${layout.yName.x} ${layout.yName.y})`}>
+              {spec.yLabel}
+            </text>
+          ) : (
+            <text className="crt-plane__name" x={axisYpx + 12} y={top - 2} textAnchor="middle">
+              y
+            </text>
+          )}
         </g>
 
         <g clipPath={`url(#${clipId})`}>

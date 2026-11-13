@@ -5,6 +5,7 @@ import { CREATOR_LIMITS, type GraphArea, type GraphConic, type GraphFunction, ty
 import { RIEMANN_SAMPLE_LABELS, type RiemannSample } from "@shared/creatorCalculus";
 import { CONIC_LABELS, CONIC_SHOW_LABELS, CONIC_SHOWS, conicEquation, type ConicKind, type ConicShow } from "@shared/creatorConics";
 import type { EndStyle } from "@shared/creatorPlane";
+import { AXIS_NAME_MAX } from "@shared/creatorPlaneAxes";
 import { Formula } from "../blocks/Formula";
 import { Check, Field, NumberInput, OptionalNumberInput, type FormProps } from "./fields";
 import { AddButton, RemoveButton, useListVersion } from "./FigureForms";
@@ -163,6 +164,18 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
         ).map(([key, label]) => (
           <Field key={key} label={label}>
             <NumberInput label={label} value={spec[key]} onChange={value => setSpec({ [key]: value })} />
+          </Field>
+        ))}
+      </div>
+      <div className="crt-form__row">
+        {(
+          [
+            ["xLabel", "Nombre del eje x (opcional)", "Tiempo (h)"],
+            ["yLabel", "Nombre del eje y (opcional)", "Costo ($)"],
+          ] as const
+        ).map(([key, label, placeholder]) => (
+          <Field key={key} label={label}>
+            <input className="crt-input" aria-label={label} maxLength={AXIS_NAME_MAX} placeholder={placeholder} value={spec[key] ?? ""} onChange={event => setSpec({ [key]: event.target.value || undefined })} />
           </Field>
         ))}
       </div>

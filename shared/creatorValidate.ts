@@ -9,6 +9,7 @@ import { formatNumber, tryCompile, type CompileResult } from "./creatorMath";
 import { planeAreaIssues, planeLineIssues } from "./creatorCalculus";
 import { planeConicIssues } from "./creatorConics";
 import { planeFunctionIssues, planePointIssue } from "./creatorPlane";
+import { planeAxisIssues } from "./creatorPlaneAxes";
 import { histogramClassIssues, histogramCounts, linearRegression, resolveAxis, type AxisOverride } from "./creatorStats";
 
 /**
@@ -132,6 +133,7 @@ export function validateGraphSpec(spec: GraphSpec): string[] {
     }
   });
 
+  issues.push(...planeAxisIssues(spec));
   issues.push(...planeConicIssues(spec));
   issues.push(...planeAreaIssues(spec));
   issues.push(...planeLineIssues(spec));
@@ -382,6 +384,8 @@ const FORMULA_IN_PLAIN = /\\[a-zA-Z]+|\$\s*[^\d\s$][^$]*\$/;
 function figurePlainTexts(block: BlockInput): string[] {
   const texts = (...values: Array<string | undefined>) => values.filter((value): value is string => Boolean(value));
   switch (block.type) {
+    case "graph":
+      return texts(block.spec.xLabel, block.spec.yLabel);
     case "histogram":
     case "scatter_plot":
       return texts(block.title, block.xLabel, block.yLabel);
