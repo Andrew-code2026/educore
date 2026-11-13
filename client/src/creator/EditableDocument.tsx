@@ -591,7 +591,8 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
               <EmptyCell
                 noun={container.type === "columns" ? "columna" : "tarjeta"}
                 onWrite={() => writeInCell(section, container, cell)}
-                onRemove={tryOp({ op: "remove_cell", containerId: container.id, cell }) === null ? () => containerOp({ op: "remove_cell", containerId: container.id, cell }) : undefined}
+                // Sin bloques que mover, una celda vacía se puede quitar si quedan las suficientes
+                onRemove={blockCells(container).length > (container.type === "columns" ? CREATOR_LIMITS.columnsMin : 1) ? () => containerOp({ op: "remove_cell", containerId: container.id, cell }) : undefined}
               />
             )
           }

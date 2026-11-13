@@ -307,3 +307,20 @@ describe("la IA no deja columnas desparejas", () => {
     expect(outcome.isError, outcome.result).toBe(false);
   });
 });
+
+describe("el orden dentro de una celda no se vuelve nuevo al cambiar de columna", () => {
+  it("añadir una columna delante no bloquea a la IA por un problema que ya estaba", () => {
+    const plane = { type: "graph", spec: { xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [], points: [] } };
+    const blocks = [blockInputSchema.parse({ type: "columns", columns: [{ blocks: [{ type: "paragraph", md: "Texto" }] }, { blocks: [{ type: "exercise", label: "Ejercicio 1", md: "Mira el plano." }, plane] }] })];
+    const made = applyDocOp(emptyDoc(), { op: "write_section", title: "Guía", role: "student", blocks });
+    if (!made.ok) throw new Error(made.error);
+    const columns = made.doc.sections[0].blocks[0];
+    if (columns.type !== "columns") throw new Error("no es columnas");
+    // La IA reescribe las columnas con una columna nueva al principio: el ejercicio pasa de la columna 2 a la 3
+    const outcome = executeCreatorTool(made.doc, "update_block", {
+      block_id: columns.id,
+      block: { type: "columns", columns: [{ blocks: [{ type: "paragraph", md: "Nuevo" }] }, ...columns.columns.map((column, index) => ({ width: index === 1 ? 2 : 1, blocks: column.blocks.map(({ id: _id, ...rest }) => rest) }))] },
+    });
+    expect(outcome.isError, outcome.result).toBe(false);
+  });
+});

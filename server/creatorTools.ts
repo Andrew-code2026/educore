@@ -5,7 +5,7 @@ import { applyDocOp, normalizeBlock, type DocOp } from "@shared/creatorOps";
 import { layoutIssues } from "@shared/creatorContainers";
 import { describeComputed } from "@shared/creatorStats";
 import { REMOVED_MAX } from "@shared/creatorTurn";
-import { validateBlockOrder, validateBlocks } from "@shared/creatorValidate";
+import { blockOrderIssues, validateBlocks } from "@shared/creatorValidate";
 
 /**
  * Herramientas con las que la IA escribe y edita un recurso. Cada una se traduce a una
@@ -224,8 +224,10 @@ export function executeCreatorTool(doc: ResourceDoc, name: string, rawInput: unk
 
   // El orden se revisa sobre el documento resultante y solo cuenta lo que este cambio introduce:
   // lo que el docente ya había dejado así no bloquea una edición ajena.
-  const known = new Set(validateBlockOrder(doc.sections));
-  const orderIssues = validateBlockOrder(applied.doc.sections).filter(issue => !known.has(issue));
+  const known = new Set(blockOrderIssues(doc.sections).map(issue => issue.key));
+  const orderIssues = blockOrderIssues(applied.doc.sections)
+    .filter(issue => !known.has(issue.key))
+    .map(issue => issue.message);
   if (orderIssues.length > 0) {
     return failure(
       doc,
