@@ -1,4 +1,5 @@
 import { PICTOGRAM_ICONS, type BlockInput } from "@shared/creator";
+import { OptionSelect } from "@/components/option-select";
 import { baseTenValue, clockText, formatProbability, textToTree, treePaths, treeToText, vennRegionName, vennRegionsFor, type VennRegion } from "@shared/creatorDiagrams";
 import { parseNumberList } from "@shared/creatorFigures";
 import { formatNumberEs } from "@shared/creatorMath";
@@ -231,6 +232,7 @@ export function BarModelForm({ draft, onChange }: FormProps<"bar_model">) {
 }
 
 const ICON_LABELS: Record<(typeof PICTOGRAM_ICONS)[number], string> = { circle: "Círculo", star: "Estrella", person: "Persona", heart: "Corazón", square: "Cuadrado" };
+const ICON_OPTIONS = PICTOGRAM_ICONS.map(icon => ({ value: icon, label: ICON_LABELS[icon] }));
 
 export function PictogramForm({ draft, onChange }: FormProps<"pictogram">) {
   return (
@@ -238,13 +240,7 @@ export function PictogramForm({ draft, onChange }: FormProps<"pictogram">) {
       <div className="crt-form__row">
         <TextField label="Título" wide value={draft.title} onChange={title => onChange({ ...draft, title })} />
         <Field label="Dibujo">
-          <select className="crt-input" value={draft.icon} onChange={event => onChange({ ...draft, icon: event.target.value as typeof draft.icon })}>
-            {PICTOGRAM_ICONS.map(icon => (
-              <option key={icon} value={icon}>
-                {ICON_LABELS[icon]}
-              </option>
-            ))}
-          </select>
+          <OptionSelect className="crt-input" value={draft.icon} onValueChange={icon => onChange({ ...draft, icon })} options={ICON_OPTIONS} />
         </Field>
       </div>
       <div className="crt-form__row">

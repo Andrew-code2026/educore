@@ -173,6 +173,22 @@ import { useState } from "react";
 import { toast as sonnerToast } from "sonner";
 import { AIChatBox, type Message } from "@/components/AIChatBox";
 
+const FRUIT_ITEMS = [
+  { value: "apple", label: "Apple" },
+  { value: "banana", label: "Banana" },
+  { value: "orange", label: "Orange" },
+];
+
+const MONTH_ITEMS = Array.from({ length: 12 }, (_, i) => {
+  const month = String(i + 1).padStart(2, "0");
+  return { value: month, label: month };
+});
+
+const YEAR_ITEMS = Array.from({ length: 10 }, (_, i) => {
+  const year = String(new Date().getFullYear() - 5 + i);
+  return { value: year, label: year };
+});
+
 export default function ComponentsShowcase() {
   const { theme, toggleTheme } = useTheme();
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -182,8 +198,8 @@ export default function ComponentsShowcase() {
   const [currentPage, setCurrentPage] = useState(2);
   const [openCombobox, setOpenCombobox] = useState(false);
   const [selectedFramework, setSelectedFramework] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState("");
-  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [dialogInput, setDialogInput] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -420,15 +436,17 @@ export default function ComponentsShowcase() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Select</Label>
-                  <Select>
-                    <SelectTrigger>
+                  <Label htmlFor="fruit">Select</Label>
+                  <Select id="fruit" items={FRUIT_ITEMS}>
+                    <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a fruit" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="apple">Apple</SelectItem>
-                      <SelectItem value="banana">Banana</SelectItem>
-                      <SelectItem value="orange">Orange</SelectItem>
+                      {FRUIT_ITEMS.map(item => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -623,23 +641,20 @@ export default function ComponentsShowcase() {
                         Month
                       </Label>
                       <Select
+                        id="month"
+                        items={MONTH_ITEMS}
                         value={selectedMonth}
                         onValueChange={setSelectedMonth}
                       >
-                        <SelectTrigger id="month">
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="MM" />
                         </SelectTrigger>
                         <SelectContent>
-                          {Array.from({ length: 12 }, (_, i) => i + 1).map(
-                            month => (
-                              <SelectItem
-                                key={month}
-                                value={month.toString().padStart(2, "0")}
-                              >
-                                {month.toString().padStart(2, "0")}
-                              </SelectItem>
-                            )
-                          )}
+                          {MONTH_ITEMS.map(item => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -648,19 +663,18 @@ export default function ComponentsShowcase() {
                         Year
                       </Label>
                       <Select
+                        id="year"
+                        items={YEAR_ITEMS}
                         value={selectedYear}
                         onValueChange={setSelectedYear}
                       >
-                        <SelectTrigger id="year">
+                        <SelectTrigger className="w-full">
                           <SelectValue placeholder="YYYY" />
                         </SelectTrigger>
                         <SelectContent>
-                          {Array.from(
-                            { length: 10 },
-                            (_, i) => new Date().getFullYear() - 5 + i
-                          ).map(year => (
-                            <SelectItem key={year} value={year.toString()}>
-                              {year}
+                          {YEAR_ITEMS.map(item => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
                             </SelectItem>
                           ))}
                         </SelectContent>

@@ -1,6 +1,8 @@
 import { memo } from "react";
 import { CheckCircle2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { OptionSelect } from "@/components/option-select";
+import { optionsFrom } from "@/lib/select-options";
 import type { PiarField, PiarSource, PiarValues } from "@shared/piar";
 
 export interface PiarFieldViewProps {
@@ -84,14 +86,14 @@ export const PiarFieldView = memo(function PiarFieldView({
           <label htmlFor={id} className="pia-label">
             {field.label}
           </label>
-          <select id={id} className="pia-select" value={value} onChange={event => set(event.target.value)}>
-            <option value="">Seleccione…</option>
-            {field.options?.map(option => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+          {/* "Seleccione…" sigue siendo una opción: permite dejar el campo vacío otra vez */}
+          <OptionSelect
+            id={id}
+            className="pia-select"
+            value={value}
+            onValueChange={set}
+            options={optionsFrom(field.options ?? [], "Seleccione…")}
+          />
         </>
       );
 

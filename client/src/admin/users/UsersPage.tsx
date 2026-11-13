@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Link2, Mail, Plus, Search, ShieldCheck, Upload, UserPlus } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import type { EduRole } from "@/components/shell";
+import { OptionSelect, type SelectOption } from "@/components/option-select";
 import {
   AdminHeader,
   AdminPage,
@@ -27,6 +28,14 @@ const PAGE_SIZE = 50;
 type Tab = "directory" | "invitations" | "families" | "roles";
 type RoleFilter = "ALL" | "TEACHER" | "STUDENT" | "GUARDIAN" | "MANAGEMENT";
 type StatusFilter = "ALL" | "ACTIVE" | "INVITED" | "SUSPENDED" | "INACTIVE";
+
+const STATUS_FILTER_OPTIONS: SelectOption<StatusFilter>[] = [
+  { value: "ALL", label: "Todos los estados" },
+  { value: "ACTIVE", label: "Activos" },
+  { value: "INVITED", label: "Invitados" },
+  { value: "SUSPENDED", label: "Suspendidos" },
+  { value: "INACTIVE", label: "Inactivos" },
+];
 
 interface UsersPageProps {
   onPreview: (role: EduRole) => void;
@@ -244,13 +253,7 @@ export function UsersPage({ onPreview }: UsersPageProps) {
               <span className="sr-only">Buscar</span>
               <input className="adm-input" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar por nombre o correo" />
             </label>
-            <select className="adm-select" value={statusFilter} onChange={event => setStatusFilter(event.target.value as StatusFilter)} aria-label="Filtrar por estado">
-              <option value="ALL">Todos los estados</option>
-              <option value="ACTIVE">Activos</option>
-              <option value="INVITED">Invitados</option>
-              <option value="SUSPENDED">Suspendidos</option>
-              <option value="INACTIVE">Inactivos</option>
-            </select>
+            <OptionSelect className="adm-select" value={statusFilter} onValueChange={setStatusFilter} options={STATUS_FILTER_OPTIONS} aria-label="Filtrar por estado" />
           </div>
 
           {usersQuery.isLoading ? (

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { OptionSelect } from "@/components/option-select";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -9,7 +10,6 @@ import {
   Check,
   CheckCheck,
   CheckCircle2,
-  ChevronDown,
   ExternalLink,
   FileCheck2,
   FileText,
@@ -422,7 +422,8 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
       if (
         selectedStudent !== null ||
         target?.tagName === "INPUT" ||
-        target?.tagName === "SELECT" ||
+        // Con un select abierto o enfocado, las flechas, Enter y las letras son suyas
+        target?.closest('[data-slot="select-trigger"], [data-slot="select-content"]') ||
         target?.tagName === "TEXTAREA" ||
         target?.isContentEditable ||
         !rows.length
@@ -639,22 +640,16 @@ export const AttendanceGradebook: React.FC<AttendanceGradebookProps> = ({
 
             {/* Dominant Course Selector */}
             <div className="relative inline-flex items-center min-w-0">
-              <select
+              <OptionSelect
                 aria-label="Curso activo para toma de asistencia"
                 value={selectedCourseId}
-                onChange={(e) => {
-                  onSelectCourseId(e.target.value);
+                onValueChange={(next) => {
+                  onSelectCourseId(next);
                   setSelectedStudent(null);
                 }}
-                className="cursor-pointer appearance-none bg-transparent pr-7 text-base sm:text-lg font-black tracking-tight text-slate-900 transition hover:text-indigo-950 focus:outline-none"
-              >
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label} · {c.subject}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-1 h-4 w-4 text-slate-400" />
+                options={courses.map((c) => ({ value: c.id, label: `${c.label} · ${c.subject}` }))}
+                className="h-auto cursor-pointer gap-2 border-0 bg-transparent px-0 py-0 shadow-none text-base sm:text-lg font-black tracking-tight text-slate-900 transition hover:text-indigo-950 dark:bg-transparent dark:hover:bg-transparent"
+              />
             </div>
 
             {/* Room & Time Pill / Live Indicator */}

@@ -2,7 +2,12 @@ import { toast } from "sonner";
 import { Eye, Loader2, ShieldCheck, ShieldOff } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import type { EduRole } from "@/components/shell";
+import { OptionSelect } from "@/components/option-select";
 import { AdminDialog, Avatar, Field, IDENTITY_ROLE_META, Pill, STATUS_META } from "../parts";
+
+const ROLE_OPTIONS = Object.entries(IDENTITY_ROLE_META)
+  .filter(([key]) => key !== "SUPER_ADMIN")
+  .map(([key, meta]) => ({ value: key, label: meta.label }));
 
 const ROLE = "admin" as const;
 
@@ -113,13 +118,13 @@ export function UserProfileDialog({ userId, onClose, onPreview, describeAcademic
 
           <div className="adm-form__row">
             <Field label="Rol en la institución">
-              <select className="adm-select" value={roleKey} onChange={event => void changeRole(event.target.value)} disabled={busy}>
-                {Object.entries(IDENTITY_ROLE_META)
-                  .filter(([key]) => key !== "SUPER_ADMIN")
-                  .map(([key, meta]) => (
-                    <option key={key} value={key}>{meta.label}</option>
-                  ))}
-              </select>
+              <OptionSelect
+                className="adm-select"
+                value={roleKey}
+                onValueChange={next => void changeRole(next)}
+                options={ROLE_OPTIONS}
+                disabled={busy}
+              />
             </Field>
             <Field label="Acceso">
               <button type="button" className={`adm-btn ${profile.status === "SUSPENDED" ? "adm-btn--primary" : "adm-btn--danger"}`} onClick={() => void toggleStatus()} disabled={busy}>

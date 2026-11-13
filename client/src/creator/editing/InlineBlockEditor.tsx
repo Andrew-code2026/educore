@@ -1,9 +1,12 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useReducer, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { OptionSelect } from "@/components/option-select";
+import { PortalContainerProvider, usePortalContainerHost } from "@/components/ui/portal-container";
 import { $isListNode, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, REMOVE_LIST_COMMAND } from "@lexical/list";
 import { $getSelection, $isRangeSelection, FORMAT_TEXT_COMMAND, type LexicalEditor } from "lexical";
 import { Bold, Italic, List, ListOrdered, Plus, Sigma, Trash2 } from "lucide-react";
 import { BLOCK_TYPE_LABELS, type BlockInput } from "@shared/creator";
 import { AnswerSpace } from "../blocks/BlockView";
+import { ANSWER_SPACE_OPTIONS, CALLOUT_TONE_OPTIONS } from "./BlockEditor";
 import { checkedInput, insertPart, removePart, resolveDraft, toDraft, type InlineBlock, type InlineBlockType, type InlineDraft } from "./inlineDraft";
 import { focusInlineField, InlineText, placeCaret, PlainText, type ActiveField, type BlockShortcuts, type EditEntry } from "./InlineText";
 import { insertFormula } from "./RichTextEditor";
@@ -234,11 +237,7 @@ function CalloutTools({ draft, update, focusField }: PartProps<"callout">) {
       <Sep />
       <label className="crt-inplace__opt">
         Estilo
-        <select value={draft.tone} onChange={event => update(current => ({ ...current, tone: event.target.value as Draft<"callout">["tone"] }), true)}>
-          <option value="info">Concepto</option>
-          <option value="tip">Consejo</option>
-          <option value="warning">Atención</option>
-        </select>
+        <OptionSelect size="sm" value={draft.tone} onValueChange={tone => update(current => ({ ...current, tone }), true)} options={CALLOUT_TONE_OPTIONS} />
       </label>
       <button
         type="button"
@@ -329,12 +328,7 @@ function ExerciseTools({ draft, update, active, keys, addItem, removeItem }: Par
       </label>
       <label className="crt-inplace__opt">
         Respuesta
-        <select value={draft.answerSpace} onChange={event => update(current => ({ ...current, answerSpace: event.target.value as Draft<"exercise">["answerSpace"] }), true)}>
-          <option value="lines">Renglones</option>
-          <option value="grid">Cuadrícula</option>
-          <option value="blank">En blanco</option>
-          <option value="none">Ninguno</option>
-        </select>
+        <OptionSelect size="sm" value={draft.answerSpace} onValueChange={answerSpace => update(current => ({ ...current, answerSpace }), true)} options={ANSWER_SPACE_OPTIONS} />
       </label>
       {draft.answerSpace !== "none" && (
         <label className="crt-inplace__opt">
@@ -473,6 +467,8 @@ const listOf = (draft: InlineDraft): unknown[] => (draft.type === "exercise" ? d
  */
 export const InlineBlockEditor = forwardRef<BlockEditorHandle, InlineBlockEditorProps>(function InlineBlockEditor({ block, entry, onCommit, onClose, barEnd, onSlash, onReplace, overlay }, ref) {
   const wrapper = useRef<HTMLDivElement>(null);
+  // Las listas de los selects se montan dentro del editor: abrir una no lo saca de foco ni lo cierra
+  const [portalContainer, wrapperRef] = usePortalContainerHost(wrapper);
   const original = useRef(block);
   original.current = block;
   // Lo escrito vive en una referencia: teclear no vuelve a dibujar el bloque
@@ -646,54 +642,56 @@ export const InlineBlockEditor = forwardRef<BlockEditorHandle, InlineBlockEditor
   }
 
   return (
-    <div
-      ref={wrapper}
-      className={`crt-inplace crt-inplace--${block.type}`}
-      role="group"
-      aria-label={`Editar ${BLOCK_TYPE_LABELS[block.type].toLowerCase()}`}
-      onBlur={event => {
-        const next = event.relatedTarget as Node | null;
-        if (next && event.currentTarget.contains(next)) return;
-        // Cambiar de ventana guarda lo escrito pero no cierra: al volver, el cursor sigue en su sitio
-        void finish(document.hasFocus());
-      }}
-      onKeyDown={event => {
-        if (event.key !== "Escape") return;
-        event.stopPropagation();
-        discard();
-      }}
-      onMouseDown={event => {
-        // Un clic en el borde del bloque o entre dos campos no debe sacar el foco (y cerrar el editor)
-        if (!(event.target as HTMLElement).closest("[contenteditable]:not([contenteditable='false']), input, textarea, select, button, [role='button'], [role='dialog']")) event.preventDefault();
-      }}
-    >
-      <FormatBar active={active} heading={block.type === "heading"}>
-        {tools}
-        {barEnd && (
-          <>
-            <Sep />
-            {barEnd}
-          </>
+    <PortalContainerProvider container={portalContainer}>
+      <div
+        ref={wrapperRef}
+        className={`crt-inplace crt-inplace--${block.type}`}
+        role="group"
+        aria-label={`Editar ${BLOCK_TYPE_LABELS[block.type].toLowerCase()}`}
+        onBlur={event => {
+          const next = event.relatedTarget as Node | null;
+          if (next && event.currentTarget.contains(next)) return;
+          // Cambiar de ventana guarda lo escrito pero no cierra: al volver, el cursor sigue en su sitio
+          void finish(document.hasFocus());
+        }}
+        onKeyDown={event => {
+          if (event.key !== "Escape") return;
+          event.stopPropagation();
+          discard();
+        }}
+        onMouseDown={event => {
+          // Un clic en el borde del bloque o entre dos campos no debe sacar el foco (y cerrar el editor)
+          if (!(event.target as HTMLElement).closest("[contenteditable]:not([contenteditable='false']), input, textarea, select, button, [role='button'], [role='dialog'], [role='listbox']")) event.preventDefault();
+        }}
+      >
+        <FormatBar active={active} heading={block.type === "heading"}>
+          {tools}
+          {barEnd && (
+            <>
+              <Sep />
+              {barEnd}
+            </>
+          )}
+        </FormatBar>
+        {content}
+        {overlay}
+        {issues.length > 0 && (
+          <div className="crt-inplace__issues" role="alert">
+            <ul>
+              {issues.map((issue, index) => (
+                <li key={index}>{issue}</li>
+              ))}
+            </ul>
+            <p>
+              Corrígelo para guardar el cambio, o{" "}
+              <button type="button" className="crt-inplace__discard" onClick={discard}>
+                descarta lo escrito
+              </button>
+              .
+            </p>
+          </div>
         )}
-      </FormatBar>
-      {content}
-      {overlay}
-      {issues.length > 0 && (
-        <div className="crt-inplace__issues" role="alert">
-          <ul>
-            {issues.map((issue, index) => (
-              <li key={index}>{issue}</li>
-            ))}
-          </ul>
-          <p>
-            Corrígelo para guardar el cambio, o{" "}
-            <button type="button" className="crt-inplace__discard" onClick={discard}>
-              descarta lo escrito
-            </button>
-            .
-          </p>
-        </div>
-      )}
-    </div>
+      </div>
+    </PortalContainerProvider>
   );
 });

@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { ArrowRight, ArrowUpLeft, BookOpen, ClipboardCheck, Copy, FileText, Globe, Loader2, Puzzle, Sparkles, Timer, Trash2, TriangleAlert, type LucideIcon } from "lucide-react";
 import { CREATOR_LIMITS, RESOURCE_KIND_LABELS, RESOURCE_KINDS, type Clarification, type ClarifyQuestion, type ResourceKind, type ResourceStatus } from "@shared/creator";
+import { OptionSelect } from "@/components/option-select";
+import { optionsFrom } from "@/lib/select-options";
 import { BotAvatar } from "./BotAvatar";
 import { ClarifyPanel } from "./ClarifyPanel";
 import { EmptyCard, ErrorCard, formatWhen } from "./parts";
@@ -220,25 +222,10 @@ export function CreatorLanding(props: CreatorLandingProps) {
 
               <div className="crt-composer__foot">
                 <div className="crt-composer__context">
-                  <select className="crt-input" aria-label="Asignatura" data-set={subject ? "" : undefined} value={subject} onChange={event => setSubject(event.target.value)}>
-                    <option value="">Asignatura</option>
-                    {subjectOptions.map(option => (
-                      <option key={option}>{option}</option>
-                    ))}
-                  </select>
-                  <select className="crt-input" aria-label="Grado" data-set={grade ? "" : undefined} value={grade} onChange={event => setGrade(event.target.value)}>
-                    <option value="">Grado</option>
-                    {GRADES.map(option => (
-                      <option key={option}>{option}</option>
-                    ))}
-                  </select>
+                  <OptionSelect className="crt-input" aria-label="Asignatura" value={subject} onValueChange={setSubject} options={optionsFrom(subjectOptions, "Asignatura")} />
+                  <OptionSelect className="crt-input" aria-label="Grado" value={grade} onValueChange={setGrade} options={optionsFrom(GRADES, "Grado")} />
                   {courses.length > 0 && (
-                    <select className="crt-input" aria-label="Curso" data-set={course ? "" : undefined} value={course} onChange={event => setCourse(event.target.value)}>
-                      <option value="">Curso (opcional)</option>
-                      {courses.map(option => (
-                        <option key={option}>{option}</option>
-                      ))}
-                    </select>
+                    <OptionSelect className="crt-input" aria-label="Curso" value={course} onValueChange={setCourse} options={optionsFrom(courses, "Curso (opcional)")} />
                   )}
                 </div>
                 <div className="crt-composer__submit">
