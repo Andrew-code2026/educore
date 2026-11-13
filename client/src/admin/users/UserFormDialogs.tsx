@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { OptionSelect, type SelectOption } from "@/components/option-select";
 import { AdminDialog, Field, IDENTITY_ROLE_META } from "../parts";
 
 const ROLE = "admin" as const;
@@ -9,6 +10,14 @@ const ROLE = "admin" as const;
 const PROVISIONED = new Set(["STUDENT", "TEACHER", "GUARDIAN"]);
 const ASSIGNABLE_ROLES = ["TEACHER", "STUDENT", "GUARDIAN", "COORDINATOR", "RECTOR", "SCHOOL_ADMIN"] as const;
 type AssignableRole = (typeof ASSIGNABLE_ROLES)[number];
+type RelationshipType = "PARENT" | "LEGAL_GUARDIAN" | "OTHER";
+
+const ROLE_OPTIONS: SelectOption<AssignableRole>[] = ASSIGNABLE_ROLES.map(key => ({ value: key, label: IDENTITY_ROLE_META[key].label }));
+const RELATIONSHIP_OPTIONS: SelectOption<RelationshipType>[] = [
+  { value: "PARENT", label: "Padre / madre" },
+  { value: "LEGAL_GUARDIAN", label: "Tutor legal" },
+  { value: "OTHER", label: "Otro" },
+];
 
 const invalidateAll = (utils: ReturnType<typeof trpc.useUtils>) =>
   Promise.all([utils.identity.invalidate(), utils.academic.snapshot.invalidate(), utils.educore.snapshot.invalidate()]);
@@ -38,7 +47,7 @@ export function CreateUserDialog({ open, onClose, courses, students, onCreated }
   const [course, setCourse] = useState("");
   const [specialty, setSpecialty] = useState("");
   const [studentEmail, setStudentEmail] = useState("");
-  const [relationship, setRelationship] = useState<"PARENT" | "LEGAL_GUARDIAN" | "OTHER">("PARENT");
+  const [relationship, setRelationship] = useState<RelationshipType>("PARENT");
   const [error, setError] = useState<string | null>(null);
   const busy = importMutation.isPending || createMutation.isPending;
 
@@ -110,11 +119,7 @@ export function CreateUserDialog({ open, onClose, courses, students, onCreated }
     >
       <form className="adm-form" onSubmit={submit}>
         <Field label="Rol">
-          <select className="adm-select" value={roleKey} onChange={event => setRoleKey(event.target.value as AssignableRole)}>
-            {ASSIGNABLE_ROLES.map(key => (
-              <option key={key} value={key}>{IDENTITY_ROLE_META[key].label}</option>
-            ))}
-          </select>
+          <OptionSelect className="adm-select" value={roleKey} onValueChange={setRoleKey} options={ROLE_OPTIONS} />
         </Field>
         <div className="adm-form__row">
           <Field label="Nombres">
@@ -138,12 +143,12 @@ export function CreateUserDialog({ open, onClose, courses, students, onCreated }
               <input className="adm-input" value={documentId} onChange={event => setDocumentId(event.target.value)} maxLength={60} />
             </Field>
             <Field label="Curso" hint="matrícula en el año activo">
-              <select className="adm-select" value={course} onChange={event => setCourse(event.target.value)}>
-                <option value="">Sin matricular por ahora</option>
-                {courses.map(item => (
-                  <option key={item.id} value={item.name}>{item.name}</option>
-                ))}
-              </select>
+              <OptionSelect
+                className="adm-select"
+                value={course}
+                onValueChange={setCourse}
+                options={[{ value: "", label: "Sin matricular por ahora" }, ...courses.map(item => ({ value: item.name, label: item.name }))]}
+              />
             </Field>
           </div>
         ) : null}
@@ -160,19 +165,15 @@ export function CreateUserDialog({ open, onClose, courses, students, onCreated }
         {roleKey === "GUARDIAN" ? (
           <div className="adm-form__row">
             <Field label="Estudiante a cargo" hint="opcional">
-              <select className="adm-select" value={studentEmail} onChange={event => setStudentEmail(event.target.value)}>
-                <option value="">Vincular después</option>
-                {students.map(student => (
-                  <option key={student.userId} value={student.email}>{student.name}</option>
-                ))}
-              </select>
+              <OptionSelect
+                className="adm-select"
+                value={studentEmail}
+                onValueChange={setStudentEmail}
+                options={[{ value: "", label: "Vincular después" }, ...students.map(student => ({ value: student.email, label: student.name }))]}
+              />
             </Field>
             <Field label="Parentesco">
-              <select className="adm-select" value={relationship} onChange={event => setRelationship(event.target.value as typeof relationship)} disabled={!studentEmail}>
-                <option value="PARENT">Padre / madre</option>
-                <option value="LEGAL_GUARDIAN">Tutor legal</option>
-                <option value="OTHER">Otro</option>
-              </select>
+              <OptionSelect className="adm-select" value={relationship} onValueChange={setRelationship} options={RELATIONSHIP_OPTIONS} disabled={!studentEmail} />
             </Field>
           </div>
         ) : null}
@@ -218,11 +219,7 @@ export function InviteUserDialog({ open, onClose }: { open: boolean; onClose: ()
             <input className="adm-input" type="email" value={email} onChange={event => setEmail(event.target.value)} required maxLength={320} placeholder="persona@colegio.edu.co" />
           </Field>
           <Field label="Rol">
-            <select className="adm-select" value={roleKey} onChange={event => setRoleKey(event.target.value as AssignableRole)}>
-              {ASSIGNABLE_ROLES.map(key => (
-                <option key={key} value={key}>{IDENTITY_ROLE_META[key].label}</option>
-              ))}
-            </select>
+            <OptionSelect className="adm-select" value={roleKey} onValueChange={setRoleKey} options={ROLE_OPTIONS} />
           </Field>
         </div>
         <p className="adm-note adm-note--warn">El envío de correos aún no está conectado en este entorno: la invitación queda registrada y visible en la pestaña Invitaciones.</p>
@@ -250,20 +247,21 @@ interface LinkGuardianDialogProps {
 export function LinkGuardianDialog({ open, onClose, guardians, students, initialGuardianId }: LinkGuardianDialogProps) {
   const utils = trpc.useUtils();
   const relationshipMutation = trpc.identity.createRelationship.useMutation();
-  const [guardianId, setGuardianId] = useState(initialGuardianId ? String(initialGuardianId) : "");
-  const [studentId, setStudentId] = useState("");
-  const [relationshipType, setRelationshipType] = useState<"PARENT" | "LEGAL_GUARDIAN" | "OTHER">("PARENT");
+  const [guardianId, setGuardianId] = useState<number | null>(initialGuardianId ?? null);
+  const [studentId, setStudentId] = useState<number | null>(null);
+  const [relationshipType, setRelationshipType] = useState<RelationshipType>("PARENT");
   const [error, setError] = useState<string | null>(null);
-  const selectedGuardian = guardianId || (initialGuardianId ? String(initialGuardianId) : "");
+  const selectedGuardian = guardianId ?? initialGuardianId ?? null;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (selectedGuardian === null || studentId === null) return;
     setError(null);
     try {
-      await relationshipMutation.mutateAsync({ role: ROLE, guardianUserId: Number(selectedGuardian), studentUserId: Number(studentId), relationshipType, isPrimary: true });
+      await relationshipMutation.mutateAsync({ role: ROLE, guardianUserId: selectedGuardian, studentUserId: studentId, relationshipType, isPrimary: true });
       toast.success("Acudiente vinculado.");
       await utils.identity.relationships.invalidate();
-      setStudentId("");
+      setStudentId(null);
       onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo crear el vínculo.");
@@ -274,34 +272,34 @@ export function LinkGuardianDialog({ open, onClose, guardians, students, initial
     <AdminDialog open={open} onClose={onClose} busy={relationshipMutation.isPending} eyebrow="Relación protegida" title="Vincular acudiente" description="El acudiente solo verá la información de los estudiantes vinculados.">
       <form className="adm-form" onSubmit={submit}>
         <Field label="Acudiente">
-          <select className="adm-select" value={selectedGuardian} onChange={event => setGuardianId(event.target.value)} required>
-            <option value="">Selecciona un acudiente</option>
-            {guardians.map(guardian => (
-              <option key={guardian.id} value={guardian.id}>{guardian.name ?? "Acudiente"}</option>
-            ))}
-          </select>
+          <OptionSelect
+            className="adm-select"
+            value={selectedGuardian}
+            onValueChange={setGuardianId}
+            options={guardians.map(guardian => ({ value: guardian.id, label: guardian.name ?? "Acudiente" }))}
+            placeholder="Selecciona un acudiente"
+            required
+          />
         </Field>
         <div className="adm-form__row">
           <Field label="Estudiante">
-            <select className="adm-select" value={studentId} onChange={event => setStudentId(event.target.value)} required>
-              <option value="">Selecciona un estudiante</option>
-              {students.map(student => (
-                <option key={student.userId} value={student.userId}>{student.name}</option>
-              ))}
-            </select>
+            <OptionSelect
+              className="adm-select"
+              value={studentId}
+              onValueChange={setStudentId}
+              options={students.map(student => ({ value: student.userId, label: student.name }))}
+              placeholder="Selecciona un estudiante"
+              required
+            />
           </Field>
           <Field label="Parentesco">
-            <select className="adm-select" value={relationshipType} onChange={event => setRelationshipType(event.target.value as typeof relationshipType)}>
-              <option value="PARENT">Padre / madre</option>
-              <option value="LEGAL_GUARDIAN">Tutor legal</option>
-              <option value="OTHER">Otro</option>
-            </select>
+            <OptionSelect className="adm-select" value={relationshipType} onValueChange={setRelationshipType} options={RELATIONSHIP_OPTIONS} />
           </Field>
         </div>
         {error ? <p className="adm-note adm-note--error" role="alert">{error}</p> : null}
         <div className="adm-dialog__actions">
           <button type="button" className="adm-btn adm-btn--outline" onClick={onClose}>Cancelar</button>
-          <button type="submit" className="adm-btn adm-btn--primary" disabled={relationshipMutation.isPending || !selectedGuardian || !studentId}>
+          <button type="submit" className="adm-btn adm-btn--primary" disabled={relationshipMutation.isPending || selectedGuardian === null || studentId === null}>
             {relationshipMutation.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
             Crear vínculo
           </button>

@@ -16,6 +16,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { OptionSelect } from "@/components/option-select";
 import { cn } from "@/lib/utils";
 import { useGradeCenter } from "../../state/GradeCenterContext";
 import { OFFICIAL_DBA_CATALOG, queryCatalog, type CatalogDba } from "../../data/dbaCatalog";
@@ -289,15 +290,16 @@ export function DbaPeriodManagerModal({ open, onOpenChange }: DbaPeriodManagerMo
                 </div>
 
                 {/* Filtro Materia */}
-                <select
+                <OptionSelect
                   value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  onValueChange={setSelectedSubject}
+                  options={[
+                    { value: "ciencias", label: "Ciencias Naturales" },
+                    { value: "matematicas", label: "Matemáticas" },
+                    { value: "lenguaje", label: "Lenguaje / Español" },
+                  ]}
                   className="h-8 px-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white font-medium focus:outline-none"
-                >
-                  <option value="ciencias">Ciencias Naturales</option>
-                  <option value="matematicas">Matemáticas</option>
-                  <option value="lenguaje">Lenguaje / Español</option>
-                </select>
+                />
               </div>
 
               {/* Lista de DBAs disponibles en el catálogo */}
@@ -447,20 +449,16 @@ export function DbaPeriodManagerModal({ open, onOpenChange }: DbaPeriodManagerMo
 
                         {/* Controles: Dimensión y Eliminar */}
                         <div className="flex items-center gap-2 shrink-0">
-                          <select
+                          <OptionSelect
                             value={dba.dimension || "cognitivo"}
-                            onChange={(e) =>
-                              handleChangeDimension(
-                                dba.id,
-                                e.target.value as "cognitivo" | "procedimental" | "actitudinal"
-                              )
-                            }
+                            onValueChange={(next) => handleChangeDimension(dba.id, next)}
+                            options={[
+                              { value: "cognitivo", label: "Dimensión: Cognitiva (Saber)" },
+                              { value: "procedimental", label: "Dimensión: Procedimental (Hacer)" },
+                              { value: "actitudinal", label: "Dimensión: Actitudinal (Ser)" },
+                            ]}
                             className="h-8 px-2.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none"
-                          >
-                            <option value="cognitivo">Dimensión: Cognitiva (Saber)</option>
-                            <option value="procedimental">Dimensión: Procedimental (Hacer)</option>
-                            <option value="actitudinal">Dimensión: Actitudinal (Ser)</option>
-                          </select>
+                          />
 
                           <button
                             type="button"

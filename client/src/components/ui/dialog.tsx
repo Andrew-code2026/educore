@@ -1,4 +1,9 @@
 import { cn } from "@/lib/utils";
+import {
+  PortalContainerProvider,
+  isEscapeForNestedPopup,
+  usePortalContainerHost,
+} from "@/components/ui/portal-container";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
 import * as React from "react";
@@ -94,11 +99,13 @@ function DialogContent({
   children,
   showCloseButton = true,
   onEscapeKeyDown,
+  ref,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
   const { isComposing } = useDialogComposition();
+  const [portalContainer, contentRef] = usePortalContainerHost(ref);
 
   const handleEscapeKeyDown = React.useCallback(
     (e: KeyboardEvent) => {
@@ -106,8 +113,8 @@ function DialogContent({
       // This handles Safari's timing issues with composition events
       const isCurrentlyComposing = (e as any).isComposing || isComposing();
 
-      // If IME is composing, prevent dialog from closing
-      if (isCurrentlyComposing) {
+      // If IME is composing or a nested select is open, prevent dialog from closing
+      if (isCurrentlyComposing || isEscapeForNestedPopup(e)) {
         e.preventDefault();
         return;
       }
@@ -129,8 +136,11 @@ function DialogContent({
         )}
         onEscapeKeyDown={handleEscapeKeyDown}
         {...props}
+        ref={contentRef}
       >
-        {children}
+        <PortalContainerProvider container={portalContainer}>
+          {children}
+        </PortalContainerProvider>
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"

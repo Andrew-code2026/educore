@@ -3,6 +3,7 @@ import { Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
+import { OptionSelect } from "@/components/option-select";
 import { AdminDialog, Avatar, Field } from "../parts";
 
 const ROLE = "admin" as const;
@@ -78,16 +79,20 @@ export function GradeDialog({ open, onClose, existing }: { open: boolean; onClos
     for (let level = 11; level >= 1; level -= 1) if (!used.has(level)) return level;
     return 1;
   }, [existing]);
-  const [level, setLevel] = useState(String(suggested));
+  const [level, setLevel] = useState(suggested);
   const [name, setName] = useState(GRADE_NAMES[suggested] ?? "");
   const [error, setError] = useState<string | null>(null);
-  const levelNumber = Number(level);
+  const levelOptions = Object.entries(GRADE_NAMES).map(([value, label]) => ({
+    value: Number(value),
+    label: `${value}° · ${label}`,
+    disabled: existing.some(grade => grade.levelOrder === Number(value)),
+  }));
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
     try {
-      await mutation.mutateAsync({ role: ROLE, name, shortName: `${levelNumber}°`, levelOrder: levelNumber });
+      await mutation.mutateAsync({ role: ROLE, name, shortName: `${level}°`, levelOrder: level });
       toast.success(`Grado ${name} creado.`);
       await refresh();
       onClose();
@@ -101,20 +106,15 @@ export function GradeDialog({ open, onClose, existing }: { open: boolean; onClos
       <form className="adm-form" onSubmit={submit}>
         <div className="adm-form__row">
           <Field label="Nivel">
-            <select
+            <OptionSelect
               className="adm-select"
               value={level}
-              onChange={event => {
-                setLevel(event.target.value);
-                setName(GRADE_NAMES[Number(event.target.value)] ?? name);
+              options={levelOptions}
+              onValueChange={next => {
+                setLevel(next);
+                setName(GRADE_NAMES[next] ?? name);
               }}
-            >
-              {Object.entries(GRADE_NAMES).map(([value, label]) => (
-                <option key={value} value={value} disabled={existing.some(grade => grade.levelOrder === Number(value))}>
-                  {value}° · {label}
-                </option>
-              ))}
-            </select>
+            />
           </Field>
           <Field label="Nombre">
             <input className="adm-input" value={name} onChange={event => setName(event.target.value)} required minLength={2} maxLength={80} />
@@ -132,11 +132,11 @@ export function GradeDialog({ open, onClose, existing }: { open: boolean; onClos
 export function CourseDialog({ open, onClose, data, onCreateGrade }: { open: boolean; onClose: () => void; data: AcademicData; onCreateGrade: () => void }) {
   const refresh = useAcademicRefresh();
   const mutation = trpc.academic.createCourse.useMutation();
-  const [gradeId, setGradeId] = useState(data.grades.at(-1)?.id ? String(data.grades.at(-1)!.id) : "");
+  const [gradeId, setGradeId] = useState<number | null>(data.grades.at(-1)?.id ?? null);
   const [group, setGroup] = useState("");
   const [capacity, setCapacity] = useState("32");
   const [error, setError] = useState<string | null>(null);
-  const grade = data.grades.find(item => String(item.id) === gradeId);
+  const grade = data.grades.find(item => item.id === gradeId);
   const level = grade ? grade.shortName.replace(/[^0-9]/g, "") || String(grade.levelOrder) : "";
   const name = level && group ? `${level}-${group}` : "";
   const code = name && data.activeYear ? `${name}-${data.activeYear.year}` : name;
@@ -169,11 +169,13 @@ export function CourseDialog({ open, onClose, data, onCreateGrade }: { open: boo
         <form className="adm-form" onSubmit={submit}>
           <div className="adm-form__row" style={{ ["--adm-cols" as string]: 3 }}>
             <Field label="Grado">
-              <select className="adm-select" value={gradeId} onChange={event => setGradeId(event.target.value)} required>
-                {data.grades.map(item => (
-                  <option key={item.id} value={item.id}>{item.shortName} · {item.name}</option>
-                ))}
-              </select>
+              <OptionSelect
+                className="adm-select"
+                value={gradeId}
+                onValueChange={setGradeId}
+                options={data.grades.map(item => ({ value: item.id, label: `${item.shortName} · ${item.name}` }))}
+                required
+              />
             </Field>
             <Field label="Grupo" hint="1, 2, A…">
               <input className="adm-input" value={group} onChange={event => setGroup(event.target.value.replace(/\s+/g, "").slice(0, 4))} required placeholder="3" />
@@ -282,16 +284,17 @@ export function SubjectDialog({ open, onClose, data }: { open: boolean; onClose:
 export function AttachSubjectDialog({ open, onClose, data, initialCourseId, initialSubjectId }: { open: boolean; onClose: () => void; data: AcademicData; initialCourseId?: number; initialSubjectId?: number }) {
   const refresh = useAcademicRefresh();
   const mutation = trpc.academic.attachSubject.useMutation();
-  const [courseId, setCourseId] = useState(initialCourseId ? String(initialCourseId) : "");
-  const [subjectId, setSubjectId] = useState(initialSubjectId ? String(initialSubjectId) : "");
+  const [courseId, setCourseId] = useState<number | null>(initialCourseId ?? null);
+  const [subjectId, setSubjectId] = useState<number | null>(initialSubjectId ?? null);
   const [error, setError] = useState<string | null>(null);
-  const linked = data.courseSubjects.some(link => String(link.courseId) === courseId && String(link.subjectId) === subjectId);
+  const linked = data.courseSubjects.some(link => link.courseId === courseId && link.subjectId === subjectId);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (courseId === null || subjectId === null) return;
     setError(null);
     try {
-      await mutation.mutateAsync({ role: ROLE, courseId: Number(courseId), subjectId: Number(subjectId) });
+      await mutation.mutateAsync({ role: ROLE, courseId, subjectId });
       toast.success("Materia asociada al curso.");
       await refresh();
       onClose();
@@ -305,25 +308,29 @@ export function AttachSubjectDialog({ open, onClose, data, initialCourseId, init
       <form className="adm-form" onSubmit={submit}>
         <div className="adm-form__row">
           <Field label="Curso">
-            <select className="adm-select" value={courseId} onChange={event => setCourseId(event.target.value)} required>
-              <option value="">Selecciona un curso</option>
-              {data.courses.map(course => (
-                <option key={course.id} value={course.id}>{course.name}</option>
-              ))}
-            </select>
+            <OptionSelect
+              className="adm-select"
+              value={courseId}
+              onValueChange={setCourseId}
+              options={data.courses.map(course => ({ value: course.id, label: course.name }))}
+              placeholder="Selecciona un curso"
+              required
+            />
           </Field>
           <Field label="Materia">
-            <select className="adm-select" value={subjectId} onChange={event => setSubjectId(event.target.value)} required>
-              <option value="">Selecciona una materia</option>
-              {data.subjects.map(subject => (
-                <option key={subject.id} value={subject.id}>{subject.name}</option>
-              ))}
-            </select>
+            <OptionSelect
+              className="adm-select"
+              value={subjectId}
+              onValueChange={setSubjectId}
+              options={data.subjects.map(subject => ({ value: subject.id, label: subject.name }))}
+              placeholder="Selecciona una materia"
+              required
+            />
           </Field>
         </div>
         {linked ? <p className="adm-note">Esta materia ya está asociada a ese curso.</p> : null}
         <ErrorNote message={error} />
-        <DialogActions busy={mutation.isPending} onCancel={onClose} submitLabel="Asociar" disabled={!courseId || !subjectId || linked} />
+        <DialogActions busy={mutation.isPending} onCancel={onClose} submitLabel="Asociar" disabled={courseId === null || subjectId === null || linked} />
       </form>
     </AdminDialog>
   );
@@ -335,22 +342,22 @@ export function AssignTeacherDialog({ open, onClose, data, initialTeacherId, ini
   const refresh = useAcademicRefresh();
   const attachMutation = trpc.academic.attachSubject.useMutation();
   const assignMutation = trpc.academic.assignTeacher.useMutation();
-  const [teacherId, setTeacherId] = useState(initialTeacherId ? String(initialTeacherId) : "");
-  const [courseId, setCourseId] = useState(initialCourseId ? String(initialCourseId) : "");
-  const [subjectId, setSubjectId] = useState("");
+  const [teacherId, setTeacherId] = useState<number | null>(initialTeacherId ?? null);
+  const [courseId, setCourseId] = useState<number | null>(initialCourseId ?? null);
+  const [subjectId, setSubjectId] = useState<number | null>(null);
   const [isPrimary, setIsPrimary] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const busy = attachMutation.isPending || assignMutation.isPending;
-  const needsLink = Boolean(courseId && subjectId) && !data.courseSubjects.some(link => String(link.courseId) === courseId && String(link.subjectId) === subjectId);
+  const needsLink = courseId !== null && subjectId !== null && !data.courseSubjects.some(link => link.courseId === courseId && link.subjectId === subjectId);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!data.activeYear) return;
+    if (!data.activeYear || teacherId === null || courseId === null || subjectId === null) return;
     setError(null);
     try {
       // El servidor exige que la materia esté asociada al curso: se asocia en el mismo paso
-      if (needsLink) await attachMutation.mutateAsync({ role: ROLE, courseId: Number(courseId), subjectId: Number(subjectId) });
-      await assignMutation.mutateAsync({ role: ROLE, teacherUserId: Number(teacherId), courseId: Number(courseId), subjectId: Number(subjectId), academicYearId: data.activeYear.id, isPrimary });
+      if (needsLink) await attachMutation.mutateAsync({ role: ROLE, courseId, subjectId });
+      await assignMutation.mutateAsync({ role: ROLE, teacherUserId: teacherId, courseId, subjectId, academicYearId: data.activeYear.id, isPrimary });
       toast.success("Carga docente asignada. El docente ya ve el curso en su portal.");
       await refresh();
       onClose();
@@ -363,32 +370,38 @@ export function AssignTeacherDialog({ open, onClose, data, initialTeacherId, ini
     <AdminDialog open={open} onClose={onClose} busy={busy} eyebrow="Carga docente" title="Asignar curso y materia" description="El docente verá el curso en Grade Center, Classroom y Asistencia.">
       <form className="adm-form" onSubmit={submit}>
         <Field label="Docente">
-          <select className="adm-select" value={teacherId} onChange={event => setTeacherId(event.target.value)} required>
-            <option value="">Selecciona un docente</option>
-            {data.teachers.map(teacher => (
-              <option key={teacher.userId} value={teacher.userId}>
-                {teacher.user?.name ?? "Docente"}
-                {teacher.specialties ? ` · ${teacher.specialties}` : ""}
-              </option>
-            ))}
-          </select>
+          <OptionSelect
+            className="adm-select"
+            value={teacherId}
+            onValueChange={setTeacherId}
+            options={data.teachers.map(teacher => ({
+              value: teacher.userId,
+              label: `${teacher.user?.name ?? "Docente"}${teacher.specialties ? ` · ${teacher.specialties}` : ""}`,
+            }))}
+            placeholder="Selecciona un docente"
+            required
+          />
         </Field>
         <div className="adm-form__row">
           <Field label="Curso">
-            <select className="adm-select" value={courseId} onChange={event => setCourseId(event.target.value)} required>
-              <option value="">Selecciona un curso</option>
-              {data.courses.map(course => (
-                <option key={course.id} value={course.id}>{course.name}</option>
-              ))}
-            </select>
+            <OptionSelect
+              className="adm-select"
+              value={courseId}
+              onValueChange={setCourseId}
+              options={data.courses.map(course => ({ value: course.id, label: course.name }))}
+              placeholder="Selecciona un curso"
+              required
+            />
           </Field>
           <Field label="Materia">
-            <select className="adm-select" value={subjectId} onChange={event => setSubjectId(event.target.value)} required>
-              <option value="">Selecciona una materia</option>
-              {data.subjects.map(subject => (
-                <option key={subject.id} value={subject.id}>{subject.name}</option>
-              ))}
-            </select>
+            <OptionSelect
+              className="adm-select"
+              value={subjectId}
+              onValueChange={setSubjectId}
+              options={data.subjects.map(subject => ({ value: subject.id, label: subject.name }))}
+              placeholder="Selecciona una materia"
+              required
+            />
           </Field>
         </div>
         <label className="adm-label" style={{ alignItems: "center", gap: 8, fontWeight: 500 }}>
@@ -397,7 +410,7 @@ export function AssignTeacherDialog({ open, onClose, data, initialTeacherId, ini
         </label>
         {needsLink ? <p className="adm-note">La materia aún no está en ese curso: se asociará automáticamente.</p> : null}
         <ErrorNote message={error} />
-        <DialogActions busy={busy} onCancel={onClose} submitLabel="Asignar" disabled={!teacherId || !courseId || !subjectId || !data.activeYear} />
+        <DialogActions busy={busy} onCancel={onClose} submitLabel="Asignar" disabled={teacherId === null || courseId === null || subjectId === null || !data.activeYear} />
       </form>
     </AdminDialog>
   );
@@ -408,7 +421,7 @@ export function AssignTeacherDialog({ open, onClose, data, initialTeacherId, ini
 export function EnrollDialog({ open, onClose, data, initialCourseId, onLoadStudents }: { open: boolean; onClose: () => void; data: AcademicData; initialCourseId?: number; onLoadStudents: () => void }) {
   const refresh = useAcademicRefresh();
   const mutation = trpc.academic.bulkEnroll.useMutation();
-  const [courseId, setCourseId] = useState(initialCourseId ? String(initialCourseId) : "");
+  const [courseId, setCourseId] = useState<number | null>(initialCourseId ?? null);
   const [selected, setSelected] = useState<number[]>([]);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -418,7 +431,7 @@ export function EnrollDialog({ open, onClose, data, initialCourseId, onLoadStude
     .map(student => ({ userId: student.userId, name: student.user?.name ?? "Estudiante", email: student.user?.email ?? "" }))
     .filter(student => `${student.name} ${student.email}`.toLowerCase().includes(search.trim().toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
-  const course = data.courses.find(item => String(item.id) === courseId);
+  const course = data.courses.find(item => item.id === courseId);
   const free = course?.capacity ? course.capacity - course.studentCount : null;
 
   const submit = async (event: FormEvent) => {
@@ -446,15 +459,17 @@ export function EnrollDialog({ open, onClose, data, initialCourseId, onLoadStude
       <form className="adm-form" onSubmit={submit}>
         <div className="adm-form__row">
           <Field label="Curso">
-            <select className="adm-select" value={courseId} onChange={event => setCourseId(event.target.value)} required>
-              <option value="">Selecciona un curso</option>
-              {data.courses.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.name} · {item.studentCount}
-                  {item.capacity ? `/${item.capacity}` : ""} estudiantes
-                </option>
-              ))}
-            </select>
+            <OptionSelect
+              className="adm-select"
+              value={courseId}
+              onValueChange={setCourseId}
+              options={data.courses.map(item => ({
+                value: item.id,
+                label: `${item.name} · ${item.studentCount}${item.capacity ? `/${item.capacity}` : ""} estudiantes`,
+              }))}
+              placeholder="Selecciona un curso"
+              required
+            />
           </Field>
           <label className="adm-field">
             <span className="adm-label">Buscar</span>
@@ -544,16 +559,16 @@ export function TransferDialog({ open, onClose, data, enrollmentId }: { open: bo
   const mutation = trpc.academic.transferStudent.useMutation();
   const enrollment = data.studentEnrollments.find(item => item.id === enrollmentId);
   const current = data.courses.find(course => course.id === enrollment?.courseId);
-  const [courseId, setCourseId] = useState("");
+  const [courseId, setCourseId] = useState<number | null>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!enrollment) return;
+    if (!enrollment || courseId === null) return;
     setError(null);
     try {
-      await mutation.mutateAsync({ role: ROLE, enrollmentId: enrollment.id, newCourseId: Number(courseId), reason: reason || "Cambio administrativo de curso" });
+      await mutation.mutateAsync({ role: ROLE, enrollmentId: enrollment.id, newCourseId: courseId, reason: reason || "Cambio administrativo de curso" });
       toast.success("Cambio de curso guardado con historial.");
       await refresh();
       onClose();
@@ -566,20 +581,20 @@ export function TransferDialog({ open, onClose, data, enrollmentId }: { open: bo
     <AdminDialog open={open} onClose={onClose} busy={mutation.isPending} eyebrow="Matrícula" title={`Cambiar de curso a ${enrollment?.student?.name ?? "estudiante"}`} description={current ? `Curso actual: ${current.name}. El cambio queda en el historial de matrícula.` : undefined}>
       <form className="adm-form" onSubmit={submit}>
         <Field label="Nuevo curso">
-          <select className="adm-select" value={courseId} onChange={event => setCourseId(event.target.value)} required>
-            <option value="">Selecciona un curso</option>
-            {data.courses
-              .filter(course => course.id !== current?.id)
-              .map(course => (
-                <option key={course.id} value={course.id}>{course.name}</option>
-              ))}
-          </select>
+          <OptionSelect
+            className="adm-select"
+            value={courseId}
+            onValueChange={setCourseId}
+            options={data.courses.filter(course => course.id !== current?.id).map(course => ({ value: course.id, label: course.name }))}
+            placeholder="Selecciona un curso"
+            required
+          />
         </Field>
         <Field label="Motivo" hint="queda en el historial">
           <textarea className="adm-textarea" rows={3} value={reason} onChange={event => setReason(event.target.value)} maxLength={300} placeholder="Ej. Solicitud de la familia por horario" />
         </Field>
         <ErrorNote message={error} />
-        <DialogActions busy={mutation.isPending} onCancel={onClose} submitLabel="Guardar cambio" disabled={!courseId} />
+        <DialogActions busy={mutation.isPending} onCancel={onClose} submitLabel="Guardar cambio" disabled={courseId === null} />
       </form>
     </AdminDialog>
   );

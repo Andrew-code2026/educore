@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { ChevronRight, ClipboardList, FileText, Plus, Search, SearchX } from 'lucide-react';
+import { OptionSelect } from '@/components/option-select';
 import type { Activity } from '../types';
 import { plural } from '../landing/courses';
 import { describeDue } from '../course/overview';
@@ -110,13 +111,7 @@ export function ActivitiesView({
 
         <label className="ccw-sort">
           <span>Ordenar</span>
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as ActivitySort)}>
-            {ACTIVITY_SORTS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <OptionSelect value={sortBy} onValueChange={setSortBy} options={ACTIVITY_SORTS} />
         </label>
       </div>
 

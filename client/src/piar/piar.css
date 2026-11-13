@@ -1403,6 +1403,16 @@
   color: var(--edc-muted-3);
 }
 
+/* .pia-select es el disparador del Select de shadcn; la lista es la de shadcn. */
+.pia .pia-select {
+  padding-right: 10px;
+  box-shadow: none;
+}
+
+.pia .pia-select[data-placeholder] {
+  color: var(--edc-muted-3);
+}
+
 .pia .pia-input:focus,
 .pia .pia-select:focus,
 .pia .pia-textarea:focus {

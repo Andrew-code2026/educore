@@ -760,24 +760,21 @@
   white-space: nowrap;
 }
 
-.ccw .ccw-sort select {
+/* Disparador del Select de shadcn; la lista desplegable es la de shadcn */
+.ccw .ccw-sort [data-slot="select-trigger"] {
   height: 36px;
-  padding: 0 32px 0 14px;
+  padding: 0 12px 0 14px;
   border-radius: 999px;
   border: 1px solid var(--ccw-field-border);
   background-color: var(--ccw-field-bg);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2379818A' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
   color: var(--edc-ink);
   font-family: inherit;
   font-size: 13px;
   font-weight: 500;
-  appearance: none;
   cursor: pointer;
 }
 
-.classcore-workspace .ccw .ccw-sort select:focus-visible {
+.classcore-workspace .ccw .ccw-sort [data-slot="select-trigger"]:focus-visible {
   outline: 2px solid var(--edc-blue);
   outline-offset: 2px;
   box-shadow: none;
@@ -896,11 +893,13 @@
   align-self: flex-start;
 }
 
-.ccw .ccw-picker select {
+/* Disparador del Select de shadcn con peso de título; la lista desplegable es la de shadcn */
+.ccw .ccw-picker [data-slot="select-trigger"] {
   max-width: 100%;
   min-width: 0;
   height: 40px;
-  padding: 0 40px 0 12px;
+  padding: 0 12px;
+  gap: 10px;
   margin-left: -12px;
   border: 1px solid transparent;
   border-radius: 12px;
@@ -910,36 +909,26 @@
   font-size: 22px;
   font-weight: 600;
   letter-spacing: -.015em;
-  text-overflow: ellipsis;
-  appearance: none;
+  box-shadow: none;
   cursor: pointer;
   transition: background-color .15s ease, border-color .15s ease;
 }
 
-.ccw .ccw-picker select:hover {
+.ccw .ccw-picker [data-slot="select-trigger"]:hover {
   background: var(--ccw-outline-hover);
   border-color: var(--ccw-field-border);
 }
 
-.ccw .ccw-picker select option {
-  font-size: 14px;
-  font-weight: 500;
-  color: initial;
-}
-
-.classcore-workspace .ccw .ccw-picker select:focus-visible {
+.classcore-workspace .ccw .ccw-picker [data-slot="select-trigger"]:focus-visible {
   outline: 2px solid var(--edc-blue);
   outline-offset: 2px;
   box-shadow: none;
 }
 
-.ccw .ccw-picker svg {
-  position: absolute;
-  right: 12px;
+.ccw .ccw-picker [data-slot="select-trigger"] svg {
   width: 18px;
   height: 18px;
   color: var(--edc-muted);
-  pointer-events: none;
 }
 
 .ccw .ccw-brief__meta {
@@ -1159,12 +1148,10 @@
   color: var(--edc-muted-2);
 }
 
+/* .ccw-input--select viste el disparador del Select de shadcn */
 .ccw .ccw-input--select {
-  padding-right: 36px;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2379818A' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
+  padding-right: 12px;
+  box-shadow: none;
   cursor: pointer;
 }
 
@@ -1581,7 +1568,7 @@
     display: block;
   }
 
-  .ccw .ccw-picker select {
+  .ccw .ccw-picker [data-slot="select-trigger"] {
     font-size: 18px;
   }
 
@@ -1693,7 +1680,7 @@
   .ccw .ccw-tab,
   .ccw .ccw-tab::after,
   .ccw .ccw-chip,
-  .ccw .ccw-picker select,
+  .ccw .ccw-picker [data-slot="select-trigger"],
   .ccw .ccw-drop,
   .ccw .ccw-meter__bar {
     transition: none;

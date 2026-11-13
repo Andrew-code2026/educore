@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { OptionSelect } from "@/components/option-select";
 import {
   AttendanceJustificationItem,
   AttendanceJustificationReasonCategory,
@@ -1417,19 +1418,16 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                 <label className="font-semibold text-slate-700 block mb-1">
                   Decisión administrativa:
                 </label>
-                <select
+                <OptionSelect
                   value={resolveTargetStatus}
-                  onChange={(e) =>
-                    setResolveTargetStatus(
-                      e.target.value as "approved" | "unjustified" | "rejected"
-                    )
-                  }
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white font-medium"
-                >
-                  <option value="approved">Aprobar excusa (justificada legalmente)</option>
-                  <option value="rejected">Rechazar excusa (soporte inválido o extemporáneo)</option>
-                  <option value="unjustified">Declarar inasistencia injustificada</option>
-                </select>
+                  onValueChange={setResolveTargetStatus}
+                  options={[
+                    { value: "approved", label: "Aprobar excusa (justificada legalmente)" },
+                    { value: "rejected", label: "Rechazar excusa (soporte inválido o extemporáneo)" },
+                    { value: "unjustified", label: "Declarar inasistencia injustificada" },
+                  ]}
+                  className="h-auto w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white font-medium"
+                />
               </div>
 
               {resolveTargetStatus === "approved" && (
@@ -1511,17 +1509,13 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                 <label className="font-semibold text-slate-700 block mb-1">
                   Estudiante del curso {courseLabel}:
                 </label>
-                <select
+                <OptionSelect
                   value={newStudentId}
-                  onChange={(e) => setNewStudentId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
-                >
-                  {students.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.code})
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setNewStudentId}
+                  options={students.map((s) => ({ value: s.id, label: `${s.name} (${s.code})` }))}
+                  placeholder="Selecciona un estudiante"
+                  className="h-auto w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
+                />
               </div>
 
               {/* Fecha de inasistencia */}
@@ -1542,22 +1536,19 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                 <label className="font-semibold text-slate-700 block mb-1">
                   Motivo de inasistencia:
                 </label>
-                <select
+                <OptionSelect<AttendanceJustificationReasonCategory>
                   value={newReasonCategory}
-                  onChange={(e) =>
-                    setNewReasonCategory(
-                      e.target.value as AttendanceJustificationReasonCategory
-                    )
-                  }
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
-                >
-                  <option value="medical">Incapacidad médica / Salud</option>
-                  <option value="family_emergency">Calamidad o emergencia familiar</option>
-                  <option value="external_appointment">Cita médica o procedimiento externo</option>
-                  <option value="institutional">Representación institucional / Deportiva</option>
-                  <option value="force_majeure">Fuerza mayor / Clima / Transporte</option>
-                  <option value="other">Otro motivo justificable</option>
-                </select>
+                  onValueChange={setNewReasonCategory}
+                  options={[
+                    { value: "medical", label: "Incapacidad médica / Salud" },
+                    { value: "family_emergency", label: "Calamidad o emergencia familiar" },
+                    { value: "external_appointment", label: "Cita médica o procedimiento externo" },
+                    { value: "institutional", label: "Representación institucional / Deportiva" },
+                    { value: "force_majeure", label: "Fuerza mayor / Clima / Transporte" },
+                    { value: "other", label: "Otro motivo justificable" },
+                  ]}
+                  className="h-auto w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
+                />
               </div>
 
               {/* Descripción */}
@@ -1580,19 +1571,16 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                   <label className="font-semibold text-slate-700 block mb-1">
                     Quién radica la excusa:
                   </label>
-                  <select
+                  <OptionSelect
                     value={newSubmittedByRole}
-                    onChange={(e) =>
-                      setNewSubmittedByRole(
-                        e.target.value as "student" | "guardian" | "teacher"
-                      )
-                    }
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
-                  >
-                    <option value="teacher">Docente / Secretaría</option>
-                    <option value="guardian">Acudiente</option>
-                    <option value="student">Estudiante</option>
-                  </select>
+                    onValueChange={setNewSubmittedByRole}
+                    options={[
+                      { value: "teacher", label: "Docente / Secretaría" },
+                      { value: "guardian", label: "Acudiente" },
+                      { value: "student", label: "Estudiante" },
+                    ]}
+                    className="h-auto w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
+                  />
                 </div>
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">

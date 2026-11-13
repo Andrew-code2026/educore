@@ -2,6 +2,7 @@ import { useId, useMemo, useState, type FormEvent } from "react";
 import { PenLine } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { OptionSelect } from "@/components/option-select";
 import { useGradeCenter } from "../../state/GradeCenterContext";
 import { parseGradeInput } from "../../domain/grading";
 import { gradeKey } from "../../types";
@@ -79,18 +80,13 @@ export function BulkGradeDialog({
 
           <div className="space-y-4 overflow-y-auto px-5 py-4">
             <Field label="Evaluación" htmlFor={ids.evaluation}>
-              <select
+              <OptionSelect
                 id={ids.evaluation}
                 value={evaluationId}
-                onChange={(event) => setEvaluationId(event.target.value)}
-                className={FIELD_CLASS}
-              >
-                {evaluations.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.code} · {item.name} ({item.weight}%)
-                  </option>
-                ))}
-              </select>
+                onValueChange={setEvaluationId}
+                options={evaluations.map((item) => ({ value: item.id, label: `${item.code} · ${item.name} (${item.weight}%)` }))}
+                className={cn(FIELD_CLASS, "h-auto")}
+              />
             </Field>
 
             <Field label="Nota" htmlFor={ids.value}>
