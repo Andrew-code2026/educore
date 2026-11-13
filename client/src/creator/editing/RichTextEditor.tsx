@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AutoFocusPlugin } from "@lexical/react/LexicalAutoFocusPlugin";
 import { LexicalComposer, type InitialConfigType } from "@lexical/react/LexicalComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
@@ -40,8 +40,9 @@ import {
   type Spread,
 } from "lexical";
 import { Bold, Italic, List, ListOrdered, Sigma } from "lucide-react";
-import { checkLatex } from "@shared/creatorValidate";
 import { Formula } from "../blocks/Formula";
+import { FormulaInput } from "./FormulaInput";
+import { isKeyboardSurface } from "./mathField";
 import { parseMd, serializeMd, type Inline, type MdBlock } from "./mdModel";
 
 /* ───────────────────────── Nodo de fórmula ───────────────────────── */
@@ -128,40 +129,72 @@ function FormulaChip({ nodeKey, latex, display }: { nodeKey: NodeKey; latex: str
   const [draft, setDraft] = useState(latex);
   const containerRef = useRef<HTMLSpanElement>(null);
   const chipRef = useRef<HTMLSpanElement>(null);
-  const error = draft.trim() ? checkLatex(draft) : null;
+  const popoverRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     if (!open) setDraft(latex);
   }, [latex, open]);
 
-  const commit = useCallback(() => {
-    setOpen(false);
-    editor.update(() => {
-      const node = $getNodeByKey(nodeKey);
-      if (!$isFormulaNode(node)) return;
-      // Una fórmula vacía no deja rastro en el texto
-      if (draft.trim() === "") node.remove();
-      else node.setLatex(draft.trim());
-    });
-  }, [draft, editor, nodeKey]);
+  /**
+   * Cierra el cuadro y deja la fórmula con `next`. Desde el teclado (Intro, Escape) el cursor vuelve
+   * al texto, justo después de la fórmula; con un clic fuera, el foco es de lo que se pulsó.
+   */
+  const close = useCallback(
+    (next: string, refocus: boolean) => {
+      // El foco vuelve al texto antes de quitar el cuadro: el bloque no llega a quedarse sin foco,
+      // y con el foco ya fuera del cuadro el editor acepta colocar el cursor
+      if (refocus) editor.getRootElement()?.focus({ preventScroll: true });
+      editor.update(
+        () => {
+          const node = $getNodeByKey(nodeKey);
+          if (!$isFormulaNode(node)) return;
+          const value = next.trim();
+          // Una fórmula vacía no deja rastro en el texto
+          if (value === "") {
+            const parent = node.getParent();
+            const index = node.getIndexWithinParent();
+            node.remove();
+            if (refocus) parent?.select(index, index);
+            return;
+          }
+          if (value !== node.getLatex()) node.setLatex(value);
+          if (refocus) node.selectNext(0, 0);
+        },
+        { discrete: true },
+      );
+      setOpen(false);
+    },
+    [editor, nodeKey],
+  );
 
-  // Cerca del borde derecho del editor, el cuadro se abre hacia la izquierda para no salirse de la hoja
-  const [alignRight, setAlignRight] = useState(false);
-  useEffect(() => {
+  const commit = useCallback(() => close(draft, true), [close, draft]);
+  // Escape deja la fórmula como estaba
+  const cancel = useCallback(() => close(latex, true), [close, latex]);
+
+  // El cuadro se abre bajo la fórmula y se corre lo justo para no salirse del editor
+  const [shift, setShift] = useState(0);
+  useLayoutEffect(() => {
     if (!open) return;
     const chip = containerRef.current;
     const host = chip?.closest(".crt-rte, .crt-inplace");
-    if (chip && host) setAlignRight(host.getBoundingClientRect().right - chip.getBoundingClientRect().left < 348);
+    const popover = popoverRef.current;
+    if (!chip || !host || !popover) return;
+    const bounds = host.getBoundingClientRect();
+    const left = chip.getBoundingClientRect().left;
+    setShift(Math.round(Math.max(bounds.left - left, Math.min(0, bounds.right - left - popover.offsetWidth))));
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) commit();
+      const target = event.target as Element | null;
+      // Las variantes de una tecla del teclado en pantalla se dibujan fuera del cuadro
+      if (containerRef.current?.contains(target) || isKeyboardSurface(target)) return;
+      close(draft, false);
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [commit, open]);
+  }, [close, draft, open]);
 
   // Con el foco en la fórmula, Intro o Espacio abren su cuadro. El editor de texto escucha el teclado
   // en su raíz, antes que React: la tecla se detiene aquí para que no parta el párrafo.
@@ -185,30 +218,8 @@ function FormulaChip({ nodeKey, latex, display }: { nodeKey: NodeKey; latex: str
         {latex ? <Formula latex={latex} display={inPlace && display} /> : <span className="crt-rte__chip-empty">fórmula</span>}
       </span>
       {open && (
-        <span className={alignRight ? "crt-rte__popover crt-rte__popover--right" : "crt-rte__popover"} role="dialog" aria-label="Editar fórmula">
-          <label className="crt-rte__popover-label" htmlFor={`formula-${nodeKey}`}>
-            Fórmula en LaTeX
-          </label>
-          <input
-            id={`formula-${nodeKey}`}
-            autoFocus
-            className="crt-input"
-            value={draft}
-            spellCheck={false}
-            placeholder="x = \frac{-b}{2a}"
-            onChange={event => setDraft(event.target.value)}
-            onKeyDown={event => {
-              // El editor de texto no debe recibir estas teclas
-              event.stopPropagation();
-              if (event.key === "Enter" || event.key === "Escape") {
-                event.preventDefault();
-                commit();
-              }
-            }}
-          />
-          <span className="crt-rte__popover-preview" aria-live="polite">
-            {error ? <span className="crt-rte__popover-error">{error}</span> : draft.trim() ? <Formula latex={draft} /> : <span className="crt-muted">Vista previa</span>}
-          </span>
+        <span ref={popoverRef} className="crt-rte__popover crt-mf-popover" style={{ left: shift }} role="dialog" aria-label="Editar fórmula">
+          <FormulaInput value={latex} onChange={setDraft} onEnter={commit} onEscape={cancel} autoFocus preview />
         </span>
       )}
     </span>
