@@ -16,13 +16,27 @@ export interface Monomial {
 
 export type AlgebraFormat = "latex" | "plain";
 
-/** Quita el ruido binario de un producto de decimales (0.1 · 3). */
-const clean = (value: number) => Number(value.toPrecision(12));
+/** Decimales con los que se escribe un coeficiente. Lo que necesite más no se puede mostrar sin redondear. */
+const DECIMALS = 4;
+/** Caracteres que caben en un término de lado y en una celda de la figura. */
+const SIDE_CHARS = 8;
+const CELL_CHARS = 13;
 
-/** Lee un monomio en texto plano: "3", "x", "2x", "-4", "x^2", "0.5x", "2*x". null si no lo es. */
+/**
+ * Quita el ruido binario de una operación con decimales (0.1 · 3). Los enteros no se tocan:
+ * su producto es exacto, y redondearlo a 12 cifras significativas lo estropearía.
+ */
+const clean = (value: number) => (Number.isInteger(value) ? value : Number(value.toPrecision(12)));
+
+const fitsDecimals = (value: number) => Number.isInteger(value) || Math.abs(value * 10 ** DECIMALS - Math.round(value * 10 ** DECIMALS)) < 1e-6;
+
+/** Lo que se escribe distinto y significa lo mismo: signo menos tipográfico, superíndices y espacios. */
+const normalize = (text: string) => text.replace(/−/g, "-").replace(/²/g, "^2").replace(/³/g, "^3").replace(/\s+/g, "");
+
+/** Lee un monomio en texto plano: "3", "x", "2x", "-4", "x^2", "x²", "0.5x", "2*x". null si no lo es. */
 export function parseMonomial(text: string): Monomial | null {
-  const compact = text.replace(/\s+/g, "").replace(/−/g, "-").replace(/\*/g, "");
-  const match = /^([+-]?)(\d+(?:[.,]\d+)?)?(?:([a-zA-Z])(?:\^\{?(\d)\}?)?)?$/.exec(compact);
+  // El asterisco solo vale entre el número y la letra: "2*3" no es un monomio, y leerlo como 23 sería peor que rechazarlo
+  const match = /^([+-]?)(\d+(?:[.,]\d+)?)?(?:\*?([a-zA-Z])(?:\^\{?(\d)\}?)?)?$/.exec(normalize(text));
   if (!match || (match[2] === undefined && match[3] === undefined)) return null;
   const coef = (match[1] === "-" ? -1 : 1) * (match[2] === undefined ? 1 : Number(match[2].replace(",", ".")));
   const exp = match[3] === undefined ? 0 : match[4] === undefined ? 1 : Number(match[4]);
@@ -30,16 +44,24 @@ export function parseMonomial(text: string): Monomial | null {
   return { coef, exp, variable: exp === 0 ? null : match[3] };
 }
 
+/** "1.000" o "12.500": en Colombia es mil o doce mil quinientos; para el sistema, un decimal. */
+function looksLikeThousands(text: string): boolean {
+  const number = /^[+-]?(\d[\d.,]*)/.exec(normalize(text))?.[1] ?? "";
+  return /^[1-9]\d{0,2}(\.\d{3})+$/.test(number);
+}
+
 /**
- * Parte lo que escribe el docente en el formulario en términos: "x + 3", "2x - 5" o "x, 3".
+ * Parte lo que escribe el docente en el formulario en términos: "x + 3", "(2x - 5)" o "x, 3".
  * Una coma entre dos cifras es decimal (0,5x); en cualquier otro sitio separa términos.
  */
 export function splitTerms(text: string): string[] {
-  const normalized = text.replace(/−/g, "-").replace(/(?<!\d),|,(?!\d)/g, ";");
+  const normalized = normalize(text)
+    .replace(/[()[\]]/g, "")
+    .replace(/(?<!\d),|,(?!\d)/g, ";");
   return normalized
     .split(";")
     .flatMap(part => part.match(/[+-]?[^+-]+/g) ?? [])
-    .map(term => term.replace(/\s+/g, "").replace(/^\+/, ""))
+    .map(term => term.replace(/^\+/, ""))
     .filter(Boolean);
 }
 
@@ -63,7 +85,7 @@ export function sumMonomials(terms: Monomial[]): Monomial[] {
 /** El monomio sin signo: "2x", "x^{2}", "0,5". */
 function monomialBody(term: Monomial, format: AlgebraFormat): string {
   const size = Math.abs(term.coef);
-  const number = format === "latex" ? formatNumberEs(size, 4).replace(",", "{,}") : formatNumberEs(size, 4);
+  const number = format === "latex" ? formatNumberEs(size, DECIMALS).replace(",", "{,}") : formatNumberEs(size, DECIMALS);
   if (term.exp === 0 || !term.variable) return number;
   const power = term.exp === 1 ? "" : format === "latex" ? `^{${term.exp}}` : `^${term.exp}`;
   return `${size === 1 ? "" : number}${term.variable}${power}`;
@@ -118,11 +140,25 @@ export function areaModelIssues(rows: string[], columns: string[]): string[] {
   const issues: string[] = [];
   const parsed = [...rows, ...columns].map(text => ({ text, term: parseMonomial(text) }));
   for (const { text, term } of parsed) {
-    if (!term) issues.push(`no se entiende el término "${text}". Escribe un número o un monomio de una letra en texto plano: 3, x, 2x, -4, x^2.`);
+    if (looksLikeThousands(text)) issues.push(`"${text}" se puede leer como miles o como decimal. Escribe el entero sin punto (1000) o el decimal con coma (1,5).`);
+    else if (!term) issues.push(`no se entiende el término "${text}". Escribe un número o un monomio de una letra en texto plano: 3, x, 2x, -4, x^2.`);
     else if (term.coef === 0) issues.push(`el término "${text}" vale cero; quítalo.`);
+    else if (!fitsDecimals(term.coef)) issues.push(`el término "${text}" tiene más de ${DECIMALS} decimales y no se puede escribir completo en la figura.`);
+    else if (monomialText(term).length > SIDE_CHARS) issues.push(`el término "${text}" es demasiado largo para la figura; usa números más pequeños.`);
   }
   const letters = Array.from(new Set(parsed.map(item => item.term?.variable).filter((letter): letter is string => Boolean(letter))));
   if (letters.length > 1) issues.push(`los términos usan varias letras (${letters.join(", ")}) y el modelo trabaja con una sola.`);
   if (rows.length * columns.length < 2) issues.push("con un término en cada lado no hay nada que partir; pon al menos dos términos en un lado.");
+  if (issues.length > 0) return issues;
+
+  // Con los términos en regla, cada producto tiene que poder escribirse entero y dentro de su celda
+  const model = computeAreaModel(rows, columns);
+  model?.cells.forEach((cells, row) =>
+    cells.forEach((cell, column) => {
+      const product = `${monomialText(model.rows[row])} por ${monomialText(model.columns[column])}`;
+      if (!fitsDecimals(cell.coef)) issues.push(`el producto de ${product} tiene más de ${DECIMALS} decimales y no se puede escribir completo; usa números con menos decimales.`);
+      else if (monomialText(cell).length > CELL_CHARS) issues.push(`el producto de ${product} (${monomialText(cell)}) no cabe en su celda; usa números más pequeños.`);
+    }),
+  );
   return issues;
 }

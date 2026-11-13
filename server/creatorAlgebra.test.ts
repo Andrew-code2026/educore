@@ -138,3 +138,59 @@ describe("modelo de área: esquema, validación y lo que ve la IA", () => {
     expect(CREATOR_SYSTEM_PROMPT).toMatch(/factorizar[^.]*hide "dimensions"/);
   });
 });
+
+describe("lo que encontró la revisión del modelo de área", () => {
+  it("no lee un producto de números como un número pegado", () => {
+    expect(parseMonomial("2*3")).toBeNull();
+    expect(parseMonomial("2*x")).toEqual({ coef: 2, exp: 1, variable: "x" });
+    expect(areaModelIssues(["2*3", "x"], ["x", "1"])[0]).toContain("no se entiende");
+  });
+
+  it("entiende paréntesis y superíndices al escribir un lado", () => {
+    expect(splitTerms("(x + 3)")).toEqual(["x", "3"]);
+    expect(splitTerms("x² − 2x + 1")).toEqual(["x^2", "-2x", "1"]);
+    expect(parseMonomial("3x²")).toEqual({ coef: 3, exp: 2, variable: "x" });
+    expect(parseMonomial("x³")).toEqual({ coef: 1, exp: 3, variable: "x" });
+  });
+
+  it("multiplica y suma enteros grandes sin perder cifras", () => {
+    expect(multiplyMonomials(mono("1234567"), mono("7654321")).coef).toBe(9449772114007);
+    const sum = sumMonomials([{ coef: 9449772114007, exp: 0, variable: null }, { coef: 1, exp: 0, variable: null }]);
+    expect(sum[0].coef).toBe(9449772114008);
+    // Con decimales sigue quitando el ruido binario
+    expect(multiplyMonomials(mono("0.1"), mono("0.2")).coef).toBe(0.02);
+  });
+
+  it("avisa de un punto de miles en vez de leerlo como decimal", () => {
+    const thousands = areaModelIssues(["1.000", "200"], ["30", "5"]);
+    expect(thousands).toHaveLength(1);
+    expect(thousands[0]).toContain("miles");
+    expect(areaModelIssues(["12.500x", "2"], ["x", "3"])[0]).toContain("miles");
+    expect(areaModelIssues(["1000", "200"], ["30", "5"])).toEqual([]);
+    expect(areaModelIssues(["1,5", "2"], ["x", "3"])).toEqual([]);
+    expect(areaModelIssues(["0.125", "2"], ["x", "3"])).toEqual([]);
+    expect(areaModelIssues(["1.25", "2"], ["x", "3"])).toEqual([]);
+  });
+
+  it("rechaza lo que no se puede escribir entero en la figura", () => {
+    expect(areaModelIssues(["0.00001x", "2"], ["x", "3"])[0]).toContain("más de 4 decimales");
+    // Los términos caben, pero su producto necesita cinco decimales
+    const product = areaModelIssues(["0.001x", "2"], ["0.01", "3"]);
+    expect(product).toHaveLength(1);
+    expect(product[0]).toContain("producto de 0,001x por 0,01");
+  });
+
+  it("rechaza términos y productos que no caben en la figura", () => {
+    expect(areaModelIssues(["123456x^2", "1"], ["x", "1"])[0]).toContain("demasiado largo");
+    const wide = areaModelIssues(["99999x", "1"], ["99999x", "1"]);
+    expect(wide).toHaveLength(1);
+    expect(wide[0]).toContain("no cabe en su celda");
+    // Una descomposición con miles sí cabe
+    expect(areaModelIssues(["1000", "200"], ["3000", "50"])).toEqual([]);
+  });
+
+  it("resume el bloque con el producto bien escrito", () => {
+    expect(blockPreview(block({ type: "area_model", rows: ["x", "-3"], columns: ["x", "3"] }))).toBe("Modelo de área: (x - 3)(x + 3)");
+    expect(blockPreview(block({ type: "area_model", rows: ["x", "tres"], columns: ["x", "3"] }))).toBe("Modelo de área: x, tres por x, 3");
+  });
+});

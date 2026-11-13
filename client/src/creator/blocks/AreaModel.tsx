@@ -30,10 +30,16 @@ export const AreaModel = memo(function AreaModel({ spec }: { spec: AreaModelSpec
     const gridH = model.rows.length * CELL_H;
     const product = areaModelProduct(model, "latex");
     const total = polynomialText(model.total, "latex");
+    // Lo que ocupa la línea se mide con el texto que se ve, no con el LaTeX que lo produce
+    const totalChars = polynomialText(model.total).length;
     // El total es la respuesta cuando el estudiante multiplica: ahí no se escribe
     const totalLine =
-      !spec.showTotal || spec.hide === "cells" ? null : spec.hide === "dimensions" ? { md: `Área total: $${total}$`, chars: 12 + total.length } : { latex: `${product} = ${total}`, chars: product.length + total.length + 3 };
-    const width = Math.max(LEFT + gridW + 20, totalLine ? totalLine.chars * CHAR_W * 0.8 + 24 : 0, 220);
+      !spec.showTotal || spec.hide === "cells"
+        ? null
+        : spec.hide === "dimensions"
+          ? { md: `Área total: $${total}$`, chars: 12 + totalChars }
+          : { latex: `${product} = ${total}`, chars: areaModelProduct(model).length + totalChars + 3 };
+    const width = Math.max(LEFT + gridW + 20, totalLine ? totalLine.chars * CHAR_W + 24 : 0, 220);
     // Con un total más ancho que la caja, la caja se centra
     const left = Math.max(LEFT, (width - gridW + LEFT - 20) / 2);
     const height = TOP + gridH + 12 + (totalLine ? 34 : 0);

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { areaModelProduct, computeAreaModel } from "./creatorAlgebra";
 import { VENN_REGIONS } from "./creatorDiagrams";
 import { MATH_EXPR_MAX } from "./creatorMath";
 
@@ -1127,8 +1128,10 @@ export function blockPreview(block: BlockInput): string {
       return block.caption || `Reloj: ${block.clocks.map(clock => `${clock.hour}:${String(clock.minute).padStart(2, "0")}`).join(", ")}`;
     case "base_ten":
       return block.caption || `Bloques de base 10: ${block.hundreds * 100 + block.tens * 10 + block.ones}`;
-    case "area_model":
-      return block.caption || `Modelo de área: ${block.rows.join(" + ")} por ${block.columns.join(" + ")}`;
+    case "area_model": {
+      const model = computeAreaModel(block.rows, block.columns);
+      return block.caption || `Modelo de área: ${model ? areaModelProduct(model) : `${block.rows.join(", ")} por ${block.columns.join(", ")}`}`;
+    }
     case "shapes":
       return block.caption || `Figuras: ${block.figures.map(figure => SHAPE_KIND_LABELS[figure.kind]).join(", ")}`;
     case "balance":
