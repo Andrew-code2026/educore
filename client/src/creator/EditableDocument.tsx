@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, BetweenHorizontalStart, Columns2, Copy, GripVertical, LayoutGrid, MessageSquarePlus, Pencil, Plus, SquareDashedMousePointer, Trash2, TriangleAlert, Ungroup, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BetweenHorizontalStart, Columns2, Copy, GripVertical, LayoutGrid, MessageSquarePlus, Pencil, Plus, SquareDashedMousePointer, Trash2, TriangleAlert, Ungroup, X } from "lucide-react";
 import {
   BLOCK_TYPE_LABELS,
   blockCells,
@@ -44,7 +44,7 @@ import type { EditEntry } from "./editing/InlineText";
 import { revealTarget } from "./reveal";
 import { ResourceSheet } from "./ResourceSheet";
 import { SectionMenu, SectionTitle, useMenuFollowUp, type SectionTitleHandle } from "./SectionControls";
-import { ADDABLE_BLOCKS, insertOp, moveShortcut, stepTarget, type DropTarget, type InsertPlace } from "./structure";
+import { ADDABLE_BLOCKS, insertOp, moveShortcut, sideTarget, stepTarget, type DropTarget, type InsertPlace } from "./structure";
 import type { MarkKind } from "./turnReview";
 import { useBlockDrag } from "./useBlockDrag";
 
@@ -71,7 +71,7 @@ interface EditableDocumentProps {
 
 const MARK_LABELS: Record<MarkKind, string> = { added: "Añadido por la IA", changed: "Cambiado por la IA" };
 
-const MOVE_HINT = IS_MAC ? { up: "⌥⇧↑", down: "⌥⇧↓" } : { up: "Alt+Mayús+↑", down: "Alt+Mayús+↓" };
+const MOVE_HINT = IS_MAC ? { up: "⌥⇧↑", down: "⌥⇧↓", left: "⌥⇧←", right: "⌥⇧→" } : { up: "Alt+Mayús+↑", down: "Alt+Mayús+↓", left: "Alt+Mayús+←", right: "Alt+Mayús+→" };
 
 export interface EditableDocumentHandle {
   /** Guarda el bloque que esté abierto, si es válido. Devuelve `false` si sigue abierto con datos por corregir. */
@@ -159,10 +159,24 @@ function useActiveBlock() {
 /** En lugar de un texto vacío se ofrece cualquier otro bloque. */
 const SLASH_EXCLUDE: readonly BlockType[] = ["paragraph"];
 
-/** Lo que no se ofrece al cambiar un texto de una celda: lo que no puede ir dentro o no cabe a ese ancho. */
-function cellExclude(parent: Parent): BlockType[] {
+/**
+ * Lo que no se ofrece en una celda: lo que no puede ir dentro o no cabe a ese ancho (medido con su
+ * plantilla). Al cambiar un texto con «/» tampoco se ofrece otro texto.
+ */
+function cellExclude(parent: Parent, slash = true): BlockType[] {
   const width = cellWidths(parent.container)[parent.cell];
-  return ADDABLE_BLOCKS.filter(type => type === "paragraph" || !INNER_BLOCK_TYPES.has(type) || placementIssue(BLOCK_TEMPLATES[type], width) !== null);
+  return ADDABLE_BLOCKS.filter(type => (slash && type === "paragraph") || !INNER_BLOCK_TYPES.has(type) || placementIssue(BLOCK_TEMPLATES[type], width) !== null);
+}
+
+/** La celda donde va a insertar el menú de bloques, si es dentro de un contenedor. */
+function placeParent(doc: ResourceDoc, place: InsertPlace): Parent | null {
+  if ("blockId" in place) {
+    const found = findBlock(doc, place.blockId);
+    return found?.parent ? { container: found.parent.container, cell: found.parent.cell } : null;
+  }
+  if (place.containerId === undefined) return null;
+  const found = findBlock(doc, place.containerId);
+  return found && isContainer(found.block) ? { container: found.block, cell: place.cell ?? 0 } : null;
 }
 
 const PICKER_TITLES: Record<InsertPlace["kind"], string> = {
@@ -307,7 +321,13 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     [applyOp, focusBlock],
   );
 
-  const { dragging, held, press, cancel: cancelDrag } = useBlockDrag({ paper, line: dropLine, chip: dragChip, doc: () => docRef.current, onDrop: moveTo });
+  /** Por qué no se puede soltar ahí (no cabe en esa columna), para avisarlo mientras se arrastra. Soltar igual da el aviso completo. */
+  const dropBlocked = useCallback((blockId: string, target: DropTarget) => {
+    const result = applyDocOp(docRef.current, { op: "move_block_to", blockId, ...target });
+    return result.ok ? null : result.error;
+  }, []);
+
+  const { dragging, held, press, cancel: cancelDrag } = useBlockDrag({ paper, line: dropLine, chip: dragChip, doc: () => docRef.current, onDrop: moveTo, blocked: dropBlocked });
 
   // Mientras la IA trabaja nada de esto se puede usar
   useEffect(() => {
@@ -362,8 +382,21 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     const place = picker;
     setPicker(null);
     if (reason !== "escape" || !place) return;
-    if (place.kind === "after" || place.kind === "before") focusBlock(place.blockId);
+    if ("blockId" in place) focusBlock(place.blockId);
+    else if (place.containerId !== undefined) {
+      const { containerId, cell } = place;
+      requestAnimationFrame(() => paper.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(containerId)}"] .crt-cell[data-cell="${cell}"] .crt-cell__more`)?.focus());
+    }
     else requestAnimationFrame(() => document.querySelector<HTMLElement>(`#crt-${CSS.escape(place.sectionId)} > .crt-add .crt-add__button`)?.focus());
+  };
+
+  /** El título del menú de bloques y lo que no ofrece, según dónde se va a insertar. */
+  const pickerFor = (place: InsertPlace): { title: string; exclude?: BlockType[] } => {
+    const parent = placeParent(docRef.current, place);
+    if (!parent) return { title: PICKER_TITLES[place.kind] };
+    const noun = parent.container.type === "columns" ? "columna" : "tarjeta";
+    const titles: Record<InsertPlace["kind"], string> = { after: "Insertar debajo", before: "Insertar encima", start: `Insertar al inicio de la ${noun}`, end: `Añadir a la ${noun}` };
+    return { title: titles[place.kind], exclude: cellExclude(parent, false) };
   };
 
   const openPicker = (place: InsertPlace) => {
@@ -405,8 +438,9 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     return result.ok ? neighbour?.id : undefined;
   };
 
-  const step = (id: string, direction: "up" | "down") => {
-    const target = stepTarget(docRef.current, id, direction);
+  /** Arriba y abajo dentro de su lista (y fuera de la celda en su borde); a los lados, a la columna o tarjeta vecina. */
+  const step = (id: string, direction: "up" | "down" | "left" | "right") => {
+    const target = direction === "left" || direction === "right" ? sideTarget(docRef.current, id, direction) : stepTarget(docRef.current, id, direction);
     if (target) moveTo(id, target);
   };
 
@@ -543,11 +577,28 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     );
   };
 
+  /** El formulario de un bloque que no se edita en su sitio (figuras, tablas de valores…). */
+  const renderForm = (block: Block) =>
+    editing && (
+      <BlockEditor
+        key={editing.seq}
+        ref={editor}
+        block={block}
+        onCancel={() => close(block.id)}
+        onSave={(next: BlockInput) => {
+          const result = applyOp({ op: "update_block", blockId: block.id, block: next });
+          // Lo que no cabe en su celda deja el formulario abierto, con el aviso, para corregirlo
+          if (result.ok) close(block.id);
+        }}
+      />
+    );
+
   const renderBlock = (block: Block, section: Section, parent?: Parent) => {
     const isEditing = editing?.id === block.id;
     const inline = isInlineBlock(block);
     const container = isContainer(block) ? block : null;
-    const canEdit = !readOnly && block.type !== "page_break" && !container;
+    // Un bloque de dentro cuyo formulario está abierto bajo su contenedor no se vuelve a abrir desde la celda: perdería lo escrito
+    const canEdit = !readOnly && block.type !== "page_break" && !container && !(isEditing && parent);
     const active = !readOnly && !isEditing && activeId === block.id;
     const showTools = !readOnly && (noHover || active);
     const mark = marks.get(block.id);
@@ -555,12 +606,14 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     const attached = canAttach && attachedIds.has(block.id);
     const attachLabel = attached ? "Quitar del chat" : "Llevar al chat";
     const label = BLOCK_TYPE_LABELS[block.type];
-    // Subir y Bajar pasan a la sección vecina: solo se detienen en los extremos del documento. Dentro de una celda, en sus bordes
+    // Subir y Bajar pasan a la sección vecina: solo se detienen en los extremos del documento. Desde el borde de
+    // una celda salen del contenedor; a los lados, pasan a la columna o la tarjeta vecina
     const list = parent ? blockCells(parent.container)[parent.cell] : section.blocks;
     const index = list.indexOf(block as never);
     const sectionIndex = doc.sections.indexOf(section);
-    const canUp = index > 0 || (!parent && sectionIndex > 0);
-    const canDown = index < list.length - 1 || (!parent && sectionIndex < doc.sections.length - 1);
+    const canUp = parent !== undefined || index > 0 || sectionIndex > 0;
+    const canDown = parent !== undefined || index < list.length - 1 || sectionIndex < doc.sections.length - 1;
+    const cellNoun = parent?.container.type === "columns" ? "columna" : "tarjeta";
     // Poner en columnas: un bloque del primer nivel que pueda ir dentro, solo o con el que le sigue. Lo que
     // depende de aplicar la operación se calcula solo con el menú abierto (en táctil todas las barras están a la vista)
     const menuOpen = menuFor === block.id;
@@ -568,12 +621,21 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     const next = wrappable ? section.blocks[index + 1] : undefined;
     const wrapWithNext = wrappable && next !== undefined && !isContainer(next) && INNER_BLOCK_TYPES.has(next.type) && tryOp({ op: "wrap_blocks", blockIds: [block.id, next.id], as: "columns" }) === null;
     const wrapIssue = wrappable ? tryOp({ op: "wrap_blocks", blockIds: [block.id], as: "columns" }) : null;
-    const pickerHere = !parent && picker && (picker.kind === "after" || picker.kind === "before") && picker.blockId === block.id ? picker : null;
+    const pickerHere = picker && (picker.kind === "after" || picker.kind === "before") && picker.blockId === block.id ? picker : null;
     const blockPicker = pickerHere && (
       <PickerAnchor above={pickerHere.kind === "before"}>
-        <BlockPicker title={PICKER_TITLES[pickerHere.kind]} onPick={insert} onClose={closePicker} />
+        <BlockPicker {...pickerFor(pickerHere)} onPick={insert} onClose={closePicker} />
       </PickerAnchor>
     );
+    /** El bloque de dentro que se edita con su formulario: el formulario se abre bajo las celdas, no en una columna angosta. */
+    const formInside = container && editing && !editing.inline ? (blockCells(container).flat().find(inner => inner.id === editing.id) ?? null) : null;
+    /** El menú de bloques al final de una celda vacía de este contenedor. */
+    const cellPicker = (cell: number) =>
+      container && picker?.kind === "end" && picker.containerId === container.id && picker.cell === cell ? (
+        <PickerAnchor>
+          <BlockPicker {...pickerFor(picker)} onPick={insert} onClose={closePicker} />
+        </PickerAnchor>
+      ) : null;
 
     const view = container ? (
       // El marco del contenedor se enfoca con Tab o con un clic entre sus bloques: así se elige el contenedor entero
@@ -588,15 +650,21 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
           renderCellEnd={(cell, blocks) =>
             !readOnly &&
             blocks.length === 0 && (
-              <EmptyCell
-                noun={container.type === "columns" ? "columna" : "tarjeta"}
-                onWrite={() => writeInCell(section, container, cell)}
-                // Sin bloques que mover, una celda vacía se puede quitar si quedan las suficientes
-                onRemove={blockCells(container).length > (container.type === "columns" ? CREATOR_LIMITS.columnsMin : 1) ? () => containerOp({ op: "remove_cell", containerId: container.id, cell }) : undefined}
-              />
+              <>
+                <EmptyCell
+                  noun={container.type === "columns" ? "columna" : "tarjeta"}
+                  onWrite={() => writeInCell(section, container, cell)}
+                  onMore={() => openPicker({ sectionId: section.id, kind: "end", containerId: container.id, cell })}
+                  moreOpen={picker?.kind === "end" && picker.containerId === container.id && picker.cell === cell}
+                  // Sin bloques que mover, una celda vacía se puede quitar si quedan las suficientes
+                  onRemove={blockCells(container).length > (container.type === "columns" ? CREATOR_LIMITS.columnsMin : 1) ? () => containerOp({ op: "remove_cell", containerId: container.id, cell }) : undefined}
+                />
+                {cellPicker(cell)}
+              </>
             )
           }
         />
+        {formInside && <div className="crt-frame__form">{renderForm(formInside)}</div>}
         {!readOnly && (layoutHints.get(container.id) ?? []).map(hint => (
           // Solo en pantalla: un aviso de que las columnas se ven mal en la hoja, sin impedir nada
           <p key={hint.key} className="crt-layout-hint">
@@ -613,7 +681,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
               role: "button",
               tabIndex: 0,
               "aria-label": `Editar ${label.toLowerCase()}`,
-              "aria-keyshortcuts": "Alt+Shift+ArrowUp Alt+Shift+ArrowDown",
+              "aria-keyshortcuts": parent ? "Alt+Shift+ArrowUp Alt+Shift+ArrowDown Alt+Shift+ArrowLeft Alt+Shift+ArrowRight" : "Alt+Shift+ArrowUp Alt+Shift+ArrowDown",
               // El cursor queda donde se hizo clic; con el teclado, al final del texto
               onClick: (event: React.MouseEvent) => open(block.id, block.type, event.detail > 0 ? { x: event.clientX, y: event.clientY } : "end"),
               onKeyDown: (event: React.KeyboardEvent) => {
@@ -691,18 +759,11 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
               )
             }
           />
+        ) : isEditing && parent ? (
+          // El formulario de un bloque de dentro va debajo de su contenedor, a todo lo ancho; aquí queda el bloque, marcado
+          view
         ) : isEditing ? (
-          <BlockEditor
-            key={editing.seq}
-            ref={editor}
-            block={block}
-            onCancel={() => close(block.id)}
-            onSave={(next: BlockInput) => {
-              const result = applyOp({ op: "update_block", blockId: block.id, block: next });
-              // Lo que no cabe en su celda deja el formulario abierto, con el aviso, para corregirlo
-              if (result.ok) close(block.id);
-            }}
-          />
+          renderForm(block)
         ) : (
           <>
             {view}
@@ -713,10 +774,9 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                     <button
                       type="button"
                       className="crt-block__grip"
-                      title={parent ? "Más acciones" : "Arrastra para mover · Clic para más acciones"}
-                      aria-label={parent ? `Más acciones de ${label.toLowerCase()}` : `Mover ${label.toLowerCase()} o más acciones`}
-                      // Dentro de una celda el asa solo abre el menú: el arrastre entre celdas llega en la siguiente tanda
-                      onPointerDown={parent ? undefined : event => press(event, block.id, label, () => setMenuFor(block.id))}
+                      title="Arrastra para mover · Clic para más acciones"
+                      aria-label={`Mover ${label.toLowerCase()} o más acciones`}
+                      onPointerDown={event => press(event, block.id, label, () => setMenuFor(block.id))}
                     >
                       <GripVertical aria-hidden="true" />
                     </button>
@@ -738,12 +798,10 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                       <Copy aria-hidden="true" />
                       Duplicar
                     </DropdownMenuItem>
-                    {!parent && (
-                      <DropdownMenuItem onSelect={blockMenu.later(() => openPicker({ sectionId: section.id, kind: "before", blockId: block.id }))}>
-                        <BetweenHorizontalStart aria-hidden="true" />
-                        Insertar encima
-                      </DropdownMenuItem>
-                    )}
+                    <DropdownMenuItem onSelect={blockMenu.later(() => openPicker({ sectionId: section.id, kind: "before", blockId: block.id }))}>
+                      <BetweenHorizontalStart aria-hidden="true" />
+                      Insertar encima
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       disabled={!canUp}
                       onSelect={() => {
@@ -782,6 +840,29 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                       </>
                     )}
                     {container && menuOpen && containerItems(container)}
+                    {parent && menuOpen && (
+                      <>
+                        {(["left", "right"] as const).map(direction => {
+                          const target = sideTarget(doc, block.id, direction);
+                          const issue = target && tryOp({ op: "move_block_to", blockId: block.id, ...target });
+                          return (
+                            <DropdownMenuItem
+                              key={direction}
+                              disabled={!target || issue !== null}
+                              title={issue ?? undefined}
+                              onSelect={() => {
+                                step(block.id, direction);
+                                blockMenu.then(() => focusBlock(block.id));
+                              }}
+                            >
+                              {direction === "left" ? <ArrowLeft aria-hidden="true" /> : <ArrowRight aria-hidden="true" />}
+                              A la {cellNoun} {direction === "left" ? "anterior" : "siguiente"}
+                              <DropdownMenuShortcut className="crt-keys">{direction === "left" ? MOVE_HINT.left : MOVE_HINT.right}</DropdownMenuShortcut>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </>
+                    )}
                     {parent && (
                       <>
                         <DropdownMenuSeparator />
@@ -804,11 +885,9 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                {!parent && (
-                  <button type="button" title="Añadir debajo" aria-label="Añadir un bloque debajo" aria-expanded={pickerHere?.kind === "after"} onClick={() => openPicker({ sectionId: section.id, kind: "after", blockId: block.id })}>
-                    <Plus aria-hidden="true" />
-                  </button>
-                )}
+                <button type="button" title="Añadir debajo" aria-label="Añadir un bloque debajo" aria-expanded={pickerHere?.kind === "after"} onClick={() => openPicker({ sectionId: section.id, kind: "after", blockId: block.id })}>
+                  <Plus aria-hidden="true" />
+                </button>
                 {canAttach && (
                   <button type="button" title={attachLabel} aria-label={attachLabel} aria-pressed={attached} onClick={() => onToggleAttach(block.id)}>
                     <MessageSquarePlus aria-hidden="true" />

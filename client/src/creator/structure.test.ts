@@ -15,7 +15,9 @@ import {
   isSamePlace,
   matchScore,
   moveShortcut,
+  sideTarget,
   stepTarget,
+  targetCell,
   type SheetLayout,
 } from "./structure";
 
@@ -144,7 +146,10 @@ describe("mover con el teclado", () => {
     expect(key("ArrowUp", { altKey: true })).toBeNull();
     expect(key("ArrowUp", { shiftKey: true })).toBeNull();
     expect(key("ArrowUp", { altKey: true, shiftKey: true, ctrlKey: true })).toBeNull();
-    expect(key("ArrowLeft", { altKey: true, shiftKey: true })).toBeNull();
+    expect(key("ArrowLeft", { altKey: true, shiftKey: true })).toBe("left");
+    expect(key("ArrowRight", { altKey: true, shiftKey: true })).toBe("right");
+    expect(key("ArrowLeft", { altKey: true })).toBeNull();
+    expect(key("Home", { altKey: true, shiftKey: true })).toBeNull();
   });
 });
 
@@ -214,5 +219,151 @@ describe("atajos al escribir", () => {
     expect(headingShortcut("#### x")).toBeNull();
     expect(headingShortcut("##x")).toBeNull();
     expect(headingShortcut("a ## b")).toBeNull();
+  });
+});
+
+describe("columnas y tarjetas: insertar, mover y arrastrar", () => {
+  /** «Guía»: A, [columnas: (B, C) | (D)], E. «Clave»: X. */
+  function withColumns(): ResourceDoc {
+    let doc = emptyDoc("Prueba");
+    const columns = blockInputSchema.parse({ type: "columns", columns: [{ blocks: paragraphs("B", "C") }, { blocks: paragraphs("D") }] });
+    doc = apply(doc, { op: "write_section", title: "Guía", role: "student", blocks: [...paragraphs("A"), columns, ...paragraphs("E")] });
+    doc = apply(doc, { op: "write_section", title: "Clave", role: "answer_key", blocks: paragraphs("X") });
+    return doc;
+  }
+  const all = (doc: ResourceDoc) => doc.sections.flatMap(section => section.blocks.flatMap(block => [block, ...(block.type === "columns" ? block.columns.flatMap(column => column.blocks) : [])]));
+  const id = (doc: ResourceDoc, text: string) => all(doc).find(block => block.type === "paragraph" && block.md === text)!.id;
+  const box = (doc: ResourceDoc) => doc.sections[0].blocks[1].id;
+  /** La primera sección como texto, con las columnas entre corchetes. */
+  const shape = (doc: ResourceDoc) =>
+    doc.sections[0].blocks.map(block => (block.type === "columns" ? `[${block.columns.map(column => column.blocks.map(inner => (inner.type === "paragraph" ? inner.md : "?")).join("")).join("|")}]` : block.type === "paragraph" ? block.md : "?")).join(" ");
+
+  it("inserta al inicio, al final, encima y debajo dentro de una celda", () => {
+    const doc = withColumns();
+    const guide = doc.sections[0].id;
+    const run = (place: Parameters<typeof insertOp>[1]) => shape(apply(doc, insertOp(doc, place, paragraphs("N"))));
+    expect(run({ sectionId: guide, kind: "start", containerId: box(doc), cell: 1 })).toBe("A [BC|ND] E");
+    expect(run({ sectionId: guide, kind: "end", containerId: box(doc), cell: 0 })).toBe("A [BCN|D] E");
+    expect(run({ sectionId: guide, kind: "before", blockId: id(doc, "B") })).toBe("A [NBC|D] E");
+    expect(run({ sectionId: guide, kind: "before", blockId: id(doc, "C") })).toBe("A [BNC|D] E");
+    expect(run({ sectionId: guide, kind: "after", blockId: id(doc, "D") })).toBe("A [BC|DN] E");
+  });
+
+  it("con el teclado, un bloque de dentro sale del contenedor por arriba o por abajo", () => {
+    const doc = withColumns();
+    const step = (text: string, direction: "up" | "down") => shape(apply(doc, { op: "move_block_to", blockId: id(doc, text), ...stepTarget(doc, id(doc, text), direction)! }));
+    expect(step("C", "up")).toBe("A [CB|D] E");
+    expect(step("B", "up")).toBe("A B [C|D] E");
+    expect(step("C", "down")).toBe("A [B|D] C E");
+    expect(step("D", "down")).toBe("A [BC|] D E");
+    // Los bloques de la hoja saltan el contenedor entero
+    expect(step("A", "down")).toBe("[BC|D] A E");
+  });
+
+  it("a los lados pasa a la celda vecina, a la misma altura o al final", () => {
+    const doc = withColumns();
+    expect(sideTarget(doc, id(doc, "C"), "right")).toEqual({ sectionId: doc.sections[0].id, containerId: box(doc), cell: 1, index: 1 });
+    expect(shape(apply(doc, { op: "move_block_to", blockId: id(doc, "C"), ...sideTarget(doc, id(doc, "C"), "right")! }))).toBe("A [B|DC] E");
+    expect(shape(apply(doc, { op: "move_block_to", blockId: id(doc, "D"), ...sideTarget(doc, id(doc, "D"), "left")! }))).toBe("A [DBC|] E");
+    expect(sideTarget(doc, id(doc, "B"), "left")).toBeNull();
+    expect(sideTarget(doc, id(doc, "A"), "right")).toBeNull();
+  });
+
+  // Guía: A 100–140, columnas 150–330 (columna 0: x 60–300, B 160–200, C 210–250; columna 1: x 320–560, D 160–220), E 340–380
+  const layout = (doc: ResourceDoc): SheetLayout => ({
+    sections: [
+      {
+        id: doc.sections[0].id,
+        top: 80,
+        end: 400,
+        blocks: [
+          { id: id(doc, "A"), top: 100, bottom: 140 },
+          {
+            id: box(doc),
+            top: 150,
+            bottom: 330,
+            cells: [
+              { containerId: box(doc), cell: 0, left: 60, right: 300, top: 156, bottom: 324, blocks: [{ id: id(doc, "B"), top: 160, bottom: 200 }, { id: id(doc, "C"), top: 210, bottom: 250 }] },
+              { containerId: box(doc), cell: 1, left: 320, right: 560, top: 156, bottom: 324, blocks: [{ id: id(doc, "D"), top: 160, bottom: 220 }] },
+            ],
+          },
+          { id: id(doc, "E"), top: 340, bottom: 380 },
+        ],
+      },
+      { id: doc.sections[1].id, top: 500, end: 600, blocks: [] },
+    ],
+  });
+
+  it("al arrastrar, la celda bajo el puntero; el borde del contenedor es encima o debajo de él", () => {
+    const doc = withColumns();
+    const guide = doc.sections[0].id;
+    const at = (x: number, y: number, into = true) => dropTarget(layout(doc), y, x, into);
+    expect(at(100, 205)).toEqual({ sectionId: guide, containerId: box(doc), cell: 0, index: 1 });
+    expect(at(400, 300)).toEqual({ sectionId: guide, containerId: box(doc), cell: 1, index: 1 });
+    // En la separación entre columnas, la más cercana
+    expect(at(309, 170)).toEqual({ sectionId: guide, containerId: box(doc), cell: 0, index: 0 });
+    // La franja de arriba y la de abajo del contenedor
+    expect(at(100, 154)).toEqual({ sectionId: guide, index: 1 });
+    expect(at(100, 326)).toEqual({ sectionId: guide, index: 2 });
+    // Un contenedor o un salto de página no entran: el contenedor cuenta entero
+    expect(at(100, 205, false)).toEqual({ sectionId: guide, index: 1 });
+    expect(at(100, 250, false)).toEqual({ sectionId: guide, index: 2 });
+  });
+
+  it("la línea va en la celda: entre dos bloques, junto al borde o a media altura si está vacía", () => {
+    const doc = withColumns();
+    const guide = doc.sections[0].id;
+    const sheetLayout = layout(doc);
+    const inCell = (cell: number, index: number) => ({ sectionId: guide, containerId: box(doc), cell, index });
+    expect(gapLine(sheetLayout, inCell(0, 1))).toBe(205);
+    expect(gapLine(sheetLayout, inCell(0, 0))).toBe(157);
+    expect(gapLine(sheetLayout, inCell(1, 1))).toBe(223);
+    expect(targetCell(sheetLayout, inCell(1, 0))).toMatchObject({ left: 320, right: 560 });
+    expect(targetCell(sheetLayout, { sectionId: guide, index: 0 })).toBeNull();
+    const empty: SheetLayout = { sections: [{ ...sheetLayout.sections[0], blocks: [{ ...sheetLayout.sections[0].blocks[1], cells: [{ ...sheetLayout.sections[0].blocks[1].cells![1], blocks: [] }] }] }] };
+    expect(gapLine(empty, inCell(1, 0))).toBe(240);
+  });
+
+  it("sabe cuándo soltar dentro de su propia celda no cambia nada", () => {
+    const doc = withColumns();
+    const guide = doc.sections[0].id;
+    const c = id(doc, "C");
+    expect(isSamePlace(doc, c, { sectionId: guide, containerId: box(doc), cell: 0, index: 2 })).toBe(true);
+    expect(isSamePlace(doc, c, { sectionId: guide, containerId: box(doc), cell: 1, index: 1 })).toBe(false);
+    expect(isSamePlace(doc, c, { sectionId: guide, index: 2 })).toBe(false);
+    expect(isSamePlace(doc, id(doc, "A"), { sectionId: guide, containerId: box(doc), cell: 0, index: 0 })).toBe(false);
+  });
+});
+
+describe("arrastrar sobre lo que el contenedor muestra bajo sus celdas", () => {
+  it("lejos de las celdas (un aviso, un formulario) el destino es encima o debajo del contenedor", () => {
+    let doc = emptyDoc("Prueba");
+    const columns = blockInputSchema.parse({ type: "columns", columns: [{ blocks: paragraphs("B") }, { blocks: paragraphs("D") }] });
+    doc = apply(doc, { op: "write_section", title: "Guía", role: "student", blocks: [...paragraphs("A"), columns] });
+    const [a, box] = doc.sections[0].blocks;
+    // Las celdas llegan hasta 300; el contenedor sigue hasta 700 con un formulario abierto debajo
+    const layout: SheetLayout = {
+      sections: [
+        {
+          id: doc.sections[0].id,
+          top: 0,
+          end: 800,
+          blocks: [
+            { id: a.id, top: 40, bottom: 80 },
+            {
+              id: box.id,
+              top: 100,
+              bottom: 700,
+              cells: [
+                { containerId: box.id, cell: 0, left: 0, right: 300, top: 104, bottom: 300, blocks: [] },
+                { containerId: box.id, cell: 1, left: 320, right: 620, top: 104, bottom: 300, blocks: [] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    expect(dropTarget(layout, 310, 100, true)).toMatchObject({ containerId: box.id, cell: 0 });
+    expect(dropTarget(layout, 600, 100, true)).toEqual({ sectionId: doc.sections[0].id, index: 2 });
   });
 });
