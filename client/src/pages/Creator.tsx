@@ -1,7 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import type { inferRouterOutputs } from "@trpc/server";
 import { toast } from "sonner";
-import type { AppRouter } from "../../../server/routers";
 import { trpc } from "@/lib/trpc";
 import type { EduRole } from "@/components/shell";
 import {
@@ -28,10 +26,6 @@ const LEDE: Partial<Record<EduRole, string>> = {
   admin: "Prepara guías, talleres y evaluaciones con IA para apoyar a los docentes de la institución. Cada recurso se puede ajustar e imprimir.",
 };
 
-type SampleList = inferRouterOutputs<AppRouter>["creator"]["status"]["samples"];
-type SampleId = SampleList[number]["id"];
-const NO_SAMPLES: SampleList = [];
-
 const errorMessage = (error: unknown, fallback: string) => (error instanceof Error && error.message ? error.message : fallback);
 
 const names = (rows: unknown): string[] =>
@@ -49,13 +43,11 @@ export function CreatorPage({ data, role }: CreatorPageProps) {
   const listQuery = trpc.creator.list.useQuery({ role }, { enabled: openId === null, staleTime: 10_000, retry: 1 });
   const createMutation = trpc.creator.create.useMutation();
   const clarifyMutation = trpc.creator.clarify.useMutation();
-  const sampleMutation = trpc.creator.createSample.useMutation();
   const duplicateMutation = trpc.creator.duplicate.useMutation();
   const removeMutation = trpc.creator.remove.useMutation();
 
   const aiReady = statusQuery.data?.aiReady ?? false;
   const remaining = statusQuery.data ? statusQuery.data.dailyLimit - statusQuery.data.usedToday : null;
-  const samples = statusQuery.data?.samples ?? NO_SAMPLES;
 
   /** Abrir un recurso descarta las preguntas que hubieran quedado sin responder. */
   const openResource = useCallback((id: number) => {
@@ -96,18 +88,6 @@ export function CreatorPage({ data, role }: CreatorPageProps) {
       await create(request);
     },
     [clarifyMutation, create, role],
-  );
-
-  const handleOpenSample = useCallback(
-    async (sample: SampleId) => {
-      try {
-        const created = await sampleMutation.mutateAsync({ role, sample });
-        setOpenId(created.id);
-      } catch (error) {
-        toast.error(errorMessage(error, "No pudimos abrir el ejemplo."));
-      }
-    },
-    [role, sampleMutation],
   );
 
   const handleDuplicate = useCallback(
@@ -164,16 +144,14 @@ export function CreatorPage({ data, role }: CreatorPageProps) {
         error={(listQuery.isError && !listQuery.data) || listQuery.data === null}
         aiReady={aiReady}
         remaining={remaining}
-        creating={createMutation.isPending || sampleMutation.isPending}
+        creating={createMutation.isPending}
         clarifying={clarifyMutation.isPending}
         pending={pending && { prompt: pending.request.prompt, questions: pending.questions }}
-        samples={samples}
         onRetry={() => void listQuery.refetch()}
         onCreate={request => void handleCreate(request)}
         onAnswer={clarifications => pending && void create(pending.request, clarifications)}
         onCancelQuestions={() => setPending(null)}
         onOpen={openResource}
-        onOpenSample={sample => void handleOpenSample(sample)}
         onDuplicate={id => void handleDuplicate(id)}
         onDelete={setToDelete}
       />
