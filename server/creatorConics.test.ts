@@ -20,8 +20,19 @@ const conic = (input: Record<string, unknown>): GraphConic => {
 const named = (input: Record<string, unknown>) => Object.fromEntries(conicElements(conic(input)).points.map(point => [point.name, [point.x, point.y]]));
 
 describe("elementos de las cónicas", () => {
-  it("circunferencia: solo el centro", () => {
+  it("circunferencia: el centro y un radio con su medida", () => {
     expect(named({ kind: "circle", h: 2, k: -1, r: 3 })).toEqual({ C: [2, -1] });
+    const [radius] = conicElements(conic({ kind: "circle", h: 2, k: -1, r: 3 })).segments;
+    expect(radius.from).toEqual([2, -1]);
+    // Termina sobre la circunferencia
+    expect(Math.hypot(radius.to[0] - 2, radius.to[1] + 1)).toBeCloseTo(3, 12);
+    expect(radius.label).toBe("r = 3");
+    expect(conicElements(conic({ kind: "circle", h: 0, k: 0, r: 2.5 })).segments[0].label).toBe("r = 2{,}5");
+    expect(conicElements(conic({ kind: "circle", h: 0, k: 0, r: Math.sqrt(5) })).segments[0].label).toBe("r \\approx 2{,}24");
+    // Solo se dibuja si se pide, y solo lo tiene la circunferencia
+    expect(shownConicElements(conic({ kind: "circle", h: 0, k: 0, r: 3, show: ["center"] })).segments).toEqual([]);
+    expect(shownConicElements(conic({ kind: "circle", h: 0, k: 0, r: 3, show: ["radius"] })).segments).toHaveLength(1);
+    expect(issuesOf([{ kind: "ellipse", h: 0, k: 0, rx: 3, ry: 2, show: ["radius"] }])[0]).toContain('no tiene "radius"');
   });
 
   it("elipse: vértices y focos sobre el eje mayor, sea horizontal o vertical", () => {

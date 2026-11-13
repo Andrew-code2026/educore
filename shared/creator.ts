@@ -120,10 +120,10 @@ const conicBase = {
   h: z.number().describe("Coordenada x del centro; en la parábola, del vértice."),
   k: z.number().describe("Coordenada y del centro; en la parábola, del vértice."),
   show: z
-    .array(z.enum(["equation", "center", "foci", "vertices", "directrix", "asymptotes"]))
-    .max(6)
+    .array(z.enum(["equation", "center", "radius", "foci", "vertices", "directrix", "asymptotes"]))
+    .max(7)
     .optional()
-    .describe('Lo que el sistema calcula y dibuja además de la curva: "equation" (la ecuación canónica), "center", "foci", "vertices", "directrix" (solo la parábola) y "asymptotes" (solo la hipérbola).'),
+    .describe('Lo que el sistema calcula y dibuja además de la curva: "equation" (la ecuación canónica), "center", "radius" (solo la circunferencia: un radio con su medida), "foci", "vertices", "directrix" (solo la parábola) y "asymptotes" (solo la hipérbola).'),
 };
 const positive = z.number().positive();
 

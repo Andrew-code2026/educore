@@ -21,7 +21,7 @@ export const CONIC_LABELS: Record<ConicKind, string> = {
 
 /** Lo que cada cónica puede mostrar; pedir otra cosa (las asíntotas de una elipse) es un error. */
 export const CONIC_SHOWS: Record<ConicKind, readonly ConicShow[]> = {
-  circle: ["equation", "center"],
+  circle: ["equation", "center", "radius"],
   ellipse: ["equation", "center", "foci", "vertices"],
   parabola: ["equation", "foci", "vertices", "directrix"],
   hyperbola: ["equation", "center", "foci", "vertices", "asymptotes"],
@@ -30,6 +30,7 @@ export const CONIC_SHOWS: Record<ConicKind, readonly ConicShow[]> = {
 export const CONIC_SHOW_LABELS: Record<ConicShow, string> = {
   equation: "Ecuación",
   center: "Centro",
+  radius: "Radio",
   foci: "Focos",
   vertices: "Vértices",
   directrix: "Directriz",
@@ -52,9 +53,18 @@ export interface ConicLine {
   intercept?: number;
 }
 
+/** Segmento con su medida: el radio de una circunferencia. */
+export interface ConicSegment {
+  from: [number, number];
+  to: [number, number];
+  /** Rótulo en LaTeX: «r = 3». */
+  label: string;
+}
+
 export interface ConicElements {
   points: ConicPoint[];
   lines: ConicLine[];
+  segments: ConicSegment[];
   /** Distancia del centro a cada foco (c); en la parábola, del vértice al foco (|p|). */
   focal: number | null;
 }
@@ -77,8 +87,12 @@ const pair = (name: string, role: ConicPoint["role"], first: [number, number], s
 export function conicElements(conic: GraphConic): ConicElements {
   const { h, k } = conic;
   switch (conic.kind) {
-    case "circle":
-      return { points: [{ x: h, y: k, name: "C", role: "center" }], lines: [], focal: null };
+    case "circle": {
+      // El radio se traza en diagonal: en horizontal se perdería sobre el eje cuando el centro está en él
+      const reach = conic.r * Math.SQRT1_2;
+      const radius: ConicSegment = { from: [h, k], to: [h + reach, k + reach], label: `r ${isExact(conic.r) ? "=" : "\\approx"} ${numberLatex(conic.r)}` };
+      return { points: [{ x: h, y: k, name: "C", role: "center" }], lines: [], segments: [radius], focal: null };
+    }
     case "ellipse": {
       // El eje mayor es el del semieje más largo: ahí van los vértices y los focos
       const horizontal = conic.rx >= conic.ry;
@@ -95,6 +109,7 @@ export function conicElements(conic: GraphConic): ConicElements {
           ...pair("F", "focus", along(-c), along(c)),
         ],
         lines: [],
+        segments: [],
         focal: c,
       };
     }
@@ -107,6 +122,7 @@ export function conicElements(conic: GraphConic): ConicElements {
           { x: focus[0], y: focus[1], name: "F", role: "focus" },
         ],
         lines: [vertical ? { role: "directrix", slope: 0, intercept: clean(k - conic.p) } : { role: "directrix", vertical: clean(h - conic.p) }],
+        segments: [],
         focal: Math.abs(conic.p),
       };
     }
@@ -118,6 +134,7 @@ export function conicElements(conic: GraphConic): ConicElements {
       return {
         points: [{ x: h, y: k, name: "C", role: "center" }, ...pair("V", "vertex", along(-conic.a), along(conic.a)), ...pair("F", "focus", along(-c), along(c))],
         lines: [slope, -slope].map(m => ({ role: "asymptote" as const, slope: m, intercept: clean(k - m * h) })),
+        segments: [],
         focal: c,
       };
     }
@@ -127,13 +144,14 @@ export function conicElements(conic: GraphConic): ConicElements {
 const shows = (conic: GraphConic, item: ConicShow) => (conic.show ?? []).includes(item);
 
 /** Los puntos y rectas que la cónica pide dibujar (show), ya calculados. */
-export function shownConicElements(conic: GraphConic): { points: ConicPoint[]; lines: ConicLine[] } {
+export function shownConicElements(conic: GraphConic): { points: ConicPoint[]; lines: ConicLine[]; segments: ConicSegment[] } {
   const all = conicElements(conic);
   return {
     points: all.points.filter(
       point => (point.role === "center" && shows(conic, "center")) || (point.role === "focus" && shows(conic, "foci")) || ((point.role === "vertex" || point.role === "covertex") && shows(conic, "vertices")),
     ),
     lines: all.lines.filter(line => (line.role === "directrix" && shows(conic, "directrix")) || (line.role === "asymptote" && shows(conic, "asymptotes"))),
+    segments: shows(conic, "radius") ? all.segments : [],
   };
 }
 

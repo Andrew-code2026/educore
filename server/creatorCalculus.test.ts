@@ -17,7 +17,9 @@ import {
   secantLine,
   tangentLine,
 } from "@shared/creatorCalculus";
+import { conicCurves, conicElements, conicEquation, describeConic, shownConicElements } from "@shared/creatorConics";
 import { compileExpression } from "@shared/creatorMath";
+import { functionColors, sampleFunction } from "@shared/creatorPlane";
 import { describeComputed } from "@shared/creatorStats";
 import { checkLatex, validateBlock } from "@shared/creatorValidate";
 import { CREATOR_SYSTEM_PROMPT } from "./creatorAgent";
@@ -344,5 +346,128 @@ describe("tangente y secante", () => {
     for (const word of ["tangents", "secants", "equation"]) expect(schema, word).toContain(word);
     expect(CREATOR_SYSTEM_PROMPT).toContain("tangents");
     expect(CREATOR_SYSTEM_PROMPT).toContain("secants");
+  });
+});
+
+/**
+ * Los ocho casos con que el usuario probó otro generador de guías para grado 11. Son los
+ * casos de aceptación del plano: cada uno debe validar y dar los valores exactos, y los dos
+ * errores que cometió aquel (cerrar el último escalón de la parte entera en el extremo del
+ * dominio y sombrear por debajo del eje) no pueden ocurrir aquí.
+ */
+describe("casos de aceptación de 10° y 11°", () => {
+  const SQUARE = { xMin: -8, xMax: 8, yMin: -8, yMax: 8 };
+  const conicOf = (input: Record<string, unknown>) => specOf({ ...SQUARE, conics: [input] }).conics![0];
+
+  it("1. circunferencia (x − 2)² + (y + 1)² = 9 con centro y radio marcados", () => {
+    const circle = { kind: "circle", h: 2, k: -1, r: 3, show: ["center", "radius", "equation"] };
+    expect(issuesOf({ xMin: -3, xMax: 7, yMin: -6, yMax: 4, conics: [circle] })).toEqual([]);
+    const shown = shownConicElements(conicOf(circle));
+    expect(shown.points).toEqual([{ x: 2, y: -1, name: "C", role: "center" }]);
+    expect(shown.segments[0].label).toBe("r = 3");
+    expect(conicEquation(conicOf(circle))).toBe("(x - 2)^{2} + (y + 1)^{2} = 9");
+    expect(describeConic(conicOf(circle))).toContain("centro (2, -1), radio 3");
+  });
+
+  it("2. elipse x²/16 + y²/9 = 1 con focos en (±√7, 0) y vértices en (±4, 0) y (0, ±3)", () => {
+    const ellipse = { kind: "ellipse", h: 0, k: 0, rx: 4, ry: 3, show: ["foci", "vertices"] };
+    expect(issuesOf({ xMin: -6, xMax: 6, yMin: -5, yMax: 5, conics: [ellipse] })).toEqual([]);
+    const points = Object.fromEntries(conicElements(conicOf(ellipse)).points.map(point => [point.name, [point.x, point.y]]));
+    expect(points["V_{1}"]).toEqual([-4, 0]);
+    expect(points["V_{2}"]).toEqual([4, 0]);
+    expect(points["B_{1}"]).toEqual([0, -3]);
+    expect(points["B_{2}"]).toEqual([0, 3]);
+    expect(points["F_{2}"][0]).toBeCloseTo(Math.sqrt(7), 10);
+    expect(conicEquation(conicOf(ellipse))).toBe("\\frac{x^{2}}{16} + \\frac{y^{2}}{9} = 1");
+    // Con coma decimal, no con punto
+    expect(describeConic(conicOf(ellipse))).toContain("focos F_1 ≈ (-2,65; 0) y F_2 ≈ (2,65; 0) (c = √7 ≈ 2,65)");
+  });
+
+  it("3. hipérbola x²/4 − y²/9 = 1 con vértices en (±2, 0) y asíntotas y = ±1,5x", () => {
+    const hyperbola = { kind: "hyperbola", h: 0, k: 0, a: 2, b: 3, show: ["vertices", "asymptotes"] };
+    expect(issuesOf({ ...SQUARE, conics: [hyperbola] })).toEqual([]);
+    const elements = conicElements(conicOf(hyperbola));
+    expect(elements.points.filter(point => point.role === "vertex").map(point => [point.x, point.y])).toEqual([
+      [-2, 0],
+      [2, 0],
+    ]);
+    expect(elements.lines).toEqual([
+      { role: "asymptote", slope: 1.5, intercept: 0 },
+      { role: "asymptote", slope: -1.5, intercept: 0 },
+    ]);
+    expect(conicEquation(conicOf(hyperbola))).toBe("\\frac{x^{2}}{4} - \\frac{y^{2}}{9} = 1");
+  });
+
+  it("4. parábola horizontal x = y² − 4 con vértice en (−4, 0), que pasa por (0, ±2) y (5, ±3)", () => {
+    const parabola = { kind: "parabola", h: -4, k: 0, p: 0.25, axis: "horizontal", show: ["vertices"] };
+    expect(issuesOf({ xMin: -6, xMax: 7, yMin: -5, yMax: 5, conics: [parabola], points: [{ x: 0, y: 2 }, { x: 0, y: -2 }, { x: 5, y: 3 }, { x: 5, y: -3 }] })).toEqual([]);
+    expect(conicEquation(conicOf(parabola))).toBe("y^{2} = x + 4");
+    expect(shownConicElements(conicOf(parabola)).points).toEqual([{ x: -4, y: 0, name: "V", role: "vertex" }]);
+    const [curve] = conicCurves(conicOf(parabola), { xMin: -6, xMax: 7, yMin: -5, yMax: 5 });
+    for (const [x, y] of curve) expect(x).toBeCloseTo(y * y - 4, 9);
+    // La curva cruza las alturas ±2 y ±3 justo en x = 0 y x = 5
+    for (const [px, py] of [[0, 2], [0, -2], [5, 3], [5, -3]]) expect(px).toBe(py * py - 4);
+  });
+
+  it("5. función a trozos: donde los trozos se encuentran va un solo punto relleno; con salto, uno vacío y uno relleno", () => {
+    const meet = { functions: [{ expr: "x + 2", to: 1, toEnd: "open" }, { expr: "4 - x", from: 1 }] };
+    expect(issuesOf(meet)).toEqual([]);
+    const marksOf = (functions: Array<{ expr: string; from?: number; to?: number; toEnd?: "open" }>) => functions.map(fn => sampleFunction(compileExpression(fn.expr), PLANE, fn).marks);
+    // Los dos extremos caen en (1, 3): el dibujo pone el relleno encima, porque f(1) = 3
+    expect(marksOf(meet.functions as never)).toEqual([[{ x: 1, y: 3, filled: false }], [{ x: 1, y: 3, filled: true }]]);
+    expect(functionColors(specOf(meet).functions)).toEqual([0, 0]);
+
+    const jump = { functions: [{ expr: "x + 2", to: 1, toEnd: "open" }, { expr: "5 - x", from: 1 }] };
+    expect(issuesOf(jump)).toEqual([]);
+    expect(marksOf(jump.functions as never)).toEqual([[{ x: 1, y: 3, filled: false }], [{ x: 1, y: 4, filled: true }]]);
+    // El punto del enunciado: f(1) = 4, no 3
+    expect(issuesOf({ ...jump, points: [{ x: 1, y: 4, on: 1 }] })).toEqual([]);
+    expect(issuesOf({ ...jump, points: [{ x: 1, y: 3, on: 0 }] })[0]).toContain("no pertenece al dominio");
+  });
+
+  it("6. parte entera en [−3, 3]: en x = 3 el escalón queda abierto en (3, 2) y el valor va en (3, 3)", () => {
+    const spec = { xMin: -4, xMax: 4, yMin: -4, yMax: 4, functions: [{ expr: "floor(x)", from: -3, to: 3 }] };
+    expect(issuesOf(spec)).toEqual([]);
+    const curve = sampleFunction(compileExpression("floor(x)"), spec, { from: -3, to: 3 });
+    const at = (x: number, y: number) => curve.marks.filter(mark => mark.x === x && mark.y === y);
+    // ⌊3⌋ = 3: cerrar el último escalón en (3, 2) sería un error
+    expect(at(3, 2)).toEqual([{ x: 3, y: 2, filled: false }]);
+    expect(at(3, 3)).toEqual([{ x: 3, y: 3, filled: true }]);
+    expect(at(-3, -3)).toEqual([{ x: -3, y: -3, filled: true }]);
+    // Seis escalones, cada uno cerrado a la izquierda y abierto a la derecha
+    expect(curve.segments).toHaveLength(6);
+    for (let n = -3; n < 3; n++) {
+      expect(at(n, n), `inicio del escalón ${n}`).toEqual([{ x: n, y: n, filled: true }]);
+      expect(at(n + 1, n), `final del escalón ${n}`).toEqual([{ x: n + 1, y: n, filled: false }]);
+    }
+    // Sin dominio declarado, en el borde del plano no se marca nada: la función sigue
+    const open = sampleFunction(compileExpression("floor(x)"), { xMin: -3, xMax: 3, yMin: -4, yMax: 4 });
+    expect(open.marks.some(mark => mark.x === 3)).toBe(false);
+  });
+
+  it("7. f(x) = (x² − 4)/(x − 2): la recta y = x + 2 con un hueco en (2, 4)", () => {
+    const hole = { functions: [{ expr: "(x^2 - 4)/(x - 2)" }] };
+    expect(issuesOf({ ...hole, points: [{ x: 2, y: 4, on: 0, open: true }] })).toEqual([]);
+    // Un punto relleno ahí sería falso: la función no está definida en x = 2
+    expect(issuesOf({ ...hole, points: [{ x: 2, y: 4, on: 0 }] })).toHaveLength(1);
+    const curve = sampleFunction(compileExpression("(x^2 - 4)/(x - 2)"), PLANE);
+    for (const segment of curve.segments) for (const [x, y] of segment.points) expect(y).toBeCloseTo(x + 2, 6);
+  });
+
+  it("8. tangente a y = x² en x = 1 (y = 2x − 1) y área bajo la curva entre 0 y 2 (8/3), sombreada hasta el eje", () => {
+    const spec = specOf({ xMin: -2, xMax: 3, yMin: -1, yMax: 5, functions: [{ expr: "x^2" }], tangents: [{ fn: 0, x: 1, show: "equation" }], areas: [{ fn: 0, from: 0, to: 2, showValue: true }] });
+    expect(validateBlock({ type: "graph", spec })).toEqual([]);
+    const tangent = tangentLine(spec, spec.tangents![0])!;
+    expect(tangent.points).toEqual([[1, 1]]);
+    expect(lineEquationLatex(tangent)).toBe("y = 2x - 1");
+    expect(computeArea(spec, spec.areas![0])!.area).toBeCloseTo(8 / 3, 10);
+    expect(areaLabel(spec, spec.areas![0])).toBe("A \\approx 2{,}67");
+    // El plano baja hasta y = −1, pero la región termina en el eje x
+    const outline = areaShape(spec, spec.areas![0])!.outline;
+    expect(Math.min(...outline.map(([, y]) => y))).toBe(0);
+    expect(outline.slice(-2)).toEqual([
+      [2, 0],
+      [0, 0],
+    ]);
   });
 });

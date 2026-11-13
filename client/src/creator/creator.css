@@ -1893,6 +1893,7 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 /* Rectas auxiliares de una cónica (directriz, asíntotas) y sus puntos notables */
 .crt-plane__aux { fill: none; stroke: var(--plane-tone, #3F4A56); stroke-width: 1.5; stroke-dasharray: 6 4; }
 .crt-plane__dot { fill: var(--plane-tone, #111B24); stroke: #FFFFFF; stroke-width: 1.2; }
+.crt-plane__radius { fill: none; stroke: var(--plane-tone, #3F4A56); stroke-width: 1.6; stroke-linecap: round; }
 .crt-plane__points circle { fill: #D92D20; stroke: #FFFFFF; stroke-width: 1.5; }
 /* Círculos de extremos y saltos: rellenos si el punto pertenece a la curva, vacíos si no */
 .crt-plane__tone--a { --plane-tone: #1F5FE0; }

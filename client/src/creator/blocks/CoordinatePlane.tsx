@@ -172,7 +172,11 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
         paths: branches.map(pathOf),
         samples: branches.flat().filter(([x, y]) => inPlane(x, y)),
         lines: shown.lines.map(linePath),
-        lineSamples: shown.lines.flatMap(lineSamples),
+        lineSamples: [
+          ...shown.lines.flatMap(lineSamples),
+          ...shown.segments.flatMap(segment => Array.from({ length: 9 }, (_, i): [number, number] => [segment.from[0] + ((segment.to[0] - segment.from[0]) * i) / 8, segment.from[1] + ((segment.to[1] - segment.from[1]) * i) / 8])),
+        ],
+        segments: shown.segments.map(segment => ({ x1: sx(segment.from[0]), y1: sy(segment.from[1]), x2: sx(segment.to[0]), y2: sy(segment.to[1]), label: segment.label })),
         points: shown.points.filter(point => inPlane(point.x, point.y)),
         equation: (conic.show ?? []).includes("equation") ? conicEquation(conic) : null,
       };
@@ -264,6 +268,20 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       // La etiqueta de un hueco lleva el color de su curva, como el círculo
       const tone = point.open && point.on != null ? `crt-plane__label--${toneOf(point.on)}` : "crt-plane__label--point";
       place(point.label, tone, around(sx(point.x), sy(point.y), estimateWidth(point.label)));
+    }
+
+    // La medida del radio va a media altura del segmento, a un lado u otro sin pisarlo
+    for (const conic of conics) {
+      for (const segment of conic.segments) {
+        const labelW = estimateWidth(segment.label);
+        const mx = (segment.x1 + segment.x2) / 2;
+        const my = (segment.y1 + segment.y2) / 2;
+        place(segment.label, `crt-plane__label--${conic.tone}`, [
+          { x: mx + 6, y: my + 2 },
+          { x: mx - labelW - 6, y: my - LABEL_H - 2 },
+          { x: segment.x2 + 6, y: segment.y2 - LABEL_H - 2 },
+        ]);
+      }
     }
 
     for (const conic of conics) {
@@ -381,12 +399,18 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       place(latex, `crt-plane__label--${conic.tone}${tall ? " crt-plane__label--tall" : ""}`, [...outside, ...beside], labelW, labelH);
     }
 
-    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, conics, areas, lines, labels, toneOf };
+    // Los círculos rellenos van encima de los vacíos: donde un trozo termina abierto y otro empieza cerrado
+    // en el mismo punto, el punto pertenece a la función y se ve relleno, sea cual sea el orden de los trozos
+    const marks = curves
+      .flatMap(curve => curve.marks.map((mark, index) => ({ ...mark, tone: curve.tone, key: `${curve.index}-${index}` })))
+      .sort((a, b) => Number(a.filled) - Number(b.filled));
+
+    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf };
   }, [spec]);
 
   if (!view) return <div className="crt-plane crt-plane--invalid">Rango de la gráfica no válido.</div>;
 
-  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, conics, areas, lines, labels, toneOf } = view;
+  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf } = view;
   const axisXpx = sy(axisX);
   const axisYpx = sx(axisY);
   // Con el origen a la vista, el cero se escribe una sola vez junto al cruce de los ejes
@@ -476,23 +500,18 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
             )),
           )}
           {conics.map(conic => conic.paths.map((d, index) => <path key={`c${conic.index}-${index}`} className={`crt-plane__curve crt-plane__curve--${conic.tone}`} d={d} />))}
+          {conics.map(conic =>
+            conic.segments.map((segment, index) => <line key={`cs${conic.index}-${index}`} className={`crt-plane__radius crt-plane__tone--${conic.tone}`} x1={segment.x1} y1={segment.y1} x2={segment.x2} y2={segment.y2} />),
+          )}
           {lines.map(item => (
             <path key={item.key} className={`crt-plane__line crt-plane__tone--${item.tone}${item.tone === "s" ? " crt-plane__line--secant" : ""}`} d={item.d} />
           ))}
         </g>
 
         <g className="crt-plane__marks">
-          {curves.map(curve =>
-            curve.marks.map((mark, index) => (
-              <circle
-                key={`${curve.index}-${index}`}
-                className={`crt-plane__mark crt-plane__tone--${curve.tone}${mark.filled ? "" : " crt-plane__mark--open"}`}
-                cx={sx(mark.x)}
-                cy={sy(mark.y)}
-                r={MARK_R}
-              />
-            )),
-          )}
+          {marks.map(mark => (
+            <circle key={mark.key} className={`crt-plane__mark crt-plane__tone--${mark.tone}${mark.filled ? "" : " crt-plane__mark--open"}`} cx={sx(mark.x)} cy={sy(mark.y)} r={MARK_R} />
+          ))}
         </g>
 
         <g className="crt-plane__marks">
