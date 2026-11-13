@@ -1658,9 +1658,9 @@
   .crt-print :is(.crt-block--graph, .crt-block--number_line, .crt-block--fraction_model, .crt-block--bar_chart, .crt-block--pie_chart, .crt-block--shapes, .crt-block--balance):has(+ .crt-block--exercise) { break-after: avoid; }
 
   /* Figuras estadísticas y de aula: las mismas tres reglas de las demás figuras (no se parten ni se separan de su ejercicio) */
-  .crt-print :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten) { break-inside: avoid; }
-  .crt-print :is(.crt-block--exercise, .crt-block--paragraph):has(+ :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten)) { break-after: avoid; }
-  .crt-print :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten):has(+ .crt-block--exercise) { break-after: avoid; }
+  .crt-print :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten, .crt-block--area_model) { break-inside: avoid; }
+  .crt-print :is(.crt-block--exercise, .crt-block--paragraph):has(+ :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten, .crt-block--area_model)) { break-after: avoid; }
+  .crt-print :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten, .crt-block--area_model):has(+ .crt-block--exercise) { break-after: avoid; }
 
   /* En papel las gráficas van algo más pequeñas: caben más cosas por hoja sin perder legibilidad */
   .crt-print .crt-plane { width: calc(var(--plane-w) * .8); }
