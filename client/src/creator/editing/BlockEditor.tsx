@@ -3,17 +3,17 @@ import { OptionSelect, type SelectOption } from "@/components/option-select";
 import { PortalContainerProvider, usePortalContainerHost } from "@/components/ui/portal-container";
 import { Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
-import { BLOCK_TYPE_LABELS, blockInputSchema, CREATOR_LIMITS, graphSpecSchema, type Block, type BlockInput, type BlockType } from "@shared/creator";
+import { BLOCK_TYPE_LABELS, blockInputSchema, CREATOR_LIMITS, type Block, type BlockInput, type BlockType } from "@shared/creator";
 import { parseNumberList } from "@shared/creatorFigures";
 import { normalizeBlock } from "@shared/creatorOps";
 import { validateBlock, valueTableVariable } from "@shared/creatorValidate";
-import { CoordinatePlane } from "../blocks/CoordinatePlane";
 import { Formula } from "../blocks/Formula";
 import { AREA_MODEL_TEMPLATE, AreaModelForm } from "./AreaModelForm";
 import { AngleForm, BarModelForm, BaseTenForm, CLASSROOM_TEMPLATES, ClockForm, PictogramForm, TreeDiagramForm, VennForm } from "./ClassroomForms";
 import { Field, NumberInput, type Draft, type FormProps } from "./fields";
 import { BalanceForm, BarChartForm, FractionModelForm, NumberLineForm, PieChartForm, ShapesForm } from "./FigureForms";
 import { FormulaInput } from "./FormulaInput";
+import { GraphForm } from "./GraphForm";
 import type { BlockEditorHandle } from "./InlineBlockEditor";
 import { RichTextEditor } from "./RichTextEditor";
 import { BoxPlotForm, HistogramForm, LineChartForm, ScatterPlotForm, STAT_TEMPLATES } from "./StatForms";
@@ -308,117 +308,6 @@ function ValueTableForm({ draft, onChange }: FormProps<"value_table">) {
         </label>
       </div>
       <p className="crt-form__hint">Los resultados se calculan solos a partir de la función. Puedes escribirla con {shown === "x" ? "x" : `${shown} o con x`}.</p>
-    </>
-  );
-}
-
-function GraphForm({ draft, onChange }: FormProps<"graph">) {
-  const [listVersion, setListVersion] = useState(0);
-  const spec = draft.spec;
-  const setSpec = (patch: Partial<typeof spec>) => onChange({ ...draft, spec: { ...spec, ...patch } });
-  const preview = graphSpecSchema.safeParse(spec);
-  const bump = () => setListVersion(version => version + 1);
-
-  return (
-    <>
-      <div className="crt-form__row crt-form__row--ranges">
-        {(
-          [
-            ["xMin", "x mínimo"],
-            ["xMax", "x máximo"],
-            ["yMin", "y mínimo"],
-            ["yMax", "y máximo"],
-            ["xStep", "Paso en x"],
-            ["yStep", "Paso en y"],
-          ] as const
-        ).map(([key, label]) => (
-          <Field key={key} label={label}>
-            <NumberInput label={label} value={spec[key]} onChange={value => setSpec({ [key]: value })} />
-          </Field>
-        ))}
-      </div>
-
-      <span className="crt-form__legend">Funciones</span>
-      {spec.functions.map((fn, index) => (
-        <div key={`${listVersion}-f${index}`} className="crt-form__item">
-          <input
-            className="crt-input crt-input--code"
-            aria-label={`Función ${index + 1}`}
-            spellCheck={false}
-            placeholder="2*x - 3"
-            value={fn.expr}
-            onChange={event => setSpec({ functions: spec.functions.map((current, i) => (i === index ? { ...current, expr: event.target.value } : current)) })}
-          />
-          <input
-            className="crt-input crt-input--code"
-            aria-label={`Etiqueta de la función ${index + 1} en LaTeX`}
-            spellCheck={false}
-            placeholder="y = 2x - 3"
-            value={fn.label ?? ""}
-            onChange={event => setSpec({ functions: spec.functions.map((current, i) => (i === index ? { ...current, label: event.target.value || undefined } : current)) })}
-          />
-          <button
-            type="button"
-            className="crt-icon-btn crt-icon-btn--danger"
-            aria-label={`Quitar la función ${index + 1}`}
-            onClick={() => {
-              // Los puntos que estaban sobre esta función quedan libres; los de las siguientes se reindexan
-              const points = spec.points.map(point => (point.on == null ? point : point.on === index ? { ...point, on: null } : point.on > index ? { ...point, on: point.on - 1 } : point));
-              setSpec({ functions: spec.functions.filter((_, i) => i !== index), points });
-              bump();
-            }}
-          >
-            <Trash2 aria-hidden="true" />
-          </button>
-        </div>
-      ))}
-      {spec.functions.length < CREATOR_LIMITS.functionsMax && (
-        <button type="button" className="crt-btn crt-btn--ghost crt-btn--sm" onClick={() => setSpec({ functions: [...spec.functions, { expr: "x" }] })}>
-          <Plus aria-hidden="true" />
-          Añadir función
-        </button>
-      )}
-
-      <span className="crt-form__legend">Puntos marcados</span>
-      {spec.points.map((point, index) => {
-        const setPoint = (patch: Partial<typeof point>) => setSpec({ points: spec.points.map((current, i) => (i === index ? { ...current, ...patch } : current)) });
-        return (
-          <div key={`${listVersion}-p${index}`} className="crt-form__item">
-            <NumberInput label={`x del punto ${index + 1}`} value={point.x} onChange={x => setPoint({ x })} />
-            <NumberInput label={`y del punto ${index + 1}`} value={point.y} onChange={y => setPoint({ y })} />
-            <input className="crt-input crt-input--code" aria-label={`Etiqueta del punto ${index + 1} en LaTeX`} spellCheck={false} placeholder="(0, -3)" value={point.label ?? ""} onChange={event => setPoint({ label: event.target.value || undefined })} />
-            <OptionSelect<number | "">
-              className="crt-input"
-              aria-label={`Función del punto ${index + 1}`}
-              value={point.on ?? ""}
-              onValueChange={on => setPoint({ on: on === "" ? null : on })}
-              options={[{ value: "", label: "Punto libre" }, ...spec.functions.map((fn, i) => ({ value: i, label: `Sobre ${fn.expr || `función ${i + 1}`}` }))]}
-            />
-            <button
-              type="button"
-              className="crt-icon-btn crt-icon-btn--danger"
-              aria-label={`Quitar el punto ${index + 1}`}
-              onClick={() => {
-                setSpec({ points: spec.points.filter((_, i) => i !== index) });
-                bump();
-              }}
-            >
-              <Trash2 aria-hidden="true" />
-            </button>
-          </div>
-        );
-      })}
-      {spec.points.length < CREATOR_LIMITS.pointsMax && (
-        <button type="button" className="crt-btn crt-btn--ghost crt-btn--sm" onClick={() => setSpec({ points: [...spec.points, { x: 0, y: 0, on: null }] })}>
-          <Plus aria-hidden="true" />
-          Añadir punto
-        </button>
-      )}
-
-      <Field label="Pie de la gráfica (opcional)" wide>
-        <input className="crt-input" value={draft.caption ?? ""} onChange={event => onChange({ ...draft, caption: event.target.value || undefined })} />
-      </Field>
-      <div className="crt-form__preview">{preview.success ? <CoordinatePlane spec={preview.data} /> : <span className="crt-muted">Completa los rangos para ver la gráfica.</span>}</div>
     </>
   );
 }

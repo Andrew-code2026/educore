@@ -1,6 +1,7 @@
 import { memo, useId, useMemo, type CSSProperties } from "react";
 import type { GraphSpec } from "@shared/creator";
-import { formatNumber, formatNumberEs, sampleCurve, tryCompile } from "@shared/creatorMath";
+import { formatNumber, formatNumberEs, tryCompile } from "@shared/creatorMath";
+import { sampleFunction, type CurveMark } from "@shared/creatorPlane";
 import { Formula } from "./Formula";
 
 /** Márgenes alrededor de la cuadrícula: caben las flechas de los ejes y los números. */
@@ -9,7 +10,10 @@ const MAX_W = 320;
 const MAX_H = 320;
 const MIN_SIDE = 150;
 const LABEL_H = 20;
-const CURVE_CLASSES = ["crt-plane__curve--a", "crt-plane__curve--b", "crt-plane__curve--c", "crt-plane__curve--d"];
+const TONES = ["a", "b", "c", "d"] as const;
+/** Radio de los puntos marcados y de los círculos de extremos y saltos. */
+const POINT_R = 4.2;
+const MARK_R = 3.6;
 
 interface Box {
   x: number;
@@ -60,7 +64,7 @@ const overlaps = (a: Box, b: Box) => a.x < b.x + b.w && a.x + a.w > b.x && a.y <
 
 function describe(spec: GraphSpec): string {
   const functions = spec.functions.map(fn => fn.expr).join("; ");
-  const points = spec.points.map(point => `(${formatNumber(point.x)}, ${formatNumber(point.y)})`).join(", ");
+  const points = spec.points.map(point => `(${formatNumber(point.x)}, ${formatNumber(point.y)})${point.open ? " vacío" : ""}`).join(", ");
   const base = functions ? `Plano cartesiano con ${functions}` : "Plano cartesiano en blanco";
   return points ? `${base}. Puntos marcados: ${points}.` : `${base}.`;
 }
@@ -88,18 +92,29 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     const everyX = Math.max(1, Math.ceil(xTicks.length / 14));
     const everyY = Math.max(1, Math.ceil(yTicks.length / 14));
 
+    const inPlane = (x: number, y: number) => x >= spec.xMin - 1e-9 && x <= spec.xMax + 1e-9 && y >= spec.yMin - 1e-9 && y <= spec.yMax + 1e-9;
+    const pathOf = (points: Array<[number, number]>) => points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${sx(x).toFixed(2)} ${sy(y).toFixed(2)}`).join(" ");
+    // Cada función toma un color por su posición, salvo que lo fije: los trozos de una misma función comparten el suyo
+    const toneOf = (index: number) => TONES[(spec.functions[index]?.color ?? index) % TONES.length];
+
     const curves = spec.functions.map((fn, index) => {
+      const tone = toneOf(index);
       const compiled = tryCompile(fn.expr);
-      if (!compiled.ok) return { index, paths: [] as string[], samples: [] as Array<[number, number]> };
-      const segments = sampleCurve(compiled.fn, spec);
-      const paths = segments.map(segment => segment.points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${sx(x).toFixed(2)} ${sy(y).toFixed(2)}`).join(" "));
-      const samples = segments.flatMap(segment => segment.points).filter(([, y]) => y >= spec.yMin && y <= spec.yMax);
-      return { index, paths, samples };
+      if (!compiled.ok) return { index, tone, paths: [] as string[], samples: [] as Array<[number, number]>, marks: [] as CurveMark[] };
+      const sampled = sampleFunction(compiled.fn, spec, fn);
+      const paths = sampled.segments.map(segment => pathOf(segment.points));
+      const samples = sampled.segments.flatMap(segment => segment.points).filter(([, y]) => y >= spec.yMin && y <= spec.yMax);
+      // Círculos de los extremos del dominio y de los saltos, solo los que caen dentro del plano
+      const marks = sampled.marks.filter(mark => inPlane(mark.x, mark.y));
+      return { index, tone, paths, samples, marks };
     });
 
     // Las etiquetas se ubican por prioridad: primero los puntos, luego las curvas
     const plot: Box = { x: PAD.left, y: PAD.top, w, h };
-    const occupied: Box[] = spec.points.map(point => ({ x: sx(point.x) - 6, y: sy(point.y) - 6, w: 12, h: 12 }));
+    const occupied: Box[] = [
+      ...spec.points.map(point => ({ x: sx(point.x) - 6, y: sy(point.y) - 6, w: 12, h: 12 })),
+      ...curves.flatMap(curve => curve.marks.map(mark => ({ x: sx(mark.x) - 5, y: sy(mark.y) - 5, w: 10, h: 10 }))),
+    ];
     const labels: PlacedLabel[] = [];
 
     // Lo que una etiqueta no debería tapar: los números de los ejes, los ejes y las curvas
@@ -183,15 +198,15 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
           { x: px - labelW - 10, y: py - LABEL_H - 4 },
         ];
       });
-      place(label, CURVE_CLASSES[curve.index % CURVE_CLASSES.length].replace("curve", "label"), candidates);
+      place(label, `crt-plane__label--${curve.tone}`, candidates);
     }
 
-    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, labels };
+    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, labels, toneOf };
   }, [spec]);
 
   if (!view) return <div className="crt-plane crt-plane--invalid">Rango de la gráfica no válido.</div>;
 
-  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, labels } = view;
+  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, labels, toneOf } = view;
   const axisXpx = sy(axisX);
   const axisYpx = sx(axisY);
   // Con el origen a la vista, el cero se escribe una sola vez junto al cruce de los ejes
@@ -266,15 +281,34 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
         <g clipPath={`url(#${clipId})`}>
           {curves.map(curve =>
             curve.paths.map((d, index) => (
-              <path key={`${curve.index}-${index}`} className={`crt-plane__curve ${CURVE_CLASSES[curve.index % CURVE_CLASSES.length]}`} d={d} />
+              <path key={`${curve.index}-${index}`} className={`crt-plane__curve crt-plane__curve--${curve.tone}`} d={d} />
+            )),
+          )}
+        </g>
+
+        <g className="crt-plane__marks">
+          {curves.map(curve =>
+            curve.marks.map((mark, index) => (
+              <circle
+                key={`${curve.index}-${index}`}
+                className={`crt-plane__mark crt-plane__tone--${curve.tone}${mark.filled ? "" : " crt-plane__mark--open"}`}
+                cx={sx(mark.x)}
+                cy={sy(mark.y)}
+                r={MARK_R}
+              />
             )),
           )}
         </g>
 
         <g className="crt-plane__points">
-          {spec.points.map((point, index) => (
-            <circle key={index} cx={sx(point.x)} cy={sy(point.y)} r={4.2} />
-          ))}
+          {spec.points.map((point, index) =>
+            point.open ? (
+              // Un hueco de la curva lleva el color de su función
+              <circle key={index} className={`crt-plane__hole${point.on == null ? "" : ` crt-plane__tone--${toneOf(point.on)}`}`} cx={sx(point.x)} cy={sy(point.y)} r={MARK_R + 0.4} />
+            ) : (
+              <circle key={index} cx={sx(point.x)} cy={sy(point.y)} r={POINT_R} />
+            ),
+          )}
         </g>
       </svg>
 

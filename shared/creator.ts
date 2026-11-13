@@ -25,7 +25,8 @@ export const CREATOR_LIMITS = {
   blocksPerSectionMax: 60,
   tableRowsMax: 20,
   tableColsMax: 10,
-  functionsMax: 4,
+  /** Curvas de un plano; eran 4 y subió a 6 para que quepa una función a trozos junto a otra. */
+  functionsMax: 6,
   pointsMax: 12,
   /** Marcas por eje: más que esto deja la cuadrícula ilegible al imprimir. */
   ticksMax: 40,
@@ -60,9 +61,26 @@ const expression = z.string().trim().min(1).max(MATH_EXPR_MAX);
 const caption = z.string().trim().max(200).optional();
 const label = z.string().trim().min(1).max(60);
 
+const graphEnd = z.enum(["closed", "open", "none"]);
+
+// Los campos añadidos después de la primera versión son opcionales y sin valor por defecto:
+// un recurso guardado antes se lee igual que se guardó.
 export const graphFunctionSchema = z.object({
-  expr: expression.describe('Función de x en texto plano, p. ej. "2*x - 3" o "x^2 - 4*x + 3". Sin LaTeX.'),
+  expr: expression.describe('Función de x en texto plano, p. ej. "2*x - 3", "x^2 - 4*x + 3" o "floor(x)" (parte entera). Sin LaTeX.'),
   label: latex.optional().describe('Etiqueta en LaTeX que se dibuja junto a la curva, p. ej. "y = 2x - 3".'),
+  from: z.number().optional().describe("Dominio: la curva se dibuja solo desde este x. Una función a trozos lleva una entrada por trozo."),
+  to: z.number().optional().describe("Dominio: la curva se dibuja solo hasta este x."),
+  fromEnd: graphEnd
+    .optional()
+    .describe('Extremo izquierdo del dominio: "closed" círculo relleno (el punto pertenece; es el valor por defecto), "open" círculo vacío (no pertenece), "none" sin círculo.'),
+  toEnd: graphEnd.optional().describe("Extremo derecho del dominio, igual que fromEnd."),
+  color: z
+    .number()
+    .int()
+    .min(0)
+    .max(3)
+    .optional()
+    .describe("Color de la curva, de 0 a 3. Si se omite, cada función toma el suyo según su posición. Da el mismo a todos los trozos de una función a trozos."),
 });
 
 export const graphPointSchema = z.object({
@@ -76,6 +94,10 @@ export const graphPointSchema = z.object({
     .nullable()
     .optional()
     .describe("Índice (desde 0) de la función sobre la que está el punto. null si es un punto libre."),
+  open: z
+    .boolean()
+    .optional()
+    .describe("true dibuja el punto vacío: un hueco de la curva, donde la función no está definida o vale otra cosa. Sobre una función (on) debe estar en el límite de la función en ese x."),
 });
 
 export const graphSpecSchema = z.object({

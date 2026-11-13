@@ -1685,6 +1685,14 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-plane__curve--c { stroke: #7A3FD1; }
 .crt-plane__curve--d { stroke: #C2570C; }
 .crt-plane__points circle { fill: #D92D20; stroke: #FFFFFF; stroke-width: 1.5; }
+/* Círculos de extremos y saltos: rellenos si el punto pertenece a la curva, vacíos si no */
+.crt-plane__tone--a { --plane-tone: #1F5FE0; }
+.crt-plane__tone--b { --plane-tone: #0F8A5F; }
+.crt-plane__tone--c { --plane-tone: #7A3FD1; }
+.crt-plane__tone--d { --plane-tone: #C2570C; }
+.crt-plane__mark { fill: var(--plane-tone, #111B24); stroke: var(--plane-tone, #111B24); stroke-width: 1.8; }
+.crt-plane__mark--open { fill: #FFFFFF; }
+.crt-plane__points .crt-plane__hole { fill: #FFFFFF; stroke: var(--plane-tone, #D92D20); stroke-width: 1.8; }
 
 .crt-plane__label {
   position: absolute;
@@ -1820,6 +1828,9 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-form__row--ranges .crt-input--num { width: 78px; }
 .crt-form__item { display: flex; align-items: flex-start; gap: 8px; }
 .crt-form__item > .crt-rte, .crt-form__item > .crt-input:not(.crt-input--num):not(.crt-input--tiny) { flex: 1; min-width: 0; }
+/* Un elemento de lista con una segunda fila de opciones (dominio de una función, datos de una cónica) */
+.crt-form__stack { display: flex; flex-direction: column; gap: 6px; }
+.crt-form__row--sub { padding-left: 12px; border-left: 2px solid var(--sheet-hair); }
 .crt-form__index { flex: none; width: 22px; padding-top: 8px; font-weight: 600; color: var(--sheet-muted); text-align: right; }
 .crt-form__group { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--sheet-hair); background: #FAFBFD; }
 .crt-form__legend { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--sheet-muted); }

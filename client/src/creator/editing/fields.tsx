@@ -38,14 +38,14 @@ export function NumberInput({ value, onChange, label }: { value: number; onChang
 }
 
 /** Igual que NumberInput, pero vacío significa "que lo calcule el sistema". */
-export function OptionalNumberInput({ value, onChange, label }: { value: number | undefined; onChange: (value: number | undefined) => void; label: string }) {
+export function OptionalNumberInput({ value, onChange, label, placeholder = "auto" }: { value: number | undefined; onChange: (value: number | undefined) => void; label: string; placeholder?: string }) {
   return (
     <input
       className="crt-input crt-input--num"
       type="number"
       step="any"
       aria-label={label}
-      placeholder="auto"
+      placeholder={placeholder}
       defaultValue={value ?? ""}
       onChange={event => onChange(Number.isNaN(event.target.valueAsNumber) ? undefined : event.target.valueAsNumber)}
     />
