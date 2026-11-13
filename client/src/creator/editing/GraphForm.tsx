@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { OptionSelect, type SelectOption } from "@/components/option-select";
-import { CREATOR_LIMITS, type GraphArea, type GraphConic, type GraphFigure, type GraphFunction, type GraphNotable, type GraphSecant, type GraphTangent, type GraphTransform, type GraphVerticalLine } from "@shared/creator";
+import { CREATOR_LIMITS, type GraphArea, type GraphConic, type GraphFigure, type GraphFunction, type GraphInequality, type GraphNotable, type GraphSecant, type GraphTangent, type GraphTransform, type GraphVerticalLine } from "@shared/creator";
 import { RIEMANN_SAMPLE_LABELS, type RiemannSample } from "@shared/creatorCalculus";
 import { CONIC_LABELS, CONIC_SHOW_LABELS, CONIC_SHOWS, conicEquation, type ConicKind, type ConicShow } from "@shared/creatorConics";
 import { NOTABLE_KIND_LABELS, describeNotable, type NotableKind } from "@shared/creatorNotable";
 import type { EndStyle } from "@shared/creatorPlane";
 import { AXIS_NAME_MAX } from "@shared/creatorPlaneAxes";
 import { FIGURE_KIND_LABELS, FIGURE_SHOW_LABELS, FIGURE_SHOWS, MIRROR_LABELS, TRANSFORM_LABELS, describeFigure, type FigureKind, type FigureShow, type Mirror, type TransformKind } from "@shared/creatorPlaneGeometry";
+import { INEQUALITY_OP_LABELS, REGION_SHADE_LABELS, describeInequalities, type InequalityOp, type RegionShade } from "@shared/creatorRegions";
 import { Formula } from "../blocks/Formula";
 import { Check, Field, NumberInput, OptionalNumberInput, type FormProps } from "./fields";
 import { AddButton, RemoveButton, useListVersion } from "./FigureForms";
@@ -127,6 +128,9 @@ function ConicFields({ conic, index, onChange }: { conic: GraphConic; index: num
       );
   }
 }
+
+const INEQUALITY_OP_OPTIONS: readonly SelectOption<InequalityOp>[] = (Object.keys(INEQUALITY_OP_LABELS) as InequalityOp[]).map(op => ({ value: op, label: INEQUALITY_OP_LABELS[op] }));
+const REGION_SHADE_OPTIONS: readonly SelectOption<RegionShade>[] = (Object.keys(REGION_SHADE_LABELS) as RegionShade[]).map(shade => ({ value: shade, label: REGION_SHADE_LABELS[shade] }));
 
 const FIGURE_KIND_OPTIONS: readonly SelectOption<FigureKind>[] = (Object.keys(FIGURE_KIND_LABELS) as FigureKind[]).map(kind => ({ value: kind, label: FIGURE_KIND_LABELS[kind] }));
 const TRANSFORM_OPTIONS: readonly SelectOption<TransformKind | "">[] = [{ value: "", label: "Ninguna" }, ...(Object.keys(TRANSFORM_LABELS) as TransformKind[]).map(kind => ({ value: kind, label: TRANSFORM_LABELS[kind] }))];
@@ -255,6 +259,10 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
   const setTangents = (next: GraphTangent[]) => setSpec({ tangents: next.length > 0 ? next : undefined });
   const secants = spec.secants ?? [];
   const setSecants = (next: GraphSecant[]) => setSpec({ secants: next.length > 0 ? next : undefined });
+  const inequalities = spec.inequalities ?? [];
+  // Sin inecuaciones no queda nada que sombrear ni vértices que marcar: sus opciones se van con la última
+  const setInequalities = (next: GraphInequality[]) => setSpec(next.length > 0 ? { inequalities: next } : { inequalities: undefined, inequalityShade: undefined, inequalityVertices: undefined });
+  const regionFacts = describeInequalities(spec);
   const figures = spec.figures ?? [];
   const setFigures = (next: GraphFigure[]) => setSpec({ figures: next.length > 0 ? next : undefined });
   const setFigure = (index: number, next: GraphFigure) => setFigures(figures.map((current, i) => (i === index ? next : current)));
@@ -672,6 +680,48 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
         </div>
       )}
       {figures.length > 0 && <p className="crt-form__hint">Las longitudes, el punto medio, el perímetro, el área y la imagen por la transformación (A′, B′, C′) los calcula el sistema. Con figuras, deja el plano más o menos cuadrado para que las distancias y los ángulos no se deformen.</p>}
+
+      <span className="crt-form__legend">Inecuaciones con dos variables</span>
+      {inequalities.map((inequality, index) => {
+        const setInequality = (patch: Partial<GraphInequality>) => setInequalities(inequalities.map((current, i) => (i === index ? { ...current, ...patch } : current)));
+        return (
+          <div key={`${listVersion}-i${index}`} className="crt-form__item">
+            <NumberInput label={`Coeficiente de x de la inecuación ${index + 1}`} value={inequality.a} onChange={a => setInequality({ a })} />
+            <span className="crt-form__sign">x +</span>
+            <NumberInput label={`Coeficiente de y de la inecuación ${index + 1}`} value={inequality.b} onChange={b => setInequality({ b })} />
+            <span className="crt-form__sign">y</span>
+            <OptionSelect className="crt-input crt-input--tiny" aria-label={`Signo de la inecuación ${index + 1}`} value={inequality.op} onValueChange={op => setInequality({ op })} options={INEQUALITY_OP_OPTIONS} />
+            <NumberInput label={`Término independiente de la inecuación ${index + 1}`} value={inequality.c} onChange={c => setInequality({ c })} />
+            <Check label="Escribirla" checked={inequality.label ?? false} onChange={on => setInequality({ label: on || undefined })} />
+            <RemoveButton
+              label={`Quitar la inecuación ${index + 1}`}
+              onClick={() => {
+                setInequalities(inequalities.filter((_, i) => i !== index));
+                bump();
+              }}
+            />
+          </div>
+        );
+      })}
+      {inequalities.length < CREATOR_LIMITS.inequalitiesMax && <AddButton onClick={() => setInequalities([...inequalities, { a: 1, b: 1, op: "<=", c: 4 }])}>Añadir inecuación</AddButton>}
+      {inequalities.length > 0 && (
+        <>
+          <div className="crt-form__row">
+            <Field label="Sombrear">
+              <OptionSelect
+                className="crt-input"
+                aria-label="Qué región de las inecuaciones se sombrea"
+                value={spec.inequalityShade ?? "common"}
+                onValueChange={shade => setSpec({ inequalityShade: shade === "common" ? undefined : shade })}
+                options={REGION_SHADE_OPTIONS}
+              />
+            </Field>
+            <Check label="Marcar los vértices de la región común" checked={spec.inequalityVertices ?? false} onChange={on => setSpec({ inequalityVertices: on || undefined })} />
+          </div>
+          {regionFacts && <p className="crt-form__hint">{regionFacts}</p>}
+          <p className="crt-form__hint">Cada inecuación es a·x + b·y ≤ c: para x ≥ 0 escribe 1, 0, ≥ y 0. La frontera sale continua con ≤ o ≥ y punteada con &lt; o &gt;; la región común y sus vértices los calcula el sistema.</p>
+        </>
+      )}
 
       <span className="crt-form__legend">Cónicas</span>
       {conics.map((conic, index) => {

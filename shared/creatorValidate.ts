@@ -12,6 +12,7 @@ import { planeFunctionIssues, planePointIssue } from "./creatorPlane";
 import { planeAxisIssues } from "./creatorPlaneAxes";
 import { planeNotableIssues } from "./creatorNotable";
 import { planeFigureIssues } from "./creatorPlaneGeometry";
+import { planeInequalityIssues } from "./creatorRegions";
 import { histogramClassIssues, histogramCounts, linearRegression, resolveAxis, type AxisOverride } from "./creatorStats";
 
 /**
@@ -141,6 +142,7 @@ export function validateGraphSpec(spec: GraphSpec): string[] {
   issues.push(...planeLineIssues(spec));
   issues.push(...planeNotableIssues(spec));
   issues.push(...planeFigureIssues(spec));
+  issues.push(...planeInequalityIssues(spec));
 
   return issues;
 }

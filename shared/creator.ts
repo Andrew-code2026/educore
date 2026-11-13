@@ -44,6 +44,8 @@ export const CREATOR_LIMITS = {
   /** Figuras geométricas de un plano (cada una con su imagen, si se transforma) y vértices de cada una. */
   planeFiguresMax: 4,
   planeVerticesMax: 8,
+  /** Inecuaciones de un plano: las restricciones de un problema de programación lineal con sus dos de no negatividad. */
+  inequalitiesMax: 6,
   /** Marcas por eje: más que esto deja la cuadrícula ilegible al imprimir. */
   ticksMax: 40,
   /** Datos crudos de un histograma o de una caja y bigotes: hasta cinco cursos de 40 estudiantes. */
@@ -270,6 +272,15 @@ export const graphFigureSchema = z.object({
   transform: graphTransformSchema.optional().describe("Transformación que se aplica a la figura: el sistema calcula la imagen y la dibuja junto a la original, con los nombres primados (A', B', C')."),
 });
 
+/** Una inecuación lineal con dos variables, a·x + b·y (op) c; su semiplano y su frontera los dibuja el sistema (creatorRegions.ts). */
+export const graphInequalitySchema = z.object({
+  a: z.number().describe("Coeficiente de x."),
+  b: z.number().describe("Coeficiente de y."),
+  op: z.enum(["<", "<=", ">", ">="]).describe('Signo: "<=" y ">=" llevan frontera continua (la recta pertenece a la solución); "<" y ">", punteada.'),
+  c: z.number().describe("Término independiente: la inecuación es a·x + b·y (op) c. Así, x ≥ 0 es { a: 1, b: 0, op: \">=\", c: 0 } y 2x + 3y ≤ 12 es { a: 2, b: 3, op: \"<=\", c: 12 }."),
+  label: z.boolean().optional().describe("true escribe la inecuación junto a su frontera."),
+});
+
 /** Nombre de un eje del plano: texto plano, corto para que quepa a lo largo del eje (AXIS_NAME_MAX en creatorPlaneAxes.ts). */
 const planeAxisName = z.string().trim().min(1).max(40);
 
@@ -313,6 +324,16 @@ export const graphSpecSchema = z.object({
     .max(CREATOR_LIMITS.planeFiguresMax)
     .optional()
     .describe("Geometría en el plano: puntos con nombre, segmentos y polígonos por sus vértices, con sus longitudes y su punto medio calculados, y su imagen por una traslación, reflexión, rotación u homotecia."),
+  inequalities: z
+    .array(graphInequalitySchema)
+    .max(CREATOR_LIMITS.inequalitiesMax)
+    .optional()
+    .describe("Inecuaciones lineales con dos variables: el sistema dibuja la frontera de cada una (continua o punteada) y sombrea la región común, la región factible de un problema de programación lineal."),
+  inequalityShade: z
+    .enum(["common", "each", "none"])
+    .optional()
+    .describe('Qué se sombrea: "common" la región que cumple todas las inecuaciones (por defecto), "each" el semiplano de cada una con su color, o "none" solo las fronteras, para que el estudiante sombree.'),
+  inequalityVertices: z.boolean().optional().describe("true marca los vértices de la región común con sus coordenadas, calculadas por el sistema."),
   xLabel: planeAxisName.optional().describe('Nombre del eje x con su unidad, en texto plano, para problemas de contexto: "Tiempo (h)". Se escribe bajo el plano. Si se omite, el eje se llama x.'),
   yLabel: planeAxisName.optional().describe('Nombre del eje y con su unidad, en texto plano: "Costo ($)". Se escribe a la izquierda del plano, de abajo arriba. Si se omite, el eje se llama y.'),
   xUnit: z
@@ -1045,6 +1066,7 @@ export type GraphTangent = z.infer<typeof graphTangentSchema>;
 export type GraphSecant = z.infer<typeof graphSecantSchema>;
 export type GraphNotable = z.infer<typeof graphNotableSchema>;
 export type GraphFigure = z.infer<typeof graphFigureSchema>;
+export type GraphInequality = z.infer<typeof graphInequalitySchema>;
 export type GraphTransform = z.infer<typeof graphTransformSchema>;
 export type BlockInput = z.infer<typeof blockInputSchema>;
 export type Block = z.infer<typeof blockSchema>;
@@ -1239,8 +1261,16 @@ export type CreatorEvent =
   | { type: "doc"; doc: ResourceDoc }
   | { type: "done"; ok: boolean; error?: string };
 
-/** Lo que hay en un plano, en pocas palabras: las funciones y los nombres de las cónicas. */
-const graphContents = (spec: GraphSpec): string => [...spec.functions.map(fn => fn.expr), ...(spec.conics ?? []).map(conic => CONIC_LABELS[conic.kind])].join(", ");
+const PLANE_FIGURE_NAMES = { points: "Puntos", segment: "Segmento", polygon: "Polígono" } as const;
+
+/** Lo que hay en un plano, en pocas palabras: las funciones y los nombres de las cónicas, de las figuras y de las regiones. */
+const graphContents = (spec: GraphSpec): string =>
+  [
+    ...spec.functions.map(fn => fn.expr),
+    ...(spec.conics ?? []).map(conic => CONIC_LABELS[conic.kind]),
+    ...(spec.figures ?? []).map(figure => PLANE_FIGURE_NAMES[figure.kind]),
+    ...((spec.inequalities ?? []).length > 0 ? ["Región de inecuaciones"] : []),
+  ].join(", ");
 
 export const SHAPE_KIND_LABELS: Record<ShapeFigure["kind"], string> = {
   rectangle: "Rectángulo",
