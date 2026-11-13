@@ -3,7 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { SHAPE_KIND_LABELS, type ShapeFigure } from "@shared/creator";
 import { parseNumberList } from "@shared/creatorFigures";
 import { OptionSelect, type SelectOption } from "@/components/option-select";
-import { BlockPreview, CaptionField, Check, Field, NumberInput, OptionalNumberInput, type Draft, type FormProps } from "./fields";
+import { CaptionField, Check, Field, NumberInput, OptionalNumberInput, type Draft, type FormProps } from "./fields";
 
 /**
  * Formularios de las figuras. Las listas usan campos numéricos sin controlar, así que
@@ -120,7 +120,6 @@ export function NumberLineForm({ draft, onChange }: FormProps<"number_line">) {
       {draft.intervals.length > 0 && <p className="crt-form__hint">Deja vacío un extremo para una semirrecta: «desde 2» sin «hasta» dibuja x &gt; 2. Un extremo incluido lleva círculo relleno.</p>}
 
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -169,7 +168,6 @@ export function FractionModelForm({ draft, onChange }: FormProps<"fraction_model
       {draft.models.length < 4 && <AddButton onClick={() => onChange({ ...draft, models: [...draft.models, { numerator: 1, denominator: 4 }] })}>Añadir modelo</AddButton>}
 
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -224,7 +222,6 @@ export function BarChartForm({ draft, onChange }: FormProps<"bar_chart">) {
       <span className="crt-form__legend">Barras</span>
       <DataRows rows={draft.bars} max={12} noun="la barra" onChange={bars => onChange({ ...draft, bars })} />
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -243,7 +240,6 @@ export function PieChartForm({ draft, onChange }: FormProps<"pie_chart">) {
       <DataRows rows={draft.slices} max={8} noun="el sector" onChange={slices => onChange({ ...draft, slices })} />
       <p className="crt-form__hint">Escribe la cantidad de cada sector; los porcentajes se calculan solos y siempre suman 100.</p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -382,7 +378,6 @@ export function ShapesForm({ draft, onChange }: FormProps<"shapes">) {
       </div>
       <p className="crt-form__hint">Los rótulos admiten fórmulas entre signos de dólar, por ejemplo $r = 3$ cm.</p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -420,7 +415,6 @@ export function BalanceForm({ draft, onChange }: FormProps<"balance">) {
       </div>
       <p className="crt-form__hint">La balanza se dibuja en equilibrio: representa una ecuación como 2x + 1 = 7. Para números grandes usa una pesa con número en vez de fichas: 2x + 5 = 15 lleva una pesa de 15 a la derecha.</p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }

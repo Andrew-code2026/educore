@@ -2,7 +2,7 @@ import type { BlockInput } from "@shared/creator";
 import { OptionSelect, type SelectOption } from "@/components/option-select";
 import { areaModelProduct, computeAreaModel, polynomialText, splitTerms } from "@shared/creatorAlgebra";
 import { Formula } from "../blocks/Formula";
-import { BlockPreview, CaptionField, Check, Field, type Draft, type FormProps } from "./fields";
+import { CaptionField, Check, Field, type Draft, type FormProps } from "./fields";
 
 /** Contenido inicial del modelo de área al añadirlo desde «Añadir bloque». */
 export const AREA_MODEL_TEMPLATE: Extract<BlockInput, { type: "area_model" }> = { type: "area_model", rows: ["x", "3"], columns: ["x", "2"], hide: "none", showTotal: true };
@@ -55,7 +55,6 @@ export function AreaModelForm({ draft, onChange }: FormProps<"area_model">) {
         </p>
       )}
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }

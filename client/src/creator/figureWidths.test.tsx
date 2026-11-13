@@ -31,3 +31,25 @@ describe("anchos de diseño de las figuras", () => {
     expect(required, `${type}: diseño ${design} px, exige ${required} px`).toBeLessThanOrEqual(design);
   });
 });
+
+describe("tamaño de presentación", () => {
+  const html = (block: Block) => renderToStaticMarkup(<BlockView block={block} />);
+
+  it.each(["bar_chart", "graph", "clock"] as const)("%s lleva su ancho de diseño también sin unidades, para que los rótulos sigan a la figura", type => {
+    const markup = html({ ...BLOCK_TEMPLATES[type], id: "x" } as Block);
+    const withUnit = /--(?:fig|plane)-w:\s*([\d.]+)px/.exec(markup);
+    const plain = /--(?:fig|plane)-wn:\s*([\d.]+)[;"]/.exec(markup);
+    expect(plain?.[1]).toBe(withUnit?.[1]);
+  });
+
+  it("sin tamaño la figura se dibuja como siempre; con tamaño lleva su escala", () => {
+    expect(html({ ...BLOCK_TEMPLATES.bar_chart, id: "x" } as Block)).not.toContain("data-size");
+    const small = html({ ...BLOCK_TEMPLATES.bar_chart, size: "small", id: "x" } as Block);
+    expect(small).toContain('data-size="small"');
+    expect(small).toContain("--fig-scale:0.75");
+    // El completo no lleva escala: llena el ancho disponible
+    const full = html({ ...BLOCK_TEMPLATES.bar_chart, size: "full", id: "x" } as Block);
+    expect(full).toContain('data-size="full"');
+    expect(full).not.toContain("--fig-scale");
+  });
+});

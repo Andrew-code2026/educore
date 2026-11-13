@@ -60,7 +60,7 @@ export const TEXT_HALO = { paintOrder: "stroke", stroke: "#FFFFFF", strokeWidth:
  */
 export function FigureFrame({ width, height, description, labels = [], children }: FigureFrameProps) {
   return (
-    <div className="crt-figure" style={{ "--fig-w": `${width}px`, aspectRatio: `${width} / ${height}` } as CSSProperties}>
+    <div className="crt-figure" style={{ "--fig-w": `${width}px`, "--fig-wn": width, aspectRatio: `${width} / ${height}` } as CSSProperties}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={description}>
         {children}
       </svg>

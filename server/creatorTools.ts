@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { blockInputSchema, CREATOR_LIMITS, findBlock, flattenBlocks, SECTION_ROLES, type BlockInput, type CreatorActivity, type ResourceDoc } from "@shared/creator";
 import { blockName } from "@shared/creatorActivity";
-import { applyDocOp, normalizeBlock, type DocOp } from "@shared/creatorOps";
+import { applyDocOp, keepFigureLayout, normalizeBlock, type DocOp } from "@shared/creatorOps";
 import { layoutIssues } from "@shared/creatorContainers";
 import { describeComputed } from "@shared/creatorStats";
 import { REMOVED_MAX } from "@shared/creatorTurn";
@@ -80,11 +80,14 @@ export interface CreatorToolDefinition {
 
 type Json = unknown;
 
+const withoutId = ({ id: _id, ...def }: Record<string, Json>) => def;
+
 /**
  * Cada tipo de bloque aparece dos veces en el esquema: en la sección y dentro de las columnas y las
  * tarjetas. Escrito dos veces, el esquema de una herramienta pasaría de 38 KB a 115 KB y cada turno
  * pagaría esa diferencia. Zod lo escribe una sola vez en `$defs`, con nombres genéricos (`__schema12`):
- * aquí cada bloque toma el nombre de su tipo, y lo demás que zod reutilizó vuelve a su sitio.
+ * aquí cada bloque toma el nombre de su tipo, y lo demás que zod reutilizó vuelve a su sitio. Lo que
+ * lleva un nombre propio (`.meta({ id })`, como el tamaño de las figuras) se queda en `$defs` con él.
  */
 export function nameBlockDefs(schema: Record<string, Json>): Record<string, Json> {
   const defs = (schema.$defs ?? {}) as Record<string, Record<string, Json>>;
@@ -92,6 +95,7 @@ export function nameBlockDefs(schema: Record<string, Json>): Record<string, Json
   for (const [key, def] of Object.entries(defs)) {
     const type = (def.properties as Record<string, { const?: unknown }> | undefined)?.type?.const;
     if (typeof type === "string") names.set(key, type);
+    else if (!/^__schema\d+$/.test(key)) names.set(key, key);
   }
   const walk = (node: Json): Json => {
     if (Array.isArray(node)) return node.map(walk);
@@ -106,7 +110,8 @@ export function nameBlockDefs(schema: Record<string, Json>): Record<string, Json
     return Object.fromEntries(Object.entries(node as Record<string, Json>).map(([field, value]) => [field, walk(value)]));
   };
   const { $defs: _defs, ...body } = schema;
-  const named = Object.fromEntries(Array.from(names, ([key, name]) => [name, walk(defs[key])]));
+  // El `id` de zod ya es el nombre de la definición: dentro de ella sobra
+  const named = Object.fromEntries(Array.from(names, ([key, name]) => [name, walk(withoutId(defs[key]))]));
   return { ...(walk(body) as Record<string, Json>), ...(names.size > 0 ? { $defs: named } : {}) };
 }
 
@@ -209,7 +214,14 @@ export function executeCreatorTool(doc: ResourceDoc, name: string, rawInput: unk
     return failure(doc, "Formato no válido, corrigiendo", `La entrada no cumple el formato. Corrígela y vuelve a llamar la herramienta.\n${z.prettifyError(parsed.error)}`);
   }
 
-  const { op, blocks: written } = toOp(name, parsed.data);
+  let { op, blocks: written } = toOp(name, parsed.data);
+  // Al reescribir una figura, lo que el docente eligió para presentarla y la IA omitió se queda como estaba
+  const previous = op.op === "update_block" ? findBlock(doc, op.blockId)?.block : undefined;
+  if (op.op === "update_block" && previous) {
+    const block = keepFigureLayout(previous, op.block);
+    op = { ...op, block };
+    written = [block];
+  }
   const issues = validateBlocks(written.map(normalizeBlock));
   if (issues.length > 0) {
     return failure(

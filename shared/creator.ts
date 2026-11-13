@@ -2,6 +2,7 @@ import { z } from "zod";
 import { areaModelProduct, computeAreaModel } from "./creatorAlgebra";
 import { CONIC_LABELS } from "./creatorConics";
 import { VENN_REGIONS } from "./creatorDiagrams";
+import { FIGURE_SIZES } from "./creatorFigureSize";
 import { MATH_EXPR_MAX } from "./creatorMath";
 
 /**
@@ -81,6 +82,11 @@ const latex = z.string().trim().min(1).max(CREATOR_LIMITS.latexMax);
 const expression = z.string().trim().min(1).max(MATH_EXPR_MAX);
 const caption = z.string().trim().max(200).optional();
 const label = z.string().trim().min(1).max(60);
+/** Tamaño de presentación de una figura (creatorFigureSize.ts). Sin él, la figura mide lo de siempre. */
+const figureSize = z
+  .enum(FIGURE_SIZES)
+  .meta({ id: "figure_size", description: 'Tamaño en la hoja. Omítelo para el normal; "small" ahorra espacio, "large" o "full" (todo el ancho, o el de su columna) para dibujar o leer detalles.' })
+  .optional();
 
 const graphEnd = z.enum(["closed", "open", "none"]);
 const graphStroke = z.enum(["solid", "dashed"]);
@@ -290,6 +296,7 @@ const valueTableBlock = z.object({
 const graphBlock = z.object({
   type: z.literal("graph"),
   caption,
+  size: figureSize,
   spec: graphSpecSchema,
 });
 
@@ -302,6 +309,7 @@ const figureLabel = z.string().trim().max(40).optional().describe('Rótulo corto
 const numberLineBlock = z.object({
   type: z.literal("number_line"),
   caption,
+  size: figureSize,
   min: z.number(),
   max: z.number(),
   step: z.number().positive().describe("Separación entre marcas, p. ej. 1 o 0.25."),
@@ -341,6 +349,7 @@ const numberLineBlock = z.object({
 const fractionModelBlock = z.object({
   type: z.literal("fraction_model"),
   caption,
+  size: figureSize,
   shape: z.enum(["circle", "bar"]).default("circle").describe("Círculos partidos en sectores o barras partidas en casillas."),
   models: z
     .array(
@@ -362,6 +371,7 @@ const fractionModelBlock = z.object({
 const barChartBlock = z.object({
   type: z.literal("bar_chart"),
   caption,
+  size: figureSize,
   title: chartText,
   xLabel: z.string().trim().max(60).optional(),
   yLabel: z.string().trim().max(60).optional(),
@@ -375,6 +385,7 @@ const barChartBlock = z.object({
 const pieChartBlock = z.object({
   type: z.literal("pie_chart"),
   caption,
+  size: figureSize,
   title: chartText,
   slices: z.array(z.object({ label: shortLabel, value: z.number().positive() })).min(2).max(8).describe("Cada sector con su valor (frecuencia o cantidad); los porcentajes se calculan solos."),
   showPercent: z.boolean().default(true),
@@ -390,6 +401,7 @@ const axisStep = z.number().positive().optional();
 const histogramBlock = z.object({
   type: z.literal("histogram"),
   caption,
+  size: figureSize,
   title: chartText,
   xLabel: axisName.describe('Nombre de la variable, p. ej. "Estatura (cm)".'),
   yLabel: axisName.describe('Nombre del eje vertical, p. ej. "Número de estudiantes".'),
@@ -418,6 +430,7 @@ const histogramBlock = z.object({
 const boxPlotBlock = z.object({
   type: z.literal("box_plot"),
   caption,
+  size: figureSize,
   title: chartText,
   xLabel: axisName.describe('Nombre de la variable bajo el eje, p. ej. "Nota (de 0 a 5)".'),
   series: z
@@ -444,6 +457,7 @@ const boxPlotBlock = z.object({
 const lineChartBlock = z.object({
   type: z.literal("line_chart"),
   caption,
+  size: figureSize,
   title: chartText,
   xLabel: axisName,
   yLabel: axisName,
@@ -471,6 +485,7 @@ const lineChartBlock = z.object({
 const scatterPlotBlock = z.object({
   type: z.literal("scatter_plot"),
   caption,
+  size: figureSize,
   title: chartText,
   xLabel: axisName,
   yLabel: axisName,
@@ -495,6 +510,7 @@ const scatterPlotBlock = z.object({
 const angleBlock = z.object({
   type: z.literal("angle"),
   caption,
+  size: figureSize,
   angles: z
     .array(
       z.object({
@@ -511,6 +527,7 @@ const angleBlock = z.object({
 const vennBlock = z.object({
   type: z.literal("venn"),
   caption,
+  size: figureSize,
   title: chartText,
   sets: z.array(shortLabel).min(2).max(3).describe('Nombre de cada conjunto: el primero es A, el segundo B y el tercero, si lo hay, C. P. ej. ["Fútbol", "Baloncesto"].'),
   regions: z
@@ -542,6 +559,7 @@ const treeBranch = treeLeaf.extend({ children: z.array(treeLeaf).max(4).default(
 const treeDiagramBlock = z.object({
   type: z.literal("tree_diagram"),
   caption,
+  size: figureSize,
   root: z.string().trim().max(24).optional().describe('Rótulo del punto de partida, p. ej. "Inicio". Opcional.'),
   branches: z
     .array(treeLeaf.extend({ children: z.array(treeBranch).max(4).default([]) }))
@@ -554,6 +572,7 @@ const treeDiagramBlock = z.object({
 const barModelBlock = z.object({
   type: z.literal("bar_model"),
   caption,
+  size: figureSize,
   bars: z
     .array(
       z.object({
@@ -579,6 +598,7 @@ export const PICTOGRAM_ICONS = ["circle", "star", "person", "heart", "square"] a
 const pictogramBlock = z.object({
   type: z.literal("pictogram"),
   caption,
+  size: figureSize,
   title: chartText,
   icon: z.enum(PICTOGRAM_ICONS).default("circle").describe("Dibujo que se repite."),
   iconValue: z.number().positive().default(1).describe("Cuánto vale cada dibujo, p. ej. 2. Medio dibujo vale la mitad."),
@@ -594,6 +614,7 @@ const pictogramBlock = z.object({
 const clockBlock = z.object({
   type: z.literal("clock"),
   caption,
+  size: figureSize,
   clocks: z
     .array(
       z.object({
@@ -611,6 +632,7 @@ const clockBlock = z.object({
 const baseTenBlock = z.object({
   type: z.literal("base_ten"),
   caption,
+  size: figureSize,
   hundreds: z.number().int().min(0).max(9).default(0).describe("Placas de 100."),
   tens: z.number().int().min(0).max(19).default(0).describe("Barras de 10. Más de 9 sirve para mostrar un reagrupamiento."),
   ones: z.number().int().min(0).max(19).default(0).describe("Cubos de 1."),
@@ -623,6 +645,7 @@ const areaTerm = z.string().trim().min(1).max(12);
 const areaModelBlock = z.object({
   type: z.literal("area_model"),
   caption,
+  size: figureSize,
   rows: z
     .array(areaTerm)
     .min(1)
@@ -673,6 +696,7 @@ const shapeSchema = z.discriminatedUnion("kind", [
 const shapesBlock = z.object({
   type: z.literal("shapes"),
   caption,
+  size: figureSize,
   figures: z.array(shapeSchema).min(1).max(4),
   toScale: z.boolean().default(true).describe("true dibuja todas las figuras con la misma escala, para poder compararlas."),
 });
@@ -690,6 +714,7 @@ const balanceSide = z.object({
 const balanceBlock = z.object({
   type: z.literal("balance"),
   caption,
+  size: figureSize,
   variable: z
     .string()
     .regex(/^[a-zA-Z]$/)
@@ -952,6 +977,14 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
 
 /** Los tipos que pueden ir dentro de una columna o de una tarjeta (el mismo orden del esquema). */
 export const INNER_BLOCK_TYPES: ReadonlySet<BlockType> = new Set(innerBlockInputSchema.options.map(option => option.shape.type.value));
+
+/** Las figuras: los bloques que se dibujan a partir de sus datos y tienen tamaño de presentación. */
+export const FIGURE_TYPES: ReadonlySet<BlockType> = new Set(blockInputSchema.options.filter(option => "size" in option.shape).map(option => option.shape.type.value));
+export const isFigureType = (type: BlockType) => FIGURE_TYPES.has(type);
+type WithSize<T> = T extends unknown ? ("size" extends keyof T ? T : never) : never;
+export type FigureBlockInput = WithSize<BlockInput>;
+export type FigureType = FigureBlockInput["type"];
+export const isFigure = <T extends BlockInput>(block: T): block is Extract<T, { type: FigureType }> => FIGURE_TYPES.has(block.type);
 
 export const isContainer = <T extends BlockInput>(block: T): block is Extract<T, { type: ContainerType }> => block.type === "columns" || block.type === "cards";
 export const isContainerType = (type: BlockType): type is ContainerType => type === "columns" || type === "cards";

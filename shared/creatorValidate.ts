@@ -4,6 +4,7 @@ import { BLOCK_TYPE_LABELS, blockCells, blockTexts, CREATOR_LIMITS, extractMath,
 import { cellName, containerIssues } from "./creatorContainers";
 import { barPartFits, parseProbability, pictogramIcons, probabilityValue, siblingGroups, sumProbabilities, treePaths, vennRegionsFor, vennUniverseChars, vennZoneChars } from "./creatorDiagrams";
 import { isMultipleOfFraction, labelFits, polygonArea } from "./creatorFigures";
+import { figureSizeAllowed } from "./creatorFigureSize";
 import { formatNumber, tryCompile, type CompileResult } from "./creatorMath";
 import { planeAreaIssues, planeLineIssues } from "./creatorCalculus";
 import { planeConicIssues } from "./creatorConics";
@@ -215,6 +216,7 @@ export function validateBlock(block: BlockInput): string[] {
     }
     case "graph":
       issues.push(...validateGraphSpec(block.spec));
+      if (block.size && !figureSizeAllowed(block.type, block.size)) issues.push(`Gráfica: no va en tamaño ${block.size}: sus números y rótulos dejarían de leerse en papel. Omite size o usa "large" o "full".`);
       break;
     case "number_line":
       issues.push(...validateNumberLine(block));

@@ -3,7 +3,7 @@ import { OptionSelect } from "@/components/option-select";
 import { baseTenValue, clockText, formatProbability, textToTree, treePaths, treeToText, vennRegionName, vennRegionsFor, type VennRegion } from "@shared/creatorDiagrams";
 import { parseNumberList } from "@shared/creatorFigures";
 import { formatNumberEs } from "@shared/creatorMath";
-import { BlockPreview, CaptionField, Check, Field, NumberInput, TextField, type Draft, type FormProps } from "./fields";
+import { CaptionField, Check, Field, NumberInput, TextField, type Draft, type FormProps } from "./fields";
 import { AddButton, DataRows, RemoveButton, useListVersion } from "./FigureForms";
 
 type ClassroomType = "angle" | "venn" | "tree_diagram" | "bar_model" | "pictogram" | "clock" | "base_ten";
@@ -76,7 +76,6 @@ export function AngleForm({ draft, onChange }: FormProps<"angle">) {
       </div>
       <p className="crt-form__hint">El rótulo admite fórmulas ($\alpha$, x) y sale junto a la medida: α = 45°. Sin medida y con transportador, el estudiante mide el ángulo.</p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -145,7 +144,6 @@ export function VennForm({ draft, onChange }: FormProps<"venn">) {
       })}
       <p className="crt-form__hint">Escribe una cantidad (12) o los elementos (2, 4, 6). Una zona vacía queda en blanco para que el estudiante la complete.</p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -175,7 +173,6 @@ export function TreeDiagramForm({ draft, onChange }: FormProps<"tree_diagram">) 
         {complete ? `Caminos: ${paths.map(path => `${path.labels.join("–")} = ${formatProbability(path.probability!)}`).join("; ")}.` : `${paths.length} caminos.`}
       </p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -226,7 +223,6 @@ export function BarModelForm({ draft, onChange }: FormProps<"bar_model">) {
       {draft.bars.length < 4 && <AddButton onClick={() => onChange({ ...draft, bars: [...draft.bars, { parts: [{ value: 10 }] }] })}>Añadir barra</AddButton>}
       <p className="crt-form__hint">Todas las barras se dibujan a la misma escala, para poder compararlas. Usa «?» como texto de la parte o del total que el estudiante debe hallar.</p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -254,7 +250,6 @@ export function PictogramForm({ draft, onChange }: FormProps<"pictogram">) {
       <DataRows rows={draft.rows} max={8} noun="la fila" onChange={rows => onChange({ ...draft, rows })} />
       <p className="crt-form__hint">Escribe la cantidad real de cada fila; los dibujos se calculan solos. Con dibujos de 2, un 5 se dibuja como dos dibujos y medio.</p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -294,7 +289,6 @@ export function ClockForm({ draft, onChange }: FormProps<"clock">) {
         Con manecillas y sin hora, el estudiante lee el reloj ({draft.clocks.map(clock => (Number.isFinite(clock.hour) && Number.isFinite(clock.minute) ? clockText(clock.hour, clock.minute) : "…")).join(", ")}). Sin manecillas y con hora, las dibuja.
       </p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -319,7 +313,6 @@ export function BaseTenForm({ draft, onChange }: FormProps<"base_ten">) {
         {Number.isFinite(total) ? `Los bloques forman el ${formatNumberEs(total)}. ` : ""}Hasta 9 centenas y 19 decenas o unidades: más de 9 sirve para mostrar un reagrupamiento.
       </p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }

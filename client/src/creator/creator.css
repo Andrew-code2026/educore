@@ -2022,6 +2022,17 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-figure__label--tone-point { color: #B42318; }
 .crt-figure__label--tone-b { color: #0B6E4B; }
 
+/* Tamaño de presentación (shared/creatorFigureSize.ts): la figura se amplía o se reduce entera desde su
+   ancho de diseño, sin salirse de su celda ni pasar del doble. Sin data-size mide lo de siempre.
+   Los rótulos en HTML siguen a la figura como el texto del dibujo (100cqw es el ancho de la figura), con un mínimo legible. */
+.crt-graph[data-size] > .crt-figure { width: min(100%, calc(var(--fig-w) * var(--fig-scale, 1)), calc(var(--fig-w) * 2)); container-type: inline-size; }
+.crt-graph[data-size] > .crt-plane { width: min(100%, calc(var(--plane-w) * var(--fig-scale, 1)), calc(var(--plane-w) * 2)); container-type: inline-size; }
+.crt-graph[data-size="full"] > .crt-figure { width: min(100%, calc(var(--fig-w) * 2)); }
+.crt-graph[data-size="full"] > .crt-plane { width: min(100%, calc(var(--plane-w) * 2)); }
+.crt-graph[data-size] .crt-figure__label { font-size: clamp(11px, calc(100cqw * 14 / var(--fig-wn)), 24px); }
+.crt-graph[data-size] .crt-plane__label { font-size: clamp(10px, calc(100cqw * 12.5 / var(--plane-wn)), 22px); line-height: 1.6em; }
+.crt-graph[data-size] .crt-plane__label--tall { line-height: 2.56em; }
+
 /* Añadir bloques */
 
 .crt-add { margin-top: 6px; }
@@ -2085,10 +2096,9 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-add__section:hover { border-color: var(--sheet-accent); color: var(--sheet-accent); background: var(--sheet-accent-soft); }
 
 
-/* Formularios de edición (dentro de la hoja) */
+/* Formularios de edición (en el panel lateral; sus colores los da .crt-panel) */
 
 .crt-form { display: flex; flex-direction: column; gap: 12px; padding: 6px 0; font-size: 14px; }
-.crt-form__title { font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--sheet-accent); }
 .crt-form__row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; }
 .crt-form__row--ranges .crt-input--num { width: 78px; }
 .crt-form__item { display: flex; align-items: flex-start; gap: 8px; }
@@ -2101,13 +2111,11 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-form__group { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--sheet-hair); background: #FAFBFD; }
 .crt-form__legend { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--sheet-muted); }
 .crt-form__hint { font-size: 12.5px; color: var(--sheet-muted); }
-.crt-form__preview { display: flex; justify-content: center; padding: 12px; border-radius: 10px; background: #FFFFFF; border: 1px solid var(--sheet-hair); overflow-x: auto; }
 .crt-form__grid-wrap { overflow-x: auto; }
 .crt-form__grid { border-collapse: separate; border-spacing: 4px; }
 .crt-form__grid th, .crt-form__grid td { padding: 0; min-width: 96px; }
 .crt-form__actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .crt-form__issues { margin: 0; padding: 10px 12px 10px 28px; border-radius: 10px; background: #FDEEF1; color: #B42343; font-size: 13px; line-height: 1.4; }
-.crt-form__footer { display: flex; justify-content: flex-end; gap: 8px; }
 
 .crt-doc .crt-field { display: flex; flex-direction: column; gap: 4px; flex: 0 1 auto; }
 .crt-doc .crt-field--wide { flex: 1 1 220px; min-width: 0; }
@@ -2571,6 +2579,11 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
   .crt-print .crt-plane__label--tall { line-height: 26px; }
   .crt-print .crt-figure { width: calc(var(--fig-w) * .86); }
   .crt-print .crt-figure__label { font-size: 12px; }
+  /* Con tamaño elegido, la misma reducción de papel, salvo que el pequeño ya está en el mínimo legible (figureWidth) */
+  .crt-print .crt-graph[data-size] > .crt-figure { width: min(100%, max(calc(var(--fig-w) * .75), calc(var(--fig-w) * var(--fig-scale, 1) * .86)), calc(var(--fig-w) * 2)); }
+  .crt-print .crt-graph[data-size] > .crt-plane { width: min(100%, max(calc(var(--plane-w) * .75), calc(var(--plane-w) * var(--fig-scale, 1) * .8)), calc(var(--plane-w) * 2)); }
+  .crt-print .crt-graph[data-size="full"] > .crt-figure { width: min(100%, calc(var(--fig-w) * 2)); }
+  .crt-print .crt-graph[data-size="full"] > .crt-plane { width: min(100%, calc(var(--plane-w) * 2)); }
   .crt-print .crt-answer--lines span { height: 22pt; }
 
   .crt-print .crt-block--page_break { break-after: page; height: 0; margin: 0; overflow: hidden; visibility: hidden; }
@@ -2584,10 +2597,133 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
   .crt-print .crt-cell > .crt-block:last-child { padding-bottom: 0; }
 }
 
-/* El formulario de una figura o una tabla de dentro de un contenedor se abre bajo las celdas, a todo lo ancho */
-.crt-frame__form { margin-top: 12px; padding: 4px 10px; border-radius: 10px; background: #F5F9FE; outline: 1px solid var(--sheet-accent-line); }
+/* Un bloque de dentro abierto en el panel de edición se marca en su celda */
 .crt-cell > .crt-block.is-editing { outline-color: var(--sheet-accent-line); }
 
 /* Aviso del editor (no se imprime) cuando unas columnas se ven mal en la hoja: desparejas o con un texto largo en una angosta */
 .crt-layout-hint { display: flex; align-items: flex-start; gap: 6px; margin: 10px 0 0; padding: 6px 10px; border-radius: 8px; background: var(--sheet-warn-soft); color: #7A4B00; font-size: 12.5px; line-height: 1.4; }
 .crt-layout-hint svg { flex: none; width: 14px; height: 14px; margin-top: 2px; color: #B7791F; }
+
+/* ── Panel de edición de figuras y tablas ──────────────── */
+
+/* El sitio del panel: encima del copiloto con su mismo ancho, flotando a la izquierda si el copiloto está plegado,
+   o como lámina en pantalla angosta. Está fuera de la hoja: abrirlo no la mueve. Vacío, no existe. */
+.crt .crt-work { position: relative; }
+.crt .crt-copilot-slot { height: 100%; }
+.crt .crt-side-host { position: absolute; z-index: 6; display: flex; }
+.crt .crt-side-host:empty { display: none; }
+.crt .crt-side-host > * { flex: 1; min-width: 0; }
+.crt .crt-side-host[data-mode="dock"] { top: 0; bottom: 0; left: 0; width: max(300px, var(--crt-side-w, 380px)); }
+.crt .crt-side-host[data-mode="float"] { top: 12px; bottom: 12px; left: 12px; width: min(340px, calc(100% - 24px)); }
+.crt .crt-side-host[data-mode="sheet"] { inset: 0; }
+
+.crt .crt-panel {
+  /* Los formularios se escribieron para la hoja: aquí toman los colores del editor */
+  --sheet-ink: var(--edc-ink);
+  --sheet-ink-2: var(--edc-ink);
+  --sheet-muted: var(--edc-muted);
+  --sheet-hair: var(--edc-hair);
+  --sheet-rule: var(--crt-input-border);
+  --sheet-accent: var(--crt-accent);
+  --sheet-accent-soft: var(--crt-accent-soft);
+  --sheet-accent-line: color-mix(in srgb, var(--crt-accent) 45%, transparent);
+
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--edc-main-bg);
+  color: var(--edc-ink);
+  border-right: 1px solid var(--edc-hair);
+  outline: none;
+  animation: crt-panel-in .16s ease both;
+}
+
+@keyframes crt-panel-in { from { opacity: 0; translate: -8px 0; } }
+
+.crt .crt-side-host[data-mode="float"] .crt-panel { border: 1px solid var(--crt-outline-border); border-radius: 18px; box-shadow: var(--crt-lift-shadow); overflow: hidden; }
+.crt .crt-side-host[data-mode="sheet"] .crt-panel { border-right: 0; animation-name: crt-sheet-in; }
+@keyframes crt-sheet-in { from { opacity: 0; translate: 0 18px; } }
+
+.crt .crt-panel__head { flex: none; display: flex; align-items: center; gap: 10px; padding: 14px 12px 10px 16px; }
+.crt .crt-panel__icon { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--crt-icon-bg); color: var(--crt-icon-fg); }
+.crt .crt-panel__icon svg { width: 15px; height: 15px; }
+.crt .crt-panel__titles { flex: 1; min-width: 0; }
+.crt .crt-panel__title { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.3; color: var(--edc-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crt .crt-panel__sub { margin: 0; font-size: 12.5px; color: var(--edc-muted); }
+
+.crt .crt-panel__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--edc-scroll) transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 16px 16px;
+  /* Los campos se acomodan al ancho del panel, no al de la ventana */
+  container: crt-panel / inline-size;
+}
+
+.crt .crt-panel__section { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 14px; background: var(--crt-solid); border: 1px solid var(--edc-hair); }
+.crt .crt-panel__section.crt-form { padding: 12px; font-size: 13.5px; }
+.crt .crt-panel__label { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--edc-ink); }
+.crt .crt-panel__hint { margin: 0; font-size: 12.5px; color: var(--edc-muted); }
+
+/* Los campos de los formularios, con los estilos del editor (en la hoja los da .crt-doc) */
+.crt .crt-panel .crt-field { display: flex; flex-direction: column; gap: 4px; flex: 0 1 auto; min-width: 0; }
+.crt .crt-panel .crt-field--wide { flex: 1 1 200px; min-width: 0; }
+.crt .crt-panel .crt-field__label { font-size: 12px; font-weight: 500; color: var(--edc-muted); }
+.crt .crt-panel .crt-check { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; font-size: 13px; color: var(--edc-ink); }
+.crt .crt-panel .crt-input { background: var(--crt-input-bg); }
+.crt .crt-panel .crt-form__group { background: color-mix(in srgb, var(--edc-ink) 3%, transparent); border-color: var(--edc-hair); }
+.crt .crt-panel .crt-mf math-field,
+.crt .crt-panel .crt-mf__loading { border-color: var(--crt-input-border); background: var(--crt-input-bg); color: var(--edc-ink); }
+.crt .crt-panel .crt-mf__tool { background: var(--crt-solid); }
+.crt .crt-panel .crt-rte { background: var(--crt-input-bg); border-color: var(--crt-input-border); }
+
+.crt .crt-panel__issues { flex: none; margin: 0 16px 8px; }
+.dark .crt .crt-panel__issues { background: var(--crt-alert-bg); color: var(--crt-alert-fg); }
+
+.crt .crt-panel__foot { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 10px 12px 12px 16px; border-top: 1px solid var(--edc-hair); }
+.crt .crt-panel__keys { margin-right: auto; font-size: 12px; color: var(--edc-muted-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* Lámina en pantalla angosta: la hoja queda debajo, así que la figura se ve aquí, pegada arriba */
+.crt .crt-panel__preview { flex: none; max-height: 38vh; overflow: auto; padding: 0 12px 10px; }
+.crt .crt-panel__paper { padding: 14px; border-radius: 12px; box-shadow: none; border: 1px solid var(--edc-hair); }
+
+/* Tamaño en la hoja: opciones como un control segmentado; cada una dibuja lo que ocupa en la hoja */
+.crt .crt-sizes { display: flex; gap: 2px; padding: 3px; border-radius: 12px; background: color-mix(in srgb, var(--edc-ink) 5%, transparent); }
+
+.crt .crt-size {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--edc-muted);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  transition: color .15s ease, background-color .15s ease;
+}
+
+.crt .crt-size:hover { color: var(--edc-ink); }
+.crt .crt-size[aria-checked="true"] { background: var(--crt-solid); border-color: var(--crt-outline-border); color: var(--edc-ink); box-shadow: 0 1px 2px rgba(16, 60, 113, .08); }
+.crt .crt-size__glyph { flex: none; display: flex; justify-content: center; align-items: center; width: 38px; height: 22px; padding: 3px; border-radius: 3px; border: 1px solid currentColor; opacity: .55; }
+.crt .crt-size[aria-checked="true"] .crt-size__glyph { opacity: 1; color: var(--crt-accent); }
+.crt .crt-size__glyph > span { height: 100%; border-radius: 1px; background: currentColor; opacity: .55; }
+
+/* En pantallas táctiles no hay teclado a la vista: el atajo no se anuncia */
+@media (hover: none) {
+  .crt .crt-panel__keys { visibility: hidden; }
+}

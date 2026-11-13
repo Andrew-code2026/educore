@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { OptionSelect, type SelectOption } from "@/components/option-select";
-import { CREATOR_LIMITS, graphSpecSchema, type GraphArea, type GraphConic, type GraphFunction, type GraphSecant, type GraphTangent, type GraphVerticalLine } from "@shared/creator";
+import { CREATOR_LIMITS, type GraphArea, type GraphConic, type GraphFunction, type GraphSecant, type GraphTangent, type GraphVerticalLine } from "@shared/creator";
 import { RIEMANN_SAMPLE_LABELS, type RiemannSample } from "@shared/creatorCalculus";
 import { CONIC_LABELS, CONIC_SHOW_LABELS, CONIC_SHOWS, conicEquation, type ConicKind, type ConicShow } from "@shared/creatorConics";
 import type { EndStyle } from "@shared/creatorPlane";
-import { CoordinatePlane } from "../blocks/CoordinatePlane";
 import { Formula } from "../blocks/Formula";
 import { Check, Field, NumberInput, OptionalNumberInput, type FormProps } from "./fields";
 import { AddButton, RemoveButton, useListVersion } from "./FigureForms";
@@ -133,7 +132,6 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
   const [expanded, setExpanded] = useState<ReadonlySet<number>>(new Set());
   const spec = draft.spec;
   const setSpec = (patch: Partial<typeof spec>) => onChange({ ...draft, spec: { ...spec, ...patch } });
-  const preview = graphSpecSchema.safeParse(spec);
   const setFunction = (index: number, patch: Partial<GraphFunction>) => setSpec({ functions: spec.functions.map((current, i) => (i === index ? { ...current, ...patch } : current)) });
   const functionName = (index: number) => spec.functions[index]?.expr || `función ${index + 1}`;
   const verticalLines = spec.verticalLines ?? [];
@@ -510,7 +508,6 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
           <input className="crt-input" value={draft.caption ?? ""} onChange={event => onChange({ ...draft, caption: event.target.value || undefined })} />
         </Field>
       </div>
-      <div className="crt-form__preview">{preview.success ? <CoordinatePlane spec={preview.data} /> : <span className="crt-muted">Completa los rangos para ver la gráfica.</span>}</div>
     </>
   );
 }

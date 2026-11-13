@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { blockInputSchema, type Block, type BlockInput, type BlockType } from "@shared/creator";
-import { BlockView } from "../blocks/BlockView";
+import type { BlockInput, BlockType } from "@shared/creator";
 
 export type Draft<T extends BlockType> = Extract<BlockInput, { type: T }>;
 export type FormProps<T extends BlockType> = { draft: Draft<T>; onChange: (next: Draft<T>) => void };
@@ -69,16 +68,6 @@ export function CaptionField({ value, onChange }: { value: string | undefined; o
       <Field label="Pie de la figura (opcional)" wide>
         <input className="crt-input" value={value ?? ""} onChange={event => onChange(event.target.value || undefined)} />
       </Field>
-    </div>
-  );
-}
-
-/** Vista previa de lo que se está editando, con el mismo dibujo que tendrá en la hoja. */
-export function BlockPreview({ draft }: { draft: BlockInput }) {
-  const parsed = blockInputSchema.safeParse(draft);
-  return (
-    <div className="crt-form__preview">
-      {parsed.success ? <BlockView block={{ ...parsed.data, id: "preview" } as Block} /> : <span className="crt-muted">Completa los datos para ver la figura.</span>}
     </div>
   );
 }

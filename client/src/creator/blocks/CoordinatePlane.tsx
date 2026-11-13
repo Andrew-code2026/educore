@@ -427,7 +427,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
   const bottom = PAD.top + h + 10;
 
   return (
-    <div className="crt-plane" style={{ "--plane-w": `${width}px`, aspectRatio: `${width} / ${height}` } as CSSProperties}>
+    <div className="crt-plane" style={{ "--plane-w": `${width}px`, "--plane-wn": width, aspectRatio: `${width} / ${height}` } as CSSProperties}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={describe(spec)}>
         <defs>
           <clipPath id={clipId}>

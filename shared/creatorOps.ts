@@ -8,6 +8,7 @@ import {
   findBlock,
   flattenBlocks,
   isContainer,
+  isFigure,
   mapBlockTexts,
   withCells,
   type Block,
@@ -75,11 +76,41 @@ export type OpResult =
 const fail = (error: string): OpResult => ({ ok: false, error });
 const same = (doc: ResourceDoc, ids: string[], summary = "Sin cambios"): OpResult => ({ ok: true, doc, changed: false, summary, ids });
 
-/** Normaliza el texto de un bloque antes de guardarlo (los signos de pesos no son fórmulas), también lo de dentro de un contenedor. */
+/** Una figura mediana se guarda sin tamaño: es el de siempre, y así las dos se reconocen iguales. */
+function withoutDefaultSize<T extends BlockInput>(block: T): T {
+  if (!("size" in block) || block.size !== "medium") return block;
+  const { size: _size, ...rest } = block;
+  return rest as T;
+}
+
+const normalizeOwn = <T extends BlockInput>(block: T): T => withoutDefaultSize(mapBlockTexts(block, escapeCurrency));
+
+/** Normaliza un bloque antes de guardarlo (los signos de pesos no son fórmulas, el tamaño mediano no se escribe), también lo de dentro de un contenedor. */
 export function normalizeBlock<T extends BlockInput>(block: T): T {
-  const own = mapBlockTexts(block, escapeCurrency);
+  const own = normalizeOwn(block);
   if (!isContainer(own)) return own;
-  return withCells(own, blockCells(own).map(cell => cell.map(inner => mapBlockTexts(inner, escapeCurrency)))) as T;
+  return withCells(own, blockCells(own).map(cell => cell.map(normalizeOwn))) as T;
+}
+
+/** Lo que el docente eligió para presentar una figura y la IA conserva al reescribirla: el tamaño, si ella no pide otro. */
+function keepOwnLayout(previous: BlockInput, next: BlockInput): BlockInput {
+  if (!isFigure(previous) || !isFigure(next)) return next;
+  if (next.size === undefined && previous.size !== undefined) return { ...next, size: previous.size };
+  return next;
+}
+
+/**
+ * La IA reescribe un bloque con update_block a partir de lo que lee, y puede omitir cómo se presenta una
+ * figura. Lo que omite se queda como estaba; un contenedor reescrito lo conserva en las figuras de
+ * dentro que siguen en la misma celda y posición.
+ */
+export function keepFigureLayout(previous: Block, next: BlockInput): BlockInput {
+  if (!isContainer(previous) || !isContainer(next) || previous.type !== next.type) return keepOwnLayout(previous, next);
+  const before = blockCells(previous);
+  return withCells(
+    next,
+    blockCells(next).map((cell, c) => cell.map((inner, i) => (before[c]?.[i] ? (keepOwnLayout(before[c][i], inner) as typeof inner) : inner))),
+  );
 }
 
 /** Un bloque nuevo con ids nuevos: el suyo y, si es un contenedor, los de todo lo de dentro. Un id que traiga se descarta. */
