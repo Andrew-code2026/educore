@@ -1,4 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { HomeEventsCard } from "@/components/dashboard/HomeEventsCard";
+import { HomeSummary } from "@/components/dashboard/HomeSummary";
 import { TeacherHero } from "@/components/dashboard/TeacherHero";
 import { TeacherPrioritySection } from "@/components/dashboard/TeacherPrioritySection";
 import type { TeacherPriorityItem } from "@/components/dashboard/types";
@@ -8,12 +10,10 @@ import { resolveActivePeriod } from "@/attendance/landing/landing";
 import { useStudentAttendance, useStudentGrades, useStudentTasks } from "@/student/data";
 import { firstName } from "@/student/format";
 import { buildGradesModel } from "@/student/grades/grades";
-import type { RawEvent } from "@/student/home/home";
+import { buildSummary, nextEvents, type RawEvent } from "@/student/home/home";
 import { useOpenSection } from "@/student/links";
 import type { Viewer } from "@/student/viewer";
-import { ChildSummary } from "./ChildSummary";
-import { buildChildSummary, buildGuardianPriorities, nextEvents, type GuardianTarget } from "./home";
-import { NextEventsCard } from "./NextEventsCard";
+import { buildGuardianPriorities, type GuardianTarget } from "./home";
 import "../guardian.css";
 
 interface GuardianHomeProps {
@@ -41,8 +41,8 @@ export function GuardianHome({ data, viewer, switcher, setSection }: GuardianHom
   const periodName = grades.data?.period?.name ?? resolveActivePeriod(data?.academicPeriods, now)?.name ?? undefined;
 
   const summary = useMemo(
-    () => buildChildSummary({ grades: gradesModel, attendance: attendance.model, tasks: snapshot ? tasks : null }),
-    [gradesModel, attendance.model, snapshot, tasks],
+    () => buildSummary({ grades: gradesModel, attendance: attendance.model, tasks: snapshot ? tasks : null }, now),
+    [gradesModel, attendance.model, snapshot, tasks, now],
   );
   const events = useMemo(() => nextEvents((snapshot?.events ?? []) as RawEvent[], now), [snapshot?.events, now]);
 
@@ -69,13 +69,13 @@ export function GuardianHome({ data, viewer, switcher, setSection }: GuardianHom
         {switcher}
       </div>
 
-      <ChildSummary
-        childName={childName}
+      <HomeSummary
+        label={`Resumen de ${childName}`}
         tiles={summary}
         actions={{ grades: () => setSection("grades"), attendance: () => setSection("attendance") }}
       />
 
-      <div className="gdn-home__row">
+      <div className="edc-home__row">
         <TeacherPrioritySection
           items={priorities}
           title="Por atender"
@@ -83,7 +83,7 @@ export function GuardianHome({ data, viewer, switcher, setSection }: GuardianHom
           hint="por revisar"
           emptyText={`${childName} no tiene ausencias sin excusa, entregas vencidas ni materias en riesgo.`}
         />
-        <NextEventsCard items={events} loading={!snapshot} onOpenCalendar={() => setSection("calendar")} />
+        <HomeEventsCard items={events} loading={!snapshot} onOpenCalendar={() => setSection("calendar")} />
       </div>
     </div>
   );

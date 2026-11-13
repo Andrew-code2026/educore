@@ -1,10 +1,12 @@
 /**
- * Modelo del Inicio del estudiante: "Por hacer", "Mis materias" y "Mi jornada".
- * Reúne tareas, asistencia y notas con las mismas reglas de sus páginas, así los números coinciden.
+ * Modelo del Inicio del estudiante: resumen, "Por hacer" y próximos eventos. El resumen y los
+ * eventos también los usa el Inicio del acudiente. Mismas reglas que las páginas de detalle.
  */
-import type { DayModel } from "../attendance/attendance";
-import { dayDiff, formatDue, formatGrade, formatShortDate, formatTime, toDate } from "../format";
-import type { SubjectModel } from "../grades/grades";
+import type { HomeEventItem, HomeSummaryTile } from "@/components/dashboard/types";
+import { LEVELS } from "@/gradecenter/domain/scale";
+import type { AttendanceModel, DayModel } from "../attendance/attendance";
+import { capitalize, dayDiff, formatDue, formatGrade, formatShortDate, formatTime, plural, toDate } from "../format";
+import type { GradesModel, SubjectModel } from "../grades/grades";
 import type { TaskModel } from "../tasks/tasks";
 
 export type PriorityTarget =
@@ -75,18 +77,13 @@ export function buildPriorities(input: { tasks: TaskModel[]; pendingExcuses: Day
   return [...overdue, ...excuses, ...soon, ...subjects].slice(0, MAX_PRIORITIES);
 }
 
-/** Chip corto de la tarjeta "Próxima entrega" (cabe en móvil): "Hoy", "Mañana", "En 5 días", "Vencida". */
+/** Plazo corto de una entrega: "Hoy", "Mañana", "En 5 días", "Vencida". */
 export function dueChip(task: TaskModel, now: Date = new Date()): string {
   const days = dayDiff(task.dueAt, now);
   if (days < 0) return "Vencida";
   if (days === 0) return "Hoy";
   if (days === 1) return "Mañana";
   return `En ${days} días`;
-}
-
-/** Línea de detalle: "Matemáticas · jue 12 nov, 11:00 p. m.". */
-export function dueDetail(task: TaskModel): string {
-  return `${task.subject} · ${formatShortDate(task.dueAt)}, ${formatTime(task.dueAt)}`;
 }
 
 export interface RawEvent {
@@ -97,37 +94,63 @@ export interface RawEvent {
   location?: string | null;
 }
 
-export interface AgendaItemModel {
-  id: string;
-  title: string;
-  subtitle: string;
-  time: string;
-  date: Date;
-  tag: string;
-  isToday: boolean;
-  /** Evaluaciones y cierres se resaltan en "Próximos". */
-  highlight: boolean;
+const MAX_EVENTS = 3;
+
+/**
+ * Los tres datos de "¿cómo voy?": promedio, asistencia y entregas pendientes. Mismas reglas
+ * que Calificaciones, Asistencia y Tareas, así los números coinciden. `null` = aún cargando.
+ */
+export function buildSummary(input: { grades: GradesModel | null; attendance: AttendanceModel | null; tasks: TaskModel[] | null }, now: Date = new Date()): HomeSummaryTile[] {
+  const { grades, attendance, tasks } = input;
+  const open = (tasks ?? []).filter(task => task.state === "open").sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
+  const overdue = open.filter(task => task.urgency === "overdue").length;
+  const next = open.find(task => task.daysLeft >= 0) ?? null;
+  return [
+    {
+      id: "grades",
+      label: "Promedio",
+      value: grades ? (grades.average !== null ? formatGrade(grades.average) : "—") : null,
+      note: !grades
+        ? "Cargando…"
+        : grades.average === null
+          ? "Sin notas en el periodo"
+          : grades.attention
+            ? `${plural(grades.attention, "materia", "materias")} en riesgo`
+            : `${LEVELS[grades.level!].short} · todas al día`,
+      alert: Boolean(grades?.attention),
+    },
+    {
+      id: "attendance",
+      label: "Asistencia",
+      value: attendance ? (attendance.rate !== null ? String(attendance.rate) : "—") : null,
+      unit: attendance?.rate != null ? "%" : undefined,
+      note: !attendance
+        ? "Cargando…"
+        : attendance.pendingExcuses.length
+          ? `${plural(attendance.pendingExcuses.length, "ausencia", "ausencias")} sin excusa`
+          : attendance.registered
+            ? attendance.absent
+              ? plural(attendance.absent, "ausencia con excusa", "ausencias con excusa")
+              : "Sin ausencias"
+            : "Sin registros aún",
+      alert: Boolean(attendance?.pendingExcuses.length),
+    },
+    {
+      id: "tasks",
+      label: "Por entregar",
+      value: tasks ? String(open.length) : null,
+      note: !tasks ? "Cargando…" : overdue ? plural(overdue, "vencida", "vencidas") : next ? `Próxima: ${dueChip(next, now).toLowerCase()}` : "Al día",
+      alert: overdue > 0,
+    },
+  ];
 }
 
-/** Eventos de hoy y próximos (ya filtrados por audiencia en el servidor). */
-export function buildAgenda(events: RawEvent[], now: Date = new Date()): { today: AgendaItemModel[]; upcoming: AgendaItemModel[] } {
-  const items = events
-    .map((event): AgendaItemModel => {
-      const date = toDate(event.eventDate);
-      return {
-        id: `event-${event.id}`,
-        title: event.title,
-        subtitle: [event.type || "Evento", event.location].filter(Boolean).join(" · "),
-        time: formatTime(date),
-        date,
-        tag: event.type || "Evento",
-        isToday: dayDiff(date, now) === 0,
-        highlight: /examen|evaluaci|cierre|simulacro/i.test(`${event.type ?? ""} ${event.title}`),
-      };
-    })
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
-  return {
-    today: items.filter(item => item.isToday),
-    upcoming: items.filter(item => dayDiff(item.date, now) > 0),
-  };
+/** Los próximos eventos del curso (hoy incluido), sin pasados. */
+export function nextEvents(events: RawEvent[], now: Date = new Date(), limit = MAX_EVENTS): HomeEventItem[] {
+  return events
+    .map(event => ({ id: event.id, title: event.title, date: toDate(event.eventDate) }))
+    .filter(event => dayDiff(event.date, now) >= 0)
+    .sort((a, b) => a.date.getTime() - b.date.getTime())
+    .slice(0, limit)
+    .map(event => ({ ...event, when: `${dayDiff(event.date, now) === 0 ? "Hoy" : capitalize(formatShortDate(event.date))}, ${formatTime(event.date)}` }));
 }

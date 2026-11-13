@@ -92,3 +92,24 @@ export interface TeacherDashboardProps {
   user?: any;
   setSection: (section: Section) => void;
 }
+
+/** Un dato de la franja resumen del Inicio (estudiante y acudiente). */
+export interface HomeSummaryTile {
+  id: "grades" | "attendance" | "tasks";
+  label: string;
+  /** `null` mientras carga. */
+  value: string | null;
+  unit?: string;
+  note: string;
+  /** Hay algo que revisar en este dato (solo la nota se resalta). */
+  alert: boolean;
+}
+
+/** Un evento de la tarjeta "Próximos eventos". */
+export interface HomeEventItem {
+  id: number;
+  title: string;
+  /** "Hoy, 9:00 a. m." o "Mar 17 nov, 9:00 a. m.". */
+  when: string;
+  date: Date;
+}

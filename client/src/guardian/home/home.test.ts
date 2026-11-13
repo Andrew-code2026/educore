@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildAttendanceModel } from "@/student/attendance/attendance";
 import { buildGradesModel } from "@/student/grades/grades";
 import { buildTasks } from "@/student/tasks/tasks";
-import { buildChildSummary, buildGuardianPriorities, nextEvents } from "./home";
+import { buildGuardianPriorities } from "./home";
 
 const NOW = new Date(2026, 10, 11, 10);
 const at = (days: number, hour = 23) => new Date(2026, 10, 11 + days, hour);
@@ -73,42 +73,5 @@ describe("buildGuardianPriorities", () => {
     const manyExcuses = Array.from({ length: 6 }, (_, index) => ({ ...attendance.pendingExcuses[0], id: 100 + index }));
     expect(buildGuardianPriorities({ tasks, pendingExcuses: manyExcuses, subjects: grades.subjects }, NOW)).toHaveLength(4);
     expect(buildGuardianPriorities({ tasks: [], pendingExcuses: [], subjects: [] }, NOW)).toEqual([]);
-  });
-});
-
-describe("buildChildSummary", () => {
-  it("answers how the child is doing with the same numbers as the detail pages", () => {
-    const [average, presence, pending] = buildChildSummary({ grades, attendance, tasks });
-    expect(average).toMatchObject({ label: "Promedio", value: "4.0", note: "1 materia en riesgo", alert: true });
-    expect(presence).toMatchObject({ label: "Asistencia", value: "0", unit: "%", note: "1 ausencia sin excusa", alert: true });
-    expect(pending).toMatchObject({ label: "Por entregar", value: "4", note: "1 vencida", alert: true });
-  });
-
-  it("shows loading placeholders instead of invented numbers", () => {
-    const tiles = buildChildSummary({ grades: null, attendance: null, tasks: null });
-    expect(tiles.map(tile => tile.value)).toEqual([null, null, null]);
-    expect(tiles.every(tile => tile.note === "Cargando…" && !tile.alert)).toBe(true);
-  });
-
-  it("reads as all clear when nothing needs attention", () => {
-    const clear = buildChildSummary({ grades: { ...grades, attention: 0, level: "alto" }, attendance: buildAttendanceModel([], []), tasks: [] });
-    expect(clear.map(tile => tile.note)).toEqual(["Alto · todas al día", "Sin registros aún", "Al día"]);
-    expect(clear.some(tile => tile.alert)).toBe(false);
-  });
-});
-
-describe("nextEvents", () => {
-  it("keeps today and upcoming events, soonest first, at most three", () => {
-    const events = [
-      { id: 1, title: "Pasado", eventDate: at(-2, 9) },
-      { id: 2, title: "Cierre", eventDate: at(10, 17) },
-      { id: 3, title: "Hoy", eventDate: at(0, 15) },
-      { id: 4, title: "Simulacro", eventDate: at(2, 8) },
-      { id: 5, title: "Feria", eventDate: at(5, 9) },
-    ];
-    const items = nextEvents(events, NOW);
-    expect(items.map(item => item.title)).toEqual(["Hoy", "Simulacro", "Feria"]);
-    expect(items[0].when.startsWith("Hoy, ")).toBe(true);
-    expect(items[1].when.startsWith("Vie 13 nov, ")).toBe(true);
   });
 });

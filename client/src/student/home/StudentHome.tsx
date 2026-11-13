@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { TeacherAgenda } from "@/components/dashboard/TeacherAgenda";
+import { HomeEventsCard } from "@/components/dashboard/HomeEventsCard";
+import { HomeSummary } from "@/components/dashboard/HomeSummary";
 import { TeacherHero } from "@/components/dashboard/TeacherHero";
 import { TeacherPrioritySection } from "@/components/dashboard/TeacherPrioritySection";
-import type { TeacherAgendaItem, TeacherPriorityItem } from "@/components/dashboard/types";
+import type { TeacherPriorityItem } from "@/components/dashboard/types";
 import "@/components/dashboard/teacher-home.css";
 import type { Section } from "@/components/shell/shell.types";
 import { resolveActivePeriod } from "@/attendance/landing/landing";
@@ -10,10 +11,7 @@ import { useStudentAttendance, useStudentGrades, useStudentTasks } from "../data
 import { firstName } from "../format";
 import { buildGradesModel } from "../grades/grades";
 import { useOpenSection } from "../links";
-import { summarizeTasks } from "../tasks/tasks";
-import { buildAgenda, buildPriorities, type PriorityTarget, type RawEvent } from "./home";
-import { NextDueCard } from "./NextDueCard";
-import { SubjectsCard } from "./SubjectsCard";
+import { buildPriorities, buildSummary, nextEvents, type PriorityTarget, type RawEvent } from "./home";
 
 interface StudentHomeProps {
   data: any;
@@ -21,7 +19,10 @@ interface StudentHomeProps {
   setSection: (section: Section) => void;
 }
 
-/** Inicio del estudiante: mismo layout y piezas que el Inicio docente, con su día como protagonista. */
+/**
+ * Inicio del estudiante, pensado para una mirada rápida: cómo voy (tres datos), qué tengo que
+ * hacer y qué viene. El detalle vive en Tareas, Calificaciones, Asistencia y Calendario.
+ */
 export function StudentHome({ data, user, setSection }: StudentHomeProps) {
   const [now] = useState(() => new Date());
   const openSection = useOpenSection();
@@ -31,75 +32,38 @@ export function StudentHome({ data, user, setSection }: StudentHomeProps) {
 
   const gradesModel = useMemo(() => (grades.data ? buildGradesModel(grades.data, now) : null), [grades.data, now]);
   const periodName = grades.data?.period?.name ?? resolveActivePeriod(data?.academicPeriods, now)?.name ?? undefined;
-  const next = useMemo(() => summarizeTasks(tasks).next, [tasks]);
+  const summary = useMemo(() => buildSummary({ grades: gradesModel, attendance: attendance.model, tasks }, now), [gradesModel, attendance.model, tasks, now]);
+  const events = useMemo(() => nextEvents((data?.events ?? []) as RawEvent[], now), [data?.events, now]);
 
-  const go = (target: PriorityTarget) => {
-    if (target.section === "classroom") openSection("classroom", { tarea: target.taskId });
-    else if (target.section === "grades") openSection("grades", { materia: target.subjectId });
-    else setSection("attendance");
-  };
-
-  const priorities = useMemo<TeacherPriorityItem[]>(
-    () =>
-      buildPriorities({ tasks, pendingExcuses: attendance.model?.pendingExcuses ?? [], subjects: gradesModel?.subjects ?? [] }, now).map(item => ({
-        id: item.id,
-        severity: item.severity,
-        title: item.title,
-        context: item.context,
-        actionLabel: item.actionLabel,
-        onAction: () => go(item.target),
-      })),
-    // `go` solo depende de funciones estables de navegación
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tasks, attendance.model, gradesModel, now],
-  );
-
-  const agenda = useMemo(() => {
-    const { today, upcoming } = buildAgenda((data?.events ?? []) as RawEvent[], now);
-    const toItem = (item: (typeof today)[number]): TeacherAgendaItem => ({
+  const priorities = useMemo<TeacherPriorityItem[]>(() => {
+    const go = (target: PriorityTarget) => {
+      if (target.section === "classroom") openSection("classroom", { tarea: target.taskId });
+      else if (target.section === "grades") openSection("grades", { materia: target.subjectId });
+      else setSection("attendance");
+    };
+    return buildPriorities({ tasks, pendingExcuses: attendance.model?.pendingExcuses ?? [], subjects: gradesModel?.subjects ?? [] }, now).map(item => ({
       id: item.id,
-      type: "event",
-      timeOrDate: item.time,
+      severity: item.severity,
       title: item.title,
-      subtitle: item.subtitle,
-      isToday: item.isToday,
-      date: item.date,
-      tag: item.tag,
-      tagTone: "neutral",
-      highlight: item.highlight,
-      onClick: () => setSection("calendar"),
-    });
-    return { today: today.map(toItem), upcoming: upcoming.map(toItem) };
-  }, [data?.events, now, setSection]);
+      context: item.context,
+      actionLabel: item.actionLabel,
+      onAction: () => go(item.target),
+    }));
+  }, [tasks, attendance.model, gradesModel, now, openSection, setSection]);
 
   return (
     <div className="edc-home">
       <TeacherHero teacherName={firstName(user?.name) || "estudiante"} activePeriodName={periodName} />
 
-      <div className="edc-home__grid">
-        <div className="edc-home__primary">
-          <div className="edc-home__top">
-            <NextDueCard task={next} now={now} onOpen={task => openSection("classroom", task ? { tarea: task.id } : undefined)} />
-            <SubjectsCard
-              model={gradesModel}
-              loading={grades.isLoading}
-              error={grades.isError}
-              onRetry={() => void grades.refetch()}
-              onOpenSubject={subjectId => openSection("grades", { materia: subjectId })}
-              onViewAll={() => setSection("grades")}
-            />
-          </div>
+      <HomeSummary
+        label="Tu resumen"
+        tiles={summary}
+        actions={{ grades: () => setSection("grades"), attendance: () => setSection("attendance"), tasks: () => setSection("classroom") }}
+      />
 
-          <TeacherPrioritySection items={priorities} hint="para ponerte al día" emptyText="No tienes entregas vencidas, excusas ni materias en riesgo." />
-        </div>
-
-        <TeacherAgenda
-          todayItems={agenda.today}
-          upcomingItems={agenda.upcoming}
-          onOpenCalendar={() => setSection("calendar")}
-          emptyTodayText="No tienes eventos programados hoy."
-          initialTab={agenda.today.length ? "today" : "upcoming"}
-        />
+      <div className="edc-home__row">
+        <TeacherPrioritySection items={priorities} hint="para ponerte al día" emptyText="No tienes entregas vencidas, excusas ni materias en riesgo." />
+        <HomeEventsCard items={events} onOpenCalendar={() => setSection("calendar")} />
       </div>
     </div>
   );
