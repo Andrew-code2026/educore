@@ -270,7 +270,7 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
       })}
       {spec.functions.length < CREATOR_LIMITS.functionsMax && <AddButton onClick={() => setSpec({ functions: [...spec.functions, { expr: "x" }] })}>Añadir función</AddButton>}
       <p className="crt-form__hint">
-        La parte entera se escribe floor(x). Para una función a trozos, añade una función por trozo, cada una con su dominio y todas con el mismo color; los círculos de los extremos y de los saltos se dibujan solos. Una asíntota horizontal u oblicua es una función con trazo punteado.
+        La parte entera se escribe floor(x). Para una función a trozos, añade una función por trozo, cada una con su dominio: los trozos que se tocan salen del mismo color y los círculos de los extremos y de los saltos se dibujan solos. Una asíntota horizontal u oblicua es una función con trazo punteado.
       </p>
 
       {spec.functions.length > 0 && (

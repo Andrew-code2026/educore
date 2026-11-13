@@ -90,7 +90,7 @@ export const graphFunctionSchema = z.object({
     .min(0)
     .max(3)
     .optional()
-    .describe("Color de la curva, de 0 a 3. Si se omite, cada función toma el suyo según su posición. Da el mismo a todos los trozos de una función a trozos."),
+    .describe("Color de la curva, de 0 a 3. Si se omite, cada función toma el suyo según su posición, y los trozos cuyos dominios se tocan (el to de uno es el from del otro) comparten color."),
 });
 
 export const graphPointSchema = z.object({

@@ -141,6 +141,30 @@ export const restrictToDomain =
   x =>
     inDomain(domain, x) ? fn(x) : NaN;
 
+/** Colores de la paleta de curvas del plano. */
+export const PLANE_COLORS = 4;
+
+const touches = (a: FunctionDomain, b: FunctionDomain) =>
+  (a.to !== undefined && b.from !== undefined && Math.abs(a.to - b.from) <= EPS) || (a.from !== undefined && b.to !== undefined && Math.abs(a.from - b.to) <= EPS);
+
+/**
+ * Color de cada función del plano. La que lo fija lo conserva; las demás toman el de su
+ * posición, salvo que su dominio empiece donde termina el de una función anterior: entonces
+ * son trozos de la misma función y comparten color, aunque nadie lo haya indicado.
+ */
+export function functionColors(functions: GraphFunction[]): number[] {
+  const colors: number[] = [];
+  functions.forEach((fn, index) => {
+    if (fn.color !== undefined) {
+      colors[index] = fn.color % PLANE_COLORS;
+      return;
+    }
+    const previous = functions.findIndex((other, position) => position < index && touches(other, fn));
+    colors[index] = previous === -1 ? index % PLANE_COLORS : colors[previous];
+  });
+  return colors;
+}
+
 /* ── Límites laterales ── */
 
 /**

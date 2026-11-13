@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { blockInputSchema, parseDoc, resourceDocSchema, type BlockInput, type GraphSpec } from "@shared/creator";
 import { compileExpression, sampleCurve } from "@shared/creatorMath";
-import { exactDecimals, formatDecimalEs, formatTableNumber, inDomain, oneSidedLimit, sampleFunction, tidy, valueTableDecimals } from "@shared/creatorPlane";
+import { exactDecimals, formatDecimalEs, formatTableNumber, functionColors, inDomain, oneSidedLimit, sampleFunction, tidy, valueTableDecimals } from "@shared/creatorPlane";
 import { validateBlock } from "@shared/creatorValidate";
 
 const block = (input: unknown): BlockInput => blockInputSchema.parse(input);
@@ -234,6 +234,20 @@ describe("dominio de una función", () => {
       ]),
     );
     expect(curve.marks).toHaveLength(5);
+  });
+
+  it("los trozos cuyos dominios se tocan comparten color sin que nadie lo indique", () => {
+    // Sin dominios, cada función toma el color de su posición, como siempre
+    expect(functionColors([{ expr: "x" }, { expr: "x^2" }, { expr: "1" }, { expr: "2" }, { expr: "3" }])).toEqual([0, 1, 2, 3, 0]);
+    // f(x) = x² si x < 1, x + 2 si x ≥ 1, y otra función aparte
+    expect(functionColors([{ expr: "x^2", to: 1, toEnd: "open" }, { expr: "x + 2", from: 1 }, { expr: "-x" }])).toEqual([0, 0, 2]);
+    // Tres trozos en cualquier orden
+    expect(functionColors([{ expr: "3", from: 2 }, { expr: "x^2", from: 0, to: 2 }, { expr: "x + 2", to: 0 }])).toEqual([0, 0, 0]);
+    // Dos funciones recortadas que no se tocan siguen siendo dos funciones
+    expect(functionColors([{ expr: "x", from: 0, to: 1 }, { expr: "x^2", from: 2, to: 3 }])).toEqual([0, 1]);
+    // El color fijado manda, y un trozo sin color sigue al que continúa
+    expect(functionColors([{ expr: "x", to: 0, color: 2 }, { expr: "x^2", from: 0 }, { expr: "1", color: 3 }])).toEqual([2, 2, 3]);
+    expect(functionColors([{ expr: "x", to: 0, color: 2 }, { expr: "x^2", from: 0, color: 1 }])).toEqual([2, 1]);
   });
 
   it("acepta una función a trozos y rechaza un dominio mal escrito", () => {
