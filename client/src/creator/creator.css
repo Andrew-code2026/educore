@@ -2096,10 +2096,9 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-add__section:hover { border-color: var(--sheet-accent); color: var(--sheet-accent); background: var(--sheet-accent-soft); }
 
 
-/* Formularios de edición (dentro de la hoja) */
+/* Formularios de edición (en el panel lateral; sus colores los da .crt-panel) */
 
 .crt-form { display: flex; flex-direction: column; gap: 12px; padding: 6px 0; font-size: 14px; }
-.crt-form__title { font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--sheet-accent); }
 .crt-form__row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; }
 .crt-form__row--ranges .crt-input--num { width: 78px; }
 .crt-form__item { display: flex; align-items: flex-start; gap: 8px; }
@@ -2112,13 +2111,11 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-form__group { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--sheet-hair); background: #FAFBFD; }
 .crt-form__legend { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--sheet-muted); }
 .crt-form__hint { font-size: 12.5px; color: var(--sheet-muted); }
-.crt-form__preview { display: flex; justify-content: center; padding: 12px; border-radius: 10px; background: #FFFFFF; border: 1px solid var(--sheet-hair); overflow-x: auto; }
 .crt-form__grid-wrap { overflow-x: auto; }
 .crt-form__grid { border-collapse: separate; border-spacing: 4px; }
 .crt-form__grid th, .crt-form__grid td { padding: 0; min-width: 96px; }
 .crt-form__actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .crt-form__issues { margin: 0; padding: 10px 12px 10px 28px; border-radius: 10px; background: #FDEEF1; color: #B42343; font-size: 13px; line-height: 1.4; }
-.crt-form__footer { display: flex; justify-content: flex-end; gap: 8px; }
 
 .crt-doc .crt-field { display: flex; flex-direction: column; gap: 4px; flex: 0 1 auto; }
 .crt-doc .crt-field--wide { flex: 1 1 220px; min-width: 0; }
@@ -2681,7 +2678,6 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt .crt-panel .crt-check { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; font-size: 13px; color: var(--edc-ink); }
 .crt .crt-panel .crt-input { background: var(--crt-input-bg); }
 .crt .crt-panel .crt-form__group { background: color-mix(in srgb, var(--edc-ink) 3%, transparent); border-color: var(--edc-hair); }
-.crt .crt-panel .crt-form__title { display: none; }
 .crt .crt-panel .crt-mf math-field,
 .crt .crt-panel .crt-mf__loading { border-color: var(--crt-input-border); background: var(--crt-input-bg); color: var(--edc-ink); }
 .crt .crt-panel .crt-mf__tool { background: var(--crt-solid); }
