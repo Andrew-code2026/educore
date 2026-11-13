@@ -139,6 +139,14 @@ export function resolveDraft(original: Block, written: BlockInput): DraftOutcome
   return { status: "ok", block };
 }
 
+/** Un bloque armado por un atajo, ya normalizado, o `null` si no pasaría las validaciones. */
+export function checkedInput(input: BlockInput): BlockInput | null {
+  const parsed = blockInputSchema.safeParse(input);
+  if (!parsed.success) return null;
+  const block = normalizeBlock(parsed.data);
+  return validateBlock(block).length === 0 ? block : null;
+}
+
 /** Letra del inciso que sigue: a, b, c… */
 export const nextPartLabel = (count: number) => String.fromCharCode(97 + Math.min(count, 25));
 

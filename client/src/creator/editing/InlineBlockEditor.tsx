@@ -7,8 +7,8 @@ import { Bold, Italic, List, ListOrdered, Plus, Sigma, Trash2 } from "lucide-rea
 import { BLOCK_TYPE_LABELS, type BlockInput } from "@shared/creator";
 import { AnswerSpace } from "../blocks/BlockView";
 import { ANSWER_SPACE_OPTIONS, CALLOUT_TONE_OPTIONS } from "./BlockEditor";
-import { insertPart, removePart, resolveDraft, toDraft, type InlineBlock, type InlineBlockType, type InlineDraft } from "./inlineDraft";
-import { focusInlineField, InlineText, placeCaret, PlainText, type ActiveField, type EditEntry } from "./InlineText";
+import { checkedInput, insertPart, removePart, resolveDraft, toDraft, type InlineBlock, type InlineBlockType, type InlineDraft } from "./inlineDraft";
+import { focusInlineField, InlineText, placeCaret, PlainText, type ActiveField, type BlockShortcuts, type EditEntry } from "./InlineText";
 import { insertFormula } from "./RichTextEditor";
 
 /** Cómo se cerró el editor: al salir del bloque, o desde el teclado (Escape, Intro), que devuelve el foco al bloque. */
@@ -19,6 +19,8 @@ export interface BlockEditorHandle {
   /** Guarda lo escrito si es válido y cierra. Devuelve `false` si el editor sigue abierto con un aviso. */
   settle: () => boolean;
   focus: () => void;
+  /** El bloque se va a reemplazar por otro: lo escrito no se guarda y el editor ya no se cierra solo. */
+  release?: () => void;
 }
 
 const PARTS_MAX = 8;
@@ -158,16 +160,34 @@ interface PartProps<T extends InlineBlockType> {
   submit: () => void;
   /** Cierra sin guardar. */
   discard: () => void;
+  /** Atajos que cambian el bloque entero (solo el párrafo). */
+  blockShortcuts?: BlockShortcuts;
 }
 
-function ParagraphContent({ draft, update, setActive, submit, discard }: PartProps<"paragraph">) {
-  return <InlineText id="md" main className="crt-rich" label="Texto" placeholder="Escribe aquí…" value={draft.md} onChange={md => update(current => ({ ...current, md }))} onActive={setActive} onSubmit={submit} onEscape={discard} />;
+function ParagraphContent({ draft, update, setActive, submit, discard, blockShortcuts }: PartProps<"paragraph">) {
+  return (
+    <InlineText
+      id="md"
+      main
+      className="crt-rich"
+      label="Texto"
+      // La pista del atajo solo se ve con el texto vacío
+      placeholder={blockShortcuts?.onSlash ? "Escribe, o pulsa «/» para elegir otro bloque" : "Escribe aquí…"}
+      value={draft.md}
+      onChange={md => update(current => ({ ...current, md }))}
+      onActive={setActive}
+      onSubmit={submit}
+      onEscape={discard}
+      onSlash={blockShortcuts?.onSlash}
+      onHeading={blockShortcuts?.onHeading}
+    />
+  );
 }
 
 function HeadingContent({ draft, update, setActive, submit, discard }: PartProps<"heading">) {
   return (
     <div className={`crt-heading crt-heading--${draft.level}`}>
-      <InlineText id="text" main line label="Título" placeholder="Título" value={draft.text} onChange={text => update(current => ({ ...current, text }))} onActive={setActive} onEnter={submit} onSubmit={submit} onEscape={discard} />
+      <InlineText id="text" main line shortcuts="heading" label="Título" placeholder="Título" value={draft.text} onChange={text => update(current => ({ ...current, text }))} onActive={setActive} onEnter={submit} onSubmit={submit} onEscape={discard} />
     </div>
   );
 }
@@ -430,6 +450,12 @@ interface InlineBlockEditorProps {
   onClose: (reason: CloseReason) => void;
   /** Acciones de la hoja que van al final de la barra (señalar el bloque en el chat). */
   barEnd?: ReactNode;
+  /** «/» en un párrafo vacío: la hoja abre el menú de bloques (y lo pasa en `overlay`). */
+  onSlash?: () => void;
+  /** Un atajo de escritura volvió el bloque otro: la hoja lo reemplaza y lo abre donde dice `entry`. */
+  onReplace?: (next: BlockInput, entry: EditEntry) => void;
+  /** Lo que la hoja dibuja dentro del bloque mientras se edita (el menú de «/»): tomarle el foco no cierra el editor. */
+  overlay?: ReactNode;
 }
 
 const listOf = (draft: InlineDraft): unknown[] => (draft.type === "exercise" ? draft.parts : draft.type === "solution" ? draft.steps : []);
@@ -439,7 +465,7 @@ const listOf = (draft: InlineDraft): unknown[] => (draft.type === "exercise" ? d
  * bloque no cambia de tamaño al entrar. No hay Guardar ni Cancelar: lo escrito se confirma al
  * salir del bloque, Escape lo descarta, y lo que no valida deja el editor abierto con su aviso.
  */
-export const InlineBlockEditor = forwardRef<BlockEditorHandle, InlineBlockEditorProps>(function InlineBlockEditor({ block, entry, onCommit, onClose, barEnd }, ref) {
+export const InlineBlockEditor = forwardRef<BlockEditorHandle, InlineBlockEditorProps>(function InlineBlockEditor({ block, entry, onCommit, onClose, barEnd, onSlash, onReplace, overlay }, ref) {
   const wrapper = useRef<HTMLDivElement>(null);
   // Las listas de los selects se montan dentro del editor: abrir una no lo saca de foco ni lo cierra
   const [portalContainer, wrapperRef] = usePortalContainerHost(wrapper);
@@ -486,6 +512,21 @@ export const InlineBlockEditor = forwardRef<BlockEditorHandle, InlineBlockEditor
   }, [onClose]);
 
   const submit = useCallback(() => void finish(true, "keyboard"), [finish]);
+
+  const release = useCallback(() => {
+    closed.current = true;
+  }, []);
+
+  // «## » al inicio de un párrafo lo vuelve título, si el título que sale es válido; si no, queda como texto
+  const handleHeading = useCallback(
+    (level: 2 | 3, rest: string) => {
+      if (!onReplace) return;
+      const next = checkedInput({ type: "heading", text: rest || "Nuevo título", level });
+      // La hoja libera este editor si el reemplazo sale bien
+      if (next) onReplace(next, rest ? "end" : "all");
+    },
+    [onReplace],
+  );
 
   /** Lleva el foco a un campo. Si aún no existe (se acaba de añadir), espera a que se dibuje. */
   const focusField = useCallback((id: string, at: EditEntry = "end") => {
@@ -542,13 +583,14 @@ export const InlineBlockEditor = forwardRef<BlockEditorHandle, InlineBlockEditor
   useImperativeHandle(
     ref,
     () => ({
+      release,
       settle: () => finish(true),
       focus: () => {
         const field = wrapper.current?.querySelector<HTMLElement>("[data-inline-main]") ?? wrapper.current?.querySelector<HTMLElement>("[data-inline-field]");
         if (field) focusInlineField(field, "end");
       },
     }),
-    [finish],
+    [finish, release],
   );
 
   // Al abrir: un cuadro después, cuando las fórmulas ya están dibujadas y el texto ocupa su sitio
@@ -562,7 +604,8 @@ export const InlineBlockEditor = forwardRef<BlockEditorHandle, InlineBlockEditor
 
   const draft = draftRef.current;
   // Cada tipo recibe las mismas piezas; el borrador ya viene acotado a su tipo por el `switch`
-  const shared = { active, setActive, keys: keys.current, addItem, removeItem, focusField, submit, discard };
+  const blockShortcuts = block.type === "paragraph" && onReplace ? { onSlash, onHeading: handleHeading } : undefined;
+  const shared = { active, setActive, keys: keys.current, addItem, removeItem, focusField, submit, discard, blockShortcuts };
   let content: ReactNode;
   let tools: ReactNode = null;
   switch (draft.type) {
@@ -630,6 +673,7 @@ export const InlineBlockEditor = forwardRef<BlockEditorHandle, InlineBlockEditor
           )}
         </FormatBar>
         {content}
+        {overlay}
         {issues.length > 0 && (
           <div className="crt-inplace__issues" role="alert">
             <ul>

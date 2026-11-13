@@ -1053,6 +1053,7 @@
 }
 
 .crt .crt-paper {
+  position: relative;
   width: 100%;
   max-width: 816px;
   display: flex;
@@ -1575,6 +1576,12 @@
 .crt-doc__section + .crt-doc__section { margin-top: 34px; padding-top: 26px; border-top: 2px solid var(--sheet-ink); }
 .crt-doc__section-title { margin-bottom: 14px; font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
 
+/* El nombre de la sección se renombra en su sitio: el mismo texto, con un filete al pasar por encima */
+.crt-section-title { border-radius: 6px; outline: 1px solid transparent; outline-offset: 3px; cursor: text; transition: outline-color .12s ease; }
+.crt-section-title:hover { outline-color: var(--sheet-hair); }
+.crt-section-title:focus { outline: 2px solid var(--sheet-accent-line); }
+.crt-section-title:empty::before { content: "Nombre de la sección"; color: #8A929B; font-weight: 400; }
+
 .crt-doc--preview { border: 1px dashed var(--sheet-accent-line); box-shadow: none; }
 .crt-doc--preview .crt-block { opacity: .92; }
 .crt-doc--skeleton { display: flex; flex-direction: column; gap: 14px; }
@@ -1641,6 +1648,110 @@
 .crt-block__tools button.is-danger:hover { background: #FDEEF1; color: #B42343; }
 .crt-block__tools button:disabled { opacity: .3; cursor: default; }
 .crt-block__tools button[aria-pressed="true"] { background: var(--sheet-accent-soft); color: var(--sheet-accent); }
+.crt-block__tools button[aria-expanded="true"] { background: var(--sheet-accent-soft); color: var(--sheet-accent); }
+
+/* El asa: arrastrarla mueve el bloque; un clic abre el resto de acciones. Con el dedo, arrastrar no desplaza la hoja */
+.crt-block__tools .crt-block__grip { cursor: grab; touch-action: none; }
+.crt-block__tools .crt-block__grip[data-state="open"] { background: var(--sheet-accent-soft); color: var(--sheet-accent); }
+
+/* Arrastre: el bloque que se lleva queda tenue, una línea marca dónde caerá y una etiqueta sigue al puntero */
+.crt-block.is-dragging { opacity: .38; }
+body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user-select: none !important; }
+
+.crt-drop-line {
+  position: absolute;
+  top: -1.5px;
+  left: 0;
+  z-index: 8;
+  height: 3px;
+  border-radius: 2px;
+  /* Está en el papel, fuera de la hoja: el color de acento va escrito, no con las variables de la hoja */
+  background: #0C62B5;
+  pointer-events: none;
+}
+
+.crt-drop-line::before, .crt-drop-line::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  border: 2px solid #0C62B5;
+  box-sizing: border-box;
+}
+
+.crt-drop-line::before { left: -6px; }
+.crt-drop-line::after { right: -6px; }
+
+.crt-drag-chip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  padding: 4px 10px;
+  border-radius: 999px;
+  /* Vive fuera de la hoja (en el cuerpo de la página): sin sus variables */
+  background: #111B24;
+  color: #FFFFFF;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px -10px rgba(17, 27, 36, .6);
+  pointer-events: none;
+}
+
+.crt-drop-line[hidden], .crt-drag-chip[hidden] { display: none; }
+
+/* Menú de bloques: un buscador y los tipos por familias, colgado de donde se insertará */
+.crt-picker-anchor { position: relative; z-index: 30; height: 0; }
+.crt-block.has-picker { z-index: 30; }
+
+.crt-picker {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: min(360px, 100%);
+  overflow: hidden;
+  border-radius: 12px;
+  background: #FFFFFF;
+  border: 1px solid var(--sheet-hair);
+  box-shadow: 0 18px 40px -18px rgba(17, 27, 36, .45), 0 2px 6px -2px rgba(17, 27, 36, .12);
+  color: var(--sheet-ink);
+  font-size: 13.5px;
+  font-weight: 400;
+  letter-spacing: normal;
+  animation: crt-tools-in .12s ease both;
+}
+
+.crt-picker-anchor[data-side="above"] .crt-picker { top: auto; bottom: 6px; }
+
+.crt-picker__search { display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--sheet-hair); }
+.crt-picker__search svg { flex: none; width: 15px; height: 15px; color: var(--sheet-muted); }
+.crt-picker__search input { flex: 1 1 auto; min-width: 0; height: 40px; border: 0; outline: none; background: transparent; color: inherit; font: inherit; }
+.crt-picker__search input::placeholder { color: #8A929B; }
+.crt .crt-picker__search input:focus-visible { outline: none; box-shadow: none; }
+.crt-picker__search:focus-within { border-bottom-color: var(--sheet-accent-line); }
+
+.crt-picker__list { max-height: min(320px, 50vh); overflow-y: auto; overscroll-behavior: contain; padding: 4px; scroll-padding-block: 28px 4px; }
+.crt-picker__group [cmdk-group-heading] { padding: 8px 8px 4px; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--sheet-muted); }
+
+.crt-picker__item { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+.crt-picker__item > svg { flex: none; width: 16px; height: 16px; color: var(--sheet-ink-2); }
+.crt-picker__item[data-selected="true"] { background: var(--sheet-accent-soft); }
+.crt-picker__item[data-selected="true"] > svg { color: var(--sheet-accent); }
+.crt-picker__text { display: flex; flex-direction: column; min-width: 0; }
+.crt-picker__label { font-weight: 500; line-height: 1.3; }
+.crt-picker__hint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.35; color: var(--sheet-muted); }
+.crt-picker__empty { padding: 18px 12px; text-align: center; color: var(--sheet-muted); }
+
+.crt-picker__foot { margin: 0; padding: 6px 12px; border-top: 1px solid var(--sheet-hair); font-size: 11.5px; color: var(--sheet-muted); }
+.crt-picker__foot kbd { display: inline-block; min-width: 18px; margin-right: 2px; padding: 0 4px; border: 1px solid var(--sheet-hair); border-radius: 4px; background: #F7F9FB; font-family: inherit; font-size: 11px; text-align: center; }
+
+/* Sin teclado físico la leyenda de teclas sobra (también los atajos del menú del bloque, que va fuera de la hoja) */
+@media (hover: none) { .crt-picker__foot, .crt-keys { display: none; } }
 
 /* Bloque señalado para el chat: el filete del bloque activo, en el color de acento, y una señal en el
    margen que queda cuando el puntero se va (sirve también para soltarlo) */
@@ -1842,6 +1953,7 @@
 /* Añadir bloques */
 
 .crt-add { margin-top: 6px; }
+.crt-add__row { position: relative; display: flex; align-items: center; gap: 4px; }
 
 .crt-add__button {
   display: inline-flex;
@@ -1860,23 +1972,46 @@
 
 .crt-add__button svg { width: 14px; height: 14px; }
 .crt-add__button:hover { border-color: var(--sheet-accent); color: var(--sheet-accent); background: var(--sheet-accent-soft); }
+.crt-add__button[aria-expanded="true"] { border-style: solid; border-color: var(--sheet-accent-line); color: var(--sheet-accent); background: var(--sheet-accent-soft); }
 
-.crt-add__menu { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; padding: 10px; border-radius: 12px; background: #F5F9FE; border: 1px solid var(--sheet-accent-line); }
-
-.crt-add__option {
-  height: 30px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid var(--sheet-hair);
-  background: #FFFFFF;
-  color: var(--sheet-ink-2);
-  font-family: inherit;
-  font-size: 12.5px;
+/* Opciones de la sección, junto a «Añadir bloque» */
+.crt-add__more {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--sheet-muted);
   cursor: pointer;
 }
 
-.crt-add__option:hover { border-color: var(--sheet-accent); color: var(--sheet-accent); }
-.crt-add__option--cancel { border-color: transparent; background: transparent; color: var(--sheet-muted); }
+.crt-add__more svg { width: 16px; height: 16px; }
+.crt-add__more:hover, .crt-add__more[data-state="open"] { background: var(--sheet-accent-soft); color: var(--sheet-accent); }
+
+/* Nueva sección al final del recurso: un corte como el que separa las secciones, con su botón */
+.crt-add__section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 36px;
+  margin-top: 30px;
+  border: 1px dashed var(--sheet-rule);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--sheet-muted);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.crt-add__section svg { width: 14px; height: 14px; }
+.crt-add__section:hover { border-color: var(--sheet-accent); color: var(--sheet-accent); background: var(--sheet-accent-soft); }
+
 
 /* Formularios de edición (dentro de la hoja) */
 
@@ -2218,8 +2353,8 @@
   .crt .crt-composer__card[data-flash], .crt .crt-composer__kind-hint, .crt .crt-bot__eyes, .crt .crt-bot[data-thinking] .crt-bot__bulb, .crt .crt-bot[data-thinking] .crt-bot__eyes { animation: none; }
   .crt .crt-idea:is(:hover, :focus-visible) .crt-sheet { translate: none; rotate: 5deg; }
   .crt .crt-idea:is(:hover, :focus-visible) .crt-sheet__page--back { rotate: -10deg; translate: -16px 8px; }
-  .crt-block__tools, .crt-inplace__bar { animation: none; }
-  .crt-block.is-editable, .crt-block__tools button, .crt-inplace__bar button, .crt-block__mark::before { transition: none; }
+  .crt-block__tools, .crt-inplace__bar, .crt-picker { animation: none; }
+  .crt-block.is-editable, .crt-block__tools button, .crt-inplace__bar button, .crt-block__mark::before, .crt-section-title { transition: none; }
   /* Sin animación, el bloque al que se salta queda resaltado mientras dura el aviso */
   .crt-block[data-flash], .crt-doc__section[data-flash] { animation: none; background-color: var(--sheet-accent-soft); box-shadow: 0 0 0 2px var(--sheet-accent-line); }
 }
