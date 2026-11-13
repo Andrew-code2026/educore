@@ -54,6 +54,8 @@ describe("del campo a la hoja", () => {
     expect(fromField("\\left(\\frac12\\right)^2")).toBe("\\left(\\frac{1}{2}\\right)^2");
     expect(fromField("\\left(\\left(a+b\\right)c\\right)")).toBe("((a+b)c)");
     expect(fromField("\\left(\\left(\\frac{a}{b}\\right)c\\right)")).toBe("\\left(\\left(\\frac{a}{b}\\right)c\\right)");
+    // `\middle` no existe sin `\left`
+    expect(fromField("P\\left(A\\middle|B\\right)")).toBe("P\\left(A\\middle|B\\right)");
     // Un par que no cierra con su pareja no se toca
     expect(fromField("\\left(x\\right.")).toBe("\\left(x\\right.");
     expect(fromField("\\left|x\\right)")).toBe("\\left|x\\right)");
@@ -72,6 +74,10 @@ describe("del campo a la hoja", () => {
     expect(fromField("\\operatorname{\\mathrm{sen}}\\left(x\\right)")).toBe("\\operatorname{sen}(x)");
     expect(fromField("45\\degree")).toBe("45^{\\circ}");
     expect(fromField("  x + 1  ")).toBe("x + 1");
+    // Un salto de línea seguido de letras no gana espacios; un comando que quedó pegado a una letra, sí
+    expect(fromField("a\\\\bc")).toBe("a\\\\bc");
+    expect(fromField("\\alpha\\placeholder{}x")).toBe("\\alpha{}x");
+    expect(fromField("\\pi\\left(r\\right)")).toBe("\\pi(r)");
     expect(fromField("5\\ ")).toBe("5\\ ");
   });
 

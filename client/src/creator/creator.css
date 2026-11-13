@@ -1407,7 +1407,6 @@
   white-space: normal;
 }
 
-.crt-rte__popover--right { left: auto; right: 0; }
 .crt-rte__popover-label { font-size: 12px; font-weight: 500; color: var(--sheet-muted); }
 .crt-rte__popover-preview { min-height: 28px; display: flex; align-items: center; overflow-x: auto; }
 .crt-rte__popover-error { color: #B42343; font-size: 12.5px; }

@@ -4,7 +4,7 @@ import { Keyboard } from "lucide-react";
 import { checkLatex } from "@shared/creatorValidate";
 import { Formula } from "../blocks/Formula";
 import { fieldResult, fitsField, hasEmptySlot } from "./formulaLatex";
-import { loadedMathKit, loadMathKit, mountMathField, type MathKit } from "./mathField";
+import { holdsKeyboard, loadedMathKit, loadMathKit, mountMathField, type MathKit } from "./mathField";
 
 interface FormulaInputProps {
   /** LaTeX inicial. El campo no se vuelve a cargar si cambia: móntalo con una `key` distinta. */
@@ -78,21 +78,41 @@ export function FormulaInput({ value, onChange, onEnter, onEscape, autoFocus, di
     return fitsField(latex, readBack, target.errors.length);
   }, []);
 
+  /**
+   * Pone el cuadro al día con el teclado en pantalla, que es de la librería y único para toda la página.
+   * Se dibuja pegado al fondo de su contenedor y no le da alto: se lo damos aquí, y el cuadro crece
+   * con él sin salirse de la vista.
+   */
+  const syncKeyboard = useCallback(() => {
+    const slot = keyboardHost.current;
+    if (!kit || !slot) return;
+    const open = kit.keyboard.visible && holdsKeyboard(slot);
+    setKeyboardOpen(open);
+    slot.hidden = !open;
+    if (!open) return;
+    slot.style.height = `${Math.ceil(kit.keyboard.boundingRect.height)}px`;
+    root.current?.scrollIntoView({ block: "nearest" });
+  }, [kit]);
+
   const showKeyboard = useCallback(
     (show: boolean) => {
-      if (!kit) return;
+      const slot = keyboardHost.current;
+      if (!kit || !slot) return;
       if (show) {
-        kit.keyboard.container = keyboardHost.current;
+        // Si lo tiene abierto otro cuadro, se cierra allí: la librería no lo mueve mientras está visible
+        if (kit.keyboard.visible && !holdsKeyboard(slot)) kit.keyboard.hide({ animate: false });
+        kit.keyboard.container = slot;
         kit.keyboard.show({ animate: false });
-      } else kit.keyboard.hide({ animate: false });
-      setKeyboardOpen(show);
+      } else if (holdsKeyboard(slot)) kit.keyboard.hide({ animate: false });
+      syncKeyboard();
     },
-    [kit],
+    [kit, syncKeyboard],
   );
 
   // El campo se crea una vez, cuando la librería está lista
   useEffect(() => {
     const parent = host.current;
+    const slot = keyboardHost.current;
     if (!kit || !parent) return;
     const target = mountMathField(kit, parent, "Fórmula");
     field.current = target;
@@ -128,8 +148,11 @@ export function FormulaInput({ value, onChange, onEnter, onEscape, autoFocus, di
     return () => {
       target.removeEventListener("input", onInput);
       target.removeEventListener("beforeinput", onBeforeInput);
-      kit.keyboard.hide({ animate: false });
-      kit.keyboard.container = null;
+      // Solo si el teclado es de este cuadro: puede estar sirviendo a otro
+      if (holdsKeyboard(slot)) {
+        kit.keyboard.hide({ animate: false });
+        kit.keyboard.container = null;
+      }
       target.remove();
       field.current = null;
     };
@@ -143,6 +166,8 @@ export function FormulaInput({ value, onChange, onEnter, onEscape, autoFocus, di
     if (!element) return;
     const onKeyDownFirst = (event: KeyboardEvent) => {
       if (event.isComposing || (event.key !== "Enter" && event.key !== "Escape")) return;
+      // Intro sobre un botón del cuadro lo activa, como en cualquier botón
+      if (event.key === "Enter" && event.target instanceof HTMLButtonElement) return;
       const inField = event.target === field.current;
       // A medio escribir un comando con «\», Intro y Escape son del campo: lo completan o lo cancelan
       if (inField && field.current?.mode === "latex") return;
@@ -174,27 +199,16 @@ export function FormulaInput({ value, onChange, onEnter, onEscape, autoFocus, di
     };
   }, []);
 
-  // El teclado se dibuja pegado al fondo de su contenedor y no le da alto: se lo damos aquí,
-  // y el cuadro crece con él sin salirse de la vista
+  // El teclado cambia de alto al pasar de pestaña y puede cerrarse desde fuera de este cuadro
   useEffect(() => {
     if (!kit) return;
-    const sync = () => {
-      const slot = keyboardHost.current;
-      if (!slot) return;
-      const open = kit.keyboard.visible && slot.contains(document.querySelector(".ML__keyboard"));
-      setKeyboardOpen(open);
-      slot.hidden = !open;
-      if (!open) return;
-      slot.style.height = `${Math.ceil(kit.keyboard.boundingRect.height)}px`;
-      root.current?.scrollIntoView({ block: "nearest" });
-    };
-    kit.keyboard.addEventListener("virtual-keyboard-toggle", sync);
-    kit.keyboard.addEventListener("geometrychange", sync);
+    kit.keyboard.addEventListener("virtual-keyboard-toggle", syncKeyboard);
+    kit.keyboard.addEventListener("geometrychange", syncKeyboard);
     return () => {
-      kit.keyboard.removeEventListener("virtual-keyboard-toggle", sync);
-      kit.keyboard.removeEventListener("geometrychange", sync);
+      kit.keyboard.removeEventListener("virtual-keyboard-toggle", syncKeyboard);
+      kit.keyboard.removeEventListener("geometrychange", syncKeyboard);
     };
-  }, [kit]);
+  }, [kit, syncKeyboard]);
 
   const toLatex = () => {
     showKeyboard(false);

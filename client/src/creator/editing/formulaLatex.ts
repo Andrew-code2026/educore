@@ -100,10 +100,11 @@ const ARITY: Record<string, number> = {
   "\\mathbb": 1,
 };
 
+/** Comandos que no son una pieza suelta: abren, cierran o cambian lo que sigue. */
+const STRUCTURAL = new Set(["\\left", "\\right", "\\begin", "\\end", "\\middle", "\\placeholder", "\\operatorname", "\\displaystyle", "\\textstyle", "\\limits", "\\nolimits"]);
+
 /** Un argumento sin llaves solo se envuelve si es una pieza que se sostiene sola: `1`, `x`, `\pi`. */
 const standsAlone = (token: string) => /^[0-9A-Za-z]$/.test(token) || (/^\\[a-zA-Z]+$/.test(token) && !(token in ARITY) && !STRUCTURAL.has(token));
-
-const STRUCTURAL = new Set(["\\left", "\\right", "\\begin", "\\end", "\\middle", "\\placeholder", "\\operatorname", "\\displaystyle", "\\textstyle", "\\limits", "\\nolimits"]);
 
 /** `\frac12` → `\frac{1}{2}`, `\sqrt2` → `\sqrt{2}`: como lo escribe la IA y como se lee mejor. */
 function braceArguments(tokens: string[]): string[] {
@@ -232,8 +233,9 @@ function listCommas(tokens: string[]): string[] {
   return out;
 }
 
-/** Lo que, dentro de un paréntesis, pide que crezca con el contenido. */
+/** Lo que, dentro de un paréntesis, pide que crezca con el contenido o no existe sin `\left` (`\middle`). */
 const TALL = new Set([
+  "\\middle",
   "\\frac",
   "\\dfrac",
   "\\tfrac",
@@ -298,9 +300,11 @@ function join(tokens: string[]): string {
   while (start < end && isSpace(tokens[start])) start++;
   while (end > start && isSpace(tokens[end - 1])) end--;
   let out = "";
+  let previous = "";
   for (const token of tokens.slice(start, end)) {
-    if (/^[a-zA-Z]/.test(token) && /\\[a-zA-Z]+$/.test(out)) out += " ";
+    if (/^[a-zA-Z]/.test(token) && /^\\[a-zA-Z]+$/.test(previous)) out += " ";
     out += token;
+    previous = token;
   }
   return out;
 }

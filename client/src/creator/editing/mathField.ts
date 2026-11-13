@@ -117,6 +117,14 @@ export const SHORTCUTS: InlineShortcutDefinitions = {
   omega: greek("omega"),
 };
 
+/* Los nombres de clase del teclado son de la librería y no forman parte de su API: solo se nombran aquí. */
+
+/** ¿El teclado en pantalla está dibujado dentro de `slot`? Vale aunque `slot` ya no esté en el documento. */
+export const holdsKeyboard = (slot: Element | null): boolean => Boolean(slot?.querySelector(".ML__keyboard"));
+
+/** ¿`target` es parte del teclado en pantalla? Las variantes de una tecla se dibujan fuera de su contenedor. */
+export const isKeyboardSurface = (target: Element | null): boolean => Boolean(target?.closest?.(".ML__keyboard, .MLK__variant-panel"));
+
 let kit: MathKit | null = null;
 let pending: Promise<MathKit | null> | null = null;
 

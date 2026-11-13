@@ -42,6 +42,7 @@ import {
 import { Bold, Italic, List, ListOrdered, Sigma } from "lucide-react";
 import { Formula } from "../blocks/Formula";
 import { FormulaInput } from "./FormulaInput";
+import { isKeyboardSurface } from "./mathField";
 import { parseMd, serializeMd, type Inline, type MdBlock } from "./mdModel";
 
 /* ───────────────────────── Nodo de fórmula ───────────────────────── */
@@ -188,7 +189,7 @@ function FormulaChip({ nodeKey, latex, display }: { nodeKey: NodeKey; latex: str
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Element | null;
       // Las variantes de una tecla del teclado en pantalla se dibujan fuera del cuadro
-      if (containerRef.current?.contains(target) || target?.closest?.(".MLK__variant-panel, .ML__keyboard")) return;
+      if (containerRef.current?.contains(target) || isKeyboardSurface(target)) return;
       close(draft, false);
     };
     document.addEventListener("pointerdown", onPointerDown);
