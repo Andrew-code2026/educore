@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { OptionSelect, type SelectOption } from "@/components/option-select";
-import { CREATOR_LIMITS, graphSpecSchema, type GraphFunction } from "@shared/creator";
+import { CREATOR_LIMITS, graphSpecSchema, type GraphFunction, type GraphVerticalLine } from "@shared/creator";
 import type { EndStyle } from "@shared/creatorPlane";
 import { CoordinatePlane } from "../blocks/CoordinatePlane";
 import { Check, Field, NumberInput, OptionalNumberInput, type FormProps } from "./fields";
@@ -13,6 +13,13 @@ const END_OPTIONS: readonly SelectOption<EndStyle>[] = [
   { value: "none", label: "Sin círculo" },
 ];
 
+type Stroke = NonNullable<GraphFunction["style"]>;
+
+const STROKE_OPTIONS: readonly SelectOption<Stroke>[] = [
+  { value: "solid", label: "Continuo" },
+  { value: "dashed", label: "Punteado" },
+];
+
 const COLOR_OPTIONS: readonly SelectOption<number | "">[] = [
   { value: "", label: "Automático" },
   { value: 0, label: "Azul" },
@@ -22,7 +29,7 @@ const COLOR_OPTIONS: readonly SelectOption<number | "">[] = [
 ];
 
 /** ¿La función usa alguna de las opciones que el formulario guarda plegadas? */
-const hasOptions = (fn: GraphFunction) => fn.from !== undefined || fn.to !== undefined || fn.color !== undefined;
+const hasOptions = (fn: GraphFunction) => fn.from !== undefined || fn.to !== undefined || fn.color !== undefined || fn.style !== undefined;
 
 export function GraphForm({ draft, onChange }: FormProps<"graph">) {
   const [listVersion, bump] = useListVersion();
@@ -33,6 +40,9 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
   const preview = graphSpecSchema.safeParse(spec);
   const setFunction = (index: number, patch: Partial<GraphFunction>) => setSpec({ functions: spec.functions.map((current, i) => (i === index ? { ...current, ...patch } : current)) });
   const functionName = (index: number) => spec.functions[index]?.expr || `función ${index + 1}`;
+  const verticalLines = spec.verticalLines ?? [];
+  // Una lista que queda vacía se quita del bloque: así un plano sin rectas se guarda como antes
+  const setVerticalLines = (next: GraphVerticalLine[]) => setSpec({ verticalLines: next.length > 0 ? next : undefined });
 
   return (
     <>
@@ -72,8 +82,8 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
                 <button
                   type="button"
                   className="crt-icon-btn"
-                  aria-label={`Dominio y color de la función ${index + 1}`}
-                  title="Dominio y color"
+                  aria-label={`Dominio, trazo y color de la función ${index + 1}`}
+                  title="Dominio, trazo y color"
                   onClick={() => setExpanded(current => new Set(current).add(index))}
                 >
                   <SlidersHorizontal aria-hidden="true" />
@@ -118,6 +128,15 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
                     <OptionSelect className="crt-input" aria-label={`Extremo derecho de la función ${index + 1}`} value={fn.toEnd ?? "closed"} onValueChange={toEnd => setFunction(index, { toEnd })} options={END_OPTIONS} />
                   </Field>
                 )}
+                <Field label="Trazo">
+                  <OptionSelect
+                    className="crt-input"
+                    aria-label={`Trazo de la función ${index + 1}`}
+                    value={fn.style ?? "solid"}
+                    onValueChange={style => setFunction(index, { style: style === "solid" ? undefined : style })}
+                    options={STROKE_OPTIONS}
+                  />
+                </Field>
                 <Field label="Color">
                   <OptionSelect<number | "">
                     className="crt-input"
@@ -134,8 +153,41 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
       })}
       {spec.functions.length < CREATOR_LIMITS.functionsMax && <AddButton onClick={() => setSpec({ functions: [...spec.functions, { expr: "x" }] })}>Añadir función</AddButton>}
       <p className="crt-form__hint">
-        La parte entera se escribe floor(x). Para una función a trozos, añade una función por trozo, cada una con su dominio y todas con el mismo color; los círculos de los extremos y de los saltos se dibujan solos.
+        La parte entera se escribe floor(x). Para una función a trozos, añade una función por trozo, cada una con su dominio y todas con el mismo color; los círculos de los extremos y de los saltos se dibujan solos. Una asíntota horizontal u oblicua es una función con trazo punteado.
       </p>
+
+      <span className="crt-form__legend">Rectas verticales</span>
+      {verticalLines.map((line, index) => {
+        const setLine = (patch: Partial<GraphVerticalLine>) => setVerticalLines(verticalLines.map((current, i) => (i === index ? { ...current, ...patch } : current)));
+        return (
+          <div key={`${listVersion}-v${index}`} className="crt-form__item">
+            <NumberInput label={`x de la recta vertical ${index + 1}`} value={line.x} onChange={x => setLine({ x })} />
+            <input
+              className="crt-input crt-input--code"
+              aria-label={`Etiqueta de la recta vertical ${index + 1} en LaTeX`}
+              spellCheck={false}
+              placeholder="x = 2"
+              value={line.label ?? ""}
+              onChange={event => setLine({ label: event.target.value || undefined })}
+            />
+            <OptionSelect
+              className="crt-input"
+              aria-label={`Trazo de la recta vertical ${index + 1}`}
+              value={line.style ?? "solid"}
+              onValueChange={style => setLine({ style: style === "solid" ? undefined : style })}
+              options={STROKE_OPTIONS}
+            />
+            <RemoveButton
+              label={`Quitar la recta vertical ${index + 1}`}
+              onClick={() => {
+                setVerticalLines(verticalLines.filter((_, i) => i !== index));
+                bump();
+              }}
+            />
+          </div>
+        );
+      })}
+      {verticalLines.length < CREATOR_LIMITS.verticalLinesMax && <AddButton onClick={() => setVerticalLines([...verticalLines, { x: 0, style: "dashed" }])}>Añadir recta vertical</AddButton>}
 
       <span className="crt-form__legend">Puntos marcados</span>
       {spec.points.map((point, index) => {

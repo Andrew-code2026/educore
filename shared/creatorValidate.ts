@@ -119,6 +119,15 @@ export function validateGraphSpec(spec: GraphSpec): string[] {
     if (issue) issues.push(issue);
   });
 
+  (spec.verticalLines ?? []).forEach(line => {
+    const name = `x = ${formatNumber(line.x, 4)}`;
+    if (line.x < spec.xMin || line.x > spec.xMax) issues.push(`Gráfica: la recta vertical ${name} queda fuera del plano, que va de x = ${formatNumber(spec.xMin, 4)} a x = ${formatNumber(spec.xMax, 4)}.`);
+    if (line.label) {
+      const error = checkLatex(line.label);
+      if (error) issues.push(`Gráfica: la etiqueta de la recta vertical ${name} no es LaTeX válido (${error}).`);
+    }
+  });
+
   return issues;
 }
 

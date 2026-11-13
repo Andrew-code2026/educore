@@ -65,8 +65,9 @@ const overlaps = (a: Box, b: Box) => a.x < b.x + b.w && a.x + a.w > b.x && a.y <
 function describe(spec: GraphSpec): string {
   const functions = spec.functions.map(fn => fn.expr).join("; ");
   const points = spec.points.map(point => `(${formatNumber(point.x)}, ${formatNumber(point.y)})${point.open ? " vacío" : ""}`).join(", ");
+  const lines = (spec.verticalLines ?? []).map(line => `x = ${formatNumber(line.x)}`).join(", ");
   const base = functions ? `Plano cartesiano con ${functions}` : "Plano cartesiano en blanco";
-  return points ? `${base}. Puntos marcados: ${points}.` : `${base}.`;
+  return [base, lines && `Rectas verticales: ${lines}`, points && `Puntos marcados: ${points}`].filter(Boolean).join(". ") + ".";
 }
 
 /** Plano cartesiano dibujado a partir de la función: lo que se ve siempre coincide con la fórmula. */
@@ -100,14 +101,15 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     const curves = spec.functions.map((fn, index) => {
       const tone = toneOf(index);
       const compiled = tryCompile(fn.expr);
-      if (!compiled.ok) return { index, tone, paths: [] as string[], samples: [] as Array<[number, number]>, marks: [] as CurveMark[] };
+      if (!compiled.ok) return { index, tone, paths: [] as string[], samples: [] as Array<[number, number]>, marks: [] as CurveMark[], dashed: false };
       const sampled = sampleFunction(compiled.fn, spec, fn);
       const paths = sampled.segments.map(segment => pathOf(segment.points));
       const samples = sampled.segments.flatMap(segment => segment.points).filter(([, y]) => y >= spec.yMin && y <= spec.yMax);
       // Círculos de los extremos del dominio y de los saltos, solo los que caen dentro del plano
       const marks = sampled.marks.filter(mark => inPlane(mark.x, mark.y));
-      return { index, tone, paths, samples, marks };
+      return { index, tone, paths, samples, marks, dashed: fn.style === "dashed" };
     });
+    const verticals = (spec.verticalLines ?? []).filter(line => line.x >= spec.xMin && line.x <= spec.xMax);
 
     // Las etiquetas se ubican por prioridad: primero los puntos, luego las curvas
     const plot: Box = { x: PAD.left, y: PAD.top, w, h };
@@ -132,7 +134,11 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       { x: PAD.left, y: sy(axisX) - 2, w, h: 4 },
       { x: sx(axisY) - 2, y: PAD.top, w: 4, h },
     ];
-    const curvePixels = curves.flatMap(curve => curve.samples.map(([x, y]) => [sx(x), sy(y)] as const));
+    const curvePixels = [
+      ...curves.flatMap(curve => curve.samples.map(([x, y]) => [sx(x), sy(y)] as const)),
+      // Las rectas verticales también son trazo que una etiqueta no debería tapar
+      ...verticals.flatMap(line => Array.from({ length: 25 }, (_, i) => [sx(line.x), PAD.top + (h * i) / 24] as const)),
+    ];
 
     /** Cuánto estorba una etiqueta en esa posición; cero es un sitio limpio. */
     const cost = (box: Box) => {
@@ -183,6 +189,21 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       ]);
     }
 
+    for (const line of verticals) {
+      if (!line.label) continue;
+      const px = sx(line.x);
+      const labelW = estimateWidth(line.label);
+      // Arriba o abajo de la recta, a un lado u otro: donde menos estorbe
+      place(
+        line.label,
+        "crt-plane__label--line",
+        [PAD.top + 4, PAD.top + h - LABEL_H - 4, PAD.top + h * 0.25, PAD.top + h * 0.7].flatMap(y => [
+          { x: px + 6, y },
+          { x: px - labelW - 6, y },
+        ]),
+      );
+    }
+
     for (const curve of curves) {
       const label = spec.functions[curve.index].label;
       if (!label || curve.samples.length === 0) continue;
@@ -201,12 +222,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       place(label, `crt-plane__label--${curve.tone}`, candidates);
     }
 
-    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, labels, toneOf };
+    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, labels, toneOf };
   }, [spec]);
 
   if (!view) return <div className="crt-plane crt-plane--invalid">Rango de la gráfica no válido.</div>;
 
-  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, labels, toneOf } = view;
+  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, labels, toneOf } = view;
   const axisXpx = sy(axisX);
   const axisYpx = sx(axisY);
   // Con el origen a la vista, el cero se escribe una sola vez junto al cruce de los ejes
@@ -279,9 +300,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
         </g>
 
         <g clipPath={`url(#${clipId})`}>
+          {verticals.map((line, index) => (
+            <line key={`v${index}`} className={`crt-plane__vline${line.style === "dashed" ? " crt-plane__curve--dashed" : ""}`} x1={sx(line.x)} x2={sx(line.x)} y1={PAD.top} y2={PAD.top + h} />
+          ))}
           {curves.map(curve =>
             curve.paths.map((d, index) => (
-              <path key={`${curve.index}-${index}`} className={`crt-plane__curve crt-plane__curve--${curve.tone}`} d={d} />
+              <path key={`${curve.index}-${index}`} className={`crt-plane__curve crt-plane__curve--${curve.tone}${curve.dashed ? " crt-plane__curve--dashed" : ""}`} d={d} />
             )),
           )}
         </g>

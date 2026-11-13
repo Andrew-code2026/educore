@@ -265,6 +265,30 @@ describe("dominio de una función", () => {
   });
 });
 
+describe("rectas verticales y trazo punteado", () => {
+  it("acepta asíntotas verticales y funciones punteadas", () => {
+    const spec = {
+      functions: [{ expr: "1/(x - 2) + 1" }, { expr: "1", style: "dashed", label: "y = 1" }],
+      verticalLines: [{ x: 2, style: "dashed", label: "x = 2" }, { x: -3 }],
+    };
+    expect(issuesOf(spec)).toEqual([]);
+    const parsed = graph(spec);
+    expect(parsed.type === "graph" && parsed.spec.verticalLines).toEqual([{ x: 2, style: "dashed", label: "x = 2" }, { x: -3 }]);
+  });
+
+  it("rechaza una recta fuera del plano, una etiqueta rota o un trazo desconocido", () => {
+    expect(issuesOf({ verticalLines: [{ x: 9 }] })[0]).toContain("queda fuera del plano");
+    expect(issuesOf({ verticalLines: [{ x: 1, label: "\\frac{1}{" }] })[0]).toContain("no es LaTeX válido");
+    expect(blockInputSchema.safeParse({ type: "graph", spec: { ...PLANE, verticalLines: [{ x: 1, style: "dotted" }] } }).success).toBe(false);
+    expect(blockInputSchema.safeParse({ type: "graph", spec: { ...PLANE, verticalLines: Array.from({ length: 7 }, (_, x) => ({ x })) } }).success).toBe(false);
+  });
+
+  it("un plano sin rectas verticales no gana el campo al leerse", () => {
+    const parsed = graph({ functions: [{ expr: "x" }] });
+    expect(parsed.type === "graph" && "verticalLines" in parsed.spec).toBe(false);
+  });
+});
+
 describe("puntos sobre una función", () => {
   const hole = { expr: "(x^2 - 1)/(x - 1)" };
 

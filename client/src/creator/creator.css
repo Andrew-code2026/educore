@@ -1684,6 +1684,9 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-plane__curve--b { stroke: #0F8A5F; }
 .crt-plane__curve--c { stroke: #7A3FD1; }
 .crt-plane__curve--d { stroke: #C2570C; }
+/* Trazo punteado: asíntotas, directrices y rectas auxiliares */
+.crt-plane__curve--dashed { stroke-dasharray: 7 5; stroke-linecap: butt; stroke-width: 1.8; }
+.crt-plane__vline { fill: none; stroke: #3F4A56; stroke-width: 2; }
 .crt-plane__points circle { fill: #D92D20; stroke: #FFFFFF; stroke-width: 1.5; }
 /* Círculos de extremos y saltos: rellenos si el punto pertenece a la curva, vacíos si no */
 .crt-plane__tone--a { --plane-tone: #1F5FE0; }
@@ -1711,6 +1714,7 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-plane__label--b { color: #0F8A5F; }
 .crt-plane__label--c { color: #7A3FD1; }
 .crt-plane__label--d { color: #C2570C; }
+.crt-plane__label--line { color: #3F4A56; }
 
 /* Figuras (recta numérica, fracciones, diagramas, figuras geométricas, balanza) */
 

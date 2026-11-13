@@ -28,6 +28,8 @@ export const CREATOR_LIMITS = {
   /** Curvas de un plano; eran 4 y subió a 6 para que quepa una función a trozos junto a otra. */
   functionsMax: 6,
   pointsMax: 12,
+  /** Rectas x = k de un plano: las asíntotas de una tangente en dos períodos. */
+  verticalLinesMax: 6,
   /** Marcas por eje: más que esto deja la cuadrícula ilegible al imprimir. */
   ticksMax: 40,
   /** Datos crudos de un histograma o de una caja y bigotes: hasta cinco cursos de 40 estudiantes. */
@@ -62,6 +64,7 @@ const caption = z.string().trim().max(200).optional();
 const label = z.string().trim().min(1).max(60);
 
 const graphEnd = z.enum(["closed", "open", "none"]);
+const graphStroke = z.enum(["solid", "dashed"]);
 
 // Los campos añadidos después de la primera versión son opcionales y sin valor por defecto:
 // un recurso guardado antes se lee igual que se guardó.
@@ -74,6 +77,7 @@ export const graphFunctionSchema = z.object({
     .optional()
     .describe('Extremo izquierdo del dominio: "closed" círculo relleno (el punto pertenece; es el valor por defecto), "open" círculo vacío (no pertenece), "none" sin círculo.'),
   toEnd: graphEnd.optional().describe("Extremo derecho del dominio, igual que fromEnd."),
+  style: graphStroke.optional().describe('"dashed" dibuja la curva punteada: asíntotas horizontales u oblicuas y rectas auxiliares. Por defecto, continua.'),
   color: z
     .number()
     .int()
@@ -100,6 +104,12 @@ export const graphPointSchema = z.object({
     .describe("true dibuja el punto vacío: un hueco de la curva, donde la función no está definida o vale otra cosa. Sobre una función (on) debe estar en el límite de la función en ese x."),
 });
 
+export const graphVerticalLineSchema = z.object({
+  x: z.number().describe("La recta es x = este valor."),
+  style: graphStroke.optional().describe('"dashed" para una asíntota vertical o una recta auxiliar. Por defecto, continua.'),
+  label: latex.optional().describe('Etiqueta en LaTeX, p. ej. "x = 2".'),
+});
+
 export const graphSpecSchema = z.object({
   xMin: z.number(),
   xMax: z.number(),
@@ -113,6 +123,11 @@ export const graphSpecSchema = z.object({
     .default([])
     .describe("Vacío para un plano en blanco donde el estudiante grafica."),
   points: z.array(graphPointSchema).max(CREATOR_LIMITS.pointsMax).default([]),
+  verticalLines: z
+    .array(graphVerticalLineSchema)
+    .max(CREATOR_LIMITS.verticalLinesMax)
+    .optional()
+    .describe("Rectas verticales x = k, que no se pueden escribir como función: asíntotas verticales y directrices."),
 });
 
 const headerFieldsBlock = z.object({
@@ -691,6 +706,7 @@ export type ShapeFigure = z.infer<typeof shapeSchema>;
 export type GraphSpec = z.infer<typeof graphSpecSchema>;
 export type GraphFunction = z.infer<typeof graphFunctionSchema>;
 export type GraphPoint = z.infer<typeof graphPointSchema>;
+export type GraphVerticalLine = z.infer<typeof graphVerticalLineSchema>;
 export type BlockInput = z.infer<typeof blockInputSchema>;
 export type Block = z.infer<typeof blockSchema>;
 export type BlockType = Block["type"];
