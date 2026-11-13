@@ -16,7 +16,7 @@ const OUTLOOK_TONE: Record<OutlookTone, { className: string; icon: typeof Info }
 };
 
 /** Detalle de una materia: definitiva, proyección para aprobar y cada evaluación con su retroalimentación. */
-export function SubjectDetail({ subject }: { subject: SubjectModel }) {
+export function SubjectDetail({ subject, emptyNote }: { subject: SubjectModel; emptyNote: string }) {
   const outlook = OUTLOOK_TONE[subject.outlook.tone];
   const OutlookIcon = outlook.icon;
   return (
@@ -59,7 +59,7 @@ export function SubjectDetail({ subject }: { subject: SubjectModel }) {
             ))}
           </ul>
         ) : (
-          <p className="stp-note">Tu docente aún no ha publicado evaluaciones en esta materia.</p>
+          <p className="stp-note">{emptyNote}</p>
         )}
       </div>
     </>

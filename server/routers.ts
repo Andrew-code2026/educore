@@ -87,7 +87,7 @@ import {
 import { hasPermission, IDENTITY_ROLES, type IdentityRole } from "./identityModel";
 import { canUsePiar, createPiarRecord, deletePiarRecord, getPiarCourse, getPiarRecord, listPiarCourses, savePiarRecord } from "./piarDb";
 import { PIAR_MAX_KEYS, PIAR_VALUE_MAX } from "@shared/piar";
-import { StudentPortalError, getStudentCourseName, getStudentGrades, getStudentReportCard, submitStudentTask, type StudentActor } from "./studentPortalDb";
+import { StudentPortalError, getStudentCourseName, getStudentGrades, getStudentReportCard, listGuardianChildren, submitStudentTask, type StudentActor } from "./studentPortalDb";
 import { ensureStudentPortalSeeded } from "./studentPortalSeed";
 import { CLARIFY_LIMITS, clarificationSchema, composeCreatorRequest, CREATOR_LIMITS, emptyDoc, plainText, RESOURCE_KINDS, resourceDocSchema } from "@shared/creator";
 import { buildSampleDoc, SAMPLE_IDS, SAMPLES } from "@shared/creatorSample";
@@ -220,6 +220,14 @@ async function piarCall<T>(run: () => Promise<T>): Promise<T> {
 async function requireStudentActor(ctx: TrpcContext, role: EduRole, permission: string, isMutation = false): Promise<StudentActor> {
   const actor = await requirePermission(ctx, role, permission, isMutation);
   if (actor.roleKey !== "STUDENT") throw new TRPCError({ code: "FORBIDDEN", message: "Esta sección es solo para estudiantes." });
+  await ensureStudentPortalSeeded(actor.schoolId);
+  return actor;
+}
+
+/** Lecturas compartidas por los portales estudiante y acudiente (el acudiente, solo de sus hijos). */
+async function requireLearnerActor(ctx: TrpcContext, role: EduRole, permission: string, allowed: readonly IdentityRole[] = ["STUDENT", "GUARDIAN"]): Promise<StudentActor> {
+  const actor = await requirePermission(ctx, role, permission);
+  if (!allowed.includes(actor.roleKey)) throw new TRPCError({ code: "FORBIDDEN", message: "Esta sección es solo para estudiantes y acudientes." });
   await ensureStudentPortalSeeded(actor.schoolId);
   return actor;
 }
@@ -531,13 +539,14 @@ export const appRouter = router({
     }),
   }),
   student: router({
-    grades: publicProcedure.input(z.object({ role: roleSchema, academicPeriodId: z.number().int().optional() })).query(async ({ input, ctx }) => {
-      const actor = await requireStudentActor(ctx, input.role, "grades.view");
-      return studentCall(() => getStudentGrades(actor, { academicPeriodId: input.academicPeriodId }));
+    // `studentUserId` solo lo usa el acudiente (hijo vinculado); para el estudiante se ignora
+    grades: publicProcedure.input(z.object({ role: roleSchema, academicPeriodId: z.number().int().optional(), studentUserId: z.number().int().positive().optional() })).query(async ({ input, ctx }) => {
+      const actor = await requireLearnerActor(ctx, input.role, "grades.view");
+      return studentCall(() => getStudentGrades(actor, { academicPeriodId: input.academicPeriodId, studentUserId: input.studentUserId }));
     }),
-    reportCard: publicProcedure.input(z.object({ role: roleSchema, academicPeriodId: z.number().int().optional() })).query(async ({ input, ctx }) => {
-      const actor = await requireStudentActor(ctx, input.role, "grades.view");
-      return studentCall(() => getStudentReportCard(actor, { academicPeriodId: input.academicPeriodId }));
+    reportCard: publicProcedure.input(z.object({ role: roleSchema, academicPeriodId: z.number().int().optional(), studentUserId: z.number().int().positive().optional() })).query(async ({ input, ctx }) => {
+      const actor = await requireLearnerActor(ctx, input.role, "grades.view");
+      return studentCall(() => getStudentReportCard(actor, { academicPeriodId: input.academicPeriodId, studentUserId: input.studentUserId }));
     }),
     submitTask: publicProcedure.input(z.object({
       role: roleSchema,
@@ -550,6 +559,13 @@ export const appRouter = router({
       const result = await studentCall(() => submitStudentTask(actor, { assignmentId: input.assignmentId, comment: input.comment, file: input.file }));
       await writeAuditLog(input.role, "submit_assignment", `${input.assignmentId}:${actor.userId}`, actor.schoolId);
       return result;
+    }),
+  }),
+  guardian: router({
+    /** Hijos vinculados al acudiente autenticado, con su curso. */
+    children: publicProcedure.input(z.object({ role: roleSchema })).query(async ({ input, ctx }) => {
+      const actor = await requireLearnerActor(ctx, input.role, "students.view", ["GUARDIAN"]);
+      return studentCall(() => listGuardianChildren(actor));
     }),
   }),
   educore: router({

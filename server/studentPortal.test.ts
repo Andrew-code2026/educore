@@ -142,3 +142,48 @@ describe("Portal estudiante: datos propios y entregas", () => {
     expect(new Set(records.map(record => record.studentId))).toEqual(new Set([String(roster.id)]));
   });
 });
+
+describe("Portal acudiente: solo los hijos vinculados", () => {
+  let mariana: any;
+  let andres: any;
+  let sofia: any;
+  let carlos: any;
+
+  beforeAll(async () => {
+    await ensureEduCoreSeeded();
+    await ensureStudentPortalSeeded(DEMO_SCHOOL_ID);
+    mariana = await userByOpenId("educore-demo-guardian-1");
+    andres = await userByOpenId("educore-demo-guardian-2");
+    sofia = await userByOpenId("educore-demo-student-1");
+    carlos = await userByOpenId("educore-demo-student-2");
+  });
+
+  it("lists the guardian's children with the primary link first and their course", async () => {
+    const children = await callerFor(mariana).guardian.children({ role: "guardian" });
+    expect(children[0]).toMatchObject({ id: sofia.id, name: "Sofía Martínez", courseName: "11-2", isPrimary: true });
+    expect(children.map(child => child.id)).toContain(carlos.id);
+    // Solo datos de presentación, nada de la fila completa del usuario
+    expect(Object.keys(children[0]!).sort()).toEqual(["courseName", "id", "isPrimary", "name", "relationshipType"]);
+  });
+
+  it("reads grades and the report card of a linked child, defaulting to the primary one", async () => {
+    const byDefault = await callerFor(mariana).student.grades({ role: "guardian" });
+    expect(byDefault?.student.id).toBe(sofia.id);
+    const explicit = await callerFor(mariana).student.grades({ role: "guardian", studentUserId: sofia.id });
+    expect(explicit?.average).toBe(4.2);
+    const card = await callerFor(mariana).student.reportCard({ role: "guardian", studentUserId: sofia.id });
+    expect(card?.students.map(student => student.studentId)).toEqual([sofia.id]);
+  });
+
+  it("rejects children that are not linked to the guardian", async () => {
+    await expect(callerFor(andres).student.grades({ role: "guardian", studentUserId: sofia.id })).rejects.toThrow(/no está vinculado/i);
+    await expect(callerFor(andres).student.reportCard({ role: "guardian", studentUserId: sofia.id })).rejects.toThrow(/no está vinculado/i);
+  });
+
+  it("ignores studentUserId for a student and keeps tasks submission student-only", async () => {
+    const grades = await callerFor(sofia).student.grades({ role: "student", studentUserId: carlos.id });
+    expect(grades?.student.id).toBe(sofia.id);
+    await expect(callerFor(mariana).student.submitTask({ role: "guardian", assignmentId: 1, comment: "", file: null })).rejects.toBeInstanceOf(TRPCError);
+    await expect(callerFor(sofia).guardian.children({ role: "student" })).rejects.toBeInstanceOf(TRPCError);
+  });
+});

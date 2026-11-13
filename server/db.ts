@@ -422,6 +422,8 @@ export async function getEduCoreSnapshot(
   const effectiveRoleKey = actor?.roleKey ?? ({ admin: "SCHOOL_ADMIN", teacher: "TEACHER", student: "STUDENT", guardian: "GUARDIAN" } as const)[role];
 
   let targetStudentName = "Sofía Martínez";
+  /** Hijo que mira el acudiente: el portal lo usa para no mezclar datos al cambiar de hijo. */
+  let guardianStudentId: number | null = null;
 
   if (effectiveRoleKey === "STUDENT" && actor?.userId) {
     const studentUser = (await db.select().from(users).where(and(eq(users.schoolId, schoolId), eq(users.id, actor.userId))).limit(1))[0];
@@ -435,11 +437,13 @@ export async function getEduCoreSnapshot(
       const linkedStudentIds = new Set(linkedRelationships.map(r => r.studentUserId));
       const chosenStudentId = (selectedStudentId && linkedStudentIds.has(selectedStudentId))
         ? selectedStudentId
-        : linkedRelationships[0]?.studentUserId;
+        // Sin selección, el vínculo primario (el mismo que elige el portal acudiente)
+        : [...linkedRelationships].sort((x, y) => y.isPrimary - x.isPrimary)[0]?.studentUserId;
       if (chosenStudentId) {
         const studentUser = (await db.select().from(users).where(and(eq(users.schoolId, schoolId), eq(users.id, chosenStudentId))).limit(1))[0];
         if (studentUser?.name) {
           targetStudentName = studentUser.name;
+          guardianStudentId = studentUser.id;
         }
       }
     }
@@ -561,6 +565,7 @@ export async function getEduCoreSnapshot(
     reportCards: isStudentOrGuardian ? reportCardRows.filter(row => row.studentName === targetStudentName) : reportCardRows,
     planning: isStudentOrGuardian ? [] : planningRows,
     academicPeriods: periodRows,
+    guardianStudentId,
     role,
     roleName: ROLE_NAMES[role],
   };

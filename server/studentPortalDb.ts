@@ -1,6 +1,7 @@
 /**
- * Lecturas y escrituras del portal estudiante. Todo se resuelve a partir del actor autenticado:
- * el cliente nunca indica de qué estudiante o curso se trata.
+ * Lecturas y escrituras de los portales estudiante y acudiente. Todo se resuelve a partir del actor
+ * autenticado: el estudiante solo se ve a sí mismo; el acudiente puede indicar cuál de sus hijos
+ * vinculados consulta, y el servidor lo verifica. El curso nunca lo indica el cliente.
  */
 import path from "node:path";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
@@ -21,7 +22,7 @@ import {
   users,
 } from "../drizzle/schema";
 import { checkResourceFile } from "@shared/courseResources";
-import { getDb } from "./db";
+import { getDb, listGuardianStudents } from "./db";
 import { computeCourseReportCards, type CourseReportCards } from "./gradeCenterDb";
 import type { IdentityRole } from "./identityModel";
 import { storagePut } from "./storage";
@@ -35,17 +36,74 @@ const round1 = (value: number) => Math.round(value * 10) / 10;
 const isClosedStatus = (status: string) => status === "Cerrado" || status === "CLOSED";
 const isActiveStatus = (status: string) => status === "Activo" || status === "ACTIVE";
 
-/** Matrícula activa del estudiante: usuario, curso y año académico. */
-async function studentContext(actor: StudentActor) {
+export type GuardianChild = {
+  id: number;
+  name: string;
+  courseName: string | null;
+  /** PARENT, LEGAL_GUARDIAN u OTHER; `null` si el vínculo viene solo del nombre del acudiente. */
+  relationshipType: string | null;
+  isPrimary: boolean;
+};
+
+/** Hijos vinculados al acudiente, con su curso actual; el vínculo primario va primero. */
+export async function listGuardianChildren(actor: StudentActor): Promise<GuardianChild[]> {
+  if (actor.roleKey !== "GUARDIAN") throw new StudentPortalError("Esta sección es solo para acudientes.");
+  const db = await getDb();
+  if (!db) return [];
+  const linked = await listGuardianStudents(actor.schoolId, actor.userId);
+  if (!linked.length) return [];
+  const enrollmentRows = await db
+    .select({ studentUserId: studentEnrollments.studentUserId, academicYearId: studentEnrollments.academicYearId, courseName: courses.name })
+    .from(studentEnrollments)
+    .innerJoin(courses, eq(courses.id, studentEnrollments.courseId))
+    .where(and(eq(studentEnrollments.schoolId, actor.schoolId), inArray(studentEnrollments.studentUserId, linked.map(child => child.id)), eq(studentEnrollments.enrollmentStatus, "ACTIVE")));
+  // Matrícula del año más reciente por estudiante
+  const courseByStudent = new Map<number, { year: number; name: string }>();
+  for (const row of enrollmentRows) {
+    const current = courseByStudent.get(row.studentUserId);
+    if (!current || row.academicYearId > current.year) courseByStudent.set(row.studentUserId, { year: row.academicYearId, name: row.courseName });
+  }
+  return linked
+    .filter(child => Boolean(child.name))
+    .map(
+      (child): GuardianChild => ({
+        id: child.id,
+        name: child.name!,
+        courseName: courseByStudent.get(child.id)?.name ?? null,
+        relationshipType: child.relationship?.relationshipType ?? null,
+        isPrimary: Boolean(child.relationship?.isPrimary),
+      }),
+    )
+    .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.name.localeCompare(b.name, "es"));
+}
+
+/**
+ * Estudiante que se consulta: el propio estudiante, o el hijo que pide el acudiente
+ * (debe estar vinculado; sin indicarlo, el vínculo primario).
+ */
+async function resolveStudentUserId(actor: StudentActor, studentUserId?: number): Promise<number> {
+  if (actor.roleKey === "STUDENT") return actor.userId;
+  if (actor.roleKey !== "GUARDIAN") throw new StudentPortalError("Esta sección es solo para estudiantes y acudientes.");
+  const children = await listGuardianChildren(actor);
+  if (studentUserId === undefined) {
+    if (!children.length) throw new StudentPortalError("Aún no tienes estudiantes vinculados a tu cuenta.");
+    return children[0].id;
+  }
+  if (!children.some(child => child.id === studentUserId)) throw new StudentPortalError("Ese estudiante no está vinculado a tu cuenta.");
+  return studentUserId;
+}
+
+/** Matrícula activa del estudiante consultado: usuario, curso y año académico. */
+async function studentContext(actor: StudentActor, requestedStudentId?: number) {
   const db = await getDb();
   if (!db) return null;
-  if (actor.roleKey !== "STUDENT") throw new StudentPortalError("Esta sección es solo para estudiantes.");
+  const studentUserId = await resolveStudentUserId(actor, requestedStudentId);
   const [user, profile, enrollment] = await Promise.all([
-    db.select({ id: users.id, name: users.name }).from(users).where(and(eq(users.id, actor.userId), eq(users.schoolId, actor.schoolId))).limit(1).then(rows => rows[0]),
-    db.select({ studentCode: studentProfiles.studentCode }).from(studentProfiles).where(and(eq(studentProfiles.schoolId, actor.schoolId), eq(studentProfiles.userId, actor.userId))).limit(1).then(rows => rows[0]),
-    db.select().from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, actor.schoolId), eq(studentEnrollments.studentUserId, actor.userId), eq(studentEnrollments.enrollmentStatus, "ACTIVE"))).orderBy(desc(studentEnrollments.academicYearId)).limit(1).then(rows => rows[0]),
+    db.select({ id: users.id, name: users.name }).from(users).where(and(eq(users.id, studentUserId), eq(users.schoolId, actor.schoolId))).limit(1).then(rows => rows[0]),
+    db.select({ studentCode: studentProfiles.studentCode }).from(studentProfiles).where(and(eq(studentProfiles.schoolId, actor.schoolId), eq(studentProfiles.userId, studentUserId))).limit(1).then(rows => rows[0]),
+    db.select().from(studentEnrollments).where(and(eq(studentEnrollments.schoolId, actor.schoolId), eq(studentEnrollments.studentUserId, studentUserId), eq(studentEnrollments.enrollmentStatus, "ACTIVE"))).orderBy(desc(studentEnrollments.academicYearId)).limit(1).then(rows => rows[0]),
   ]);
-  if (!user?.name) throw new StudentPortalError("No pudimos identificar tu usuario.");
+  if (!user?.name) throw new StudentPortalError("No pudimos identificar al estudiante.");
   if (!enrollment) return { db, user: { id: user.id, name: user.name, code: profile?.studentCode ?? null }, course: null, academicYearId: null };
   const course = (await db.select().from(courses).where(and(eq(courses.id, enrollment.courseId), eq(courses.schoolId, actor.schoolId))).limit(1))[0] ?? null;
   return { db, user: { id: user.id, name: user.name, code: profile?.studentCode ?? null }, course, academicYearId: enrollment.academicYearId };
@@ -99,7 +157,7 @@ export type StudentGrades = {
 const periodState = (status: string): StudentPeriod["state"] => (isClosedStatus(status) ? "closed" : isActiveStatus(status) ? "active" : "scheduled");
 
 /** Definitivas por materia del estudiante en un periodo. */
-async function subjectGrades(actor: StudentActor, courseId: number, periodId: number): Promise<StudentSubjectGrades[]> {
+async function subjectGrades(actor: StudentActor, studentUserId: number, courseId: number, periodId: number): Promise<StudentSubjectGrades[]> {
   const db = await getDb();
   if (!db) return [];
   const links = await db.select({ subjectId: courseSubjects.subjectId }).from(courseSubjects).where(and(eq(courseSubjects.schoolId, actor.schoolId), eq(courseSubjects.courseId, courseId), eq(courseSubjects.status, "ACTIVE")));
@@ -112,7 +170,7 @@ async function subjectGrades(actor: StudentActor, courseId: number, periodId: nu
     db.select().from(assessments).where(and(eq(assessments.schoolId, actor.schoolId), eq(assessments.courseId, courseId), eq(assessments.academicPeriodId, periodId), ne(assessments.status, "DELETED"), ne(assessments.status, "DRAFT"))).orderBy(assessments.date),
   ]);
   const gradeRows = evaluationRows.length
-    ? await db.select({ assessmentId: assessmentGrades.assessmentId, value: assessmentGrades.value, comment: assessmentGrades.comment }).from(assessmentGrades).where(and(eq(assessmentGrades.schoolId, actor.schoolId), eq(assessmentGrades.studentId, actor.userId), inArray(assessmentGrades.assessmentId, evaluationRows.map(row => row.id))))
+    ? await db.select({ assessmentId: assessmentGrades.assessmentId, value: assessmentGrades.value, comment: assessmentGrades.comment }).from(assessmentGrades).where(and(eq(assessmentGrades.schoolId, actor.schoolId), eq(assessmentGrades.studentId, studentUserId), inArray(assessmentGrades.assessmentId, evaluationRows.map(row => row.id))))
     : [];
   const gradeByAssessment = new Map(gradeRows.map(row => [row.assessmentId, row]));
   const teacherBySubject = new Map<number, string>();
@@ -159,8 +217,8 @@ const averageOf = (rows: StudentSubjectGrades[]) => {
   return values.length ? round1(values.reduce((sum, value) => sum + value, 0) / values.length) : null;
 };
 
-export async function getStudentGrades(actor: StudentActor, input: { academicPeriodId?: number }): Promise<StudentGrades | null> {
-  const context = await studentContext(actor);
+export async function getStudentGrades(actor: StudentActor, input: { academicPeriodId?: number; studentUserId?: number }): Promise<StudentGrades | null> {
+  const context = await studentContext(actor, input.studentUserId);
   if (!context) return null;
   const { db, user, course, academicYearId } = context;
   const empty: StudentGrades = { student: user, course: null, periods: [], period: null, subjects: [], average: null, previous: null, observations: [], reportCardGeneratedAt: null };
@@ -169,7 +227,7 @@ export async function getStudentGrades(actor: StudentActor, input: { academicPer
   const periodRows = await db.select().from(academicPeriods).where(and(eq(academicPeriods.schoolId, actor.schoolId), eq(academicPeriods.academicYearId, academicYearId))).orderBy(academicPeriods.orderIndex);
   const periods = periodRows.map((row): StudentPeriod => ({ id: row.id, name: row.name, orderIndex: row.orderIndex, startDate: row.startDate, endDate: row.endDate, state: periodState(row.status) }));
   if (input.academicPeriodId !== undefined && !periods.some(period => period.id === input.academicPeriodId)) {
-    throw new StudentPortalError("Ese periodo no pertenece a tu año académico.");
+    throw new StudentPortalError("Ese periodo no pertenece al año académico del estudiante.");
   }
   const period = periods.find(row => row.id === input.academicPeriodId) ?? periods.find(row => row.state === "active") ?? periods[periods.length - 1] ?? null;
   const base = { ...empty, course: { id: course.id, name: course.name, directorName: course.teacherName?.trim() || null }, periods, period };
@@ -177,10 +235,10 @@ export async function getStudentGrades(actor: StudentActor, input: { academicPer
 
   const previousPeriod = [...periods].reverse().find(row => row.orderIndex < period.orderIndex && row.state !== "scheduled");
   const [rows, previousRows, observationRows, runRows] = await Promise.all([
-    subjectGrades(actor, course.id, period.id),
-    previousPeriod ? subjectGrades(actor, course.id, previousPeriod.id) : Promise.resolve([]),
-    db.select({ id: academicObservations.id, text: academicObservations.text, createdAt: academicObservations.createdAt }).from(academicObservations).where(and(eq(academicObservations.schoolId, actor.schoolId), eq(academicObservations.studentId, actor.userId), eq(academicObservations.academicPeriodId, period.id), eq(academicObservations.status, "PUBLISHED"))).orderBy(academicObservations.createdAt),
-    db.select({ generatedAt: reportCardRuns.generatedAt }).from(reportCardRuns).where(and(eq(reportCardRuns.schoolId, actor.schoolId), eq(reportCardRuns.studentId, actor.userId), eq(reportCardRuns.courseId, course.id), eq(reportCardRuns.academicPeriodId, period.id))).orderBy(desc(reportCardRuns.generatedAt)).limit(1),
+    subjectGrades(actor, user.id, course.id, period.id),
+    previousPeriod ? subjectGrades(actor, user.id, course.id, previousPeriod.id) : Promise.resolve([]),
+    db.select({ id: academicObservations.id, text: academicObservations.text, createdAt: academicObservations.createdAt }).from(academicObservations).where(and(eq(academicObservations.schoolId, actor.schoolId), eq(academicObservations.studentId, user.id), eq(academicObservations.academicPeriodId, period.id), eq(academicObservations.status, "PUBLISHED"))).orderBy(academicObservations.createdAt),
+    db.select({ generatedAt: reportCardRuns.generatedAt }).from(reportCardRuns).where(and(eq(reportCardRuns.schoolId, actor.schoolId), eq(reportCardRuns.studentId, user.id), eq(reportCardRuns.courseId, course.id), eq(reportCardRuns.academicPeriodId, period.id))).orderBy(desc(reportCardRuns.generatedAt)).limit(1),
   ]);
 
   return {
@@ -194,13 +252,13 @@ export async function getStudentGrades(actor: StudentActor, input: { academicPer
 }
 
 /** Boletín del estudiante en un periodo (en vivo, con la misma regla que el boletín oficial). */
-export async function getStudentReportCard(actor: StudentActor, input: { academicPeriodId?: number }): Promise<CourseReportCards | null> {
-  const context = await studentContext(actor);
+export async function getStudentReportCard(actor: StudentActor, input: { academicPeriodId?: number; studentUserId?: number }): Promise<CourseReportCards | null> {
+  const context = await studentContext(actor, input.studentUserId);
   if (!context?.course || !context.academicYearId) return null;
-  const { db, course, academicYearId } = context;
+  const { db, user, course, academicYearId } = context;
   const periodRows = await db.select().from(academicPeriods).where(and(eq(academicPeriods.schoolId, actor.schoolId), eq(academicPeriods.academicYearId, academicYearId))).orderBy(academicPeriods.orderIndex);
   if (input.academicPeriodId !== undefined && !periodRows.some(row => row.id === input.academicPeriodId)) {
-    throw new StudentPortalError("Ese periodo no pertenece a tu año académico.");
+    throw new StudentPortalError("Ese periodo no pertenece al año académico del estudiante.");
   }
   const period = periodRows.find(row => row.id === input.academicPeriodId) ?? periodRows.find(row => isActiveStatus(row.status)) ?? periodRows[0];
   if (!period) return null;
@@ -209,7 +267,7 @@ export async function getStudentReportCard(actor: StudentActor, input: { academi
     course: { id: course.id, name: course.name, year: course.year, directorName: course.teacherName?.trim() || null },
     period: { id: period.id, name: period.name, closed: isClosedStatus(period.status) },
     academicYearId,
-    students: cards.filter(card => card.studentId === actor.userId),
+    students: cards.filter(card => card.studentId === user.id),
   };
 }
 
@@ -227,6 +285,8 @@ export type SubmitTaskInput = {
  * no esté calificada; el archivo se guarda con las mismas reglas de formato que los recursos del curso.
  */
 export async function submitStudentTask(actor: StudentActor, input: SubmitTaskInput) {
+  // Solo el propio estudiante entrega; el acudiente consulta pero no entrega por él
+  if (actor.roleKey !== "STUDENT") throw new StudentPortalError("Solo el estudiante puede entregar sus actividades.");
   const context = await studentContext(actor);
   if (!context) throw new StudentPortalError("Base de datos no disponible.");
   const { db, user, course } = context;

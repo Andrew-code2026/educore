@@ -4,9 +4,10 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { FileText, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useLocation, useSearch } from "wouter";
 import { toast } from "sonner";
 import { GradeCenterPage } from "./GradeCenter";
-import { TeacherDashboard, StudentDashboard } from "@/components/dashboard";
+import { TeacherDashboard } from "@/components/dashboard";
 import { AttendancePage } from "./Attendance";
 import { ClassroomPage } from "./Classroom";
 import { AnalyticsPage } from "./Analytics";
@@ -28,6 +29,8 @@ import {
   useSectionRoute,
 } from "@/components/shell";
 import { StudentPortal } from "@/student/StudentPortal";
+import { GuardianPortal } from "@/guardian/GuardianPortal";
+import { childIdFromSearch } from "@/guardian/children";
 
 const roleLabels: Record<EduRole, string> = ROLE_LABELS;
 
@@ -53,8 +56,10 @@ export default function Home() {
   const loginDemoMutation = trpc.auth.loginDemo.useMutation();
   const [demoMode, setDemoMode] = useState(false);
   const [role, setRole] = useState<EduRole>(() => (localStorage.getItem("educore-demo-role") as EduRole) || "admin");
-  const [selectedStudentId, setSelectedStudentId] = useState<number | undefined>();
   const [section, setSection] = useSectionRoute();
+  const [, navigate] = useLocation();
+  // Hijo que mira el acudiente: vive en la URL (?estudiante=7), la misma fuente que usa su portal
+  const guardianChildId = childIdFromSearch(useSearch()) ?? undefined;
   const effectiveRole = role;
   // Cada rol solo abre sus secciones (p. ej. un estudiante en /users o Rectoría en los flujos de aula vuelven a Inicio)
   const sectionAllowed = isSectionAllowed(effectiveRole, section);
@@ -65,8 +70,14 @@ export default function Home() {
       setSection("overview", { replace: true });
     }
   }, [sectionAllowed, setSection]);
-  const snapshotInput = useMemo(() => ({ role: effectiveRole, selectedStudentId: effectiveRole === "guardian" ? selectedStudentId : undefined }), [effectiveRole, selectedStudentId]);
-  const { data, isLoading, refetch } = trpc.educore.snapshot.useQuery(snapshotInput, { enabled: !loading });
+  const snapshotInput = useMemo(() => ({ role: effectiveRole, selectedStudentId: effectiveRole === "guardian" ? guardianChildId : undefined }), [effectiveRole, guardianChildId]);
+  // Al cambiar de hijo se conserva el snapshot anterior mientras llega el nuevo (no se vuelve a la
+  // pantalla de carga); el portal acudiente no muestra sus tareas ni eventos hasta que coincide.
+  // Al cambiar de rol no: los datos de otro rol nunca se muestran.
+  const { data, isLoading, refetch } = trpc.educore.snapshot.useQuery(snapshotInput, {
+    enabled: !loading,
+    placeholderData: previous => (previous?.role === effectiveRole ? previous : undefined),
+  });
 
   useEffect(() => {
     if (user?.openId === "educore-demo-teacher-1") setRole("teacher");
@@ -104,9 +115,9 @@ export default function Home() {
       }
     }
     setRole(nextRole);
-    setSelectedStudentId(undefined);
     localStorage.setItem("educore-demo-role", nextRole);
-    setSection("overview");
+    // Inicio limpio: sin el hijo ni la materia que miraba el rol anterior
+    navigate("/");
     // Todas las consultas dependen del actor de la sesión: se descartan las del rol anterior
     await utils.invalidate();
     toast.success(`Vista cambiada a ${roleLabels[nextRole]}`);
@@ -128,11 +139,12 @@ export default function Home() {
   const isAdmin = effectiveRole === "admin";
   const content =
     effectiveRole === "student" ? <StudentPortal section={activeSection} data={data} user={user} setSection={setSection} onChanged={refresh} />
-    : activeSection === "overview" ? (isAdmin ? <AdminDashboard data={data} user={user} setSection={setSection} /> : effectiveRole === "teacher" ? <TeacherDashboard data={data} user={user} setSection={setSection} /> : <StudentDashboard data={data} user={user} role={effectiveRole} setSection={setSection} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} />)
+    : effectiveRole === "guardian" ? <GuardianPortal section={activeSection} data={data} user={user} setSection={setSection} onChanged={refresh} />
+    : activeSection === "overview" ? (isAdmin ? <AdminDashboard data={data} user={user} setSection={setSection} /> : <TeacherDashboard data={data} user={user} setSection={setSection} />)
     : activeSection === "academic" ? (isAdmin ? <AcademicPage setSection={setSection} /> : <LegacyAcademicPage data={data} role={effectiveRole} setSection={setSection} onGradeSaved={refresh} />)
     : activeSection === "grades" ? <GradeCenterPage role={effectiveRole} school={data.school} onBack={() => setSection("overview")} />
     : activeSection === "classroom" ? <ClassroomPage data={data} role={effectiveRole} onChanged={refresh} setSection={setSection} />
-    : activeSection === "attendance" ? <AttendancePage data={data} role={effectiveRole} user={user} selectedStudentId={selectedStudentId} onSelectStudent={setSelectedStudentId} onNavigate={setSection} />
+    : activeSection === "attendance" ? <AttendancePage data={data} role={effectiveRole} user={user} onNavigate={setSection} />
     : activeSection === "calendar" ? <CalendarPage data={data} role={effectiveRole} onChanged={refresh} />
     : activeSection === "communications" ? <CommunicationsPage data={data} role={effectiveRole} onChanged={refresh} />
     : activeSection === "reports" ? <ReportsPage data={data} role={effectiveRole} setSection={setSection} />
