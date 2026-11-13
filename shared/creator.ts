@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { areaModelProduct, computeAreaModel } from "./creatorAlgebra";
+import { CONIC_LABELS } from "./creatorConics";
 import { VENN_REGIONS } from "./creatorDiagrams";
 import { MATH_EXPR_MAX } from "./creatorMath";
 
@@ -931,10 +932,8 @@ export type CreatorEvent =
   | { type: "doc"; doc: ResourceDoc }
   | { type: "done"; ok: boolean; error?: string };
 
-const CONIC_KIND_LABELS: Record<GraphConic["kind"], string> = { circle: "Circunferencia", ellipse: "Elipse", parabola: "Parábola", hyperbola: "Hipérbola" };
-
 /** Lo que hay en un plano, en pocas palabras: las funciones y los nombres de las cónicas. */
-const graphContents = (spec: GraphSpec): string => [...spec.functions.map(fn => fn.expr), ...(spec.conics ?? []).map(conic => CONIC_KIND_LABELS[conic.kind])].join(", ");
+const graphContents = (spec: GraphSpec): string => [...spec.functions.map(fn => fn.expr), ...(spec.conics ?? []).map(conic => CONIC_LABELS[conic.kind])].join(", ");
 
 export const SHAPE_KIND_LABELS: Record<ShapeFigure["kind"], string> = {
   rectangle: "Rectángulo",

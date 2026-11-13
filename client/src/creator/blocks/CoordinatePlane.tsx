@@ -3,7 +3,7 @@ import type { GraphSpec } from "@shared/creator";
 import { formatNumber, formatNumberEs, tryCompile } from "@shared/creatorMath";
 import { areaLabel, areaShape, lineLabel, secantLine, tangentLine, type PlaneLine } from "@shared/creatorCalculus";
 import { CONIC_LABELS, conicCurves, conicEquation, shownConicElements, type ConicLine } from "@shared/creatorConics";
-import { functionColors, hasEqualUnits, sampleFunction, type CurveMark } from "@shared/creatorPlane";
+import { functionColors, hasEqualUnits, insidePlane, sampleFunction, type CurveMark } from "@shared/creatorPlane";
 import { Formula } from "./Formula";
 
 /** Márgenes alrededor de la cuadrícula: caben las flechas de los ejes y los números. */
@@ -77,7 +77,13 @@ function describe(spec: GraphSpec): string {
   const drawn = [functions, ...(spec.conics ?? []).map(conic => CONIC_LABELS[conic.kind].toLowerCase())].filter(Boolean).join("; ");
   const base = drawn ? `Plano cartesiano con ${drawn}` : "Plano cartesiano en blanco";
   const shaded = (spec.areas ?? []).map(area => `de x = ${formatNumber(area.from)} a x = ${formatNumber(area.to)}`).join("; ");
-  return [base, lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, points && `Puntos marcados: ${points}`].filter(Boolean).join(". ") + ".";
+  const tangents = (spec.tangents ?? []).map(tangent => `x = ${formatNumber(tangent.x)}`).join(", ");
+  const secants = (spec.secants ?? []).map(secant => `x = ${formatNumber(secant.x1)} y x = ${formatNumber(secant.x2)}`).join("; ");
+  return (
+    [base, lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, tangents && `Recta tangente en ${tangents}`, secants && `Recta secante entre ${secants}`, points && `Puntos marcados: ${points}`]
+      .filter(Boolean)
+      .join(". ") + "."
+  );
 }
 
 /** Plano cartesiano dibujado a partir de la función: lo que se ve siempre coincide con la fórmula. */
@@ -103,7 +109,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     const everyX = Math.max(1, Math.ceil(xTicks.length / 14));
     const everyY = Math.max(1, Math.ceil(yTicks.length / 14));
 
-    const inPlane = (x: number, y: number) => x >= spec.xMin - 1e-9 && x <= spec.xMax + 1e-9 && y >= spec.yMin - 1e-9 && y <= spec.yMax + 1e-9;
+    const inPlane = (x: number, y: number) => insidePlane(spec, x, y);
     const pathOf = (points: Array<[number, number]>) => points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${sx(x).toFixed(2)} ${sy(y).toFixed(2)}`).join(" ");
     // Cada función toma un color por su posición, salvo que lo fije; los trozos de una misma función comparten el suyo
     const colors = functionColors(spec.functions);

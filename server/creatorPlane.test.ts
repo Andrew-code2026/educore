@@ -129,6 +129,30 @@ describe("muestreo de una función", () => {
     expect(third.marks).toEqual([]);
   });
 
+  it("encuentra los saltos pequeños frente al alto del plano", () => {
+    // floor(x)/2 en un plano de alto 24: cada salto mide 0,5, unos 2 % del alto
+    const curve = sampleFunction(compileExpression("floor(x)/2"), { xMin: -3.5, xMax: 3.5, yMin: -12, yMax: 12 });
+    expect(curve.breaks).toEqual([-3, -2, -1, 0, 1, 2, 3]);
+    expect(curve.jumps).toBe(7);
+    expect(curve.segments).toHaveLength(8);
+    expect(curve.marks.filter(mark => mark.x === 1)).toEqual([
+      { x: 1, y: 0, filled: false },
+      { x: 1, y: 0.5, filled: true },
+    ]);
+  });
+
+  it("una asíntota en el borde izquierdo del plano no deja un hueco", () => {
+    // ln(x) con el plano empezando en x = 0: la curva baja hasta salir por abajo
+    const log = sampleFunction(compileExpression("ln(x)"), { xMin: 0, xMax: 10, yMin: -20, yMax: 4 });
+    expect(log.segments).toHaveLength(1);
+    expect(log.segments[0].points[0][1]).toBeLessThan(-20);
+    expect(log.marks).toEqual([]);
+    expect(log.breaks).toEqual([]);
+    const inverse = sampleFunction(compileExpression("1/x"), { xMin: 0, xMax: 5, yMin: -1, yMax: 6 });
+    expect(inverse.segments).toHaveLength(1);
+    expect(inverse.segments[0].points[0][1]).toBeGreaterThan(6);
+  });
+
   it("corta en las asíntotas sin unir los dos lados y sin círculos", () => {
     const inverse = sampleFunction(compileExpression("1/x"), { xMin: -4, xMax: 4, yMin: -5, yMax: 5 });
     expect(inverse.segments).toHaveLength(2);
@@ -321,6 +345,11 @@ describe("puntos sobre una función", () => {
   it("un punto relleno sigue yendo en el valor de la función, y dentro de su dominio", () => {
     expect(issuesOf({ functions: [{ expr: "floor(x)" }], points: [{ x: 2, y: 2, on: 0 }] })).toEqual([]);
     expect(issuesOf({ functions: [{ expr: "floor(x)" }], points: [{ x: 2, y: 1, on: 0 }] })[0]).toContain("la función vale 2");
+    // Donde la función no existe, el aviso lo dice y propone el punto vacío
+    const undefinedAt = issuesOf({ functions: [hole], points: [{ x: 1, y: 2, on: 0 }] });
+    expect(undefinedAt).toHaveLength(1);
+    expect(undefinedAt[0]).toContain("la función no está definida en x = 1");
+    expect(undefinedAt[0]).toContain("vacío (open)");
     const outside = issuesOf({ functions: [{ expr: "x + 1", to: 1, toEnd: "open" }], points: [{ x: 1, y: 2, on: 0 }] });
     expect(outside[0]).toContain("no pertenece al dominio");
     expect(issuesOf({ functions: [{ expr: "x + 1", to: 1, toEnd: "open" }], points: [{ x: 1, y: 2, on: 0, open: true }] })).toEqual([]);

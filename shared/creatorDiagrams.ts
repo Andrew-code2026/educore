@@ -17,7 +17,7 @@ export interface Probability {
   style: "fraction" | "decimal" | "percent";
 }
 
-const gcd = (a: number, b: number): number => (b === 0 ? Math.abs(a) : gcd(b, a % b));
+export const gcd = (a: number, b: number): number => (b === 0 ? Math.abs(a) : gcd(b, a % b));
 
 function reduce(n: number, d: number, style: Probability["style"]): Probability {
   const divisor = gcd(n, d) || 1;

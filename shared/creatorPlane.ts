@@ -54,7 +54,12 @@ export const hasEqualUnits = (xSpan: number, ySpan: number): boolean => {
 
 /* ── Números ── */
 
-const EPS = 1e-9;
+/** Tolerancia de las comparaciones de coordenadas: lo que está a menos de esto es el mismo punto. */
+export const EPS = 1e-9;
+
+/** ¿El punto cae dentro del plano (bordes incluidos)? */
+export const insidePlane = (range: PlaneRange, x: number, y: number): boolean =>
+  x >= range.xMin - EPS && x <= range.xMax + EPS && y >= range.yMin - EPS && y <= range.yMax + EPS;
 
 /** Quita el ruido de un cálculo numérico: 1.9999999996 → 2, 1e-17 → 0. Un número como π queda igual. */
 export function tidy(value: number): number {
@@ -225,7 +230,9 @@ export function sampleFunction(source: CompiledExpression, range: PlaneRange, do
   // En el borde del plano la función sigue: ahí no hay extremo que marcar ni lado de fuera que dibujar
   const loIsPlaneEdge = domain.from === undefined || domain.from < xMin;
   const hiIsPlaneEdge = domain.to === undefined || domain.to > xMax;
-  const steep = height / 40;
+  // Un cambio de más de un par de píxeles entre muestras vecinas se mira de cerca: así también se
+  // encuentran los saltos pequeños (los de floor(x)/2 en un plano alto), no solo los grandes
+  const steep = height / 160;
   /** Diferencia que ya no se ve en el dibujo: por debajo, la curva es continua. */
   const tolerance = height * 1e-3;
   const near = (a: number, b: number) => Math.abs(a - b) <= tolerance;
@@ -294,10 +301,13 @@ export function sampleFunction(source: CompiledExpression, range: PlaneRange, do
       else for (const [x, y] of approach(x0, c)) emit(x, y);
     }
     cut();
+    if (!atRightEdge) {
+      if (right !== null) emit(c, right);
+      else for (const [x, y] of approach(x1, c).reverse()) emit(x, y);
+    }
+    // En el borde del plano la curva llega hasta él, pero no hay corte que contar ni círculos que poner
     if (atLeftEdge || atRightEdge) return;
     if (!result.breaks.some(other => Math.abs(other - c) <= EPS * scale)) result.breaks.push(c);
-    if (right !== null) emit(c, right);
-    else for (const [x, y] of approach(x1, c).reverse()) emit(x, y);
 
     if (left !== null && right !== null) {
       // El mismo límite por los dos lados: un hueco, que solo se marca si alguien pone el punto vacío
@@ -480,5 +490,6 @@ export function planePointIssue(point: GraphPoint, fn: GraphFunction, source: Co
   if (!inDomain(fn, point.x)) return `Gráfica: el punto ${name} dice estar sobre "${fn.expr}", pero x = ${at} no pertenece al dominio de ese trozo. Corrige el punto o márcalo como vacío (open).`;
   const expected = source(point.x);
   if (nearlyEqual(expected, point.y)) return null;
+  if (!Number.isFinite(expected)) return `Gráfica: el punto ${name} no puede ir relleno sobre "${fn.expr}": la función no está definida en x = ${at}. Si es un hueco, márcalo como vacío (open).`;
   return `Gráfica: el punto ${name} no está sobre "${fn.expr}": en x = ${at} la función vale ${formatNumber(expected, 4)}. Corrige el punto.`;
 }

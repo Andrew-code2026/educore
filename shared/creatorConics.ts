@@ -1,6 +1,7 @@
 import type { GraphConic, GraphSpec } from "./creator";
 import { formatNumber } from "./creatorMath";
-import { figureNumber as numberEs, figureNumberLatex as numberLatex, hasEqualUnits, isExactNumber as isExact, PLANE_EQUAL_UNITS, type PlaneRange } from "./creatorPlane";
+import { gcd } from "./creatorDiagrams";
+import { figureNumber as numberEs, figureNumberLatex as numberLatex, hasEqualUnits, insidePlane, isExactNumber as isExact, PLANE_EQUAL_UNITS, type PlaneRange } from "./creatorPlane";
 
 /**
  * Cónicas del plano cartesiano: circunferencia, elipse, parábola e hipérbola dadas por sus
@@ -241,8 +242,6 @@ export function conicCurves(conic: GraphConic, range: PlaneRange): Array<Array<[
 
 /* ── Comprobaciones para el validador ── */
 
-const EPS = 1e-9;
-const insidePlane = (spec: PlaneRange, x: number, y: number) => x >= spec.xMin - EPS && x <= spec.xMax + EPS && y >= spec.yMin - EPS && y <= spec.yMax + EPS;
 const point4 = (x: number, y: number) => `(${formatNumber(x, 4)}, ${formatNumber(y, 4)})`;
 
 const POINT_NAMES: Record<ConicPoint["role"], string> = { center: "el centro", focus: "el foco", vertex: "el vértice", covertex: "el covértice" };
@@ -336,10 +335,6 @@ const listPoints = (points: ConicPoint[]) => points.map(namedPoint).join(" y ");
 function focalText(squared: number, c: number): string {
   if (isExact(c)) return `c = ${numberEs(c)}`;
   return isExact(squared) ? `c = √${numberEs(squared)} ≈ ${numberEs(c)}` : `c ≈ ${numberEs(c)}`;
-}
-
-function gcd(a: number, b: number): number {
-  return b === 0 ? Math.abs(a) : gcd(b, a % b);
 }
 
 /** Pendiente de las asíntotas como fracción de los semiejes, simplificada si son enteros. */

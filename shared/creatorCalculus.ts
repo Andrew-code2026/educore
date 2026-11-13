@@ -1,7 +1,7 @@
 import type { GraphArea, GraphSecant, GraphSpec, GraphTangent } from "./creator";
 import { pointText } from "./creatorConics";
 import { formatNumber, tryCompile, type CompiledExpression } from "./creatorMath";
-import { figureNumber, figureNumberLatex, inDomain, isExactNumber, oneSidedLimit, restrictToDomain, sampleFunction, tidy } from "./creatorPlane";
+import { EPS, figureNumber, figureNumberLatex, inDomain, insidePlane, isExactNumber, oneSidedLimit, restrictToDomain, sampleFunction, tidy } from "./creatorPlane";
 
 /**
  * Cálculo sobre las funciones del plano cartesiano: el área de una región, las sumas de
@@ -209,7 +209,6 @@ export function areaLabel(spec: GraphSpec, area: GraphArea): string | null {
 
 /* ── Comprobaciones para el validador ── */
 
-const EPS = 1e-9;
 const SCAN_STEPS = 200;
 
 function areaIssues(spec: GraphSpec, area: GraphArea, position: number): string[] {
@@ -394,8 +393,6 @@ export function lineLabel(line: PlaneLine, show: GraphTangent["show"]): string |
   if (show === "equation") return lineEquationLatex(line);
   return null;
 }
-
-const insidePlane = (spec: GraphSpec, x: number, y: number) => x >= spec.xMin - EPS && x <= spec.xMax + EPS && y >= spec.yMin - EPS && y <= spec.yMax + EPS;
 
 /** Problema de un punto de la curva por el que debe pasar una recta, o null. */
 function curvePointIssue(spec: GraphSpec, index: number, x: number, what: string): string | null {
