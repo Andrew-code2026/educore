@@ -160,10 +160,11 @@ export function describeActivity(activity: CreatorActivity, doc: ResourceDoc): A
   }
 
   if ((match = /^(?:Bloque eliminado|(\d+) bloques eliminados)$/.exec(label))) {
-    const where = section ? ` de ${quote(section.title, 40)}` : "";
     const removed = activity.removed ?? [];
-    if (removed.length > 0) return { kind: "delete", subject: listNames(removed), detail: `${agree("eliminad", removed.map(item => item.type))}${where}`, linked: false, counts: true };
     const count = Number(match[1] ?? 1);
+    // La ficha guarda la sección del primer bloque borrado: solo se nombra si fue uno solo (un ejercicio y su solución viven en secciones distintas)
+    const where = section && count === 1 ? ` de ${quote(section.title, 40)}` : "";
+    if (removed.length > 0) return { kind: "delete", subject: listNames(removed), detail: `${agree("eliminad", removed.map(item => item.type))}${where}`, linked: false, counts: true };
     return { kind: "delete", subject: many(count, "Bloque", "bloques"), detail: `${count === 1 ? "eliminado" : "eliminados"}${where}`, linked: false, counts: true };
   }
 

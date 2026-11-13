@@ -117,6 +117,14 @@ describe("cómo se lee cada acción de la IA", () => {
     expect(describeActivity(activities[1], doc).subject).toBe("Recuadro «Conceptos clave»");
   });
 
+  it("un ejercicio y su solución borrados juntos no se atribuyen a una sola sección", () => {
+    const start = base();
+    const exerciseId = start.doc.sections[0].blocks[2].id;
+    const solutionId = start.doc.sections[1].blocks[0].id;
+    const { doc, activities } = run([["delete_blocks", { block_ids: [exerciseId, solutionId] }]], start.doc);
+    expect(describeActivity(activities[0], doc)).toMatchObject({ kind: "delete", subject: "Ejercicio 1 y Solución del Ejercicio 1", detail: "eliminados" });
+  });
+
   it("lo eliminado se conserva al guardar el mensaje y al leerlo", () => {
     const start = base();
     const { activities } = run([["delete_blocks", { block_ids: [start.doc.sections[1].blocks[0].id] }]], start.doc);
