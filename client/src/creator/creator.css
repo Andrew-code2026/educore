@@ -1114,6 +1114,11 @@
 
 .crt .crt-chat__list { display: flex; flex-direction: column; gap: 16px; }
 
+/* En pantalla angosta el copiloto ocupa todo el ancho: la conversación conserva un largo de línea legible */
+.crt .crt-chat__list,
+.crt .crt-chat__next,
+.crt .crt-chat__composer > :not(.crt-chat__to-end) { width: 100%; max-width: 720px; margin-inline: auto; }
+
 /* Conversación vacía */
 .crt .crt-chat__intro { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 6px 4px 0; }
 .crt .crt-chat__intro .crt-bot { margin-bottom: 8px; }
@@ -1139,6 +1144,21 @@
   color: var(--chat-user-fg);
   white-space: pre-wrap;
 }
+
+.crt .crt-chat__msg--user.is-clamped p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; line-clamp: 6; overflow: hidden; }
+
+.crt .crt-chat__more {
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--edc-blue-link);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.crt .crt-chat__more:hover { text-decoration: underline; }
 
 /* Lo que hizo la IA en una respuesta: recuento, «Deshacer» y una ficha por acción */
 .crt .crt-turn {

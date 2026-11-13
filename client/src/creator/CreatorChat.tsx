@@ -189,6 +189,28 @@ function TurnSummary({
   );
 }
 
+/** Un mensaje largo del docente (el pedido inicial con sus aclaraciones) se muestra recortado hasta que lo despliega. */
+const LONG_MESSAGE_CHARS = 280;
+const LONG_MESSAGE_LINES = 6;
+
+function UserMessage({ content }: { content: string }) {
+  const long = content.length > LONG_MESSAGE_CHARS || content.split("\n").length > LONG_MESSAGE_LINES;
+  const [open, setOpen] = useState(false);
+  const textId = useId();
+  return (
+    <>
+      <div className={`crt-chat__msg crt-chat__msg--user${long && !open ? " is-clamped" : ""}`}>
+        <p id={textId}>{content}</p>
+      </div>
+      {long && (
+        <button type="button" className="crt-chat__more" aria-expanded={open} aria-controls={textId} onClick={() => setOpen(!open)}>
+          {open ? "Ver menos" : "Ver mensaje completo"}
+        </button>
+      )}
+    </>
+  );
+}
+
 /** Un bloque señalado: su tipo y un fragmento. Lleva a él en la hoja; en el cuadro de escritura además se puede quitar. */
 function BlockRef({ attachment, onReveal, onRemove }: { attachment: CreatorAttachment; onReveal: (target: RevealTarget) => void; onRemove?: () => void }) {
   const type = BLOCK_TYPE_LABELS[attachment.type];
@@ -299,9 +321,7 @@ export function CreatorChat({ messages, doc, live, blocked, suggestions, attachm
                       ))}
                     </div>
                   )}
-                  <div className="crt-chat__msg crt-chat__msg--user">
-                    <p>{message.content}</p>
-                  </div>
+                  <UserMessage content={message.content} />
                 </div>
               ) : (
                 <div className="crt-chat__msg crt-chat__msg--assistant">
