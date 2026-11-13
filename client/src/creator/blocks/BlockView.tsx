@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from "react";
 import type { Block, BlockOf } from "@shared/creator";
-import { formatNumberEs } from "@shared/creatorMath";
+import { formatTableNumber, valueTableDecimals } from "@shared/creatorPlane";
 import { computeValueTable, valueTableVariable } from "@shared/creatorValidate";
 import { AreaModel } from "./AreaModel";
 import { BarChart, PieChart } from "./Charts";
@@ -108,6 +108,8 @@ function ValueTableView({ block }: { block: BlockOf<"value_table"> }) {
   // La primera fila lleva la variable de la función: s en A(s) = 4000s + 20000, no siempre x
   const variable = valueTableVariable(block);
   const ys = computeValueTable(block.expr, block.xs, variable);
+  // Cada número con los decimales que hagan falta: en una tabla para un límite, 1,999 no puede salir como 2
+  const decimals = valueTableDecimals(block.xs);
   return (
     <figure className="crt-table crt-table--values">
       <table>
@@ -117,7 +119,7 @@ function ValueTableView({ block }: { block: BlockOf<"value_table"> }) {
               <Formula latex={variable} />
             </th>
             {block.xs.map((x, index) => (
-              <td key={index}>{formatNumberEs(x)}</td>
+              <td key={index}>{formatTableNumber(x)}</td>
             ))}
           </tr>
           <tr>
@@ -125,7 +127,7 @@ function ValueTableView({ block }: { block: BlockOf<"value_table"> }) {
               <Formula latex={block.exprLatex} />
             </th>
             {ys.map((y, index) => (
-              <td key={index}>{block.blankY ? " " : y === null ? "—" : formatNumberEs(y)}</td>
+              <td key={index}>{block.blankY ? " " : y === null ? "—" : formatTableNumber(y, decimals)}</td>
             ))}
           </tr>
         </tbody>

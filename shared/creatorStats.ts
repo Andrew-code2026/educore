@@ -1,6 +1,7 @@
 import type { BlockInput } from "./creator";
 import { areaModelProduct, computeAreaModel, monomialText, polynomialText } from "./creatorAlgebra";
 import { niceStep, tickValues } from "./creatorFigures";
+import { describeGraph } from "./creatorGraphFacts";
 import { formatNumber, formatNumberEs } from "./creatorMath";
 
 /**
@@ -299,6 +300,8 @@ export function describeComputed(block: BlockInput): string | null {
       const total = block.classes.reduce((sum, item) => sum + item.frequency, 0);
       return `Histograma${block.title ? ` «${block.title}»` : ""}: ${total} datos en ${block.classes.length} clases.`;
     }
+    case "graph":
+      return describeGraph(block.spec);
     case "area_model": {
       const model = computeAreaModel(block.rows, block.columns);
       if (!model) return null;

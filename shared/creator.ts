@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { areaModelProduct, computeAreaModel } from "./creatorAlgebra";
+import { CONIC_LABELS } from "./creatorConics";
 import { VENN_REGIONS } from "./creatorDiagrams";
 import { MATH_EXPR_MAX } from "./creatorMath";
 
@@ -25,8 +26,17 @@ export const CREATOR_LIMITS = {
   blocksPerSectionMax: 60,
   tableRowsMax: 20,
   tableColsMax: 10,
-  functionsMax: 4,
+  /** Curvas de un plano; eran 4 y subió a 6 para que quepa una función a trozos junto a otra. */
+  functionsMax: 6,
   pointsMax: 12,
+  /** Rectas x = k de un plano: las asíntotas de una tangente en dos períodos. */
+  verticalLinesMax: 6,
+  conicsMax: 3,
+  areasMax: 2,
+  /** Rectángulos de una suma de Riemann: con más, ya no se distinguen en media hoja. */
+  riemannMax: 40,
+  tangentsMax: 3,
+  secantsMax: 3,
   /** Marcas por eje: más que esto deja la cuadrícula ilegible al imprimir. */
   ticksMax: 40,
   /** Datos crudos de un histograma o de una caja y bigotes: hasta cinco cursos de 40 estudiantes. */
@@ -60,9 +70,28 @@ const expression = z.string().trim().min(1).max(MATH_EXPR_MAX);
 const caption = z.string().trim().max(200).optional();
 const label = z.string().trim().min(1).max(60);
 
+const graphEnd = z.enum(["closed", "open", "none"]);
+const graphStroke = z.enum(["solid", "dashed"]);
+
+// Los campos añadidos después de la primera versión son opcionales y sin valor por defecto:
+// un recurso guardado antes se lee igual que se guardó.
 export const graphFunctionSchema = z.object({
-  expr: expression.describe('Función de x en texto plano, p. ej. "2*x - 3" o "x^2 - 4*x + 3". Sin LaTeX.'),
+  expr: expression.describe('Función de x en texto plano, p. ej. "2*x - 3", "x^2 - 4*x + 3" o "floor(x)" (parte entera). Sin LaTeX.'),
   label: latex.optional().describe('Etiqueta en LaTeX que se dibuja junto a la curva, p. ej. "y = 2x - 3".'),
+  from: z.number().optional().describe("Dominio: la curva se dibuja solo desde este x. Una función a trozos lleva una entrada por trozo."),
+  to: z.number().optional().describe("Dominio: la curva se dibuja solo hasta este x."),
+  fromEnd: graphEnd
+    .optional()
+    .describe('Extremo izquierdo del dominio: "closed" círculo relleno (el punto pertenece; es el valor por defecto), "open" círculo vacío (no pertenece), "none" sin círculo.'),
+  toEnd: graphEnd.optional().describe("Extremo derecho del dominio, igual que fromEnd."),
+  style: graphStroke.optional().describe('"dashed" dibuja la curva punteada: asíntotas horizontales u oblicuas y rectas auxiliares. Por defecto, continua.'),
+  color: z
+    .number()
+    .int()
+    .min(0)
+    .max(3)
+    .optional()
+    .describe("Color de la curva, de 0 a 3. Si se omite, cada función toma el suyo según su posición, y los trozos cuyos dominios se tocan (el to de uno es el from del otro) comparten color."),
 });
 
 export const graphPointSchema = z.object({
@@ -76,6 +105,74 @@ export const graphPointSchema = z.object({
     .nullable()
     .optional()
     .describe("Índice (desde 0) de la función sobre la que está el punto. null si es un punto libre."),
+  open: z
+    .boolean()
+    .optional()
+    .describe("true dibuja el punto vacío: un hueco de la curva, donde la función no está definida o vale otra cosa. Sobre una función (on) debe estar en el límite de la función en ese x."),
+});
+
+export const graphVerticalLineSchema = z.object({
+  x: z.number().describe("La recta es x = este valor."),
+  style: graphStroke.optional().describe('"dashed" para una asíntota vertical o una recta auxiliar. Por defecto, continua.'),
+  label: latex.optional().describe('Etiqueta en LaTeX, p. ej. "x = 2".'),
+});
+
+const conicBase = {
+  h: z.number().describe("Coordenada x del centro; en la parábola, del vértice."),
+  k: z.number().describe("Coordenada y del centro; en la parábola, del vértice."),
+  show: z
+    .array(z.enum(["equation", "center", "radius", "foci", "vertices", "directrix", "asymptotes"]))
+    .max(7)
+    .optional()
+    .describe('Lo que el sistema calcula y dibuja además de la curva: "equation" (la ecuación canónica), "center", "radius" (solo la circunferencia: un radio con su medida), "foci", "vertices", "directrix" (solo la parábola) y "asymptotes" (solo la hipérbola).'),
+};
+const positive = z.number().positive();
+
+/** Una cónica dada por sus parámetros; la curva y sus elementos los calcula el sistema (creatorConics.ts). */
+export const graphConicSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("circle"), ...conicBase, r: positive.describe("Radio.") }),
+  z.object({ kind: z.literal("ellipse"), ...conicBase, rx: positive.describe("Semieje horizontal."), ry: positive.describe("Semieje vertical.") }),
+  z.object({
+    kind: z.literal("parabola"),
+    ...conicBase,
+    p: z.number().describe("Distancia dirigida del vértice al foco: positiva si abre hacia arriba (o a la derecha), negativa si abre hacia abajo (o a la izquierda)."),
+    axis: z.enum(["vertical", "horizontal"]).default("vertical").describe('Eje de simetría: "vertical" (abre hacia arriba o hacia abajo) u "horizontal" (hacia un lado).'),
+  }),
+  z.object({
+    kind: z.literal("hyperbola"),
+    ...conicBase,
+    a: positive.describe("Semieje transversal: distancia del centro a cada vértice."),
+    b: positive.describe("Semieje conjugado."),
+    axis: z.enum(["horizontal", "vertical"]).default("horizontal").describe('Eje transversal: "horizontal" (las ramas abren a izquierda y derecha) o "vertical" (hacia arriba y hacia abajo).'),
+  }),
+]);
+
+const functionIndex = z.number().int().min(0);
+
+export const graphAreaSchema = z.object({
+  fn: functionIndex.describe("Índice (desde 0) de la función cuya región se sombrea."),
+  between: functionIndex.optional().describe("Índice de una segunda función: la región queda entre las dos curvas. Si se omite, entre la curva y el eje x."),
+  from: z.number().describe("Inicio del intervalo (a)."),
+  to: z.number().describe("Final del intervalo (b)."),
+  rectangles: z.number().int().min(1).max(CREATOR_LIMITS.riemannMax).optional().describe("Número de rectángulos de Riemann, todos del mismo ancho. Si se omite, se sombrea la región."),
+  sample: z.enum(["left", "right", "midpoint"]).optional().describe('Dónde se mide la altura de cada rectángulo: "left" (extremo izquierdo, por defecto), "right" o "midpoint".'),
+  showValue: z.boolean().optional().describe("true escribe dentro de la región su área, calculada por el sistema; con rectángulos, la suma de Riemann."),
+});
+
+const lineShow = z.enum(["none", "slope", "equation"]);
+const lineShowHelp = 'Rótulo junto a la recta, calculado por el sistema: "slope" escribe la pendiente (m = …) y "equation" la ecuación (y = mx + b). Por defecto, ninguno.';
+
+export const graphTangentSchema = z.object({
+  fn: functionIndex.describe("Índice (desde 0) de la función a la que se traza la tangente."),
+  x: z.number().describe("Abscisa del punto de tangencia. La pendiente (la derivada ahí) la calcula el sistema."),
+  show: lineShow.optional().describe(lineShowHelp),
+});
+
+export const graphSecantSchema = z.object({
+  fn: functionIndex.describe("Índice (desde 0) de la función que corta la secante."),
+  x1: z.number().describe("Abscisa del primer punto."),
+  x2: z.number().describe("Abscisa del segundo punto."),
+  show: lineShow.optional().describe(lineShowHelp),
 });
 
 export const graphSpecSchema = z.object({
@@ -91,6 +188,23 @@ export const graphSpecSchema = z.object({
     .default([])
     .describe("Vacío para un plano en blanco donde el estudiante grafica."),
   points: z.array(graphPointSchema).max(CREATOR_LIMITS.pointsMax).default([]),
+  verticalLines: z
+    .array(graphVerticalLineSchema)
+    .max(CREATOR_LIMITS.verticalLinesMax)
+    .optional()
+    .describe("Rectas verticales x = k, que no se pueden escribir como función: asíntotas verticales y directrices."),
+  conics: z
+    .array(graphConicSchema)
+    .max(CREATOR_LIMITS.conicsMax)
+    .optional()
+    .describe("Cónicas por parámetros: circunferencia, elipse, parábola e hipérbola. Con cónicas el plano debe ser más o menos cuadrado, para que tenga la misma unidad en los dos ejes."),
+  areas: z
+    .array(graphAreaSchema)
+    .max(CREATOR_LIMITS.areasMax)
+    .optional()
+    .describe("Regiones sombreadas bajo una curva o entre dos curvas, para integrales y áreas. El valor lo calcula el sistema."),
+  tangents: z.array(graphTangentSchema).max(CREATOR_LIMITS.tangentsMax).optional().describe("Rectas tangentes a una función en un punto, para la derivada."),
+  secants: z.array(graphSecantSchema).max(CREATOR_LIMITS.secantsMax).optional().describe("Rectas secantes por dos puntos de una función, para la razón de cambio promedio."),
 });
 
 const headerFieldsBlock = z.object({
@@ -669,6 +783,11 @@ export type ShapeFigure = z.infer<typeof shapeSchema>;
 export type GraphSpec = z.infer<typeof graphSpecSchema>;
 export type GraphFunction = z.infer<typeof graphFunctionSchema>;
 export type GraphPoint = z.infer<typeof graphPointSchema>;
+export type GraphVerticalLine = z.infer<typeof graphVerticalLineSchema>;
+export type GraphConic = z.infer<typeof graphConicSchema>;
+export type GraphArea = z.infer<typeof graphAreaSchema>;
+export type GraphTangent = z.infer<typeof graphTangentSchema>;
+export type GraphSecant = z.infer<typeof graphSecantSchema>;
 export type BlockInput = z.infer<typeof blockInputSchema>;
 export type Block = z.infer<typeof blockSchema>;
 export type BlockType = Block["type"];
@@ -812,6 +931,9 @@ export type CreatorEvent =
   | { type: "activity"; activity: CreatorActivity }
   | { type: "doc"; doc: ResourceDoc }
   | { type: "done"; ok: boolean; error?: string };
+
+/** Lo que hay en un plano, en pocas palabras: las funciones y los nombres de las cónicas. */
+const graphContents = (spec: GraphSpec): string => [...spec.functions.map(fn => fn.expr), ...(spec.conics ?? []).map(conic => CONIC_LABELS[conic.kind])].join(", ");
 
 export const SHAPE_KIND_LABELS: Record<ShapeFigure["kind"], string> = {
   rectangle: "Rectángulo",
@@ -1099,7 +1221,7 @@ export function blockPreview(block: BlockInput): string {
     case "value_table":
       return block.caption || `Valores de ${block.expr}`;
     case "graph":
-      return block.caption || block.spec.functions.map(fn => fn.expr).join(", ") || "Plano en blanco";
+      return block.caption || graphContents(block.spec) || "Plano en blanco";
     case "number_line":
       return block.caption || `Recta numérica de ${block.min} a ${block.max}`;
     case "fraction_model":

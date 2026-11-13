@@ -42,7 +42,7 @@ export const BLOCK_INFO: Partial<Record<BlockType, { hint: string; keywords: str
   solution: { hint: "Procedimiento paso a paso y respuesta final", keywords: "respuesta clave procedimiento pasos" },
   table: { hint: "Filas y columnas libres", keywords: "filas columnas cuadro datos" },
   value_table: { hint: "Valores de x y y calculados de una expresión", keywords: "funcion tabular" },
-  graph: { hint: "Plano cartesiano con funciones y puntos", keywords: "funcion plano cartesiano ejes curva recta parabola coordenadas" },
+  graph: { hint: "Plano cartesiano con funciones, cónicas y puntos", keywords: "funcion plano cartesiano ejes curva recta parabola coordenadas conica circunferencia elipse hiperbola tangente secante derivada integral limite trozos asintota" },
   bar_chart: { hint: "Barras para comparar categorías", keywords: "frecuencia categorias" },
   pie_chart: { hint: "Partes de un total, en porcentajes", keywords: "torta pastel sectores porcentaje" },
   line_chart: { hint: "Cómo cambia un dato con el tiempo", keywords: "tendencia tiempo evolucion serie" },

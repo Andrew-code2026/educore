@@ -6,7 +6,8 @@
  * que corre igual en el servidor y en el navegador.
  *
  * Admite: + - * / ^, paréntesis, multiplicación implícita (2x, 3(x+1)), las funciones
- * sqrt abs sin cos tan ln log exp y las constantes pi y e.
+ * sqrt abs sin cos tan ln log exp floor ceil y las constantes pi y e. floor(x) es la parte
+ * entera (el mayor entero que no pasa de x) y ceil(x) el menor entero que no baja de x.
  */
 
 export const MATH_EXPR_MAX = 120;
@@ -35,6 +36,8 @@ const FUNCTIONS = {
   ln: Math.log,
   log: Math.log10,
   exp: Math.exp,
+  floor: Math.floor,
+  ceil: Math.ceil,
 } as const;
 
 type MathFunction = keyof typeof FUNCTIONS;

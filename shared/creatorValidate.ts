@@ -3,7 +3,10 @@ import { areaModelIssues } from "./creatorAlgebra";
 import { BLOCK_TYPE_LABELS, blockTexts, CREATOR_LIMITS, extractMath, findMath, type BlockInput, type GraphSpec } from "./creator";
 import { barPartFits, parseProbability, pictogramIcons, probabilityValue, siblingGroups, sumProbabilities, treePaths, vennRegionsFor, vennUniverseChars, vennZoneChars } from "./creatorDiagrams";
 import { isMultipleOfFraction, labelFits, polygonArea } from "./creatorFigures";
-import { formatNumber, nearlyEqual, tryCompile, type CompileResult } from "./creatorMath";
+import { formatNumber, tryCompile, type CompileResult } from "./creatorMath";
+import { planeAreaIssues, planeLineIssues } from "./creatorCalculus";
+import { planeConicIssues } from "./creatorConics";
+import { planeFunctionIssues, planePointIssue } from "./creatorPlane";
 import { histogramClassIssues, histogramCounts, linearRegression, resolveAxis, type AxisOverride } from "./creatorStats";
 
 /**
@@ -92,13 +95,8 @@ export function validateGraphSpec(spec: GraphSpec): string[] {
       const error = checkLatex(fn.label);
       if (error) issues.push(`Gráfica: la etiqueta de la función ${index} no es LaTeX válido (${error}).`);
     }
-    // La curva debe verse: al menos un tramo dentro del plano
-    let visible = false;
-    for (let i = 0; i <= 60 && !visible; i++) {
-      const y = result.fn(spec.xMin + ((spec.xMax - spec.xMin) * i) / 60);
-      visible = Number.isFinite(y) && y >= spec.yMin && y <= spec.yMax;
-    }
-    if (!visible) issues.push(`Gráfica: la función ${index} ("${fn.expr}") no se ve en el rango elegido; ajusta yMin/yMax.`);
+    // Dominio, extremos, saltos y que la curva se llegue a ver dentro del plano
+    issues.push(...planeFunctionIssues(spec, index, result.fn));
     return result.fn;
   });
 
@@ -118,13 +116,23 @@ export function validateGraphSpec(spec: GraphSpec): string[] {
       return;
     }
     if (!fn) return;
-    const expected = fn(point.x);
-    if (!nearlyEqual(expected, point.y)) {
-      issues.push(
-        `Gráfica: el punto ${name} no está sobre "${spec.functions[point.on].expr}": en x = ${formatNumber(point.x, 4)} la función vale ${formatNumber(expected, 4)}. Corrige el punto.`,
-      );
+    // Un punto relleno va en el valor de la función; uno vacío, en su límite
+    const issue = planePointIssue(point, spec.functions[point.on], fn);
+    if (issue) issues.push(issue);
+  });
+
+  (spec.verticalLines ?? []).forEach(line => {
+    const name = `x = ${formatNumber(line.x, 4)}`;
+    if (line.x < spec.xMin || line.x > spec.xMax) issues.push(`Gráfica: la recta vertical ${name} queda fuera del plano, que va de x = ${formatNumber(spec.xMin, 4)} a x = ${formatNumber(spec.xMax, 4)}.`);
+    if (line.label) {
+      const error = checkLatex(line.label);
+      if (error) issues.push(`Gráfica: la etiqueta de la recta vertical ${name} no es LaTeX válido (${error}).`);
     }
   });
+
+  issues.push(...planeConicIssues(spec));
+  issues.push(...planeAreaIssues(spec));
+  issues.push(...planeLineIssues(spec));
 
   return issues;
 }
