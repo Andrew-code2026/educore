@@ -6,7 +6,7 @@ import { $getSelection, $isRangeSelection, FORMAT_TEXT_COMMAND, type LexicalEdit
 import { Bold, Italic, List, ListOrdered, Plus, Sigma, Trash2 } from "lucide-react";
 import { BLOCK_TYPE_LABELS, type BlockInput } from "@shared/creator";
 import { AnswerSpace } from "../blocks/BlockView";
-import { ANSWER_SPACE_OPTIONS, CALLOUT_TONE_OPTIONS } from "./BlockEditor";
+import { ANSWER_SPACE_OPTIONS, CALLOUT_TONE_OPTIONS } from "./BlockForm";
 import { checkedInput, insertPart, removePart, resolveDraft, toDraft, type InlineBlock, type InlineBlockType, type InlineDraft } from "./inlineDraft";
 import { focusInlineField, InlineText, placeCaret, PlainText, type ActiveField, type BlockShortcuts, type EditEntry } from "./InlineText";
 import { insertFormula } from "./RichTextEditor";

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { INNER_BLOCK_TYPES, type Block, type BlockType } from "@shared/creator";
 import { minBlockWidth } from "@shared/creatorContainers";
 import { BlockView } from "./blocks/BlockView";
-import { BLOCK_TEMPLATES } from "./editing/BlockEditor";
+import { BLOCK_TEMPLATES } from "./editing/BlockForm";
 
 /**
  * Qué cabe en una columna (shared/creatorContainers.ts) parte del ancho de diseño de cada figura, que

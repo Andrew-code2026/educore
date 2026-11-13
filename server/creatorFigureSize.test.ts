@@ -136,6 +136,16 @@ describe("tamaños que se ofrecen", () => {
     expect(currentSizeChoice(choices, "large")).toBe(choices[1]);
   });
 
+  it("contados en papel: lo que en una pantalla angosta se ve igual sale distinto al imprimir", () => {
+    const paper = (design: number, available: number, kind: "figure" | "plane" = "figure", type?: string) => figureSizeChoices(design, available, type, kind).map(choice => choice.sizes.join("+"));
+    // La recta grande no llena la hoja carta: grande y completo son dos opciones
+    expect(paper(560, SHEET_WIDTH_PX)).toEqual(["small", "medium", "large", "full"]);
+    // En una columna 2:1 la circular mediana ya casi llena la celda
+    const [wide] = cellWidths({ type: "columns", columns: [{ width: 2, blocks: [] }, { width: 1, blocks: [] }] });
+    expect(paper(520, wide)).toEqual(["small", "medium+large+full"]);
+    expect(paper(374, SHEET_WIDTH_PX, "plane", "graph")).toEqual(["medium", "large", "full"]);
+  });
+
   it("el plano no ofrece el pequeño", () => {
     expect(sizes(374, SCREEN_SHEET_WIDTH_PX, "graph")).toEqual(["medium", "large", "full"]);
   });

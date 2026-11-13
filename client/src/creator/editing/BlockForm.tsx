@@ -362,7 +362,8 @@ function SolutionForm({ draft, onChange }: FormProps<"solution">) {
   );
 }
 
-function renderForm(draft: BlockInput, onChange: (next: BlockInput) => void, actions: FormActions): ReactNode {
+/** El formulario de un bloque: sus campos, sin marco ni botones (los pone el panel de edición). */
+export function BlockForm({ draft, onChange, actions }: { draft: BlockInput; onChange: (next: BlockInput) => void; actions: FormActions }): ReactNode {
   switch (draft.type) {
     case "paragraph":
       return <ParagraphForm draft={draft} onChange={onChange} />;
@@ -423,11 +424,6 @@ function renderForm(draft: BlockInput, onChange: (next: BlockInput) => void, act
     case "page_break":
       return <p className="crt-form__hint">Lo que sigue a este bloque empieza en una página nueva al imprimir.</p>;
   }
-}
-
-/** El formulario de un bloque: sus campos, sin marco ni botones (los pone el panel de edición). */
-export function BlockForm({ draft, onChange, actions }: { draft: BlockInput; onChange: (next: BlockInput) => void; actions: FormActions }) {
-  return <>{renderForm(draft, onChange, actions)}</>;
 }
 
 export type DraftCheck = { ok: true; block: BlockInput } | { ok: false; issues: string[] };

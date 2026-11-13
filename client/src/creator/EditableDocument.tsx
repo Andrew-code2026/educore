@@ -37,7 +37,7 @@ import { BlockPicker } from "./BlockPicker";
 import { BlockView, ContainerView } from "./blocks/BlockView";
 import { NoteEditingContext, type NoteEditing } from "./blocks/FigureNotes";
 import { CardTitle, EmptyCell } from "./ContainerControls";
-import { BLOCK_TEMPLATES } from "./editing/BlockEditor";
+import { BLOCK_TEMPLATES } from "./editing/BlockForm";
 import { BlockPanel, type FigureMeasure, type PanelPlace } from "./editing/BlockPanel";
 import { moveNote } from "./editing/noteDraft";
 import { InlineBlockEditor, type BlockEditorHandle, type CloseReason } from "./editing/InlineBlockEditor";
@@ -57,7 +57,7 @@ interface EditableDocumentProps {
   doc: ResourceDoc;
   /** La IA está trabajando: el documento se ve pero no se edita. */
   readOnly: boolean;
-  applyOp: (op: DocOp) => OpResult;
+  applyOp: (op: DocOp, options?: ApplyOptions) => OpResult;
   schoolName?: string;
   logoUrl?: string | null;
   /** Sección que la IA está escribiendo ahora mismo. */
@@ -81,6 +81,12 @@ interface EditableDocumentProps {
 const MARK_LABELS: Record<MarkKind, string> = { added: "Añadido por la IA", changed: "Cambiado por la IA" };
 
 const MOVE_HINT = IS_MAC ? { up: "⌥⇧↑", down: "⌥⇧↓", left: "⌥⇧←", right: "⌥⇧→" } : { up: "Alt+Mayús+↑", down: "Alt+Mayús+↓", left: "Alt+Mayús+←", right: "Alt+Mayús+→" };
+
+/** Cómo entra una operación al historial. */
+export interface ApplyOptions {
+  /** Un paso propio de deshacer, aunque siga a otra edición del mismo bloque (lo que se aplica desde el panel). */
+  ownStep?: boolean;
+}
 
 export interface EditableDocumentHandle {
   /** Guarda el bloque que esté abierto, si es válido. Devuelve `false` si sigue abierto con datos por corregir. */
@@ -416,14 +422,16 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
   useEffect(() => onPanelChange?.(panelOpen), [onPanelChange, panelOpen]);
   useEffect(() => () => onPanelChange?.(false), [onPanelChange]);
 
-  // El ancho de diseño de la figura abierta, leído de su dibujo en la hoja (cada figura lo fija según sus datos)
+  // El ancho de diseño de la figura abierta, leído de su dibujo en la hoja (cada figura lo fija según sus datos):
+  // cambia con lo que se dibuja, el borrador o lo guardado
+  const panelBlock = panelFound?.block;
   useLayoutEffect(() => {
     const figure = panelId ? paper.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(panelId)}"] > .crt-block__view > .crt-graph > :is(.crt-figure, .crt-plane)`) : null;
     const plane = figure?.classList.contains("crt-plane") ?? false;
     const design = figure ? Number.parseFloat(figure.style.getPropertyValue(plane ? "--plane-wn" : "--fig-wn")) : Number.NaN;
     const next: FigureMeasure | null = Number.isFinite(design) ? { design, kind: plane ? "plane" : "figure" } : null;
     setMeasure(current => (current?.design === next?.design && current?.kind === next?.kind ? current : next));
-  });
+  }, [live, panelBlock, panelId]);
 
   const insert = (type: BlockType) => {
     if (!picker) return;
@@ -1081,7 +1089,10 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
             sheet={panelSheet}
             onLive={draft => setLive({ seq: editing.seq, block: draft })}
             // Aplicar es una sola operación: un paso de deshacer. Si no cabe en su celda, sale el aviso y el panel sigue abierto
-            onApply={next => applyOp({ op: "update_block", blockId: panelFound.block.id, block: next }).ok}
+            onApply={next => {
+              const result = applyOp({ op: "update_block", blockId: panelFound.block.id, block: next }, { ownStep: true });
+              return result.ok ? null : result.error;
+            }}
             onClose={() => closePanel(panelFound.block.id)}
             selectedNote={noteSelected}
             onSelectNote={setNoteSelected}

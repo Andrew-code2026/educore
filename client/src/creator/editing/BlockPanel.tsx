@@ -11,7 +11,6 @@ import {
   figureSizeChoices,
   figureWidth,
   pxToCm,
-  SCREEN_SHEET_WIDTH_PX,
   storedFigureSize,
   type FigureKind,
   type FigureSize,
@@ -23,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { BlockView } from "../blocks/BlockView";
 import { NoteEditingContext, type NoteEditing, type NotePart } from "../blocks/FigureNotes";
 import { IS_MAC } from "../keyboard";
-import { BlockForm, checkDraft } from "./BlockEditor";
+import { BlockForm, checkDraft } from "./BlockForm";
 import type { BlockEditorHandle } from "./InlineBlockEditor";
 import { addNote, draftNotes, moveNote, removeNote, setNoteText, toggleNotePointer } from "./noteDraft";
 
@@ -48,8 +47,8 @@ interface BlockPanelProps {
   sheet: boolean;
   /** Lo que la hoja dibuja mientras se edita: el borrador, cada vez que se puede dibujar. */
   onLive: (draft: BlockInput) => void;
-  /** Aplica el borrador como un solo paso de deshacer. `false` si no se pudo (el aviso lo da quien aplica). */
-  onApply: (next: BlockInput) => boolean;
+  /** Aplica el borrador como un solo paso de deshacer. Si no se pudo (no cabe en su celda), devuelve el motivo. */
+  onApply: (next: BlockInput) => string | null;
   /** Cierra el panel: tras aplicar, o descartando el borrador. */
   onClose: (reason: "applied" | "cancel") => void;
   /** La nota elegida (en la hoja o en la lista): se marca en los dos sitios. */
@@ -172,6 +171,23 @@ function NotesSection({ draft, selected, sheet, onSelect, onChange }: NotesSecti
 
 const APPLY_HINT = IS_MAC ? "⌘ Intro" : "Ctrl+Intro";
 
+/** En la lámina (pantalla angosta) la hoja queda tapada: Tab da la vuelta dentro del panel en vez de irse a ella. */
+function keepFocusInside(event: KeyboardEvent<HTMLElement>) {
+  const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), textarea, select, math-field, [tabindex]:not([tabindex='-1'])")).filter(
+    element => element.getClientRects().length > 0,
+  );
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (!first || !last) return;
+  if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 const withoutId = ({ id: _id, ...content }: Block) => content as BlockInput;
 
 /** El nombre de la opción de tamaño: dentro de una celda, el ancho completo es el de la celda. */
@@ -193,12 +209,13 @@ interface SizePickerProps {
 function SizePicker({ type, value, measure, place, onChange }: SizePickerProps) {
   const labelId = useId();
   const group = useRef<HTMLDivElement>(null);
-  const screen = place ? cellWidths(place.container, SCREEN_SHEET_WIDTH_PX)[place.cell] : SCREEN_SHEET_WIDTH_PX;
+  // Las opciones se cuentan en papel, que es lo que se entrega: en una pantalla angosta dos tamaños pueden verse
+  // iguales y salir distintos al imprimir
   const paper = place ? cellWidths(place.container)[place.cell] : SHEET_WIDTH_PX;
-  // Sin medida (la figura aún no se dibuja o sus datos no la dejan dibujar) se ofrecen los cuatro
+  // Sin medida (la figura aún no se dibuja o sus datos no la dejan dibujar) se ofrecen todos los que admite
   const choices = useMemo(
-    () => (measure ? figureSizeChoices(measure.design, screen, type) : FIGURE_SIZES.filter(size => figureSizeAllowed(type, size)).map(size => ({ size, sizes: [size], width: screen }))),
-    [measure, screen, type],
+    () => (measure ? figureSizeChoices(measure.design, paper, type, measure.kind) : FIGURE_SIZES.filter(size => figureSizeAllowed(type, size)).map(size => ({ size, sizes: [size], width: paper }))),
+    [measure, paper, type],
   );
   const current = currentSizeChoice(choices, value);
   const printed = measure ? figureWidth(value, measure.design, paper, measure.kind) : null;
@@ -233,7 +250,7 @@ function SizePicker({ type, value, measure, place, onChange }: SizePickerProps) 
             <button key={choice.size} type="button" role="radio" aria-checked={checked} tabIndex={checked || (!current && choice === choices[0]) ? 0 : -1} className="crt-size" onClick={() => pick(choice)}>
               {/* La hoja (o la celda) y lo que ocupa la figura en ella */}
               <span className="crt-size__glyph" aria-hidden="true">
-                <span style={{ width: `${Math.max(18, Math.min(100, (choice.width / screen) * 100))}%` }} />
+                <span style={{ width: `${Math.max(18, Math.min(100, (choice.width / paper) * 100))}%` }} />
               </span>
               {choiceLabel(choice, place)}
             </button>
@@ -305,7 +322,9 @@ export const BlockPanel = forwardRef<BlockEditorHandle, BlockPanelProps>(functio
       setIssues(checked.issues);
       return false;
     }
-    return onApply(checked.block);
+    const error = onApply(checked.block);
+    if (error) setIssues([error]);
+    return error === null;
   };
 
   const apply = () => {
@@ -349,7 +368,8 @@ export const BlockPanel = forwardRef<BlockEditorHandle, BlockPanelProps>(functio
         tabIndex={-1}
         onKeyDown={event => {
           if (event.defaultPrevented) return;
-          if (event.key === "Escape") {
+          if (sheet && event.key === "Tab") keepFocusInside(event);
+          else if (event.key === "Escape") {
             event.preventDefault();
             cancel();
           } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {

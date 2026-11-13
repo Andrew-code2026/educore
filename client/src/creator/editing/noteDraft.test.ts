@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BlockInput } from "@shared/creator";
 import { FIGURE_NOTES_MAX } from "@shared/creatorFigureNotes";
-import { checkDraft } from "./BlockEditor";
+import { checkDraft } from "./BlockForm";
 import { addNote, draftNotes, moveNote, notesIssue, removeNote, setNoteText, toggleNotePointer, withNotes } from "./noteDraft";
 
 const chart = { type: "pie_chart", slices: [{ label: "A", value: 1 }, { label: "B", value: 1 }], showPercent: true, blank: false } as BlockInput;

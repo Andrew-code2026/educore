@@ -23,7 +23,7 @@ import { trpc } from "@/lib/trpc";
 import { CreatorChat, type LiveTurn } from "./CreatorChat";
 import { historyKey, historyShortcut, locateChange, useDocHistory } from "./docHistory";
 import { IS_MAC, isEditingTarget } from "./keyboard";
-import { EditableDocument, type EditableDocumentHandle } from "./EditableDocument";
+import { EditableDocument, type ApplyOptions, type EditableDocumentHandle } from "./EditableDocument";
 import { ErrorCard, formatWhen } from "./parts";
 import { ResourceSheet } from "./ResourceSheet";
 import { SectionJumper, StageTop } from "./SectionJumper";
@@ -128,6 +128,8 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   /** Dónde se monta el panel de edición de figuras y tablas, y si está abierto. */
   const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const editorOpenRef = useRef(editorOpen);
+  editorOpenRef.current = editorOpen;
   /** Ancho del copiloto: el panel de edición ocupa exactamente su sitio, así la hoja no se mueve. */
   const copilotSlot = useRef<HTMLDivElement>(null);
   const [copilotWidth, setCopilotWidth] = useState(0);
@@ -398,7 +400,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   const redo = useCallback(() => stepHistory("redo"), [stepHistory]);
 
   const applyOp = useCallback(
-    (op: DocOp): OpResult => {
+    (op: DocOp, options?: ApplyOptions): OpResult => {
       const before = docRef.current;
       const result = applyDocOp(before, op);
       if (!result.ok) {
@@ -406,7 +408,8 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
         return result;
       }
       if (result.changed) {
-        recordHistory(before, historyKey(op));
+        // Lo que se aplica desde el panel es su propio paso: no se funde con la edición anterior del mismo bloque
+        recordHistory(before, options?.ownStep ? undefined : historyKey(op));
         showLocal(result.doc);
         // Lo que se borra (o una celda que se quita con lo que tenía) se anuncia con la forma de deshacerlo
         if (op.op === "delete_blocks" || op.op === "delete_section" || op.op === "remove_cell") {
@@ -431,6 +434,11 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     const onKeyDown = (event: KeyboardEvent) => {
       const command = historyShortcut(event);
       if (!command || event.defaultPrevented || event.isComposing || isEditingTarget(event.target)) return;
+      // Con el panel abierto, deshacer tocaría la hoja por debajo de su borrador: primero se aplica o se cancela
+      if (editorOpenRef.current) {
+        event.preventDefault();
+        return;
+      }
       event.preventDefault();
       stepHistory(command);
     };
@@ -853,10 +861,10 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
           </button>
         )}
         <div className="crt-bar__actions" role="group" aria-label="Historial de cambios">
-          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || undoingTurn || !history.canUndo} aria-label="Deshacer" title={undoIsTurn ? `Deshacer lo que hizo la IA (${UNDO_HINT})` : `Deshacer (${UNDO_HINT})`} onClick={undo}>
+          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || undoingTurn || editorOpen || !history.canUndo} aria-label="Deshacer" title={undoIsTurn ? `Deshacer lo que hizo la IA (${UNDO_HINT})` : `Deshacer (${UNDO_HINT})`} onClick={undo}>
             <Undo2 aria-hidden="true" />
           </button>
-          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || undoingTurn || !history.canRedo} aria-label="Rehacer" title={`Rehacer (${REDO_HINT})`} onClick={redo}>
+          <button type="button" className="crt-btn crt-btn--ghost" disabled={working || undoingTurn || editorOpen || !history.canRedo} aria-label="Rehacer" title={`Rehacer (${REDO_HINT})`} onClick={redo}>
             <Redo2 aria-hidden="true" />
           </button>
         </div>
