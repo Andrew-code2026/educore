@@ -20,8 +20,9 @@ export function ChildSwitcher({ items, selectedId, onSelect }: ChildSwitcherProp
   if (items.length === 1) {
     const [child] = items;
     return (
-      <p className="gdn-switch gdn-switch--single" aria-label="Estudiante">
+      <p className="gdn-switch gdn-switch--single">
         <span className="gdn-switch__option">
+          <span className="gdn-sr-only">Estudiante: </span>
           <span className="gdn-switch__avatar" aria-hidden="true">
             {initialsOf(child.name)}
           </span>

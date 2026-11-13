@@ -145,11 +145,11 @@ export function buildSummary(input: { grades: GradesModel | null; attendance: At
   ];
 }
 
-/** Los próximos eventos del curso (hoy incluido), sin pasados. */
+/** Los próximos eventos del curso: los que aún no empiezan (hoy incluido). */
 export function nextEvents(events: RawEvent[], now: Date = new Date(), limit = MAX_EVENTS): HomeEventItem[] {
   return events
     .map(event => ({ id: event.id, title: event.title, date: toDate(event.eventDate) }))
-    .filter(event => dayDiff(event.date, now) >= 0)
+    .filter(event => event.date.getTime() >= now.getTime())
     .sort((a, b) => a.date.getTime() - b.date.getTime())
     .slice(0, limit)
     .map(event => ({ ...event, when: `${dayDiff(event.date, now) === 0 ? "Hoy" : capitalize(formatShortDate(event.date))}, ${formatTime(event.date)}` }));

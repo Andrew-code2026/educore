@@ -175,6 +175,16 @@ describe("Portal acudiente: solo los hijos vinculados", () => {
     expect(card?.students.map(student => student.studentId)).toEqual([sofia.id]);
   });
 
+  it("scopes the snapshot to the chosen child, the primary one by default", async () => {
+    const byDefault = await callerFor(mariana).educore.snapshot({ role: "guardian" });
+    expect(byDefault?.guardianStudentId).toBe(sofia.id);
+    const chosen = await callerFor(mariana).educore.snapshot({ role: "guardian", selectedStudentId: carlos.id });
+    expect(chosen?.guardianStudentId).toBe(carlos.id);
+    // Un hijo de otra familia no se puede elegir: vuelve al vínculo primario
+    const foreign = await callerFor(andres).educore.snapshot({ role: "guardian", selectedStudentId: sofia.id });
+    expect(foreign?.guardianStudentId).toBe(carlos.id);
+  });
+
   it("rejects children that are not linked to the guardian", async () => {
     await expect(callerFor(andres).student.grades({ role: "guardian", studentUserId: sofia.id })).rejects.toThrow(/no está vinculado/i);
     await expect(callerFor(andres).student.reportCard({ role: "guardian", studentUserId: sofia.id })).rejects.toThrow(/no está vinculado/i);

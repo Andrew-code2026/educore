@@ -48,7 +48,8 @@ export function GuardianPortal({ section, data, user, setSection, onChanged }: G
   const viewer: Extract<Viewer, { kind: "guardian" }> = {
     kind: "guardian",
     child: { id: family.child.id, name: family.child.name, courseName: family.child.courseName },
-    guardianName: user?.name ?? "",
+    // Firma de las excusas: el servidor exige un nombre
+    guardianName: user?.name?.trim() || "Acudiente",
   };
   const switcher = <ChildSwitcher items={family.children} selectedId={family.child.id} onSelect={family.setChild} />;
 

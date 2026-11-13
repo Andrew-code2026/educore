@@ -432,19 +432,15 @@ export async function getEduCoreSnapshot(
     }
   } else if (effectiveRoleKey === "GUARDIAN") {
     const guardianUserId = actor?.userId ?? (await getDemoIdentityContext("guardian", schoolId))?.user.id;
+    // Sin hijos vinculados no se muestra a ningún estudiante (nunca el de la demo por defecto)
+    targetStudentName = "";
     if (guardianUserId) {
-      const linkedRelationships = await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, schoolId), eq(guardianStudentRelationships.guardianUserId, guardianUserId)));
-      const linkedStudentIds = new Set(linkedRelationships.map(r => r.studentUserId));
-      const chosenStudentId = (selectedStudentId && linkedStudentIds.has(selectedStudentId))
-        ? selectedStudentId
-        // Sin selección, el vínculo primario (el mismo que elige el portal acudiente)
-        : [...linkedRelationships].sort((x, y) => y.isPrimary - x.isPrimary)[0]?.studentUserId;
-      if (chosenStudentId) {
-        const studentUser = (await db.select().from(users).where(and(eq(users.schoolId, schoolId), eq(users.id, chosenStudentId))).limit(1))[0];
-        if (studentUser?.name) {
-          targetStudentName = studentUser.name;
-          guardianStudentId = studentUser.id;
-        }
+      // Misma fuente que el portal acudiente: vínculos explícitos y por nombre, el primario primero
+      const linked = await listGuardianStudents(schoolId, guardianUserId);
+      const chosen = linked.find(student => student.id === selectedStudentId) ?? linked[0];
+      if (chosen?.name) {
+        targetStudentName = chosen.name;
+        guardianStudentId = chosen.id;
       }
     }
   } else if (selectedStudentId) {
@@ -977,14 +973,16 @@ export async function createGuardianRelationship(input: { schoolId: number; guar
 export async function listGuardianStudents(schoolId: number, guardianUserId: number) {
   const db = await getDb();
   if (!db) return [];
-  const relationships = await db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, schoolId), eq(guardianStudentRelationships.guardianUserId, guardianUserId)));
+  const [relationships, guardianUser] = await Promise.all([
+    db.select().from(guardianStudentRelationships).where(and(eq(guardianStudentRelationships.schoolId, schoolId), eq(guardianStudentRelationships.guardianUserId, guardianUserId))),
+    db.select({ name: users.name }).from(users).where(eq(users.id, guardianUserId)).limit(1).then(rows => rows[0]),
+  ]);
   const studentIds = new Set(relationships.map(row => row.studentUserId));
 
   // Fallback: Check if guardian matches by name in students table
-  const guardianUser = (await db.select().from(users).where(eq(users.id, guardianUserId)).limit(1))[0];
   if (guardianUser?.name) {
     const normGuardianName = normalizePersonName(guardianUser.name);
-    const allRosterStudents = await db.select().from(students).where(eq(students.schoolId, schoolId));
+    const allRosterStudents = await db.select({ id: students.id, guardianName: students.guardianName }).from(students).where(eq(students.schoolId, schoolId));
     for (const rStudent of allRosterStudents) {
       if (rStudent.guardianName && normalizePersonName(rStudent.guardianName) === normGuardianName) {
         const equiv = await getStudentEquivalence(rStudent.id, schoolId);
@@ -993,7 +991,12 @@ export async function listGuardianStudents(schoolId: number, guardianUserId: num
     }
   }
 
-  return (await db.select().from(users)).filter(user => studentIds.has(user.id)).map(user => ({ ...user, relationship: relationships.find(row => row.studentUserId === user.id) }));
+  if (!studentIds.size) return [];
+  const studentUsers = await db.select().from(users).where(and(eq(users.schoolId, schoolId), inArray(users.id, Array.from(studentIds))));
+  // El vínculo primario primero: es el hijo que se muestra cuando el acudiente no elige otro
+  return studentUsers
+    .map(user => ({ ...user, relationship: relationships.find(row => row.studentUserId === user.id) }))
+    .sort((a, b) => (b.relationship?.isPrimary ?? 0) - (a.relationship?.isPrimary ?? 0) || (a.name ?? "").localeCompare(b.name ?? "", "es"));
 }
 
 export async function getRolePermissionCatalog() {

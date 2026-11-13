@@ -45,7 +45,7 @@ export type GuardianChild = {
   isPrimary: boolean;
 };
 
-/** Hijos vinculados al acudiente, con su curso actual; el vínculo primario va primero. */
+/** Hijos vinculados al acudiente, con su curso actual; el vínculo primario va primero (orden de `listGuardianStudents`). */
 export async function listGuardianChildren(actor: StudentActor): Promise<GuardianChild[]> {
   if (actor.roleKey !== "GUARDIAN") throw new StudentPortalError("Esta sección es solo para acudientes.");
   const db = await getDb();
@@ -73,8 +73,7 @@ export async function listGuardianChildren(actor: StudentActor): Promise<Guardia
         relationshipType: child.relationship?.relationshipType ?? null,
         isPrimary: Boolean(child.relationship?.isPrimary),
       }),
-    )
-    .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary) || a.name.localeCompare(b.name, "es"));
+    );
 }
 
 /**
@@ -84,7 +83,8 @@ export async function listGuardianChildren(actor: StudentActor): Promise<Guardia
 async function resolveStudentUserId(actor: StudentActor, studentUserId?: number): Promise<number> {
   if (actor.roleKey === "STUDENT") return actor.userId;
   if (actor.roleKey !== "GUARDIAN") throw new StudentPortalError("Esta sección es solo para estudiantes y acudientes.");
-  const children = await listGuardianChildren(actor);
+  // Solo los vínculos: el curso de cada hijo no hace falta para autorizar
+  const children = await listGuardianStudents(actor.schoolId, actor.userId);
   if (studentUserId === undefined) {
     if (!children.length) throw new StudentPortalError("Aún no tienes estudiantes vinculados a tu cuenta.");
     return children[0].id;

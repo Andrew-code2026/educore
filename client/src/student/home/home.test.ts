@@ -92,6 +92,10 @@ describe("buildSummary", () => {
 });
 
 describe("nextEvents", () => {
+  it("drops events that already started today", () => {
+    expect(nextEvents([{ id: 1, title: "Izada de bandera", eventDate: at(0, 7) }], NOW)).toEqual([]);
+  });
+
   it("keeps today and upcoming events, soonest first, at most three", () => {
     const events = [
       { id: 1, title: "Pasado", eventDate: at(-2, 9) },

@@ -4,6 +4,7 @@
  */
 import { APPROVAL_GRADE } from "@/gradecenter/domain/scale";
 import type { DayModel } from "@/student/attendance/attendance";
+import { normalizeText } from "@/gradecenter/lib/format";
 import { formatDue, formatGrade, formatShortDate } from "@/student/format";
 import type { SubjectModel } from "@/student/grades/grades";
 import type { TaskModel } from "@/student/tasks/tasks";
@@ -22,7 +23,7 @@ export interface GuardianPriority {
 
 const MAX_PRIORITIES = 4;
 
-const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").trim().toLowerCase();
+const normalize = (value: string) => normalizeText(value).trim();
 
 /**
  * Lo que el acudiente puede resolver o acompañar, de lo más urgente a lo menos:
