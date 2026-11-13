@@ -61,28 +61,27 @@ export function minBlockWidth(block: BlockInput): number {
     case "box_plot":
     case "line_chart":
     case "pictogram":
+    case "tree_diagram":
+    case "bar_model":
       return fromDesign(520);
     case "scatter_plot":
     case "balance":
       return fromDesign(460);
     case "venn":
       return fromDesign(440);
-    case "bar_model":
-      return fromDesign(380);
-    case "tree_diagram":
-      return fromDesign(400);
     case "fraction_model":
-      return fromDesign(Math.min(520, 40 + 130 * block.models.length));
+      // Círculos de unos 120 px cada uno; las barras van apiladas y miden casi media hoja
+      return fromDesign(block.shape === "circle" ? Math.min(520, 10 + 120 * block.models.length) : 400);
     case "clock":
       return fromDesign(Math.max(160, block.clocks.length * 128 + 8));
     case "angle":
-      return fromDesign(Math.min(520, 60 + 170 * block.angles.length));
+      return fromDesign(Math.min(520, 180 * block.angles.length));
     case "base_ten":
       return fromDesign(280);
     case "area_model":
       return fromDesign(Math.max(220, 90 + 108 * block.columns.length));
     case "shapes":
-      return fromDesign(Math.min(520, 40 + 150 * block.figures.length));
+      return fromDesign(Math.min(520, 70 + 150 * block.figures.length));
     default:
       // Lo que no va dentro de un contenedor pide la hoja entera
       return SHEET_WIDTH_PX;

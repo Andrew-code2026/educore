@@ -394,9 +394,11 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
       if (result.changed) {
         recordHistory(before, historyKey(op));
         showLocal(result.doc);
-        if (op.op === "delete_blocks" || op.op === "delete_section") {
+        // Lo que se borra (o una celda que se quita con lo que tenía) se anuncia con la forma de deshacerlo
+        if (op.op === "delete_blocks" || op.op === "delete_section" || op.op === "remove_cell") {
           const deleted = result.doc;
-          toast(op.op === "delete_section" ? "Sección eliminada." : op.blockIds.length > 1 ? "Bloques eliminados." : "Bloque eliminado.", {
+          const message = op.op === "remove_cell" ? `${result.summary}.` : op.op === "delete_section" ? "Sección eliminada." : op.blockIds.length > 1 ? "Bloques eliminados." : "Bloque eliminado.";
+          toast(message, {
             id: DELETE_TOAST,
             // Solo deshace el borrado si no hubo otra edición después
             action: { label: "Deshacer", onClick: () => docRef.current === deleted && undo() },

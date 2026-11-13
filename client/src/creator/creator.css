@@ -1525,7 +1525,19 @@
   --sheet-tip-line: #8CCBA4;
   --sheet-warn-soft: #FFF6E5;
   --sheet-warn-line: #E8BE6C;
+  /* Columnas y tarjetas. Las separaciones las repite shared/creatorContainers.ts para decidir qué cabe en cada celda */
+  --sheet-column-gap: 20px;
+  --sheet-column-rule: transparent;
+  --sheet-card-gap: 12px;
+  --sheet-card-pad: 12px;
+  --sheet-card-bg: #FFFFFF;
+  --sheet-card-line: var(--sheet-rule);
+  --sheet-card-radius: 10px;
+  --sheet-card-title: var(--sheet-ink);
+  --sheet-card-title-line: var(--sheet-hair);
 
+  /* La hoja es contenedor de consultas: las columnas se apilan cuando ella, no la ventana, se angosta */
+  container: sheet / inline-size;
   padding: 44px 52px 52px;
   border-radius: 6px;
   background: #FFFFFF;
@@ -2389,6 +2401,84 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
   .crt-block[data-flash], .crt-doc__section[data-flash] { animation: none; background-color: var(--sheet-accent-soft); box-shadow: 0 0 0 2px var(--sheet-accent-line); }
 }
 
+/* ── Columnas y tarjetas ───────────────────────────────── */
+
+/* Una fila de columnas con los anchos del bloque (--crt-columns, en fracciones). Cada celda es una
+   lista de bloques como la de una sección, con márgenes más cortos porque el espacio es menor. */
+.crt-columns { display: grid; grid-template-columns: var(--crt-columns, minmax(0, 1fr) minmax(0, 1fr)); column-gap: var(--sheet-column-gap); }
+.crt-cell { position: relative; min-width: 0; display: flow-root; }
+.crt-cell--column + .crt-cell--column::before { content: ""; position: absolute; top: 0; bottom: 0; left: calc(var(--sheet-column-gap) / -2); border-left: 1px solid var(--sheet-column-rule); pointer-events: none; }
+.crt-cell > .crt-block { margin: 0 -6px 10px; padding: 3px 6px; border-radius: 8px; }
+.crt-cell > .crt-block:last-child { margin-bottom: 0; }
+.crt-cell > .crt-block--heading { margin-top: 12px; margin-bottom: 2px; }
+.crt-cell > .crt-block:first-child { margin-top: 0; }
+.crt-cell > .crt-block--heading:first-child .crt-heading { margin-top: 0; }
+
+.crt-tiles { display: grid; grid-template-columns: repeat(var(--crt-per-row, 2), minmax(0, 1fr)); gap: var(--sheet-card-gap); }
+.crt-tile { padding: var(--sheet-card-pad); border: 1px solid var(--sheet-card-line); border-radius: var(--sheet-card-radius); background: var(--sheet-card-bg); }
+.crt-tile__title { margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--sheet-card-title-line); font-size: 15px; font-weight: 600; line-height: 1.35; color: var(--sheet-card-title); }
+
+/* En el editor. El marco del contenedor se elige con un clic entre sus bloques o con Tab; mientras él
+   o algo de dentro está activo, cada columna muestra su borde para ver hasta dónde llega */
+.crt-frame { border-radius: 6px; outline: none; }
+.crt-frame:focus-visible { outline: 2px solid var(--sheet-accent); outline-offset: 4px; }
+.crt-block.is-editable:is(.crt-block--columns, .crt-block--cards) > .crt-frame { cursor: default; }
+.crt-block.is-editable.crt-block--columns:is(.is-active, :has(.crt-block--inner:is(.is-active, .is-inplace, .is-editing))) .crt-cell--column { outline: 1px dashed var(--sheet-rule); outline-offset: 4px; border-radius: 2px; }
+
+/* Cuando las barras flotan sobre la esquina de cada bloque (hoja angosta o pantalla táctil), la del
+   contenedor va a la izquierda: a la derecha estaría la del primer bloque de su última columna */
+.crt-block:is(.crt-block--columns, .crt-block--cards) > .crt-block__tools { right: auto; left: 6px; }
+@media (hover: hover) {
+  @container crt (min-width: 721px) {
+    .crt-block:is(.crt-block--columns, .crt-block--cards) > .crt-block__tools { left: calc(100% + 5px); }
+  }
+}
+
+/* La barra de un bloque de dentro va sobre su esquina, en fila: el margen de la hoja queda lejos y el
+   puntero cruzaría otra columna para llegar. Lo mismo el indicador de «señalado en el chat» */
+.crt-block--inner > .crt-block__tools { top: -31px; right: 0; left: auto; flex-direction: row; }
+.crt-block--inner > .crt-block__tools::before { content: ""; position: absolute; top: 100%; right: 0; left: 0; bottom: auto; width: auto; height: 6px; }
+.crt-block--inner > .crt-block__pin { top: -9px; right: 4px; left: auto; }
+/* La marca de la IA de un bloque de dentro cabe en el espacio entre columnas */
+.crt-block--inner > .crt-block__mark { left: -11px; width: 10px; }
+.crt-block--inner > .crt-block__mark::before { left: 3px; }
+.crt-block--inner > .crt-block__mark:is(:hover, :focus-visible)::before { left: 2px; }
+/* La barra de formato no se encoge al ancho de una columna angosta; en la última columna se alinea a la derecha */
+.crt-cell .crt-inplace__bar { max-width: min(640px, 100cqw); }
+.crt-cell--column:last-child:not(:first-child) .crt-inplace__bar { left: auto; right: -7px; }
+
+.crt-cell__empty { display: flex; align-items: center; gap: 4px; min-height: 56px; padding: 6px; border: 1px dashed var(--sheet-rule); border-radius: 8px; }
+.crt-cell__write { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--sheet-muted); font: inherit; font-size: 13px; cursor: pointer; }
+.crt-cell__write:hover, .crt-cell__write:focus-visible { background: var(--sheet-accent-soft); color: var(--sheet-accent); }
+.crt-cell__write svg, .crt-cell__remove svg { width: 14px; height: 14px; }
+.crt-cell__remove { display: grid; flex: none; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; color: var(--sheet-muted); cursor: pointer; }
+.crt-cell__remove:hover, .crt-cell__remove:focus-visible { background: #FDEEF1; color: #B42343; }
+
+.crt-tile__title-view { border-radius: 4px; cursor: text; outline: 1px solid transparent; outline-offset: 2px; transition: outline-color .12s ease; }
+.crt-tile__title-view:hover { outline-color: var(--sheet-hair); }
+.crt-tile__title-view:focus-visible { outline: 2px solid var(--sheet-accent); }
+.crt-tile__title-input { display: block; min-height: 1.35em; border-radius: 4px; outline: 2px solid var(--sheet-accent-line); outline-offset: 2px; }
+.crt-tile__title-input:empty::before { content: attr(data-placeholder); color: #8A929B; font-weight: 400; }
+/* Sin título, la tarjeta ofrece ponerle uno con un botón sobre su borde superior: no mueve nada */
+.crt-tile { position: relative; }
+.crt-tile__add-title { position: absolute; top: -10px; left: 10px; z-index: 1; display: inline-flex; align-items: center; gap: 3px; height: 20px; padding: 0 8px 0 6px; border: 1px solid var(--sheet-hair); border-radius: 999px; background: #FFFFFF; color: var(--sheet-muted); font: inherit; font-size: 11.5px; cursor: pointer; opacity: 0; transition: opacity .12s ease; }
+.crt-tile__add-title svg { width: 11px; height: 11px; }
+.crt-tile:is(:hover, :focus-within) > .crt-tile__add-title, .crt-tile__add-title:focus-visible { opacity: 1; }
+.crt-tile__add-title:hover { border-color: var(--sheet-accent-line); color: var(--sheet-accent); }
+@media (hover: none) {
+  .crt-tile__add-title { opacity: 1; }
+}
+
+/* Hoja angosta: tres o cuatro tarjetas por fila pasan a dos, y con menos espacio todo va en una columna */
+@container sheet (max-width: 620px) {
+  .crt-tiles:is([data-per-row="3"], [data-per-row="4"]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container sheet (max-width: 520px) {
+  .crt-columns { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
+  .crt-cell--column + .crt-cell--column::before { display: none; }
+  .crt-tiles[data-per-row] { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* ── Copia para imprimir o guardar en PDF ──────────────── */
 
 .crt-print { display: none; }
@@ -2445,4 +2535,12 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
   .crt-print .crt-answer--lines span { height: 22pt; }
 
   .crt-print .crt-block--page_break { break-after: page; height: 0; margin: 0; overflow: hidden; visibility: hidden; }
+
+  /* En papel las columnas siguen lado a lado (la hoja carta es ancha). Una fila de columnas no se parte
+     si cabe en la página; una tarjeta nunca se parte, y una rejilla larga se corta entre filas. */
+  .crt-print .crt-block--columns { break-inside: avoid; }
+  .crt-print .crt-tile { break-inside: avoid; }
+  .crt-print .crt-cell > .crt-block { margin: 0; padding: 4pt 0 3pt; }
+  .crt-print .crt-cell > .crt-block:first-child { padding-top: 0; }
+  .crt-print .crt-cell > .crt-block:last-child { padding-bottom: 0; }
 }

@@ -1,12 +1,41 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, BetweenHorizontalStart, Copy, GripVertical, MessageSquarePlus, Pencil, Plus, Trash2 } from "lucide-react";
-import { BLOCK_TYPE_LABELS, CREATOR_LIMITS, type Block, type BlockInput, type BlockType, type CreatorEvent, type ResourceDoc, type Section } from "@shared/creator";
-import type { DocOp, OpResult } from "@shared/creatorOps";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ArrowDown, ArrowUp, BetweenHorizontalStart, Columns2, Copy, GripVertical, LayoutGrid, MessageSquarePlus, Pencil, Plus, SquareDashedMousePointer, Trash2, Ungroup, X } from "lucide-react";
+import {
+  BLOCK_TYPE_LABELS,
+  blockCells,
+  CREATOR_LIMITS,
+  findBlock,
+  INNER_BLOCK_TYPES,
+  isContainer,
+  isContainerType,
+  type Block,
+  type BlockInput,
+  type BlockType,
+  type ContainerBlock,
+  type CreatorEvent,
+  type ResourceDoc,
+  type Section,
+} from "@shared/creator";
+import { cellName, cellWidths, placementIssue } from "@shared/creatorContainers";
+import { applyDocOp, type DocOp, type OpResult } from "@shared/creatorOps";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { BlockPicker } from "./BlockPicker";
-import { BlockView } from "./blocks/BlockView";
+import { BlockView, ContainerView } from "./blocks/BlockView";
+import { CardTitle, EmptyCell } from "./ContainerControls";
 import { BLOCK_TEMPLATES, BlockEditor } from "./editing/BlockEditor";
 import { InlineBlockEditor, type BlockEditorHandle, type CloseReason } from "./editing/InlineBlockEditor";
 import { IS_MAC, isEditingTarget } from "./keyboard";
@@ -15,7 +44,7 @@ import type { EditEntry } from "./editing/InlineText";
 import { revealTarget } from "./reveal";
 import { ResourceSheet } from "./ResourceSheet";
 import { SectionMenu, SectionTitle, useMenuFollowUp, type SectionTitleHandle } from "./SectionControls";
-import { insertOp, moveShortcut, stepTarget, type DropTarget, type InsertPlace } from "./structure";
+import { ADDABLE_BLOCKS, insertOp, moveShortcut, stepTarget, type DropTarget, type InsertPlace } from "./structure";
 import type { MarkKind } from "./turnReview";
 import { useBlockDrag } from "./useBlockDrag";
 
@@ -58,6 +87,12 @@ interface Editing {
   seq: number;
 }
 
+/** Dónde vive un bloque de dentro: el contenedor y su celda. */
+interface Parent {
+  container: ContainerBlock;
+  cell: number;
+}
+
 /** Espera antes de mostrar las acciones de un bloque: al desplazar la hoja o cruzarla con el puntero no aparece nada. */
 const HOVER_IN_MS = 110;
 /** Margen para llegar con el puntero del bloque a su barra sin que se esconda. */
@@ -82,35 +117,53 @@ interface ActiveBlock {
   last: "hover" | "focus";
 }
 
+/** El bloque de la hoja que contiene un elemento: el de más adentro, si hay uno dentro de unas columnas o una tarjeta. */
+function blockOf(target: EventTarget | null): string | null {
+  return target instanceof Element ? (target.closest<HTMLElement>("[data-block-id]")?.dataset.blockId ?? null) : null;
+}
+
 /**
- * El bloque activo es el que está bajo el puntero o el que tiene el foco del teclado.
- * Solo ese bloque monta su barra de acciones: una barra en toda la hoja en vez de una por bloque.
+ * El bloque activo es el que está bajo el puntero o el que tiene el foco del teclado. Solo ese bloque
+ * monta su barra de acciones: una barra en toda la hoja en vez de una por bloque. Con columnas y
+ * tarjetas manda el bloque de más adentro; el contenedor queda activo cuando el puntero o el foco están
+ * en él pero fuera de sus bloques (el espacio entre columnas, el borde de una tarjeta).
  */
 function useActiveBlock() {
   const [state, setState] = useState<ActiveBlock>({ hoverId: null, focusId: null, last: "hover" });
   const timer = useRef<number | undefined>(undefined);
+  /** El bloque al que va a pasar el puntero cuando venza la espera (`undefined`: no hay nada pendiente). */
+  const pending = useRef<string | null | undefined>(undefined);
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
-  const enter = useCallback((id: string) => {
+  /** El puntero pasó a estar sobre este bloque, o sobre ninguno. */
+  const point = useCallback((id: string | null) => {
+    if (pending.current === id) return;
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setState(current => ({ ...current, hoverId: id, last: "hover" })), HOVER_IN_MS);
+    pending.current = id;
+    timer.current = window.setTimeout(
+      () => {
+        pending.current = undefined;
+        setState(current => (id === null ? (current.hoverId === null ? current : { ...current, hoverId: null }) : current.hoverId === id && current.last === "hover" ? current : { ...current, hoverId: id, last: "hover" }));
+      },
+      id === null ? HOVER_OUT_MS : HOVER_IN_MS,
+    );
   }, []);
 
-  const leave = useCallback((id: string) => {
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setState(current => (current.hoverId === id ? { ...current, hoverId: null } : current)), HOVER_OUT_MS);
-  }, []);
-
-  const focus = useCallback((id: string) => setState(current => (current.focusId === id && current.last === "focus" ? current : { ...current, focusId: id, last: "focus" })), []);
-  const blur = useCallback((id: string) => setState(current => (current.focusId === id ? { ...current, focusId: null } : current)), []);
+  const focus = useCallback((id: string | null) => setState(current => (current.focusId === id && (id === null || current.last === "focus") ? current : { ...current, focusId: id, ...(id ? { last: "focus" as const } : {}) })), []);
 
   const activeId = state.last === "focus" ? (state.focusId ?? state.hoverId) : (state.hoverId ?? state.focusId);
-  return { activeId, enter, leave, focus, blur };
+  return { activeId, point, focus };
 }
 
 /** En lugar de un texto vacío se ofrece cualquier otro bloque. */
 const SLASH_EXCLUDE: readonly BlockType[] = ["paragraph"];
+
+/** Lo que no se ofrece al cambiar un texto de una celda: lo que no puede ir dentro o no cabe a ese ancho. */
+function cellExclude(parent: Parent): BlockType[] {
+  const width = cellWidths(parent.container)[parent.cell];
+  return ADDABLE_BLOCKS.filter(type => type === "paragraph" || !INNER_BLOCK_TYPES.has(type) || placementIssue(BLOCK_TEMPLATES[type], width) !== null);
+}
 
 const PICKER_TITLES: Record<InsertPlace["kind"], string> = {
   after: "Insertar debajo",
@@ -118,6 +171,23 @@ const PICKER_TITLES: Record<InsertPlace["kind"], string> = {
   start: "Insertar al inicio de la sección",
   end: "Añadir al final de la sección",
 };
+
+/** Los repartos que se ofrecen según cuántas columnas hay. */
+const COLUMN_LAYOUTS: Record<number, Array<{ widths: number[]; label: string }>> = {
+  2: [
+    { widths: [1, 1], label: "Dos iguales" },
+    { widths: [2, 1], label: "Ancha la izquierda" },
+    { widths: [1, 2], label: "Ancha la derecha" },
+  ],
+  3: [
+    { widths: [1, 1, 1], label: "Tres iguales" },
+    { widths: [1, 2, 1], label: "Ancha la del centro" },
+    { widths: [2, 1, 1], label: "Ancha la izquierda" },
+    { widths: [1, 1, 2], label: "Ancha la derecha" },
+  ],
+};
+
+const countLabel = (count: number) => (count === 0 ? "vacía" : count === 1 ? "1 bloque" : `${count} bloques`);
 
 /** El menú de bloques colgado de su sitio en la hoja: debajo (o encima) de donde se insertará. */
 function PickerAnchor({ above = false, children }: { above?: boolean; children: ReactNode }) {
@@ -193,7 +263,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
   /** Lo que se le dice a un lector de pantalla tras mover un bloque o una sección. */
   const [announcement, setAnnouncement] = useState("");
   const titles = useRef(new Map<string, SectionTitleHandle>());
-  const { activeId: hoverOrFocusId, enter, leave, focus, blur } = useActiveBlock();
+  const { activeId: hoverOrFocusId, point, focus } = useActiveBlock();
   const noHover = useNoHover();
   const blockMenu = useMenuFollowUp();
 
@@ -203,7 +273,8 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
   /** Lleva el foco a un bloque (tras moverlo, duplicarlo o cerrar un menú). Espera a que la hoja se dibuje. */
   const focusBlock = useCallback((id: string, options?: { flash?: boolean }) => {
     requestAnimationFrame(() => {
-      const view = paper.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(id)}"] .crt-block__view`);
+      // La vista propia del bloque, no la de un bloque de dentro si es un contenedor
+      const view = paper.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(id)}"] > .crt-block__view`);
       if (options?.flash) revealTarget({ blockIds: [id] });
       view?.focus({ preventScroll: options?.flash });
       // Un bloque sin vista enfocable (el salto de página) al menos se trae a la vista
@@ -216,10 +287,11 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     (blockId: string, target: DropTarget) => {
       const result = applyOp({ op: "move_block_to", blockId, ...target });
       if (!result.ok || !result.changed) return;
-      const moved = result.doc.sections.find(section => section.id === target.sectionId);
-      if (!moved) return;
-      const position = moved.blocks.findIndex(block => block.id === blockId) + 1;
-      setAnnouncement(`Bloque movido: lugar ${position} de ${moved.blocks.length} en «${moved.title}».`);
+      const found = findBlock(result.doc, blockId);
+      if (!found) return;
+      const list = found.parent ? blockCells(found.parent.container)[found.parent.cell] : found.section.blocks;
+      const where = found.parent ? `${cellName(found.parent.container, found.parent.cell)} de «${found.section.title}»` : `«${found.section.title}»`;
+      setAnnouncement(`Bloque movido: lugar ${found.index + 1} de ${list.length} en ${where}.`);
       focusBlock(blockId);
     },
     [applyOp, focusBlock],
@@ -245,6 +317,14 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     const current = editingRef.current;
     if (current && current.id !== id && current.inline && editor.current && !editor.current.settle()) {
       editor.current.focus();
+      return;
+    }
+    // Un contenedor no tiene formulario: se abre lo primero que guarda
+    const found = isContainerType(type) ? findBlock(docRef.current, id) : null;
+    if (found && isContainer(found.block)) {
+      const first = blockCells(found.block).flat()[0];
+      if (first) open(first.id, first.type, entry);
+      else focusBlock(id);
       return;
     }
     setEditing({ id, inline: isInlineType(type), entry, seq: ++seq.current });
@@ -291,6 +371,9 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     if (next.type === "page_break") {
       setEditing(null);
       focusBlock(id);
+    } else if (isContainer(next)) {
+      setEditing(null);
+      open(id, next.type, entry);
     } else {
       setEditing({ id, inline: isInlineType(next.type), entry, seq: ++seq.current });
     }
@@ -304,9 +387,10 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
 
   /** Borra un bloque (el aviso permite deshacerlo) y devuelve el vecino, para seguir con el teclado desde ahí. */
   const remove = (id: string) => {
-    const section = docRef.current.sections.find(candidate => candidate.blocks.some(block => block.id === id));
-    const index = section?.blocks.findIndex(block => block.id === id) ?? -1;
-    const neighbour = section && (section.blocks[index + 1] ?? section.blocks[index - 1]);
+    const found = findBlock(docRef.current, id);
+    const list = found ? (found.parent ? blockCells(found.parent.container)[found.parent.cell] : found.section.blocks) : [];
+    // El último bloque de una celda deja el foco en su contenedor
+    const neighbour = found && (list[found.index + 1] ?? list[found.index - 1] ?? found.parent?.container);
     const result = applyOp({ op: "delete_blocks", blockIds: [id] });
     return result.ok ? neighbour?.id : undefined;
   };
@@ -314,6 +398,20 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
   const step = (id: string, direction: "up" | "down") => {
     const target = stepTarget(docRef.current, id, direction);
     if (target) moveTo(id, target);
+  };
+
+  /** Una operación sobre un contenedor desde su menú; el foco vuelve a él (o a lo que diga `focusOn`). */
+  const containerOp = (op: DocOp, focusOn?: (result: Extract<OpResult, { ok: true }>) => string | undefined) => {
+    const result = applyOp(op);
+    if (!result.ok || !result.changed) return;
+    const target = focusOn?.(result) ?? ("containerId" in op ? op.containerId : result.ids[0]);
+    if (target) blockMenu.then(() => focusBlock(target));
+  };
+
+  /** Escribir en una celda vacía: un párrafo nuevo, abierto con su texto de muestra seleccionado. */
+  const writeInCell = (section: Section, container: ContainerBlock, cell: number) => {
+    const result = applyOp({ op: "insert_blocks", sectionId: section.id, containerId: container.id, cell, at: "end", blocks: [BLOCK_TEMPLATES.paragraph] });
+    if (result.ok && result.ids[0]) open(result.ids[0], "paragraph", "all");
   };
 
   const addSection = () => {
@@ -345,10 +443,101 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     setAnnouncement(`Sección «${section.title}» movida: ahora es la ${position} de ${result.doc.sections.length}.`);
   };
 
-  const renderBlock = (block: Block, section: Section) => {
+  /** ¿Se puede aplicar? Sirve para apagar en el menú lo que no cabría, con el motivo como ayuda. */
+  const tryOp = (op: DocOp): string | null => {
+    const result = applyDocOp(docRef.current, op);
+    return result.ok ? null : result.error;
+  };
+
+  /** Lo que el menú de un contenedor añade: el reparto, las celdas y sacar los bloques. */
+  const containerItems = (block: ContainerBlock) => {
+    const cells = blockCells(block);
+    const columns = block.type === "columns";
+    const noun = columns ? "columna" : "tarjeta";
+    const addIssue = tryOp({ op: "add_cell", containerId: block.id });
+    const canRemove = columns ? cells.length > CREATOR_LIMITS.columnsMin : cells.length > 1;
+    const current = columns ? block.columns.map(column => column.width).join(":") : String(block.perRow);
+    return (
+      <>
+        <DropdownMenuSeparator />
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            {columns ? <Columns2 aria-hidden="true" /> : <LayoutGrid aria-hidden="true" />}
+            {columns ? "Reparto" : "Tarjetas por fila"}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="crt-menu w-56">
+            <DropdownMenuRadioGroup value={current}>
+              {columns
+                ? COLUMN_LAYOUTS[cells.length].map(layout => {
+                    const issue = tryOp({ op: "set_layout", containerId: block.id, widths: layout.widths });
+                    const value = layout.widths.join(":");
+                    return (
+                      <DropdownMenuRadioItem key={value} value={value} disabled={issue !== null && value !== current} title={issue ?? undefined} onSelect={() => containerOp({ op: "set_layout", containerId: block.id, widths: layout.widths })}>
+                        {layout.label}
+                      </DropdownMenuRadioItem>
+                    );
+                  })
+                : [2, 3, 4].map(perRow => {
+                    const issue = tryOp({ op: "set_layout", containerId: block.id, perRow });
+                    return (
+                      <DropdownMenuRadioItem key={perRow} value={String(perRow)} disabled={issue !== null && perRow !== block.perRow} title={issue ?? undefined} onSelect={() => containerOp({ op: "set_layout", containerId: block.id, perRow })}>
+                        {perRow} por fila
+                      </DropdownMenuRadioItem>
+                    );
+                  })}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuItem
+          disabled={addIssue !== null}
+          title={addIssue ?? undefined}
+          onSelect={() =>
+            containerOp({ op: "add_cell", containerId: block.id }, () => {
+              // El foco va a «Escribir aquí» de la celda nueva
+              blockMenu.then(() => requestAnimationFrame(() => paper.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(block.id)}"] .crt-cell[data-cell="${cells.length}"] .crt-cell__write`)?.focus()));
+              return undefined;
+            })
+          }
+        >
+          <Plus aria-hidden="true" />
+          Añadir {noun}
+        </DropdownMenuItem>
+        {canRemove && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <X aria-hidden="true" />
+              Quitar {noun}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="crt-menu w-64">
+              {cells.map((cell, index) => {
+                const issue = tryOp({ op: "remove_cell", containerId: block.id, cell: index });
+                const title = block.type === "cards" ? block.cards[index].title : undefined;
+                return (
+                  <DropdownMenuItem key={index} disabled={issue !== null} title={issue ?? undefined} onSelect={() => containerOp({ op: "remove_cell", containerId: block.id, cell: index })}>
+                    <span className="truncate">
+                      {columns ? "Columna" : "Tarjeta"} {index + 1}
+                      {title ? ` «${title}»` : ""}
+                    </span>
+                    <DropdownMenuShortcut>{countLabel(cell.length)}</DropdownMenuShortcut>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        )}
+        <DropdownMenuItem onSelect={() => containerOp({ op: "unwrap_container", containerId: block.id }, result => result.ids[0])}>
+          <Ungroup aria-hidden="true" />
+          Sacar de {columns ? "las columnas" : "las tarjetas"}
+        </DropdownMenuItem>
+      </>
+    );
+  };
+
+  const renderBlock = (block: Block, section: Section, parent?: Parent) => {
     const isEditing = editing?.id === block.id;
     const inline = isInlineBlock(block);
-    const canEdit = !readOnly && block.type !== "page_break";
+    const container = isContainer(block) ? block : null;
+    const canEdit = !readOnly && block.type !== "page_break" && !container;
     const active = !readOnly && !isEditing && activeId === block.id;
     const showTools = !readOnly && (noHover || active);
     const mark = marks.get(block.id);
@@ -356,16 +545,69 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     const attached = canAttach && attachedIds.has(block.id);
     const attachLabel = attached ? "Quitar del chat" : "Llevar al chat";
     const label = BLOCK_TYPE_LABELS[block.type];
-    // Subir y Bajar pasan a la sección vecina: solo se detienen en los extremos del documento
-    const index = section.blocks.indexOf(block);
+    // Subir y Bajar pasan a la sección vecina: solo se detienen en los extremos del documento. Dentro de una celda, en sus bordes
+    const list = parent ? blockCells(parent.container)[parent.cell] : section.blocks;
+    const index = list.indexOf(block as never);
     const sectionIndex = doc.sections.indexOf(section);
-    const canUp = index > 0 || sectionIndex > 0;
-    const canDown = index < section.blocks.length - 1 || sectionIndex < doc.sections.length - 1;
-    const pickerHere = picker && (picker.kind === "after" || picker.kind === "before") && picker.blockId === block.id ? picker : null;
+    const canUp = index > 0 || (!parent && sectionIndex > 0);
+    const canDown = index < list.length - 1 || (!parent && sectionIndex < doc.sections.length - 1);
+    // Poner en columnas: un bloque del primer nivel que pueda ir dentro, solo o con el que le sigue. Se
+    // comprueba solo para el bloque con la barra a la vista, que es el único que la muestra
+    const wrappable = showTools && !parent && !container && INNER_BLOCK_TYPES.has(block.type);
+    const next = wrappable ? section.blocks[index + 1] : undefined;
+    const wrapWithNext = wrappable && next !== undefined && !isContainer(next) && INNER_BLOCK_TYPES.has(next.type) && tryOp({ op: "wrap_blocks", blockIds: [block.id, next.id], as: "columns" }) === null;
+    const wrapIssue = wrappable ? tryOp({ op: "wrap_blocks", blockIds: [block.id], as: "columns" }) : null;
+    const pickerHere = !parent && picker && (picker.kind === "after" || picker.kind === "before") && picker.blockId === block.id ? picker : null;
     const blockPicker = pickerHere && (
       <PickerAnchor above={pickerHere.kind === "before"}>
         <BlockPicker title={PICKER_TITLES[pickerHere.kind]} onPick={insert} onClose={closePicker} />
       </PickerAnchor>
+    );
+
+    const view = container ? (
+      // El marco del contenedor se enfoca con Tab o con un clic entre sus bloques: así se elige el contenedor entero
+      <div
+        className="crt-block__view crt-frame"
+        {...(!readOnly ? { tabIndex: 0, role: "group", "aria-label": `${label}: ${blockCells(container).length} ${container.type === "columns" ? "columnas" : "tarjetas"}` } : {})}
+      >
+        <ContainerView
+          block={container}
+          renderInner={(inner, cell) => renderBlock(inner, section, { container, cell })}
+          renderCardTitle={(cell, title) => <CardTitle containerId={container.id} cell={cell} title={title} readOnly={readOnly} applyOp={applyOp} />}
+          renderCellEnd={(cell, blocks) =>
+            !readOnly &&
+            blocks.length === 0 && (
+              <EmptyCell
+                noun={container.type === "columns" ? "columna" : "tarjeta"}
+                onWrite={() => writeInCell(section, container, cell)}
+                onRemove={tryOp({ op: "remove_cell", containerId: container.id, cell }) === null ? () => containerOp({ op: "remove_cell", containerId: container.id, cell }) : undefined}
+              />
+            )
+          }
+        />
+      </div>
+    ) : (
+      <div
+        className="crt-block__view"
+        {...(canEdit
+          ? {
+              role: "button",
+              tabIndex: 0,
+              "aria-label": `Editar ${label.toLowerCase()}`,
+              "aria-keyshortcuts": "Alt+Shift+ArrowUp Alt+Shift+ArrowDown",
+              // El cursor queda donde se hizo clic; con el teclado, al final del texto
+              onClick: (event: React.MouseEvent) => open(block.id, block.type, event.detail > 0 ? { x: event.clientX, y: event.clientY } : "end"),
+              onKeyDown: (event: React.KeyboardEvent) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  open(block.id, block.type, "end");
+                }
+              },
+            }
+          : {})}
+      >
+        <BlockView block={block} />
+      </div>
     );
 
     return (
@@ -373,6 +615,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
         className={cn(
           "crt-block",
           `crt-block--${block.type}`,
+          parent && "crt-block--inner",
           isEditing && (inline ? "is-inplace" : "is-editing"),
           !readOnly && "is-editable",
           active && "is-active",
@@ -381,14 +624,11 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
           pickerHere && "has-picker",
         )}
         data-block-id={block.id}
-        onPointerEnter={event => event.pointerType !== "touch" && enter(block.id)}
-        onPointerLeave={() => leave(block.id)}
-        onFocus={() => focus(block.id)}
-        onBlur={event => !event.currentTarget.contains(event.relatedTarget) && blur(block.id)}
         onKeyDown={event => {
-          // Alt+Mayús+↑/↓ mueve el bloque que tiene el foco; dentro de un texto o un campo, las teclas son suyas
+          // Alt+Mayús+↑/↓ mueve el bloque que tiene el foco; dentro de un texto o un campo, las teclas son suyas.
+          // Un bloque de dentro de unas columnas lo atiende él: su contenedor no se mueve con él
           const direction = moveShortcut(event);
-          if (!direction || readOnly || isEditing || isEditingTarget(event.target)) return;
+          if (!direction || readOnly || isEditing || isEditingTarget(event.target) || blockOf(event.target) !== block.id) return;
           event.preventDefault();
           step(block.id, direction);
         }}
@@ -412,7 +652,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                 <PickerAnchor>
                   <BlockPicker
                     title="Cambiar este texto por…"
-                    exclude={SLASH_EXCLUDE}
+                    exclude={parent ? cellExclude(parent) : SLASH_EXCLUDE}
                     onPick={type => replace(block.id, BLOCK_TEMPLATES[type], "all")}
                     onClose={reason => {
                       setSlashFor(null);
@@ -439,33 +679,14 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
             block={block}
             onCancel={() => close(block.id)}
             onSave={(next: BlockInput) => {
-              applyOp({ op: "update_block", blockId: block.id, block: next });
-              close(block.id);
+              const result = applyOp({ op: "update_block", blockId: block.id, block: next });
+              // Lo que no cabe en su celda deja el formulario abierto, con el aviso, para corregirlo
+              if (result.ok) close(block.id);
             }}
           />
         ) : (
           <>
-            <div
-              className="crt-block__view"
-              {...(canEdit
-                ? {
-                    role: "button",
-                    tabIndex: 0,
-                    "aria-label": `Editar ${label.toLowerCase()}`,
-                    "aria-keyshortcuts": "Alt+Shift+ArrowUp Alt+Shift+ArrowDown",
-                    // El cursor queda donde se hizo clic; con el teclado, al final del texto
-                    onClick: (event: React.MouseEvent) => open(block.id, block.type, event.detail > 0 ? { x: event.clientX, y: event.clientY } : "end"),
-                    onKeyDown: (event: React.KeyboardEvent) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        open(block.id, block.type, "end");
-                      }
-                    },
-                  }
-                : {})}
-            >
-              <BlockView block={block} />
-            </div>
+            {view}
             {showTools && (
               <div className="crt-block__tools" role="toolbar" aria-label={`Acciones de ${label.toLowerCase()}`}>
                 <DropdownMenu open={menuFor === block.id} onOpenChange={open => setMenuFor(open ? block.id : null)}>
@@ -473,9 +694,10 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                     <button
                       type="button"
                       className="crt-block__grip"
-                      title="Arrastra para mover · Clic para más acciones"
-                      aria-label={`Mover ${label.toLowerCase()} o más acciones`}
-                      onPointerDown={event => press(event, block.id, label, () => setMenuFor(block.id))}
+                      title={parent ? "Más acciones" : "Arrastra para mover · Clic para más acciones"}
+                      aria-label={parent ? `Más acciones de ${label.toLowerCase()}` : `Mover ${label.toLowerCase()} o más acciones`}
+                      // Dentro de una celda el asa solo abre el menú: el arrastre entre celdas llega en la siguiente tanda
+                      onPointerDown={parent ? undefined : event => press(event, block.id, label, () => setMenuFor(block.id))}
                     >
                       <GripVertical aria-hidden="true" />
                     </button>
@@ -497,10 +719,12 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                       <Copy aria-hidden="true" />
                       Duplicar
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={blockMenu.later(() => openPicker({ sectionId: section.id, kind: "before", blockId: block.id }))}>
-                      <BetweenHorizontalStart aria-hidden="true" />
-                      Insertar encima
-                    </DropdownMenuItem>
+                    {!parent && (
+                      <DropdownMenuItem onSelect={blockMenu.later(() => openPicker({ sectionId: section.id, kind: "before", blockId: block.id }))}>
+                        <BetweenHorizontalStart aria-hidden="true" />
+                        Insertar encima
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       disabled={!canUp}
                       onSelect={() => {
@@ -523,12 +747,37 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                       Bajar
                       <DropdownMenuShortcut className="crt-keys">{MOVE_HINT.down}</DropdownMenuShortcut>
                     </DropdownMenuItem>
+                    {wrappable && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem disabled={wrapIssue !== null} title={wrapIssue ?? undefined} onSelect={() => containerOp({ op: "wrap_blocks", blockIds: [block.id], as: "columns" })}>
+                          <Columns2 aria-hidden="true" />
+                          Poner en columnas
+                        </DropdownMenuItem>
+                        {wrapWithNext && (
+                          <DropdownMenuItem onSelect={() => containerOp({ op: "wrap_blocks", blockIds: [block.id, next!.id], as: "columns" })}>
+                            <Columns2 aria-hidden="true" />
+                            En columnas con el siguiente
+                          </DropdownMenuItem>
+                        )}
+                      </>
+                    )}
+                    {container && containerItems(container)}
+                    {parent && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={blockMenu.later(() => focusBlock(parent.container.id))}>
+                          <SquareDashedMousePointer aria-hidden="true" />
+                          Elegir {parent.container.type === "columns" ? "las columnas" : "las tarjetas"}
+                        </DropdownMenuItem>
+                      </>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       variant="destructive"
                       onSelect={() => {
-                        const next = remove(block.id);
-                        if (next) blockMenu.then(() => focusBlock(next));
+                        const neighbour = remove(block.id);
+                        if (neighbour) blockMenu.then(() => focusBlock(neighbour));
                       }}
                     >
                       <Trash2 aria-hidden="true" />
@@ -536,9 +785,11 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <button type="button" title="Añadir debajo" aria-label="Añadir un bloque debajo" aria-expanded={pickerHere?.kind === "after"} onClick={() => openPicker({ sectionId: section.id, kind: "after", blockId: block.id })}>
-                  <Plus aria-hidden="true" />
-                </button>
+                {!parent && (
+                  <button type="button" title="Añadir debajo" aria-label="Añadir un bloque debajo" aria-expanded={pickerHere?.kind === "after"} onClick={() => openPicker({ sectionId: section.id, kind: "after", blockId: block.id })}>
+                    <Plus aria-hidden="true" />
+                  </button>
+                )}
                 {canAttach && (
                   <button type="button" title={attachLabel} aria-label={attachLabel} aria-pressed={attached} onClick={() => onToggleAttach(block.id)}>
                     <MessageSquarePlus aria-hidden="true" />
@@ -621,7 +872,21 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
   };
 
   return (
-    <div className="crt-paper" ref={paper}>
+    <div
+      className="crt-paper"
+      ref={paper}
+      // Un solo oyente para toda la hoja: el bloque activo es el de más adentro bajo el puntero o con el foco
+      onPointerOver={event => event.pointerType !== "touch" && point(blockOf(event.target))}
+      onPointerLeave={event => event.pointerType !== "touch" && point(null)}
+      onFocus={event => {
+        const id = blockOf(event.target);
+        if (id) focus(id);
+      }}
+      onBlur={event => {
+        // El foco que sale de la hoja (o a algo que no es un bloque) deja de marcar un bloque
+        if (!blockOf(event.relatedTarget) || !paper.current?.contains(event.relatedTarget as Node)) focus(null);
+      }}
+    >
       <ResourceSheet
         doc={doc}
         schoolName={schoolName}

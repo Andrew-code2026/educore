@@ -1,5 +1,5 @@
-import { memo, type ReactNode } from "react";
-import type { Block, BlockOf } from "@shared/creator";
+import { Fragment, memo, type CSSProperties, type ReactNode } from "react";
+import type { Block, BlockOf, InnerBlock } from "@shared/creator";
 import { formatTableNumber, valueTableDecimals } from "@shared/creatorPlane";
 import { computeValueTable, valueTableVariable } from "@shared/creatorValidate";
 import { AreaModel } from "./AreaModel";
@@ -160,6 +160,70 @@ function SolutionView({ block }: { block: BlockOf<"solution"> }) {
           <RichText md={block.answer} />
         </div>
       )}
+    </div>
+  );
+}
+
+interface ContainerViewProps {
+  block: BlockOf<"columns" | "cards">;
+  /** Dibuja cada bloque de dentro (en el editor, con sus controles). Sin esto, la vista de la hoja impresa. */
+  renderInner?: (block: InnerBlock, cell: number) => ReactNode;
+  /** El título de una tarjeta, editable en el editor. Sin esto, el título como texto. */
+  renderCardTitle?: (cell: number, title: string | undefined) => ReactNode;
+  /** Lo que va al final de cada celda en el editor (escribir en una celda vacía). */
+  renderCellEnd?: (cell: number, blocks: readonly InnerBlock[]) => ReactNode;
+}
+
+/**
+ * Columnas lado a lado o una rejilla de tarjetas, cada celda con su lista de bloques. Los anchos salen
+ * del bloque (fracciones de la fila); los colores, bordes y separaciones, de las variables --sheet-* de
+ * la hoja, para que un tema pueda cambiarlos. La tarjeta es una caja con título y contenido apilado:
+ * más adelante podrá llevar una imagen o servir de base a una plantilla de actividad.
+ */
+export function ContainerView({ block, renderInner, renderCardTitle, renderCellEnd }: ContainerViewProps) {
+  const inner = (blocks: readonly InnerBlock[], cell: number) =>
+    blocks.map((child, index) => (
+      // En la vista previa de lo que escribe la IA los bloques aún no tienen id
+      <Fragment key={child.id ?? index}>
+        {renderInner ? (
+          renderInner(child, cell)
+        ) : (
+          <div className={`crt-block crt-block--${child.type}`}>
+            <BlockView block={child} />
+          </div>
+        )}
+      </Fragment>
+    ));
+
+  if (block.type === "columns") {
+    const template = block.columns.map(column => `minmax(0, ${column.width}fr)`).join(" ");
+    return (
+      <div className="crt-columns" data-count={block.columns.length} style={{ "--crt-columns": template } as CSSProperties}>
+        {block.columns.map((column, cell) => (
+          <div key={cell} className="crt-cell crt-cell--column" data-cell={cell}>
+            {inner(column.blocks, cell)}
+            {renderCellEnd?.(cell, column.blocks)}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="crt-tiles" data-per-row={block.perRow} style={{ "--crt-per-row": block.perRow } as CSSProperties}>
+      {block.cards.map((card, cell) => (
+        <div key={cell} className="crt-cell crt-tile" data-cell={cell}>
+          {renderCardTitle
+            ? renderCardTitle(cell, card.title)
+            : card.title && (
+                <h4 className="crt-tile__title">
+                  <RichText md={card.title} inline />
+                </h4>
+              )}
+          {inner(card.blocks, cell)}
+          {renderCellEnd?.(cell, card.blocks)}
+        </div>
+      ))}
     </div>
   );
 }
@@ -327,5 +391,8 @@ export const BlockView = memo(function BlockView({ block }: { block: Block }) {
           <span>Salto de página</span>
         </div>
       );
+    case "columns":
+    case "cards":
+      return <ContainerView block={block} />;
   }
 });
