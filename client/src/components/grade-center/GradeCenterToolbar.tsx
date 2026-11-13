@@ -159,7 +159,7 @@ export function GradeCenterToolbar({
               options={courses.map(c => ({ value: c.id, label: `Curso: ${c.name}` }))}
               placeholder="Seleccionar curso"
               aria-label="Seleccionar curso"
-              className="h-8 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 px-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-[var(--edc-accent)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              className="h-8 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 px-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-[var(--edc-accent)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-800 dark:text-slate-200"
             />
           </div>
 
@@ -171,7 +171,7 @@ export function GradeCenterToolbar({
               options={subjects.map(s => ({ value: s.id, label: `Materia: ${s.name}` }))}
               placeholder="Seleccionar materia"
               aria-label="Seleccionar materia"
-              className="h-8 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 px-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-[var(--edc-accent)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              className="h-8 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 px-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-[var(--edc-accent)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-800 dark:text-slate-200"
             />
           </div>
 
@@ -183,7 +183,7 @@ export function GradeCenterToolbar({
               options={periods.map(p => ({ value: p.id, label: p.name }))}
               placeholder="Seleccionar periodo"
               aria-label="Seleccionar periodo académico"
-              className="h-8 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 px-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-[var(--edc-accent)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              className="h-8 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 px-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-[var(--edc-accent)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-800 dark:text-slate-200"
             />
           </div>
         </div>

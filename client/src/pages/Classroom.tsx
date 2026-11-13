@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { OptionSelect } from '@/components/option-select';
+import { optionsFrom } from '@/lib/select-options';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -30,9 +31,8 @@ export interface ClassroomPageProps {
   setSection: (s: Section) => void;
 }
 
-const toOptions = (values: readonly string[]) => values.map((value) => ({ value, label: value }));
-const TASK_SUBJECT_OPTIONS = toOptions(['Matemáticas', 'Física', 'Filosofía', 'Inglés', 'Biología']);
-const TASK_COURSE_OPTIONS = toOptions(['11-2', '11-1', '10-1']);
+const TASK_SUBJECT_OPTIONS = optionsFrom(['Matemáticas', 'Física', 'Filosofía', 'Inglés', 'Biología']);
+const TASK_COURSE_OPTIONS = optionsFrom(['11-2', '11-1', '10-1']);
 
 const formatDate = (
   value: Date | string | null | undefined,

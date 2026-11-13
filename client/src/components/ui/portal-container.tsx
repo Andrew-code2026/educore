@@ -34,30 +34,41 @@ function usePortalContainer() {
  */
 function usePortalContainerHost<T extends HTMLElement>(forwardedRef?: React.Ref<T>) {
   const [container, setContainer] = React.useState<T | null>(null);
+  // Devuelve su limpieza (React 19): así un `ref` de función que también la devuelve recibe la suya
+  // en vez de una llamada con `null`.
   const ref = React.useCallback(
     (node: T | null) => {
       setContainer(node);
-      if (typeof forwardedRef === "function") forwardedRef(node);
+      let cleanup: void | (() => void) = undefined;
+      if (typeof forwardedRef === "function") cleanup = forwardedRef(node);
       else if (forwardedRef) forwardedRef.current = node;
+      return () => {
+        setContainer(null);
+        if (typeof cleanup === "function") cleanup();
+        else if (typeof forwardedRef === "function") forwardedRef(null);
+        else if (forwardedRef) forwardedRef.current = null;
+      };
     },
     [forwardedRef]
   );
   return [container, ref] as const;
 }
 
+/** Marca de los popups que se montan dentro de otra superficie (la pone, p. ej., `SelectContent`). */
+const NESTED_POPUP_ATTRIBUTE = "data-nested-popup";
+
 /**
  * Radix escucha Escape en `document` (fase de captura), antes que el popup anidado. Las superficies
- * de Radix lo consultan en `onEscapeKeyDown` para que Escape cierre solo el popup abierto.
+ * de Radix lo consultan en `onEscapeKeyDown` para que Escape cierre solo el popup abierto: el foco
+ * está dentro de un popup marcado o en un disparador de Base UI con su popup abierto.
  */
 function isEscapeForNestedPopup(event: KeyboardEvent) {
   const target = event.target;
-  return (
-    target instanceof Element &&
-    target.closest('[data-slot="select-content"], [data-slot="select-trigger"][data-popup-open]') !== null
-  );
+  return target instanceof Element && target.closest(`[${NESTED_POPUP_ATTRIBUTE}], [data-popup-open]`) !== null;
 }
 
 export {
+  NESTED_POPUP_ATTRIBUTE,
   PortalContainerProvider,
   isEscapeForNestedPopup,
   usePortalContainer,

@@ -2,6 +2,7 @@ import { memo } from "react";
 import { CheckCircle2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OptionSelect } from "@/components/option-select";
+import { optionsFrom } from "@/lib/select-options";
 import type { PiarField, PiarSource, PiarValues } from "@shared/piar";
 
 export interface PiarFieldViewProps {
@@ -91,10 +92,7 @@ export const PiarFieldView = memo(function PiarFieldView({
             className="pia-select"
             value={value}
             onValueChange={set}
-            options={[
-              { value: "", label: "Seleccione…" },
-              ...(field.options ?? []).map(option => ({ value: option, label: option })),
-            ]}
+            options={optionsFrom(field.options ?? [], "Seleccione…")}
           />
         </>
       );

@@ -298,7 +298,7 @@ export function DbaPeriodManagerModal({ open, onOpenChange }: DbaPeriodManagerMo
                     { value: "matematicas", label: "Matemáticas" },
                     { value: "lenguaje", label: "Lenguaje / Español" },
                   ]}
-                  className="h-8 px-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white font-medium focus:outline-none"
+                  className="h-8 px-2.5 rounded-xl text-xs bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white font-medium focus:outline-none"
                 />
               </div>
 
@@ -457,7 +457,7 @@ export function DbaPeriodManagerModal({ open, onOpenChange }: DbaPeriodManagerMo
                               { value: "procedimental", label: "Dimensión: Procedimental (Hacer)" },
                               { value: "actitudinal", label: "Dimensión: Actitudinal (Ser)" },
                             ]}
-                            className="h-8 px-2.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none"
+                            className="h-8 px-2.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none"
                           />
 
                           <button

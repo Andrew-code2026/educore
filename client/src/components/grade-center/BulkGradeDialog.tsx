@@ -185,7 +185,7 @@ export function BulkGradeDialog({
                 value={assessmentId}
                 onValueChange={setAssessmentId}
                 options={assessments.map(a => ({ value: a.id, label: `${a.title} · ${a.weight}% peso · Máx ${a.maxValue}` }))}
-                className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-3.5 text-xs font-semibold text-slate-800 shadow-xs focus:border-[var(--edc-primary)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 cursor-pointer"
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-3.5 text-xs font-semibold text-slate-800 shadow-xs focus:border-[var(--edc-primary)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-800 dark:text-slate-200 cursor-pointer"
               />
             </div>
 

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { OptionSelect } from "@/components/option-select";
+import { optionsFrom } from "@/lib/select-options";
 import { Textarea } from "@/components/ui/textarea";
 
 export interface ComposeInput {
@@ -37,7 +38,7 @@ interface ComposeDialogProps {
   onDraftWithAi: (draft: { title: string; message: string }) => Promise<{ title: string | null; message: string }>;
 }
 
-const AUDIENCE_OPTIONS = ANNOUNCEMENT_AUDIENCES.map((audience) => ({ value: audience, label: audience }));
+const AUDIENCE_OPTIONS = optionsFrom(ANNOUNCEMENT_AUDIENCES);
 const TITLE_MIN = 3;
 const MESSAGE_MIN = 5;
 

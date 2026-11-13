@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
-import { OptionSelect } from "@/components/option-select";
+import { OptionSelect, type SelectOption } from "@/components/option-select";
 import {
   AttendanceJustificationItem,
   AttendanceJustificationReasonCategory,
@@ -79,6 +79,27 @@ interface JustificationModalProps {
 }
 
 type FilterTab = "pending" | "scheduled" | "in_review" | "pending_support" | "resolved" | "all";
+
+const RESOLUTION_OPTIONS: readonly SelectOption<"approved" | "unjustified" | "rejected">[] = [
+  { value: "approved", label: "Aprobar excusa (justificada legalmente)" },
+  { value: "rejected", label: "Rechazar excusa (soporte inválido o extemporáneo)" },
+  { value: "unjustified", label: "Declarar inasistencia injustificada" },
+];
+
+const REASON_OPTIONS: readonly SelectOption<AttendanceJustificationReasonCategory>[] = [
+  { value: "medical", label: "Incapacidad médica / Salud" },
+  { value: "family_emergency", label: "Calamidad o emergencia familiar" },
+  { value: "external_appointment", label: "Cita médica o procedimiento externo" },
+  { value: "institutional", label: "Representación institucional / Deportiva" },
+  { value: "force_majeure", label: "Fuerza mayor / Clima / Transporte" },
+  { value: "other", label: "Otro motivo justificable" },
+];
+
+const SUBMITTER_OPTIONS: readonly SelectOption<"student" | "guardian" | "teacher">[] = [
+  { value: "teacher", label: "Docente / Secretaría" },
+  { value: "guardian", label: "Acudiente" },
+  { value: "student", label: "Estudiante" },
+];
 
 export const JustificationModal: React.FC<JustificationModalProps> = ({
   isOpen,
@@ -1421,11 +1442,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                 <OptionSelect
                   value={resolveTargetStatus}
                   onValueChange={setResolveTargetStatus}
-                  options={[
-                    { value: "approved", label: "Aprobar excusa (justificada legalmente)" },
-                    { value: "rejected", label: "Rechazar excusa (soporte inválido o extemporáneo)" },
-                    { value: "unjustified", label: "Declarar inasistencia injustificada" },
-                  ]}
+                  options={RESOLUTION_OPTIONS}
                   className="h-auto w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white font-medium"
                 />
               </div>
@@ -1536,17 +1553,10 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                 <label className="font-semibold text-slate-700 block mb-1">
                   Motivo de inasistencia:
                 </label>
-                <OptionSelect<AttendanceJustificationReasonCategory>
+                <OptionSelect
                   value={newReasonCategory}
                   onValueChange={setNewReasonCategory}
-                  options={[
-                    { value: "medical", label: "Incapacidad médica / Salud" },
-                    { value: "family_emergency", label: "Calamidad o emergencia familiar" },
-                    { value: "external_appointment", label: "Cita médica o procedimiento externo" },
-                    { value: "institutional", label: "Representación institucional / Deportiva" },
-                    { value: "force_majeure", label: "Fuerza mayor / Clima / Transporte" },
-                    { value: "other", label: "Otro motivo justificable" },
-                  ]}
+                  options={REASON_OPTIONS}
                   className="h-auto w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
                 />
               </div>
@@ -1574,11 +1584,7 @@ export const JustificationModal: React.FC<JustificationModalProps> = ({
                   <OptionSelect
                     value={newSubmittedByRole}
                     onValueChange={setNewSubmittedByRole}
-                    options={[
-                      { value: "teacher", label: "Docente / Secretaría" },
-                      { value: "guardian", label: "Acudiente" },
-                      { value: "student", label: "Estudiante" },
-                    ]}
+                    options={SUBMITTER_OPTIONS}
                     className="h-auto w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
                   />
                 </div>

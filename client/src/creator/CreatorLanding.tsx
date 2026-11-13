@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEve
 import { ArrowRight, ArrowUpLeft, BookOpen, ClipboardCheck, Copy, FileText, Globe, Loader2, Puzzle, Sparkles, Timer, Trash2, TriangleAlert, type LucideIcon } from "lucide-react";
 import { CREATOR_LIMITS, RESOURCE_KIND_LABELS, RESOURCE_KINDS, type Clarification, type ClarifyQuestion, type ResourceKind, type ResourceStatus } from "@shared/creator";
 import { OptionSelect } from "@/components/option-select";
+import { optionsFrom } from "@/lib/select-options";
 import { BotAvatar } from "./BotAvatar";
 import { ClarifyPanel } from "./ClarifyPanel";
 import { EmptyCard, ErrorCard, formatWhen } from "./parts";
@@ -53,9 +54,6 @@ interface CreatorLandingProps {
 }
 
 const GRADES = ["Transición", "1°", "2°", "3°", "4°", "5°", "6°", "7°", "8°", "9°", "10°", "11°"];
-
-/** Opciones de un filtro opcional: la primera, vacía, lo deja sin elegir y rotula el campo. */
-const withEmpty = (label: string, values: readonly string[]) => [{ value: "", label }, ...values.map(value => ({ value, label: value }))];
 
 interface Idea {
   kind: ResourceKind;
@@ -224,10 +222,10 @@ export function CreatorLanding(props: CreatorLandingProps) {
 
               <div className="crt-composer__foot">
                 <div className="crt-composer__context">
-                  <OptionSelect className="crt-input" aria-label="Asignatura" value={subject} onValueChange={setSubject} options={withEmpty("Asignatura", subjectOptions)} />
-                  <OptionSelect className="crt-input" aria-label="Grado" value={grade} onValueChange={setGrade} options={withEmpty("Grado", GRADES)} />
+                  <OptionSelect className="crt-input" aria-label="Asignatura" value={subject} onValueChange={setSubject} options={optionsFrom(subjectOptions, "Asignatura")} />
+                  <OptionSelect className="crt-input" aria-label="Grado" value={grade} onValueChange={setGrade} options={optionsFrom(GRADES, "Grado")} />
                   {courses.length > 0 && (
-                    <OptionSelect className="crt-input" aria-label="Curso" value={course} onValueChange={setCourse} options={withEmpty("Curso (opcional)", courses)} />
+                    <OptionSelect className="crt-input" aria-label="Curso" value={course} onValueChange={setCourse} options={optionsFrom(courses, "Curso (opcional)")} />
                   )}
                 </div>
                 <div className="crt-composer__submit">

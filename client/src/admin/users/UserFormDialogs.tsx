@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { OptionSelect, type SelectOption } from "@/components/option-select";
+import { optionsFrom } from "@/lib/select-options";
 import { AdminDialog, Field, IDENTITY_ROLE_META } from "../parts";
 
 const ROLE = "admin" as const;
@@ -147,7 +148,7 @@ export function CreateUserDialog({ open, onClose, courses, students, onCreated }
                 className="adm-select"
                 value={course}
                 onValueChange={setCourse}
-                options={[{ value: "", label: "Sin matricular por ahora" }, ...courses.map(item => ({ value: item.name, label: item.name }))]}
+                options={optionsFrom(courses.map(item => item.name), "Sin matricular por ahora")}
               />
             </Field>
           </div>
