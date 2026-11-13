@@ -967,29 +967,55 @@
   gap: 14px;
 }
 
-.crt .crt-outline { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; max-width: 816px; }
-
-.crt .crt-outline button {
-  height: 30px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid var(--crt-outline-border);
-  background: var(--crt-outline-bg);
-  color: var(--edc-ink-3);
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.crt .crt-outline button:hover { background: var(--crt-outline-hover); }
-.crt .crt-stage > .crt-notice { width: 100%; max-width: 816px; }
-
-/* Resumen del último turno de la IA: una línea que se queda arriba mientras se recorren los cambios */
-.crt .crt-review {
+/* Lo que se queda pegado arriba de la hoja: el selector de secciones y el resumen del turno de la IA.
+   El hueco transparente al lado del selector no tapa la hoja: solo sus hijos reciben el puntero. */
+.crt .crt-stage__top {
   position: sticky;
   top: 8px;
   z-index: 4;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  max-width: 816px;
+  pointer-events: none;
+}
+
+.crt .crt-stage__top > * { pointer-events: auto; }
+
+/* Selector de secciones: el nombre de la que se está viendo; al abrirlo, la lista para saltar */
+.crt .crt-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(100%, 420px);
+  height: 34px;
+  padding: 0 10px 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--crt-outline-border);
+  background: var(--crt-solid);
+  box-shadow: var(--crt-card-shadow);
+  color: var(--edc-ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+/* Opaco también al pasar el puntero: debajo puede quedar la hoja blanca, aun en el tema oscuro */
+.crt .crt-jump:hover { background: color-mix(in srgb, var(--crt-accent) 8%, var(--crt-solid)); }
+.crt .crt-jump > svg { flex: none; width: 15px; height: 15px; color: var(--edc-ink-3); }
+.crt .crt-jump > svg:last-child { width: 14px; height: 14px; transition: rotate .15s ease; }
+.crt .crt-jump[data-state="open"] > svg:last-child { rotate: 180deg; }
+.crt .crt-jump__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.crt .crt-stage > .crt-notice { width: 100%; max-width: 816px; }
+
+/* Resumen del último turno de la IA: una línea que se queda arriba (dentro de .crt-stage__top) mientras se recorren los cambios */
+.crt .crt-review {
   flex: none;
   display: flex;
   flex-wrap: wrap;
@@ -1035,9 +1061,9 @@
 .crt .crt-review button:disabled { opacity: .5; cursor: default; }
 .crt .crt-review button svg { width: 14px; height: 14px; }
 
-/* Con el resumen pegado arriba, la barra de formato y los bloques a los que se salta quedan debajo de él.
-   Cuánto ocupa lo mide el propio resumen (TurnReviewBar pone --crt-sticky-top): puede partir renglón. */
-.crt .crt-stage.has-review :is(.crt-block, .crt-doc__section) { scroll-margin-top: calc(var(--crt-sticky-top, 50px) + 12px); }
+/* Con algo pegado arriba, la barra de formato y los bloques y secciones a los que se salta quedan debajo.
+   Cuánto ocupa lo mide StageTop (pone --crt-sticky-top): el resumen puede partir renglón. */
+.crt .crt-stage.has-top :is(.crt-block, .crt-doc__section) { scroll-margin-top: calc(var(--crt-sticky-top, 50px) + 12px); }
 
 .crt .crt-count {
   display: inline-grid;

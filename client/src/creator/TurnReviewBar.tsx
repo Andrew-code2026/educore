@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Check, ChevronDown, ChevronUp, Loader2, Sparkles, Undo2 } from "lucide-react";
 import type { TurnMark } from "./turnReview";
 
@@ -12,32 +12,13 @@ interface TurnReviewBarProps {
   onSeen: () => void;
 }
 
-/** Aire entre el resumen y lo que queda debajo de él (la barra de formato, el bloque al que se salta). */
-const GAP = 12;
-
 /**
  * El resumen del último turno de la IA, encima de la hoja: qué cambió, recorrerlo, deshacerlo o
- * darlo por visto. Se queda pegado arriba al desplazar, y le dice a la hoja cuánto ocupa
- * (`--crt-sticky-top`) para que nada quede tapado si parte renglón.
+ * darlo por visto. Va dentro de `StageTop`, que lo deja pegado arriba al desplazar.
  */
 export function TurnReviewBar({ summary, pending, undoing, onReveal, onUndo, onSeen }: TurnReviewBarProps) {
-  const bar = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState<string | null>(null);
   const position = current ? pending.findIndex(mark => mark.id === current) : -1;
-
-  useLayoutEffect(() => {
-    const element = bar.current;
-    const stage = element?.parentElement;
-    if (!element || !stage) return;
-    const measure = () => stage.style.setProperty("--crt-sticky-top", `${element.offsetHeight + GAP}px`);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => {
-      observer.disconnect();
-      stage.style.removeProperty("--crt-sticky-top");
-    };
-  }, []);
 
   const step = (delta: 1 | -1) => {
     if (pending.length === 0) return;
@@ -47,7 +28,7 @@ export function TurnReviewBar({ summary, pending, undoing, onReveal, onUndo, onS
   };
 
   return (
-    <div className="crt-review" role="status" ref={bar}>
+    <div className="crt-review" role="status">
       <Sparkles aria-hidden="true" />
       <span className="crt-review__text">{summary}</span>
       {pending.length > 0 && (
