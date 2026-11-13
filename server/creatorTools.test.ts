@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyDoc, RESOURCE_KIND_LABELS, type ResourceDoc } from "@shared/creator";
+import { blockInputSchema, emptyDoc, RESOURCE_KIND_LABELS, type ResourceDoc } from "@shared/creator";
 import { applyDocOp } from "@shared/creatorOps";
 import { SAMPLE_IDS, SAMPLES } from "@shared/creatorSample";
 import { describeActivity } from "@shared/creatorActivity";
@@ -284,5 +284,26 @@ describe("la IA con columnas y tarjetas", () => {
   it("las instrucciones dicen cuándo convienen y cuándo no", () => {
     expect(CREATOR_SYSTEM_PROMPT).toContain("## Columnas y tarjetas");
     expect(CREATOR_SYSTEM_PROMPT).toContain("wrap_blocks");
+  });
+});
+
+describe("la IA no deja columnas desparejas", () => {
+  const longText = { type: "paragraph", md: "Un texto largo que explica con calma cada paso del procedimiento para el estudiante. ".repeat(12) };
+  const short = { type: "exercise", label: "Ejercicio 1", md: "Calcula 2 + 2.", lines: 2 };
+
+  it("rechaza un texto largo junto a algo corto y dice cómo arreglarlo", () => {
+    const outcome = write(emptyDoc(), [{ type: "columns", columns: [{ blocks: [longText] }, { blocks: [short] }] }]);
+    expect(outcome.isError).toBe(true);
+    expect(outcome.activity.label).toBe("Revisando el diseño");
+    expect(outcome.result).toMatch(/Sección «Guía», columnas: La columna 1 es mucho más larga que la columna 2/);
+  });
+
+  it("no la bloquea por columnas que ya estaban así", () => {
+    const blocks = [blockInputSchema.parse({ type: "columns", columns: [{ blocks: [longText] }, { blocks: [short] }] }), blockInputSchema.parse({ type: "paragraph", md: "Otro" })];
+    const made = applyDocOp(emptyDoc(), { op: "write_section", title: "Guía", role: "student", blocks });
+    if (!made.ok) throw new Error(made.error);
+    const other = made.doc.sections[0].blocks[1];
+    const outcome = executeCreatorTool(made.doc, "update_block", { block_id: other.id, block: { type: "paragraph", md: "Otro texto" } });
+    expect(outcome.isError, outcome.result).toBe(false);
   });
 });

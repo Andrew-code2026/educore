@@ -2561,3 +2561,7 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 /* El formulario de una figura o una tabla de dentro de un contenedor se abre bajo las celdas, a todo lo ancho */
 .crt-frame__form { margin-top: 12px; padding: 4px 10px; border-radius: 10px; background: #F5F9FE; outline: 1px solid var(--sheet-accent-line); }
 .crt-cell > .crt-block.is-editing { outline-color: var(--sheet-accent-line); }
+
+/* Aviso del editor (no se imprime) cuando unas columnas se ven mal en la hoja: desparejas o con un texto largo en una angosta */
+.crt-layout-hint { display: flex; align-items: flex-start; gap: 6px; margin: 10px 0 0; padding: 6px 10px; border-radius: 8px; background: var(--sheet-warn-soft); color: #7A4B00; font-size: 12.5px; line-height: 1.4; }
+.crt-layout-hint svg { flex: none; width: 14px; height: 14px; margin-top: 2px; color: #B7791F; }

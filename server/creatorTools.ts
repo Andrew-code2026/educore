@@ -2,6 +2,7 @@ import { z } from "zod";
 import { blockInputSchema, CREATOR_LIMITS, findBlock, flattenBlocks, SECTION_ROLES, type BlockInput, type CreatorActivity, type ResourceDoc } from "@shared/creator";
 import { blockName } from "@shared/creatorActivity";
 import { applyDocOp, normalizeBlock, type DocOp } from "@shared/creatorOps";
+import { layoutIssues } from "@shared/creatorContainers";
 import { describeComputed } from "@shared/creatorStats";
 import { REMOVED_MAX } from "@shared/creatorTurn";
 import { validateBlockOrder, validateBlocks } from "@shared/creatorValidate";
@@ -230,6 +231,17 @@ export function executeCreatorTool(doc: ResourceDoc, name: string, rawInput: unk
       doc,
       "Revisando el orden",
       `No se aplicó ningún cambio porque el orden de los bloques deja mal ubicado un espacio de respuesta. Corrígelo y vuelve a llamar la herramienta:\n- ${orderIssues.slice(0, 8).join("\n- ")}`,
+    );
+  }
+
+  // Columnas desparejas o un texto largo en una columna angosta: igual que el orden, solo cuenta lo que este cambio trae
+  const knownLayout = new Set(layoutIssues(doc.sections).map(issue => issue.key));
+  const layout = layoutIssues(applied.doc.sections).filter(issue => !knownLayout.has(issue.key));
+  if (layout.length > 0) {
+    return failure(
+      doc,
+      "Revisando el diseño",
+      `No se aplicó ningún cambio porque unas columnas o tarjetas se verían mal en la hoja. Corrígelo y vuelve a llamar la herramienta:\n- ${layout.slice(0, 6).map(issue => issue.message).join("\n- ")}`,
     );
   }
 
