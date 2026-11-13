@@ -1,6 +1,7 @@
 import { memo, useId, useMemo, type CSSProperties } from "react";
 import type { GraphSpec } from "@shared/creator";
 import { formatNumber, formatNumberEs, tryCompile } from "@shared/creatorMath";
+import { areaLabel, areaShape } from "@shared/creatorCalculus";
 import { CONIC_LABELS, conicCurves, conicEquation, shownConicElements, type ConicLine } from "@shared/creatorConics";
 import { hasEqualUnits, sampleFunction, type CurveMark } from "@shared/creatorPlane";
 import { Formula } from "./Formula";
@@ -68,7 +69,8 @@ function describe(spec: GraphSpec): string {
   const lines = (spec.verticalLines ?? []).map(line => `x = ${formatNumber(line.x)}`).join(", ");
   const drawn = [functions, ...(spec.conics ?? []).map(conic => CONIC_LABELS[conic.kind].toLowerCase())].filter(Boolean).join("; ");
   const base = drawn ? `Plano cartesiano con ${drawn}` : "Plano cartesiano en blanco";
-  return [base, lines && `Rectas verticales: ${lines}`, points && `Puntos marcados: ${points}`].filter(Boolean).join(". ") + ".";
+  const shaded = (spec.areas ?? []).map(area => `de x = ${formatNumber(area.from)} a x = ${formatNumber(area.to)}`).join("; ");
+  return [base, lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, points && `Puntos marcados: ${points}`].filter(Boolean).join(". ") + ".";
 }
 
 /** Plano cartesiano dibujado a partir de la función: lo que se ve siempre coincide con la fórmula. */
@@ -111,6 +113,17 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       return { index, tone, paths, samples, marks, dashed: fn.style === "dashed" };
     });
     const verticals = (spec.verticalLines ?? []).filter(line => line.x >= spec.xMin && line.x <= spec.xMax);
+
+    // Regiones sombreadas: con rectángulos de Riemann se dibujan ellos en vez de la región
+    const zero = sy(0);
+    const areas = (spec.areas ?? []).flatMap((area, index) => {
+      const shape = areaShape(spec, area);
+      if (!shape) return [];
+      const rectangles = shape.rectangles
+        .filter(rectangle => Number.isFinite(rectangle.y))
+        .map(rectangle => ({ x: sx(rectangle.x0), width: sx(rectangle.x1) - sx(rectangle.x0), y: Math.min(sy(rectangle.y), zero), height: Math.abs(sy(rectangle.y) - zero) }));
+      return [{ index, tone: toneOf(area.fn), d: `${pathOf(shape.outline)} Z`, rectangles, label: areaLabel(spec, area), anchor: shape.anchor }];
+    });
 
     // Las cónicas siguen la paleta después de las funciones
     const linePath = (line: ConicLine) =>
@@ -227,6 +240,21 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       for (const point of conic.points) place(point.name, `crt-plane__label--${conic.tone}`, around(sx(point.x), sy(point.y), estimateWidth(point.name)));
     }
 
+    // El valor de una región va dentro de ella, lo más centrado que se pueda
+    for (const area of areas) {
+      if (!area.label) continue;
+      const labelW = estimateWidth(area.label);
+      const px = sx(area.anchor[0]) - labelW / 2;
+      const py = sy(area.anchor[1]) - LABEL_H / 2;
+      place(area.label, `crt-plane__label--${area.tone}`, [
+        { x: px, y: py },
+        { x: px, y: py - LABEL_H },
+        { x: px, y: py + LABEL_H },
+        { x: px - labelW / 2, y: py },
+        { x: px + labelW / 2, y: py },
+      ]);
+    }
+
     for (const line of verticals) {
       if (!line.label) continue;
       const px = sx(line.x);
@@ -277,12 +305,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       place(conic.equation, `crt-plane__label--${conic.tone}`, candidates);
     }
 
-    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, conics, labels, toneOf };
+    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, conics, areas, labels, toneOf };
   }, [spec]);
 
   if (!view) return <div className="crt-plane crt-plane--invalid">Rango de la gráfica no válido.</div>;
 
-  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, conics, labels, toneOf } = view;
+  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, conics, areas, labels, toneOf } = view;
   const axisXpx = sy(axisX);
   const axisYpx = sx(axisY);
   // Con el origen a la vista, el cero se escribe una sola vez junto al cruce de los ejes
@@ -355,6 +383,13 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
         </g>
 
         <g clipPath={`url(#${clipId})`}>
+          {areas.map(area =>
+            area.rectangles.length > 0 ? (
+              area.rectangles.map((rectangle, index) => <rect key={`a${area.index}-${index}`} className={`crt-plane__area crt-plane__tone--${area.tone}`} {...rectangle} />)
+            ) : (
+              <path key={`a${area.index}`} className={`crt-plane__area crt-plane__tone--${area.tone}`} d={area.d} />
+            ),
+          )}
           {verticals.map((line, index) => (
             <line key={`v${index}`} className={`crt-plane__vline${line.style === "dashed" ? " crt-plane__curve--dashed" : ""}`} x1={sx(line.x)} x2={sx(line.x)} y1={PAD.top} y2={PAD.top + h} />
           ))}

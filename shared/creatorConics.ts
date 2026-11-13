@@ -1,6 +1,6 @@
 import type { GraphConic, GraphSpec } from "./creator";
 import { formatNumber } from "./creatorMath";
-import { exactDecimals, formatDecimalEs, hasEqualUnits, PLANE_EQUAL_UNITS, type PlaneRange } from "./creatorPlane";
+import { figureNumber as numberEs, figureNumberLatex as numberLatex, hasEqualUnits, isExactNumber as isExact, PLANE_EQUAL_UNITS, type PlaneRange } from "./creatorPlane";
 
 /**
  * Cónicas del plano cartesiano: circunferencia, elipse, parábola e hipérbola dadas por sus
@@ -63,11 +63,8 @@ export interface ConicElements {
 const clean = (value: number) => Number(value.toPrecision(12));
 const square = (value: number) => clean(value * value);
 
-/** Decimales con que se escribe exacto un parámetro en la ecuación: más de cuatro ya no es una ecuación de clase. */
+/** Decimales con que se puede escribir exacto un número de la ecuación (los de `isExactNumber`). */
 const EQUATION_DECIMALS = 4;
-const isExact = (value: number) => exactDecimals(value, EQUATION_DECIMALS) !== null;
-const numberEs = (value: number) => formatDecimalEs(value, exactDecimals(value, EQUATION_DECIMALS) ?? 2);
-const numberLatex = (value: number) => numberEs(value).replace(",", "{,}");
 
 /* ── Elementos ── */
 

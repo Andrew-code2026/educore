@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { OptionSelect, type SelectOption } from "@/components/option-select";
-import { CREATOR_LIMITS, graphSpecSchema, type GraphConic, type GraphFunction, type GraphVerticalLine } from "@shared/creator";
+import { CREATOR_LIMITS, graphSpecSchema, type GraphArea, type GraphConic, type GraphFunction, type GraphVerticalLine } from "@shared/creator";
+import { RIEMANN_SAMPLE_LABELS, type RiemannSample } from "@shared/creatorCalculus";
 import { CONIC_LABELS, CONIC_SHOW_LABELS, CONIC_SHOWS, conicEquation, type ConicKind, type ConicShow } from "@shared/creatorConics";
 import type { EndStyle } from "@shared/creatorPlane";
 import { CoordinatePlane } from "../blocks/CoordinatePlane";
@@ -29,6 +30,11 @@ const COLOR_OPTIONS: readonly SelectOption<number | "">[] = [
   { value: 2, label: "Morado" },
   { value: 3, label: "Naranja" },
 ];
+
+const RIEMANN_SAMPLE_OPTIONS: readonly SelectOption<RiemannSample>[] = (Object.keys(RIEMANN_SAMPLE_LABELS) as RiemannSample[]).map(sample => ({
+  value: sample,
+  label: `Altura en el ${RIEMANN_SAMPLE_LABELS[sample]}`,
+}));
 
 const CONIC_KIND_OPTIONS: readonly SelectOption<ConicKind>[] = (Object.keys(CONIC_LABELS) as ConicKind[]).map(kind => ({ value: kind, label: CONIC_LABELS[kind] }));
 
@@ -128,6 +134,9 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
   const conics = spec.conics ?? [];
   const setConics = (next: GraphConic[]) => setSpec({ conics: next.length > 0 ? next : undefined });
   const setConic = (index: number, next: GraphConic) => setConics(conics.map((current, i) => (i === index ? next : current)));
+  const areas = spec.areas ?? [];
+  const setAreas = (next: GraphArea[]) => setSpec({ areas: next.length > 0 ? next : undefined });
+  const functionOptions = spec.functions.map((_, i) => ({ value: i, label: functionName(i) }));
 
   return (
     <>
@@ -178,8 +187,11 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
                 label={`Quitar la función ${index + 1}`}
                 onClick={() => {
                   // Los puntos que estaban sobre esta función quedan libres; los de las siguientes se reindexan
-                  const points = spec.points.map(point => (point.on == null ? point : point.on === index ? { ...point, on: null } : point.on > index ? { ...point, on: point.on - 1 } : point));
-                  setSpec({ functions: spec.functions.filter((_, i) => i !== index), points });
+                  const shift = (i: number) => (i > index ? i - 1 : i);
+                  const points = spec.points.map(point => (point.on == null ? point : point.on === index ? { ...point, on: null } : { ...point, on: shift(point.on) }));
+                  // Lo que se medía sobre esta función (regiones) se va con ella
+                  const keptAreas = areas.filter(area => area.fn !== index && area.between !== index).map(area => ({ ...area, fn: shift(area.fn), between: area.between === undefined ? undefined : shift(area.between) }));
+                  setSpec({ functions: spec.functions.filter((_, i) => i !== index), points, areas: keptAreas.length > 0 ? keptAreas : undefined });
                   setExpanded(new Set());
                   bump();
                 }}
@@ -240,6 +252,71 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
       <p className="crt-form__hint">
         La parte entera se escribe floor(x). Para una función a trozos, añade una función por trozo, cada una con su dominio y todas con el mismo color; los círculos de los extremos y de los saltos se dibujan solos. Una asíntota horizontal u oblicua es una función con trazo punteado.
       </p>
+
+      {spec.functions.length > 0 && (
+        <>
+          <span className="crt-form__legend">Regiones sombreadas</span>
+          {areas.map((area, index) => {
+            const setArea = (patch: Partial<GraphArea>) => setAreas(areas.map((current, i) => (i === index ? { ...current, ...patch } : current)));
+            return (
+              <div key={`${listVersion}-a${index}`} className="crt-form__group crt-form__stack">
+                <div className="crt-form__row">
+                  <Field label={`Región ${index + 1}: bajo`}>
+                    <OptionSelect className="crt-input" aria-label={`Función de la región ${index + 1}`} value={area.fn} onValueChange={fn => setArea({ fn })} options={functionOptions} />
+                  </Field>
+                  <Field label="Hasta">
+                    <OptionSelect<number | "">
+                      className="crt-input"
+                      aria-label={`Límite inferior de la región ${index + 1}`}
+                      value={area.between ?? ""}
+                      onValueChange={between => setArea(between === "" ? { between: undefined } : { between, rectangles: undefined, sample: undefined })}
+                      options={[{ value: "", label: "El eje x" }, ...functionOptions.filter(option => option.value !== area.fn)]}
+                    />
+                  </Field>
+                  <Field label="Desde x =">
+                    <NumberInput label={`Inicio de la región ${index + 1}`} value={area.from} onChange={from => setArea({ from })} />
+                  </Field>
+                  <Field label="Hasta x =">
+                    <NumberInput label={`Final de la región ${index + 1}`} value={area.to} onChange={to => setArea({ to })} />
+                  </Field>
+                  <RemoveButton
+                    label={`Quitar la región ${index + 1}`}
+                    onClick={() => {
+                      setAreas(areas.filter((_, i) => i !== index));
+                      bump();
+                    }}
+                  />
+                </div>
+                <div className="crt-form__row">
+                  {area.between === undefined && (
+                    <Field label="Rectángulos de Riemann">
+                      <OptionalNumberInput
+                        label={`Rectángulos de la región ${index + 1}`}
+                        placeholder="ninguno"
+                        value={area.rectangles}
+                        onChange={rectangles => setArea(rectangles === undefined ? { rectangles, sample: undefined } : { rectangles })}
+                      />
+                    </Field>
+                  )}
+                  {area.rectangles !== undefined && (
+                    <Field label="Altura de cada rectángulo">
+                      <OptionSelect
+                        className="crt-input"
+                        aria-label={`Punto de muestra de la región ${index + 1}`}
+                        value={area.sample ?? "left"}
+                        onValueChange={sample => setArea({ sample: sample === "left" ? undefined : sample })}
+                        options={RIEMANN_SAMPLE_OPTIONS}
+                      />
+                    </Field>
+                  )}
+                  <Check label={area.rectangles === undefined ? "Escribir el área" : "Escribir la suma"} checked={area.showValue ?? false} onChange={showValue => setArea({ showValue: showValue || undefined })} />
+                </div>
+              </div>
+            );
+          })}
+          {areas.length < CREATOR_LIMITS.areasMax && <AddButton onClick={() => setAreas([...areas, { fn: 0, from: 0, to: 1 }])}>Añadir región</AddButton>}
+        </>
+      )}
 
       <span className="crt-form__legend">Cónicas</span>
       {conics.map((conic, index) => {

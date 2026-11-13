@@ -1687,6 +1687,8 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 /* Trazo punteado: asíntotas, directrices y rectas auxiliares */
 .crt-plane__curve--dashed { stroke-dasharray: 7 5; stroke-linecap: butt; stroke-width: 1.8; }
 .crt-plane__vline { fill: none; stroke: #3F4A56; stroke-width: 2; }
+/* Región sombreada y rectángulos de Riemann: relleno claro que deja ver la cuadrícula, también en papel */
+.crt-plane__area { fill: var(--plane-tone, #1F5FE0); fill-opacity: .2; stroke: var(--plane-tone, #1F5FE0); stroke-width: 1; stroke-opacity: .75; stroke-linejoin: round; }
 /* Rectas auxiliares de una cónica (directriz, asíntotas) y sus puntos notables */
 .crt-plane__aux { fill: none; stroke: var(--plane-tone, #3F4A56); stroke-width: 1.5; stroke-dasharray: 6 4; }
 .crt-plane__dot { fill: var(--plane-tone, #111B24); stroke: #FFFFFF; stroke-width: 1.2; }

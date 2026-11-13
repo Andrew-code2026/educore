@@ -61,7 +61,7 @@ export function tidy(value: number): number {
   if (!Number.isFinite(value)) return value;
   if (Math.abs(value) < 1e-10) return 0;
   const rounded = Number(value.toFixed(6));
-  return Math.abs(value - rounded) <= 5e-9 * Math.max(1, Math.abs(value)) ? rounded : value;
+  return Math.abs(value - rounded) <= 1e-9 * Math.max(1, Math.abs(value)) ? rounded : value;
 }
 
 /** Decimales que necesita un número para escribirse exacto, hasta `max`; null si no le alcanzan. */
@@ -103,6 +103,18 @@ export function valueTableDecimals(xs: number[]): number {
 export function formatTableNumber(value: number, fallback = 2): string {
   return formatDecimalEs(value, exactDecimals(value) ?? fallback);
 }
+
+/** Decimales con que se escribe exacto un valor calculado dentro de una figura; con más ya no se lee. */
+const FIGURE_DECIMALS = 4;
+
+/** ¿El valor se puede escribir exacto en una figura? Si no, se redondea a dos decimales y se marca con ≈. */
+export const isExactNumber = (value: number): boolean => exactDecimals(value, FIGURE_DECIMALS) !== null;
+
+/** Un valor calculado como lo lee el estudiante: exacto si se puede, y si no con dos decimales. */
+export const figureNumber = (value: number): string => formatDecimalEs(value, exactDecimals(value, FIGURE_DECIMALS) ?? 2);
+
+/** Lo mismo para una fórmula: en LaTeX la coma decimal va entre llaves. */
+export const figureNumberLatex = (value: number): string => figureNumber(value).replace(",", "{,}");
 
 /* ── Dominio ── */
 

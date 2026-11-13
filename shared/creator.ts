@@ -31,6 +31,9 @@ export const CREATOR_LIMITS = {
   /** Rectas x = k de un plano: las asíntotas de una tangente en dos períodos. */
   verticalLinesMax: 6,
   conicsMax: 3,
+  areasMax: 2,
+  /** Rectángulos de una suma de Riemann: con más, ya no se distinguen en media hoja. */
+  riemannMax: 40,
   /** Marcas por eje: más que esto deja la cuadrícula ilegible al imprimir. */
   ticksMax: 40,
   /** Datos crudos de un histograma o de una caja y bigotes: hasta cinco cursos de 40 estudiantes. */
@@ -141,6 +144,18 @@ export const graphConicSchema = z.discriminatedUnion("kind", [
   }),
 ]);
 
+const functionIndex = z.number().int().min(0);
+
+export const graphAreaSchema = z.object({
+  fn: functionIndex.describe("Índice (desde 0) de la función cuya región se sombrea."),
+  between: functionIndex.optional().describe("Índice de una segunda función: la región queda entre las dos curvas. Si se omite, entre la curva y el eje x."),
+  from: z.number().describe("Inicio del intervalo (a)."),
+  to: z.number().describe("Final del intervalo (b)."),
+  rectangles: z.number().int().min(1).max(CREATOR_LIMITS.riemannMax).optional().describe("Número de rectángulos de Riemann, todos del mismo ancho. Si se omite, se sombrea la región."),
+  sample: z.enum(["left", "right", "midpoint"]).optional().describe('Dónde se mide la altura de cada rectángulo: "left" (extremo izquierdo, por defecto), "right" o "midpoint".'),
+  showValue: z.boolean().optional().describe("true escribe dentro de la región su área, calculada por el sistema; con rectángulos, la suma de Riemann."),
+});
+
 export const graphSpecSchema = z.object({
   xMin: z.number(),
   xMax: z.number(),
@@ -164,6 +179,11 @@ export const graphSpecSchema = z.object({
     .max(CREATOR_LIMITS.conicsMax)
     .optional()
     .describe("Cónicas por parámetros: circunferencia, elipse, parábola e hipérbola. Con cónicas el plano debe ser más o menos cuadrado, para que tenga la misma unidad en los dos ejes."),
+  areas: z
+    .array(graphAreaSchema)
+    .max(CREATOR_LIMITS.areasMax)
+    .optional()
+    .describe("Regiones sombreadas bajo una curva o entre dos curvas, para integrales y áreas. El valor lo calcula el sistema."),
 });
 
 const headerFieldsBlock = z.object({
@@ -744,6 +764,7 @@ export type GraphFunction = z.infer<typeof graphFunctionSchema>;
 export type GraphPoint = z.infer<typeof graphPointSchema>;
 export type GraphVerticalLine = z.infer<typeof graphVerticalLineSchema>;
 export type GraphConic = z.infer<typeof graphConicSchema>;
+export type GraphArea = z.infer<typeof graphAreaSchema>;
 export type BlockInput = z.infer<typeof blockInputSchema>;
 export type Block = z.infer<typeof blockSchema>;
 export type BlockType = Block["type"];
