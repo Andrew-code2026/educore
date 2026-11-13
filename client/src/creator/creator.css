@@ -10,8 +10,6 @@
   --crt-card-border: rgba(255, 255, 255, .95);
   --crt-card-shadow: 0 1px 2px rgba(24, 53, 90, .04), 0 14px 34px -16px rgba(16, 60, 113, .18);
   --crt-solid: #FFFFFF;
-  --crt-chip-bg: rgba(255, 255, 255, .7);
-  --crt-chip-border: rgba(255, 255, 255, .95);
   --crt-alert-bg: #FDEEF1;
   --crt-alert-fg: #B42343;
   --crt-warn-bg: #FFF3DF;
@@ -35,8 +33,6 @@
   --crt-skeleton: rgba(17, 27, 36, .06);
   --crt-skeleton-shine: rgba(255, 255, 255, .7);
   --crt-bar-bg: rgba(239, 243, 247, .82);
-  --crt-glow-a: radial-gradient(closest-side, rgba(101, 170, 248, .42), rgba(176, 210, 255, .18) 55%, transparent);
-  --crt-glow-b: radial-gradient(closest-side, rgba(198, 218, 253, .5), transparent);
 
   position: relative;
   z-index: 1;
@@ -61,8 +57,6 @@
   --crt-card-border: rgba(255, 255, 255, .06);
   --crt-card-shadow: 0 1px 2px rgba(0, 0, 0, .2), 0 14px 34px -16px rgba(0, 0, 0, .55);
   --crt-solid: #17212D;
-  --crt-chip-bg: rgba(255, 255, 255, .05);
-  --crt-chip-border: rgba(255, 255, 255, .08);
   --crt-alert-bg: rgba(180, 35, 67, .22);
   --crt-alert-fg: #FF9BB0;
   --crt-warn-bg: rgba(217, 138, 18, .2);
@@ -86,8 +80,6 @@
   --crt-skeleton: rgba(255, 255, 255, .06);
   --crt-skeleton-shine: rgba(255, 255, 255, .08);
   --crt-bar-bg: rgba(15, 23, 32, .82);
-  --crt-glow-a: radial-gradient(closest-side, rgba(3, 119, 223, .22), rgba(3, 119, 223, .06) 55%, transparent);
-  --crt-glow-b: radial-gradient(closest-side, rgba(83, 151, 252, .12), transparent);
   color-scheme: dark;
 }
 
@@ -137,10 +129,6 @@
 
 /* ── Fondo y portada ───────────────────────────────────── */
 
-.crt .crt__glow { position: absolute; border-radius: 50%; pointer-events: none; }
-.crt .crt__glow--a { top: -280px; left: 12%; width: 860px; height: 580px; background: var(--crt-glow-a); }
-.crt .crt__glow--b { top: -200px; right: -160px; width: 560px; height: 440px; background: var(--crt-glow-b); }
-
 .crt .crt__content {
   position: relative;
   max-width: 1120px;
@@ -157,39 +145,109 @@
   box-shadow: var(--crt-card-shadow);
 }
 
-.crt .crt-header { display: flex; flex-direction: column; gap: 12px; }
+/* La portada: saludo centrado, redactor protagonista y secciones con rótulo sobre un fondo claro */
+.crt.crt--home {
+  --crt-home-bg: #F7F9FC;
+  --crt-wash: rgba(209, 230, 255, .75);
+  --crt-aura: linear-gradient(100deg, rgba(186, 212, 255, .6), rgba(200, 236, 255, .65) 50%, rgba(222, 228, 255, .55));
+  --crt-grid-line: rgba(12, 98, 181, .08);
+  --crt-line: rgba(17, 27, 36, .09);
+  --crt-line-strong: rgba(17, 27, 36, .2);
+  --crt-tag-bg: #E2EEFD;
+  --crt-panel-bg: rgba(255, 255, 255, .5);
+  --crt-focus-line: #0377DF;
+  --crt-glow-line: rgba(3, 119, 223, .26);
+  --crt-glow-shadow: 0 0 1px rgba(16, 60, 113, .1), 0 0 24px rgba(16, 60, 113, .07), 0 0 48px 4px rgba(3, 119, 223, .12);
+  --crt-rest-shadow: 0 1px 2px rgba(16, 60, 113, .05);
+  --crt-lift-shadow: 0 4px 8px -2px rgba(16, 60, 113, .06), 0 12px 28px -6px rgba(16, 60, 113, .14);
+  --crt-tone-mix: 8%;
 
-.crt .crt-chip {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: var(--crt-chip-bg);
-  border: 1px solid var(--crt-chip-border);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--edc-blue-link);
+  padding: 0 28px 40px;
+  background: var(--crt-home-bg);
 }
 
-.crt .crt-chip svg { width: 15px; height: 15px; }
+.dark .crt.crt--home {
+  --crt-home-bg: var(--edc-main-bg);
+  --crt-wash: rgba(3, 119, 223, .13);
+  --crt-aura: linear-gradient(100deg, rgba(3, 119, 223, .2), rgba(47, 142, 252, .13) 50%, rgba(98, 112, 232, .14));
+  --crt-grid-line: rgba(255, 255, 255, .04);
+  --crt-line: rgba(255, 255, 255, .09);
+  --crt-line-strong: rgba(255, 255, 255, .24);
+  --crt-tag-bg: rgba(3, 119, 223, .2);
+  --crt-panel-bg: rgba(255, 255, 255, .025);
+  --crt-focus-line: #2F8EFC;
+  --crt-glow-line: rgba(47, 142, 252, .34);
+  --crt-glow-shadow: 0 0 1px rgba(0, 0, 0, .4), 0 0 24px rgba(0, 0, 0, .25), 0 0 48px 4px rgba(3, 119, 223, .16);
+  --crt-rest-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+  --crt-lift-shadow: 0 4px 8px -2px rgba(0, 0, 0, .3), 0 12px 28px -6px rgba(0, 0, 0, .5);
+  --crt-tone-mix: 14%;
+}
+
+/* Degradado de arriba, un resplandor detrás del redactor y cuadrícula en las dos esquinas */
+.crt .crt__backdrop {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 460px;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--crt-wash), transparent 80%);
+}
+
+.crt .crt__backdrop::before {
+  content: "";
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  width: min(840px, 76%);
+  height: 330px;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: var(--crt-aura);
+  filter: blur(46px);
+}
+
+.crt .crt__grid {
+  position: absolute;
+  top: 0;
+  width: 38%;
+  height: 384px;
+  background-image:
+    linear-gradient(to right, var(--crt-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--crt-grid-line) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+.crt .crt__grid--a { left: 0; background-position: -1px -1px; mask-image: radial-gradient(120% 120% at 0 0, #000 30%, transparent 76%); }
+.crt .crt__grid--b { right: 0; background-position: right 0 top -1px; mask-image: radial-gradient(120% 120% at 100% 0, #000 30%, transparent 76%); }
+
+.crt.crt--home .crt__content { gap: 24px; padding-top: 32px; }
+
+.crt .crt-hero {
+  width: 100%;
+  max-width: 768px;
+  margin: 0 auto;
+  padding: 64px 0 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.crt .crt-header { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
 
 .crt .crt-title {
-  font-size: 40px;
-  line-height: 1.1;
-  font-weight: 500;
-  letter-spacing: -.025em;
+  font-size: 26px;
+  line-height: 36px;
+  font-weight: 600;
+  letter-spacing: -.015em;
   text-wrap: balance;
 }
 
 .crt .crt-lede {
-  max-width: 62ch;
+  max-width: 60ch;
   font-size: 16px;
-  line-height: 1.5;
+  line-height: 1.4;
   color: var(--edc-muted);
-  text-wrap: pretty;
+  text-wrap: balance;
 }
 
 /* ── Botones y campos ──────────────────────────────────── */
@@ -291,56 +349,117 @@
 
 /* ── Portada: redactor ─────────────────────────────────── */
 
-.crt .crt-composer { display: flex; flex-direction: column; gap: 14px; padding: 18px; }
+.crt .crt-composer { display: flex; flex-direction: column; gap: 16px; }
+
+/* La tarjeta protagonista y la de preguntas comparten borde, resplandor y fondo */
+.crt.crt--home .crt-composer__card,
+.crt.crt--home .crt-clarify {
+  border-radius: 20px;
+  background: var(--crt-solid);
+  border-color: var(--crt-glow-line);
+  box-shadow: var(--crt-glow-shadow);
+  transition: border-color .2s ease;
+}
+
+.crt .crt-composer__card { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+.crt .crt-composer__card:focus-within { border-color: var(--crt-focus-line); }
+
+.crt .crt-composer__field { display: flex; align-items: flex-start; gap: 12px; }
+
+.crt .crt-composer__mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--crt-icon-bg);
+  color: var(--crt-icon-fg);
+}
+
+.crt .crt-composer__mark svg { width: 17px; height: 17px; }
 
 .crt .crt-composer__prompt {
-  width: 100%;
-  min-height: 84px;
-  padding: 6px 4px;
+  flex: 1;
+  min-width: 0;
+  min-height: 56px;
+  max-height: 240px;
+  padding: 4px 0;
   border: 0;
   background: transparent;
   color: inherit;
   font-family: inherit;
-  font-size: 17px;
-  line-height: 1.45;
-  resize: vertical;
+  font-size: 16px;
+  line-height: 24px;
+  resize: none;
+  field-sizing: content;
+}
+
+/* Donde el campo no crece solo con el texto, se puede estirar a mano */
+@supports not (field-sizing: content) {
+  .crt .crt-composer__prompt { resize: vertical; }
 }
 
 .crt .crt-composer__prompt:focus-visible { outline: none; }
-.crt .crt-composer:focus-within { border-color: color-mix(in srgb, var(--edc-blue) 45%, transparent); }
 .crt .crt-composer__prompt::placeholder { color: var(--edc-muted-3); }
 
-.crt .crt-composer__kinds { display: flex; flex-wrap: wrap; gap: 8px; }
+.crt .crt-composer__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 12px; }
+.crt .crt-composer__context { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+
+.crt .crt-composer__context .crt-input {
+  width: auto;
+  flex: 0 1 auto;
+  max-width: 142px;
+  height: 36px;
+  padding: 0 6px 0 10px;
+  border-radius: 10px;
+  border-color: var(--crt-line);
+  background: transparent;
+  font-size: 13px;
+  color: var(--edc-ink-3);
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+
+.crt .crt-composer__context .crt-input:hover { background: var(--crt-outline-hover); border-color: var(--crt-line-strong); }
+
+.crt .crt-composer__submit { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px 14px; margin-left: auto; }
+.crt .crt-composer__submit .crt-btn--lg { height: 38px; padding: 0 16px; font-size: 13.5px; }
+
+/* Tipos de recurso: fila de fichas bajo la tarjeta */
+.crt .crt-composer__kinds { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; }
+.crt .crt-composer__kinds-label { margin-right: 4px; font-size: 14px; font-weight: 600; }
 
 .crt .crt-kind {
-  height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid var(--crt-outline-border);
-  background: var(--crt-outline-bg);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 12px 0 10px;
+  border-radius: 12px;
+  border: 1px solid var(--crt-line);
+  background: var(--crt-solid);
   color: var(--edc-ink-3);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 
-.crt .crt-kind:hover { background: var(--crt-outline-hover); }
+.crt .crt-kind svg { width: 16px; height: 16px; color: var(--edc-muted-3); transition: color .15s ease; }
+.crt .crt-kind:hover { border-color: var(--crt-glow-line); box-shadow: var(--crt-rest-shadow); color: var(--edc-ink); }
 
+/* La elegida se distingue por fondo, por filete doble y por el icono en color */
 .crt .crt-kind[aria-checked="true"] {
-  background: var(--crt-primary-bg);
-  border-color: var(--crt-primary-bg);
-  color: var(--crt-primary-fg);
+  background: var(--crt-accent-soft);
+  border-color: var(--crt-accent);
+  box-shadow: inset 0 0 0 1px var(--crt-accent);
+  color: var(--edc-ink);
+  font-weight: 600;
 }
 
-.crt .crt-composer__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
-.crt .crt-composer__context { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 320px; }
-.crt .crt-composer__context .crt-input { width: auto; flex: 0 1 190px; }
-.crt .crt-composer__submit { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px 16px; margin-left: auto; }
-
-.crt .crt-ask { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--edc-ink-3); cursor: pointer; }
-.crt .crt-ask input { width: 16px; height: 16px; margin: 0; accent-color: var(--crt-accent); cursor: pointer; }
+.crt .crt-kind[aria-checked="true"] svg { color: var(--crt-accent); }
 
 /* Lo que se oculta con el atributo `hidden` conserva su estado; aquí varios bloques fijan display */
 .crt [hidden] { display: none !important; }
@@ -438,48 +557,173 @@
 .crt .crt-notice code { font-size: 12.5px; }
 .crt .crt-notice--error { background: var(--crt-alert-bg); color: var(--crt-alert-fg); }
 
-/* ── Portada: ideas y mis recursos ─────────────────────── */
+/* ── Portada: ideas y biblioteca ───────────────────────── */
 
-.crt .crt-section { display: flex; flex-direction: column; gap: 14px; }
-.crt .crt-section__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
-.crt .crt-section__title { font-size: 20px; font-weight: 500; letter-spacing: -.01em; }
+/* Rótulo de sección: una etiqueta pequeña y una línea que llega hasta el borde */
+.crt .crt-rule { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.crt .crt-rule::after { content: ""; flex: 1; height: 1px; background: var(--crt-line); }
 
-.crt .crt-ideas,
-.crt .crt-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
-  padding: 0;
-  list-style: none;
+.crt .crt-rule__label {
+  padding: 8px 9px;
+  border-radius: 6px;
+  background: var(--crt-tag-bg);
+  font-size: 11px;
+  line-height: 13px;
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
 }
 
+/* Ideas: fila de tarjetas con color por tipo; la primera y la última ocupan dos columnas */
+.crt .crt-ideas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.crt .crt-ideas > :first-child,
+.crt .crt-ideas > :last-child { grid-column: span 2; }
+
 .crt .crt-idea {
+  --tone: #0377DF;
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 16px 18px;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--tone) 17%, transparent);
+  background: color-mix(in srgb, var(--tone) var(--crt-tone-mix), var(--crt-solid));
+  box-shadow: var(--crt-rest-shadow);
   text-align: left;
   font-family: inherit;
   color: inherit;
   cursor: pointer;
-  transition: transform .15s var(--edc-ease, ease), box-shadow .15s ease;
+  transition: border-color .15s ease, box-shadow .15s ease;
 }
 
-.crt .crt-idea:hover,
-.crt .crt-card:hover { transform: translateY(-2px); }
+.crt .crt-idea[data-kind="taller"] { --tone: #7A52E0; }
+.crt .crt-idea[data-kind="evaluacion"] { --tone: #E0563F; }
+.crt .crt-idea[data-kind="calentamiento"] { --tone: #D98A12; }
+.crt .crt-idea[data-kind="contexto_real"] { --tone: #1F9D6B; }
 
-.crt .crt-idea__meta,
+.crt .crt-idea:hover { border-color: color-mix(in srgb, var(--tone) 40%, transparent); box-shadow: var(--crt-lift-shadow); }
+
+.crt .crt-idea__head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+
+.crt .crt-idea__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--tone);
+  color: #FFFFFF;
+}
+
+.crt .crt-idea__icon svg { width: 16px; height: 16px; }
+
+.crt .crt-idea__meta {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--tone) 62%, var(--edc-ink));
+}
+
+.crt .crt-idea__title { font-size: 15px; line-height: 21px; font-weight: 600; }
+.crt .crt-idea__text { font-size: 13px; line-height: 1.45; color: var(--edc-ink-3); text-wrap: pretty; }
+
+/* Solo las tarjetas anchas llevan el motivo del tipo al fondo, a la derecha */
+.crt .crt-idea__motif { display: none; }
+
+.crt .crt-ideas > :is(:first-child, :last-child) :is(.crt-idea__title, .crt-idea__text) { max-width: 66%; }
+
+.crt .crt-ideas > :is(:first-child, :last-child) .crt-idea__motif {
+  display: block;
+  position: absolute;
+  right: -14px;
+  bottom: -26px;
+  width: 148px;
+  height: 148px;
+  rotate: -12deg;
+  color: var(--tone);
+  opacity: .14;
+  pointer-events: none;
+}
+
+/* Biblioteca: mis recursos en el panel grande y los ejemplos en el angosto */
+.crt .crt-shelf { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+.crt .crt-shelf--split { grid-template-columns: minmax(0, 1fr) minmax(232px, 24%); }
+
+.crt .crt-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--crt-line);
+  background: var(--crt-panel-bg);
+  backdrop-filter: blur(4px);
+}
+
+.crt .crt-panel__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; min-height: 30px; }
+.crt .crt-panel__title { font-size: 18px; line-height: 27px; font-weight: 600; letter-spacing: -.01em; }
+.crt .crt-panel__note { margin-top: -10px; font-size: 13px; line-height: 1.45; color: var(--edc-muted); text-wrap: pretty; }
+
+.crt .crt-samples { display: flex; flex-direction: column; gap: 2px; margin: -4px -8px; padding: 0; list-style: none; }
+
+.crt .crt-sample {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--edc-blue-link);
+  cursor: pointer;
+  transition: background-color .15s ease, opacity .15s ease;
+}
+
+.crt .crt-sample:hover:not(:disabled) { background: var(--edc-hover); }
+.crt .crt-sample:disabled { cursor: not-allowed; opacity: .5; }
+.crt .crt-sample__icon { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--crt-icon-bg); color: var(--crt-icon-fg); }
+.crt .crt-sample__icon svg { width: 15px; height: 15px; }
+.crt .crt-sample__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crt .crt-sample > svg { width: 15px; height: 15px; color: var(--edc-muted-3); }
+
+.crt .crt-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.crt .crt-card {
+  position: relative;
+  display: flex;
+  border-radius: 12px;
+  border: 1px solid var(--crt-line);
+  background: var(--crt-solid);
+  box-shadow: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.crt .crt-card:hover { border-color: var(--crt-line-strong); box-shadow: var(--crt-lift-shadow); }
+
 .crt .crt-card__meta {
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: .04em;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .05em;
   text-transform: uppercase;
   color: var(--edc-blue-link);
 }
-
-.crt .crt-idea__text { font-size: 14px; line-height: 1.45; color: var(--edc-ink-3); text-wrap: pretty; }
-
-.crt .crt-card { position: relative; display: flex; transition: transform .15s var(--edc-ease, ease); }
 
 .crt .crt-card__open {
   flex: 1;
@@ -487,7 +731,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 16px 18px;
+  padding: 14px 16px;
   border: 0;
   border-radius: inherit;
   background: none;
@@ -498,22 +742,41 @@
 }
 
 .crt .crt-card__title {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  padding-right: 62px;
 }
 
 .crt .crt-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; color: var(--edc-muted); }
 .crt .crt-card__foot > svg { width: 16px; height: 16px; }
-.crt .crt-card__actions { position: absolute; top: 8px; right: 8px; display: flex; opacity: 0; transition: opacity .15s ease; }
+/* Duplicar y eliminar aparecen sobre la esquina, con el fondo de la tarjeta para no mezclarse con el rótulo */
+.crt .crt-card__actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  border-radius: 999px;
+  background: var(--crt-solid);
+  box-shadow: -10px 0 10px -2px var(--crt-solid);
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+
 .crt .crt-card:hover .crt-card__actions,
 .crt .crt-card:focus-within .crt-card__actions { opacity: 1; }
-@media (hover: none) { .crt .crt-card__actions { opacity: 1; } }
+
+/* Sin puntero están siempre a la vista: el rótulo les deja sitio */
+@media (hover: none) {
+  .crt .crt-card__actions { opacity: 1; }
+  .crt .crt-card__meta { padding-right: 62px; }
+}
+
+/* Dentro del panel, los avisos de vacío y de error son tarjetas planas como las demás */
+.crt .crt-panel .crt-empty { border-radius: 12px; border-color: var(--crt-line); background: var(--crt-solid); box-shadow: none; }
 
 .crt .crt-status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; }
 .crt .crt-status svg { width: 13px; height: 13px; }
@@ -538,7 +801,7 @@
   animation: crt-shimmer 1.4s linear infinite;
 }
 
-.crt .crt-skeleton--card { height: 128px; border-radius: 24px; }
+.crt .crt-skeleton--card { height: 112px; border-radius: 12px; }
 @keyframes crt-shimmer { to { background-position: -200% 0; } }
 
 /* ── Editor: barra, paneles y hoja ─────────────────────── */
@@ -1592,8 +1855,26 @@
 
 /* ── Pantallas angostas ────────────────────────────────── */
 
+/* Las ideas pasan de cuatro columnas a dos, todas iguales, y luego a una */
+@container crt (max-width: 940px) {
+  .crt .crt-ideas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .crt .crt-ideas > :is(:first-child, :last-child) { grid-column: auto; }
+  .crt .crt-ideas > :is(:first-child, :last-child) :is(.crt-idea__title, .crt-idea__text) { max-width: none; }
+  .crt .crt-ideas > :is(:first-child, :last-child) .crt-idea__motif { display: none; }
+}
+
+@container crt (max-width: 560px) {
+  .crt .crt-ideas { grid-template-columns: minmax(0, 1fr); }
+}
+
 @container crt (max-width: 720px) {
-  .crt .crt-title { font-size: 30px; }
+  .crt .crt-title { font-size: 24px; line-height: 32px; }
+  .crt .crt-hero { padding: 40px 0 32px; }
+  .crt .crt-composer__submit { flex: 1 1 100%; justify-content: space-between; }
+  .crt .crt-composer__context { flex: 1 1 100%; }
+  .crt .crt-composer__context .crt-input { flex: 1 1 128px; max-width: none; }
+  .crt .crt-composer__submit .crt-btn { flex: 1 1 auto; }
+  .crt .crt-shelf--split { grid-template-columns: minmax(0, 1fr); }
   .crt .crt-stage { padding: 12px 10px 48px; }
   .crt-doc { padding: 26px 22px 34px; }
   .crt .crt-bar__title { flex-basis: 100%; order: -1; }
@@ -1605,10 +1886,11 @@
 
 @media (max-width: 720px) {
   .crt { padding: 20px 14px; }
+  .crt.crt--home { padding: 0 12px 32px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .crt .crt-idea:hover, .crt .crt-card:hover { transform: none; }
+  .crt .crt-idea, .crt .crt-card, .crt .crt-kind, .crt .crt-composer__card { transition: none; }
   .crt-block__tools, .crt-inplace__bar { animation: none; }
   .crt-block.is-editable, .crt-block__tools button, .crt-inplace__bar button, .crt-block__mark::before { transition: none; }
   /* Sin animación, el bloque al que se salta queda resaltado mientras dura el aviso */

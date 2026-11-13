@@ -82,17 +82,16 @@ export function CreatorPage({ data, role }: CreatorPageProps) {
   );
 
   const handleCreate = useCallback(
-    async (request: CreateRequest, ask: boolean) => {
-      if (ask) {
-        try {
-          const { questions } = await clarifyMutation.mutateAsync({ role, ...request });
-          if (questions.length > 0) {
-            setPending({ request, questions });
-            return;
-          }
-        } catch {
-          // Las preguntas son un extra: si fallan, el recurso se crea sin ellas
+    async (request: CreateRequest) => {
+      // La IA decide si hace falta preguntar: con una solicitud clara no devuelve preguntas
+      try {
+        const { questions } = await clarifyMutation.mutateAsync({ role, ...request });
+        if (questions.length > 0) {
+          setPending({ request, questions });
+          return;
         }
+      } catch {
+        // Las preguntas son un extra: si fallan, el recurso se crea sin ellas
       }
       await create(request);
     },
@@ -170,7 +169,7 @@ export function CreatorPage({ data, role }: CreatorPageProps) {
         pending={pending && { prompt: pending.request.prompt, questions: pending.questions }}
         samples={samples}
         onRetry={() => void listQuery.refetch()}
-        onCreate={(request, ask) => void handleCreate(request, ask)}
+        onCreate={request => void handleCreate(request)}
         onAnswer={clarifications => pending && void create(pending.request, clarifications)}
         onCancelQuestions={() => setPending(null)}
         onOpen={openResource}
