@@ -66,6 +66,8 @@ export function useBlockDrag({ paper, line, chip, doc, onDrop }: DragOptions) {
       let pointerY = startY;
       let target: DropTarget | null = null;
       let frame = 0;
+      /** Un solo cálculo del hueco por cuadro, por muchos eventos de puntero o de desplazamiento que lleguen. */
+      let placeFrame = 0;
       setHeld(blockId);
       const stage = paper.current?.closest<HTMLElement>(".crt-stage") ?? null;
       try {
@@ -109,14 +111,21 @@ export function useBlockDrag({ paper, line, chip, doc, onDrop }: DragOptions) {
         const box = stage.getBoundingClientRect();
         const step = autoScrollStep(pointerY, box.top, box.bottom);
         if (step === 0) return;
-        const before = stage.scrollTop;
+        // El evento de desplazamiento vuelve a calcular el hueco
         stage.scrollTop += step;
-        if (stage.scrollTop !== before) place();
         frame = requestAnimationFrame(scroll);
       };
 
+      const schedule = () => {
+        if (placeFrame) return;
+        placeFrame = requestAnimationFrame(() => {
+          placeFrame = 0;
+          place();
+        });
+      };
+
       const onScroll = () => {
-        if (active) place();
+        if (active) schedule();
       };
 
       const onMove = (move: PointerEvent) => {
@@ -131,7 +140,7 @@ export function useBlockDrag({ paper, line, chip, doc, onDrop }: DragOptions) {
           if (chip.current) chip.current.textContent = label;
         }
         follow();
-        place();
+        schedule();
         if (!frame) frame = requestAnimationFrame(scroll);
       };
 
@@ -143,6 +152,12 @@ export function useBlockDrag({ paper, line, chip, doc, onDrop }: DragOptions) {
         stage?.removeEventListener("scroll", onScroll);
         window.removeEventListener("keydown", onKey, true);
         cancelAnimationFrame(frame);
+        // Al soltar, el hueco se calcula con la última posición del puntero aunque su cuadro no haya llegado
+        if (placeFrame) {
+          cancelAnimationFrame(placeFrame);
+          placeFrame = 0;
+          if (drop && active) place();
+        }
         stop.current = null;
         try {
           if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);

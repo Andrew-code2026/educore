@@ -21,6 +21,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { trpc } from "@/lib/trpc";
 import { CreatorChat, type LiveTurn } from "./CreatorChat";
 import { historyKey, historyShortcut, locateChange, useDocHistory } from "./docHistory";
+import { IS_MAC, isEditingTarget } from "./keyboard";
 import { EditableDocument, type EditableDocumentHandle } from "./EditableDocument";
 import { ErrorCard, formatWhen } from "./parts";
 import { ResourceSheet } from "./ResourceSheet";
@@ -59,16 +60,8 @@ const SAVE_LABELS: Record<SaveState, string> = {
   error: "No se pudo guardar",
 };
 
-const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const UNDO_HINT = IS_MAC ? "⌘Z" : "Ctrl+Z";
 const REDO_HINT = IS_MAC ? "⌘⇧Z" : "Ctrl+Y";
-
-/** Dentro de un campo, del bloque que se edita en su sitio o de un diálogo, Ctrl+Z es suyo: el historial del documento no se toca. */
-function isEditingTarget(target: EventTarget | null) {
-  if (!(target instanceof Element)) return false;
-  if (target instanceof HTMLElement && target.isContentEditable) return true;
-  return target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), .crt-inplace, [role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]') !== null;
-}
 
 interface CreatorWorkspaceProps {
   role: EduRole;

@@ -522,11 +522,10 @@ export const InlineBlockEditor = forwardRef<BlockEditorHandle, InlineBlockEditor
     (level: 2 | 3, rest: string) => {
       if (!onReplace) return;
       const next = checkedInput({ type: "heading", text: rest || "Nuevo título", level });
-      if (!next) return;
-      release();
-      onReplace(next, rest ? "end" : "all");
+      // La hoja libera este editor si el reemplazo sale bien
+      if (next) onReplace(next, rest ? "end" : "all");
     },
-    [onReplace, release],
+    [onReplace],
   );
 
   /** Lleva el foco a un campo. Si aún no existe (se acaba de añadir), espera a que se dibuje. */

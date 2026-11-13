@@ -3,9 +3,7 @@ import { ArrowDown, ArrowUp, ArrowUpToLine, MoreHorizontal, PencilLine, Trash2 }
 import { CREATOR_LIMITS, type Section } from "@shared/creator";
 import type { DocOp } from "@shared/creatorOps";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { PLAINTEXT_ONLY } from "./editing/InlineText";
-
-const oneLine = (text: string) => text.replace(/\s+/g, " ");
+import { oneLine, pastePlainLine, PLAINTEXT_ONLY } from "./editing/InlineText";
 
 /**
  * Lo que una acción de menú hace con el foco (renombrar, abrir el buscador, ir al bloque movido) debe
@@ -98,11 +96,7 @@ export const SectionTitle = forwardRef<SectionTitleHandle, SectionTitleProps>(fu
             event.currentTarget.blur();
           }
         }}
-        onPaste={event => {
-          if (PLAINTEXT_ONLY) return;
-          event.preventDefault();
-          document.execCommand("insertText", false, oneLine(event.clipboardData.getData("text/plain")));
-        }}
+        onPaste={pastePlainLine}
       />
     </h2>
   );

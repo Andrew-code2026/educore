@@ -113,8 +113,11 @@ function KeysPlugin({ line, onEnter, onSubmit, onEscape, onBackspaceEmpty }: Key
  */
 export type ShortcutSet = "rich" | "line" | "heading";
 
+/** Solo «1. » empieza una lista numerada: la hoja numera desde 1 y «3. » mostraría otro número al editar que al guardar. */
+const ORDERED_FROM_ONE: Transformer = { ...ORDERED_LIST, regExp: /^(\s*)(1)\.\s/ };
+
 const SHORTCUTS: Record<ShortcutSet, Transformer[]> = {
-  rich: [UNORDERED_LIST, ORDERED_LIST, BOLD_ITALIC_STAR, BOLD_STAR, ITALIC_STAR],
+  rich: [UNORDERED_LIST, ORDERED_FROM_ONE, BOLD_ITALIC_STAR, BOLD_STAR, ITALIC_STAR],
   line: [BOLD_ITALIC_STAR, BOLD_STAR, ITALIC_STAR],
   heading: [ITALIC_STAR],
 };
@@ -310,7 +313,14 @@ interface PlainTextProps {
   onFocus?: () => void;
 }
 
-const oneLine = (text: string) => text.replace(/\s+/g, " ");
+export const oneLine = (text: string) => text.replace(/\s+/g, " ");
+
+/** Sin `plaintext-only`, lo pegado en un texto de un renglón llega con formato: se pega como texto llano. */
+export function pastePlainLine(event: React.ClipboardEvent) {
+  if (PLAINTEXT_ONLY) return;
+  event.preventDefault();
+  document.execCommand("insertText", false, oneLine(event.clipboardData.getData("text/plain")));
+}
 
 /**
  * Texto sin formato de la hoja (el título de un recuadro, la letra de un inciso) vuelto editable.
@@ -347,11 +357,7 @@ export function PlainText({ id, as: Tag = "span", className, value, onChange, la
         }
         onChange(text);
       }}
-      onPaste={event => {
-        if (PLAINTEXT_ONLY) return;
-        event.preventDefault();
-        document.execCommand("insertText", false, oneLine(event.clipboardData.getData("text/plain")));
-      }}
+      onPaste={pastePlainLine}
       onKeyDown={event => {
         if (event.key !== "Enter" || event.ctrlKey || event.metaKey) return;
         event.preventDefault();

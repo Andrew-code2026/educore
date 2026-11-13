@@ -9,6 +9,7 @@ import { BlockPicker } from "./BlockPicker";
 import { BlockView } from "./blocks/BlockView";
 import { BLOCK_TEMPLATES, BlockEditor } from "./editing/BlockEditor";
 import { InlineBlockEditor, type BlockEditorHandle, type CloseReason } from "./editing/InlineBlockEditor";
+import { IS_MAC, isEditingTarget } from "./keyboard";
 import { isInlineBlock, isInlineType } from "./editing/inlineDraft";
 import type { EditEntry } from "./editing/InlineText";
 import { revealTarget } from "./reveal";
@@ -41,7 +42,6 @@ interface EditableDocumentProps {
 
 const MARK_LABELS: Record<MarkKind, string> = { added: "Añadido por la IA", changed: "Cambiado por la IA" };
 
-const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const MOVE_HINT = IS_MAC ? { up: "⌥⇧↑", down: "⌥⇧↓" } : { up: "Alt+Mayús+↑", down: "Alt+Mayús+↓" };
 
 export interface EditableDocumentHandle {
@@ -108,10 +108,6 @@ function useActiveBlock() {
   const activeId = state.last === "focus" ? (state.focusId ?? state.hoverId) : (state.hoverId ?? state.focusId);
   return { activeId, enter, leave, focus, blur };
 }
-
-/** Un campo o un editor: ahí las teclas son del texto, no de la hoja. */
-const isTypingTarget = (target: EventTarget | null) =>
-  target instanceof Element && target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), .crt-inplace, .crt-picker') !== null;
 
 /** En lugar de un texto vacío se ofrece cualquier otro bloque. */
 const SLASH_EXCLUDE: readonly BlockType[] = ["paragraph"];
@@ -287,10 +283,11 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
 
   /** El bloque que se edita pasa a ser otro (un atajo al escribir o la «/»): un solo paso de deshacer. */
   const replace = (id: string, next: BlockInput, entry: EditEntry) => {
-    editor.current?.release?.();
     setSlashFor(null);
     const result = applyOp({ op: "update_block", blockId: id, block: next });
+    // Si no se pudo, el editor sigue abierto con lo escrito; si se pudo, lo escrito ya no se guarda encima
     if (!result.ok) return;
+    editor.current?.release?.();
     if (next.type === "page_break") {
       setEditing(null);
       focusBlock(id);
@@ -331,6 +328,16 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     });
   };
 
+  /** Borra una sección (el aviso permite deshacerlo) y deja el foco en «Añadir bloque» de la que ocupa su lugar. */
+  const removeSection = (section: Section) => {
+    const sections = docRef.current.sections;
+    const index = sections.indexOf(section);
+    const neighbour = sections[index + 1] ?? sections[index - 1];
+    const result = applyOp({ op: "delete_section", sectionId: section.id });
+    if (!result.ok || !neighbour) return;
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`#crt-${CSS.escape(neighbour.id)} > .crt-add .crt-add__button`)?.focus());
+  };
+
   const moveSection = (section: Section, direction: "up" | "down") => {
     const result = applyOp({ op: "move_section", sectionId: section.id, direction });
     if (!result.ok || !result.changed) return;
@@ -349,9 +356,11 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     const attached = canAttach && attachedIds.has(block.id);
     const attachLabel = attached ? "Quitar del chat" : "Llevar al chat";
     const label = BLOCK_TYPE_LABELS[block.type];
-    // Solo hace falta saberlo donde hay barra
-    const canUp = showTools && stepTarget(doc, block.id, "up") !== null;
-    const canDown = showTools && stepTarget(doc, block.id, "down") !== null;
+    // Subir y Bajar pasan a la sección vecina: solo se detienen en los extremos del documento
+    const index = section.blocks.indexOf(block);
+    const sectionIndex = doc.sections.indexOf(section);
+    const canUp = index > 0 || sectionIndex > 0;
+    const canDown = index < section.blocks.length - 1 || sectionIndex < doc.sections.length - 1;
     const pickerHere = picker && (picker.kind === "after" || picker.kind === "before") && picker.blockId === block.id ? picker : null;
     const blockPicker = pickerHere && (
       <PickerAnchor above={pickerHere.kind === "before"}>
@@ -379,7 +388,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
         onKeyDown={event => {
           // Alt+Mayús+↑/↓ mueve el bloque que tiene el foco; dentro de un texto o un campo, las teclas son suyas
           const direction = moveShortcut(event);
-          if (!direction || readOnly || isEditing || isTypingTarget(event.target)) return;
+          if (!direction || readOnly || isEditing || isEditingTarget(event.target)) return;
           event.preventDefault();
           step(block.id, direction);
         }}
@@ -592,14 +601,15 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
             onRename={index > 0 ? () => titles.current.get(section.id)?.rename() : undefined}
             onAddAtStart={() => openPicker({ sectionId: section.id, kind: section.blocks.length > 0 ? "start" : "end" })}
             onMove={direction => moveSection(section, direction)}
-            onDelete={() => applyOp({ op: "delete_section", sectionId: section.id })}
+            onDelete={() => removeSection(section)}
           />
-          {pickerAtEnd && (
-            <PickerAnchor>
-              <BlockPicker title={PICKER_TITLES.end} onPick={insert} onClose={closePicker} />
-            </PickerAnchor>
-          )}
         </div>
+        {/* Fuera de la fila: el menú toma el ancho de la hoja, no el de un elemento de la fila */}
+        {pickerAtEnd && (
+          <PickerAnchor>
+            <BlockPicker title={PICKER_TITLES.end} onPick={insert} onClose={closePicker} />
+          </PickerAnchor>
+        )}
         {index === count - 1 && count < CREATOR_LIMITS.sectionsMax && (
           <button type="button" className="crt-add__section" onClick={addSection}>
             <Plus aria-hidden="true" />
