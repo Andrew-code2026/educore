@@ -2022,6 +2022,17 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-figure__label--tone-point { color: #B42318; }
 .crt-figure__label--tone-b { color: #0B6E4B; }
 
+/* Tamaño de presentación (shared/creatorFigureSize.ts): la figura se amplía o se reduce entera desde su
+   ancho de diseño, sin salirse de su celda ni pasar del doble. Sin data-size mide lo de siempre.
+   Los rótulos en HTML siguen a la figura como el texto del dibujo (100cqw es el ancho de la figura), con un mínimo legible. */
+.crt-graph[data-size] > .crt-figure { width: min(100%, calc(var(--fig-w) * var(--fig-scale, 1)), calc(var(--fig-w) * 2)); container-type: inline-size; }
+.crt-graph[data-size] > .crt-plane { width: min(100%, calc(var(--plane-w) * var(--fig-scale, 1)), calc(var(--plane-w) * 2)); container-type: inline-size; }
+.crt-graph[data-size="full"] > .crt-figure { width: min(100%, calc(var(--fig-w) * 2)); }
+.crt-graph[data-size="full"] > .crt-plane { width: min(100%, calc(var(--plane-w) * 2)); }
+.crt-graph[data-size] .crt-figure__label { font-size: clamp(11px, calc(100cqw * 14 / var(--fig-wn)), 24px); }
+.crt-graph[data-size] .crt-plane__label { font-size: clamp(10px, calc(100cqw * 12.5 / var(--plane-wn)), 22px); line-height: 1.6em; }
+.crt-graph[data-size] .crt-plane__label--tall { line-height: 2.56em; }
+
 /* Añadir bloques */
 
 .crt-add { margin-top: 6px; }
@@ -2571,6 +2582,11 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
   .crt-print .crt-plane__label--tall { line-height: 26px; }
   .crt-print .crt-figure { width: calc(var(--fig-w) * .86); }
   .crt-print .crt-figure__label { font-size: 12px; }
+  /* Con tamaño elegido, la misma reducción de papel, salvo que el pequeño ya está en el mínimo legible (figureWidth) */
+  .crt-print .crt-graph[data-size] > .crt-figure { width: min(100%, max(calc(var(--fig-w) * .75), calc(var(--fig-w) * var(--fig-scale, 1) * .86)), calc(var(--fig-w) * 2)); }
+  .crt-print .crt-graph[data-size] > .crt-plane { width: min(100%, max(calc(var(--plane-w) * .75), calc(var(--plane-w) * var(--fig-scale, 1) * .8)), calc(var(--plane-w) * 2)); }
+  .crt-print .crt-graph[data-size="full"] > .crt-figure { width: min(100%, calc(var(--fig-w) * 2)); }
+  .crt-print .crt-graph[data-size="full"] > .crt-plane { width: min(100%, calc(var(--plane-w) * 2)); }
   .crt-print .crt-answer--lines span { height: 22pt; }
 
   .crt-print .crt-block--page_break { break-after: page; height: 0; margin: 0; overflow: hidden; visibility: hidden; }
