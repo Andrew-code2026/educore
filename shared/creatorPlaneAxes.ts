@@ -1,6 +1,6 @@
 import type { GraphSpec } from "./creator";
 import { formatNumber, formatNumberEs } from "./creatorMath";
-import { hasEqualUnits } from "./creatorPlane";
+import { figureNumber, figureNumberLatex, hasEqualUnits, isExactNumber } from "./creatorPlane";
 
 /**
  * Ejes del plano cartesiano: cuánto mide la cuadrícula, qué márgenes la rodean y dónde va el
@@ -225,4 +225,31 @@ export function planeAxisIssues(spec: GraphSpec): string[] {
     }
   }
   return issues;
+}
+
+/* ── Coordenadas de un punto calculado ── */
+
+/** La abscisa como múltiplo de π si el plano va en múltiplos de π y lo es; null si se escribe como número. */
+const piAbscissa = (spec: GraphSpec, x: number): PiFraction | null => (spec.xUnit === "pi" ? piFraction(x) : null);
+
+/**
+ * Un punto que calculó el sistema, como se lee en la figura y en la clave: «(2, -1)», con punto y
+ * coma si alguna coordenada lleva coma decimal, «≈» delante si alguna va redondeada, y la abscisa
+ * en múltiplos de π cuando el eje los usa: «(π/2, 1)».
+ */
+export function planePointText(spec: GraphSpec, x: number, y: number): string {
+  const fraction = piAbscissa(spec, x);
+  const xs = fraction ? piText(fraction) : figureNumber(x);
+  const ys = figureNumber(y);
+  const exact = (fraction !== null || isExactNumber(x)) && isExactNumber(y);
+  return `${exact ? "" : "≈ "}(${xs}${xs.includes(",") || ys.includes(",") ? ";" : ","} ${ys})`;
+}
+
+/** Lo mismo en LaTeX, para el rótulo del punto en la figura. */
+export function planePointLatex(spec: GraphSpec, x: number, y: number): string {
+  const fraction = piAbscissa(spec, x);
+  const xs = fraction ? piLatex(fraction) : figureNumberLatex(x);
+  const ys = figureNumberLatex(y);
+  const exact = (fraction !== null || isExactNumber(x)) && isExactNumber(y);
+  return `${exact ? "" : "\\approx "}(${xs}${xs.includes("{,}") || ys.includes("{,}") ? ";" : ","}\\, ${ys})`;
 }

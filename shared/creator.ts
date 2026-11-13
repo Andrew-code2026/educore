@@ -39,6 +39,8 @@ export const CREATOR_LIMITS = {
   riemannMax: 40,
   tangentsMax: 3,
   secantsMax: 3,
+  /** Peticiones de puntos notables de un plano: raíces, corte con y y extremos de dos funciones, y sus cortes. */
+  notableMax: 8,
   /** Marcas por eje: más que esto deja la cuadrícula ilegible al imprimir. */
   ticksMax: 40,
   /** Datos crudos de un histograma o de una caja y bigotes: hasta cinco cursos de 40 estudiantes. */
@@ -212,6 +214,15 @@ export const graphSecantSchema = z.object({
   show: lineShow.optional().describe(lineShowHelp),
 });
 
+export const graphNotableSchema = z.object({
+  fn: functionIndex.describe("Índice (desde 0) de la función cuyos puntos notables se marcan."),
+  kind: z
+    .enum(["roots", "yIntercept", "extrema", "intersections"])
+    .describe('Qué halla y marca el sistema: "roots" las raíces (cortes con el eje x), "yIntercept" el corte con el eje y, "extrema" los máximos y mínimos (el vértice de una parábola) e "intersections" los cortes con otra función (with).'),
+  with: functionIndex.optional().describe('Solo con "intersections": índice de la otra función.'),
+  labels: z.boolean().optional().describe("false marca los puntos sin escribir sus coordenadas, para que el estudiante las halle. Por defecto se escriben."),
+});
+
 /** Nombre de un eje del plano: texto plano, corto para que quepa a lo largo del eje (AXIS_NAME_MAX en creatorPlaneAxes.ts). */
 const planeAxisName = z.string().trim().min(1).max(40);
 
@@ -245,6 +256,11 @@ export const graphSpecSchema = z.object({
     .describe("Regiones sombreadas bajo una curva o entre dos curvas, para integrales y áreas. El valor lo calcula el sistema."),
   tangents: z.array(graphTangentSchema).max(CREATOR_LIMITS.tangentsMax).optional().describe("Rectas tangentes a una función en un punto, para la derivada."),
   secants: z.array(graphSecantSchema).max(CREATOR_LIMITS.secantsMax).optional().describe("Rectas secantes por dos puntos de una función, para la razón de cambio promedio."),
+  notable: z
+    .array(graphNotableSchema)
+    .max(CREATOR_LIMITS.notableMax)
+    .optional()
+    .describe("Puntos notables que el sistema calcula y marca con sus coordenadas: raíces, corte con el eje y, máximos y mínimos, y cortes entre dos funciones. Úsalos en vez de escribir esos puntos en points."),
   xLabel: planeAxisName.optional().describe('Nombre del eje x con su unidad, en texto plano, para problemas de contexto: "Tiempo (h)". Se escribe bajo el plano. Si se omite, el eje se llama x.'),
   yLabel: planeAxisName.optional().describe('Nombre del eje y con su unidad, en texto plano: "Costo ($)". Se escribe a la izquierda del plano, de abajo arriba. Si se omite, el eje se llama y.'),
   xUnit: z
@@ -975,6 +991,7 @@ export type GraphConic = z.infer<typeof graphConicSchema>;
 export type GraphArea = z.infer<typeof graphAreaSchema>;
 export type GraphTangent = z.infer<typeof graphTangentSchema>;
 export type GraphSecant = z.infer<typeof graphSecantSchema>;
+export type GraphNotable = z.infer<typeof graphNotableSchema>;
 export type BlockInput = z.infer<typeof blockInputSchema>;
 export type Block = z.infer<typeof blockSchema>;
 export type BlockType = Block["type"];

@@ -3,6 +3,7 @@ import type { GraphSpec } from "@shared/creator";
 import { formatNumber, formatNumberEs, tryCompile } from "@shared/creatorMath";
 import { areaLabel, areaShape, lineLabel, secantLine, tangentLine, type PlaneLine } from "@shared/creatorCalculus";
 import { CONIC_LABELS, conicCurves, conicEquation, shownConicElements, type ConicLine } from "@shared/creatorConics";
+import { describeNotable, shownNotablePoints } from "@shared/creatorNotable";
 import { functionColors, insidePlane, sampleFunction, type CurveMark } from "@shared/creatorPlane";
 import { labelEvery, planeLayout, planeTicks, planeXTicks } from "@shared/creatorPlaneAxes";
 import { FigureNotes, useHasNotes } from "./FigureNotes";
@@ -52,8 +53,9 @@ function describe(spec: GraphSpec): string {
   const secants = (spec.secants ?? []).map(secant => `x = ${formatNumber(secant.x1)} y x = ${formatNumber(secant.x2)}`).join("; ");
   const axes = [spec.xLabel && `eje x: ${spec.xLabel}`, spec.yLabel && `eje y: ${spec.yLabel}`].filter(Boolean).join(", ");
   const unit = spec.xUnit === "pi" ? "Eje x en múltiplos de π" : "";
+  const notable = (spec.notable ?? []).map(item => describeNotable(spec, item)).filter(Boolean).join(" ");
   return (
-    [base, axes && `Ejes con nombre, ${axes}`, unit, lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, tangents && `Recta tangente en ${tangents}`, secants && `Recta secante entre ${secants}`, points && `Puntos marcados: ${points}`]
+    [base, axes && `Ejes con nombre, ${axes}`, unit, notable.replace(/\.$/, ""), lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, tangents && `Recta tangente en ${tangents}`, secants && `Recta secante entre ${secants}`, points && `Puntos marcados: ${points}`]
       .filter(Boolean)
       .join(". ") + "."
   );
@@ -161,6 +163,9 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       };
     });
 
+    // Puntos notables que halló el sistema: raíces, cortes y extremos, con el color de su función
+    const notable = shownNotablePoints(spec).map(point => ({ ...point, tone: toneOf(point.fn) }));
+
     // Las etiquetas se ubican por prioridad: primero los puntos, luego las curvas
     const plot: Box = { x: PAD.left, y: PAD.top, w, h };
     const occupied: Box[] = [
@@ -168,6 +173,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       ...curves.flatMap(curve => curve.marks.map(mark => ({ x: sx(mark.x) - 5, y: sy(mark.y) - 5, w: 10, h: 10 }))),
       ...conics.flatMap(conic => conic.points.map(point => ({ x: sx(point.x) - 5, y: sy(point.y) - 5, w: 10, h: 10 }))),
       ...lines.flatMap(item => item.points.map(([x, y]) => ({ x: sx(x) - 5, y: sy(y) - 5, w: 10, h: 10 }))),
+      ...notable.map(point => ({ x: sx(point.x) - 5, y: sy(point.y) - 5, w: 10, h: 10 })),
     ];
     const labels: PlacedLabel[] = [];
 
@@ -247,6 +253,10 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       // La etiqueta de un hueco lleva el color de su curva, como el círculo
       const tone = point.open && point.on != null ? `crt-plane__label--${toneOf(point.on)}` : "crt-plane__label--point";
       place(point.label, tone, around(sx(point.x), sy(point.y), estimateWidth(point.label)));
+    }
+
+    for (const point of notable) {
+      if (point.label) place(point.label, `crt-plane__label--${point.tone}`, around(sx(point.x), sy(point.y), estimateFractionWidth(point.label)), estimateFractionWidth(point.label));
     }
 
     // La medida del radio va a media altura del segmento, a un lado u otro sin pisarlo
@@ -384,12 +394,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       .flatMap(curve => curve.marks.map((mark, index) => ({ ...mark, tone: curve.tone, key: `${curve.index}-${index}` })))
       .sort((a, b) => Number(a.filled) - Number(b.filled));
 
-    return { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf };
+    return { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, notable, labels, toneOf };
   }, [spec]);
 
   if (!view) return <div className="crt-plane crt-plane--invalid">Rango de la gráfica no válido.</div>;
 
-  const { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf } = view;
+  const { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, notable, labels, toneOf } = view;
   const { w, h, width, height, pad: PAD } = layout;
   const axisXpx = sy(axisX);
   const axisYpx = sx(axisY);
@@ -513,6 +523,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
 
         <g className="crt-plane__marks">
           {lines.map(item => item.points.map(([x, y], index) => <circle key={`${item.key}-${index}`} className={`crt-plane__dot crt-plane__tone--${item.tone}`} cx={sx(x)} cy={sy(y)} r={3.6} />))}
+        </g>
+
+        <g className="crt-plane__marks">
+          {notable.map((point, index) => (
+            <circle key={index} className={`crt-plane__dot crt-plane__tone--${point.tone}`} cx={sx(point.x)} cy={sy(point.y)} r={3.8} />
+          ))}
         </g>
 
         <g className="crt-plane__points">

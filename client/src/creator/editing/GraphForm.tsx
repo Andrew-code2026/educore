@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { OptionSelect, type SelectOption } from "@/components/option-select";
-import { CREATOR_LIMITS, type GraphArea, type GraphConic, type GraphFunction, type GraphSecant, type GraphTangent, type GraphVerticalLine } from "@shared/creator";
+import { CREATOR_LIMITS, type GraphArea, type GraphConic, type GraphFunction, type GraphNotable, type GraphSecant, type GraphTangent, type GraphVerticalLine } from "@shared/creator";
 import { RIEMANN_SAMPLE_LABELS, type RiemannSample } from "@shared/creatorCalculus";
 import { CONIC_LABELS, CONIC_SHOW_LABELS, CONIC_SHOWS, conicEquation, type ConicKind, type ConicShow } from "@shared/creatorConics";
+import { NOTABLE_KIND_LABELS, describeNotable, type NotableKind } from "@shared/creatorNotable";
 import type { EndStyle } from "@shared/creatorPlane";
 import { AXIS_NAME_MAX } from "@shared/creatorPlaneAxes";
 import { Formula } from "../blocks/Formula";
@@ -43,6 +44,8 @@ const RIEMANN_SAMPLE_OPTIONS: readonly SelectOption<RiemannSample>[] = (Object.k
   value: sample,
   label: `Altura en el ${RIEMANN_SAMPLE_LABELS[sample]}`,
 }));
+
+const NOTABLE_KIND_OPTIONS: readonly SelectOption<NotableKind>[] = (Object.keys(NOTABLE_KIND_LABELS) as NotableKind[]).map(kind => ({ value: kind, label: NOTABLE_KIND_LABELS[kind] }));
 
 const CONIC_KIND_OPTIONS: readonly SelectOption<ConicKind>[] = (Object.keys(CONIC_LABELS) as ConicKind[]).map(kind => ({ value: kind, label: CONIC_LABELS[kind] }));
 
@@ -148,6 +151,8 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
   const setTangents = (next: GraphTangent[]) => setSpec({ tangents: next.length > 0 ? next : undefined });
   const secants = spec.secants ?? [];
   const setSecants = (next: GraphSecant[]) => setSpec({ secants: next.length > 0 ? next : undefined });
+  const notable = spec.notable ?? [];
+  const setNotable = (next: GraphNotable[]) => setSpec({ notable: next.length > 0 ? next : undefined });
   const piAxis = spec.xUnit === "pi";
   /** Al pasar a múltiplos de π el rango se lleva al múltiplo de π/2 más cercano; al volver, a enteros. */
   const togglePi = (on: boolean) => {
@@ -232,12 +237,14 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
                   const keptAreas = areas.filter(area => area.fn !== index && area.between !== index).map(area => ({ ...area, fn: shift(area.fn), between: area.between === undefined ? undefined : shift(area.between) }));
                   const keptTangents = tangents.filter(tangent => tangent.fn !== index).map(tangent => ({ ...tangent, fn: shift(tangent.fn) }));
                   const keptSecants = secants.filter(secant => secant.fn !== index).map(secant => ({ ...secant, fn: shift(secant.fn) }));
+                  const keptNotable = notable.filter(item => item.fn !== index && item.with !== index).map(item => ({ ...item, fn: shift(item.fn), with: item.with === undefined ? undefined : shift(item.with) }));
                   setSpec({
                     functions: spec.functions.filter((_, i) => i !== index),
                     points,
                     areas: keptAreas.length > 0 ? keptAreas : undefined,
                     tangents: keptTangents.length > 0 ? keptTangents : undefined,
                     secants: keptSecants.length > 0 ? keptSecants : undefined,
+                    notable: keptNotable.length > 0 ? keptNotable : undefined,
                   });
                   setExpanded(new Set());
                   bump();
@@ -302,6 +309,53 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
 
       {spec.functions.length > 0 && (
         <>
+          <span className="crt-form__legend">Puntos notables</span>
+          {notable.map((item, index) => {
+            const setItem = (patch: Partial<GraphNotable>) => setNotable(notable.map((current, i) => (i === index ? { ...current, ...patch } : current)));
+            const others = functionOptions.filter(option => option.value !== item.fn);
+            const found = describeNotable(spec, item);
+            return (
+              <div key={`${listVersion}-n${index}`} className="crt-form__stack">
+                <div className="crt-form__row">
+                  <Field label={`Puntos ${index + 1}: de`}>
+                    <OptionSelect
+                      className="crt-input"
+                      aria-label={`Función de los puntos notables ${index + 1}`}
+                      value={item.fn}
+                      onValueChange={fn => setItem({ fn, with: item.with === fn ? functionOptions.find(option => option.value !== fn)?.value : item.with })}
+                      options={functionOptions}
+                    />
+                  </Field>
+                  <Field label="Marcar">
+                    <OptionSelect
+                      className="crt-input"
+                      aria-label={`Qué marcar en los puntos notables ${index + 1}`}
+                      value={item.kind}
+                      onValueChange={kind => setItem({ kind, with: kind === "intersections" ? (item.with ?? others[0]?.value) : undefined })}
+                      options={NOTABLE_KIND_OPTIONS.filter(option => option.value !== "intersections" || others.length > 0)}
+                    />
+                  </Field>
+                  {item.kind === "intersections" && others.length > 0 && (
+                    <Field label="Con">
+                      <OptionSelect className="crt-input" aria-label={`Otra función de los puntos notables ${index + 1}`} value={item.with ?? others[0].value} onValueChange={other => setItem({ with: other })} options={others} />
+                    </Field>
+                  )}
+                  <Check label="Escribir las coordenadas" checked={item.labels !== false} onChange={on => setItem({ labels: on ? undefined : false })} />
+                  <RemoveButton
+                    label={`Quitar los puntos notables ${index + 1}`}
+                    onClick={() => {
+                      setNotable(notable.filter((_, i) => i !== index));
+                      bump();
+                    }}
+                  />
+                </div>
+                {found && <p className="crt-form__hint">{found}</p>}
+              </div>
+            );
+          })}
+          {notable.length < CREATOR_LIMITS.notableMax && <AddButton onClick={() => setNotable([...notable, { fn: 0, kind: "roots" }])}>Añadir puntos notables</AddButton>}
+          <p className="crt-form__hint">Las raíces, el corte con el eje y, los máximos y mínimos y los cortes entre dos funciones los halla el sistema; no hace falta escribirlos como puntos marcados.</p>
+
           <span className="crt-form__legend">Regiones sombreadas</span>
           {areas.map((area, index) => {
             const setArea = (patch: Partial<GraphArea>) => setAreas(areas.map((current, i) => (i === index ? { ...current, ...patch } : current)));
