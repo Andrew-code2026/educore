@@ -26,6 +26,7 @@ import { IS_MAC, isEditingTarget } from "./keyboard";
 import { EditableDocument, type EditableDocumentHandle } from "./EditableDocument";
 import { ErrorCard, formatWhen } from "./parts";
 import { ResourceSheet } from "./ResourceSheet";
+import { SectionJumper, StageTop } from "./SectionJumper";
 import { revealChange, revealTarget, type RevealTarget } from "./reveal";
 import { acceptMark, isReviewVisible, lastTurnMessage, pendingMarks, readStoredReview, startReview, storeReview, type TurnReview } from "./turnReview";
 import { TurnReviewBar } from "./TurnReviewBar";
@@ -722,6 +723,8 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   // El próximo «deshacer» de la barra se lleva el turno entero de la IA: se dice en el botón
   const undoIsTurn = history.canUndo && lastTurn !== null && lastTurn.before !== null && doc === lastTurn.after && peekHistory() === lastTurn.before;
   const reviewVisible = loaded && !working && isReviewVisible(review, doc, pendingReview);
+  const showJumper = loaded && doc.sections.length > 1;
+  const hasTop = showJumper || (reviewVisible && review !== null);
 
   const chat = (
     <CreatorChat
@@ -741,26 +744,22 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   );
 
   const sheet = (
-    <div className={reviewVisible ? "crt-stage has-review" : "crt-stage"}>
-      {doc.sections.length > 1 && (
-        <nav className="crt-outline" aria-label="Secciones del recurso">
-          {doc.sections.map(section => (
-            <button key={section.id} type="button" onClick={() => document.getElementById(`crt-${section.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}>
-              {section.title}
-            </button>
-          ))}
-        </nav>
-      )}
-      {reviewVisible && review && (
-        <TurnReviewBar
-          key={review.messageId}
-          summary={describeTurn(review.changes)}
-          pending={pendingReview}
-          undoing={undoingTurn}
-          onReveal={blockId => reveal({ blockIds: [blockId] })}
-          onUndo={() => void undoTurn(review.messageId)}
-          onSeen={() => setReview(null)}
-        />
+    <div className={hasTop ? "crt-stage has-top" : "crt-stage"}>
+      {hasTop && (
+        <StageTop>
+          {showJumper && <SectionJumper sections={doc.sections} />}
+          {reviewVisible && review && (
+            <TurnReviewBar
+              key={review.messageId}
+              summary={describeTurn(review.changes)}
+              pending={pendingReview}
+              undoing={undoingTurn}
+              onReveal={blockId => reveal({ blockIds: [blockId] })}
+              onUndo={() => void undoTurn(review.messageId)}
+              onSeen={() => setReview(null)}
+            />
+          )}
+        </StageTop>
       )}
       {detail?.status === "error" && detail.errorMessage && !working && (
         <p className="crt-notice crt-notice--error" role="alert">
