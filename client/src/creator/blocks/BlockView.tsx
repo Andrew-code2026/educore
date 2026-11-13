@@ -2,6 +2,7 @@ import { memo, type ReactNode } from "react";
 import type { Block, BlockOf } from "@shared/creator";
 import { formatNumberEs } from "@shared/creatorMath";
 import { computeValueTable, valueTableVariable } from "@shared/creatorValidate";
+import { AreaModel } from "./AreaModel";
 import { BarChart, PieChart } from "./Charts";
 import { Angle, BarModel, BaseTen, Clock, Pictogram, TreeDiagram, Venn } from "./ClassroomFigures";
 import { CoordinatePlane } from "./CoordinatePlane";
@@ -296,6 +297,12 @@ export const BlockView = memo(function BlockView({ block }: { block: Block }) {
       return (
         <Figure caption={block.caption}>
           <BaseTen spec={block} />
+        </Figure>
+      );
+    case "area_model":
+      return (
+        <Figure caption={block.caption}>
+          <AreaModel spec={block} />
         </Figure>
       );
     case "shapes":

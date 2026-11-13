@@ -7,6 +7,7 @@ import { normalizeBlock } from "@shared/creatorOps";
 import { validateBlock, valueTableVariable } from "@shared/creatorValidate";
 import { CoordinatePlane } from "../blocks/CoordinatePlane";
 import { Formula } from "../blocks/Formula";
+import { AREA_MODEL_TEMPLATE, AreaModelForm } from "./AreaModelForm";
 import { AngleForm, BarModelForm, BaseTenForm, CLASSROOM_TEMPLATES, ClockForm, PictogramForm, TreeDiagramForm, VennForm } from "./ClassroomForms";
 import { Field, NumberInput, type Draft, type FormProps } from "./fields";
 import { BalanceForm, BarChartForm, FractionModelForm, NumberLineForm, PieChartForm, ShapesForm } from "./FigureForms";
@@ -59,6 +60,7 @@ export const BLOCK_TEMPLATES: Record<BlockType, BlockInput> = {
   },
   ...STAT_TEMPLATES,
   ...CLASSROOM_TEMPLATES,
+  area_model: AREA_MODEL_TEMPLATE,
   shapes: { type: "shapes", figures: [{ kind: "rectangle", width: 5, height: 3, widthLabel: "5 cm", heightLabel: "3 cm" }], toScale: true },
   balance: { type: "balance", variable: "x", left: { variables: 2, units: 1, weights: [] }, right: { variables: 0, units: 7, weights: [] } },
   solution: { type: "solution", label: "Ejercicio", steps: ["Escribe aquí el primer paso."] },
@@ -91,6 +93,7 @@ export const ADDABLE_BLOCKS: BlockType[] = [
   "pictogram",
   "clock",
   "base_ten",
+  "area_model",
   "shapes",
   "balance",
   "solution",
@@ -532,6 +535,8 @@ function renderForm(draft: BlockInput, onChange: (next: BlockInput) => void, act
       return <ClockForm draft={draft} onChange={onChange} />;
     case "base_ten":
       return <BaseTenForm draft={draft} onChange={onChange} />;
+    case "area_model":
+      return <AreaModelForm draft={draft} onChange={onChange} />;
     case "shapes":
       return <ShapesForm draft={draft} onChange={onChange} />;
     case "balance":

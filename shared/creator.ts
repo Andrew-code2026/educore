@@ -490,6 +490,29 @@ const baseTenBlock = z.object({
   showNumber: z.boolean().default(false).describe("Escribe cuántas centenas, decenas y unidades hay y el número que forman, calculado por el sistema."),
 });
 
+const areaTerm = z.string().trim().min(1).max(12);
+
+/** Modelo de área: las celdas y el total salen de los términos de los lados (creatorAlgebra.ts). */
+const areaModelBlock = z.object({
+  type: z.literal("area_model"),
+  caption,
+  rows: z
+    .array(areaTerm)
+    .min(1)
+    .max(3)
+    .describe('Términos del lado vertical, de arriba abajo, en texto plano: ["x", "3"] para x + 3. Cada uno es un número o un monomio de una letra: 3, x, 2x, -4, x^2.'),
+  columns: z
+    .array(areaTerm)
+    .min(1)
+    .max(3)
+    .describe('Términos del lado horizontal, de izquierda a derecha: ["x", "2"] para x + 2. Para multiplicar 23 × 45 por descomposición, ["20", "3"] y ["40", "5"].'),
+  hide: z
+    .enum(["none", "cells", "dimensions"])
+    .default("none")
+    .describe('"cells" deja las celdas vacías para que el estudiante multiplique; "dimensions" deja los lados en blanco para que factorice; "none" muestra todo, para un ejemplo o para la clave.'),
+  showTotal: z.boolean().default(false).describe("Escribe debajo el área total ya simplificada. Las celdas y el total los calcula el sistema: no los escribas tú."),
+});
+
 const shapeSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("rectangle"),
@@ -586,6 +609,7 @@ export const blockInputSchema = z.discriminatedUnion("type", [
   pictogramBlock,
   clockBlock,
   baseTenBlock,
+  areaModelBlock,
   shapesBlock,
   balanceBlock,
   solutionBlock,
@@ -620,6 +644,7 @@ export const blockSchema = z.discriminatedUnion("type", [
   pictogramBlock.extend({ id }),
   clockBlock.extend({ id }),
   baseTenBlock.extend({ id }),
+  areaModelBlock.extend({ id }),
   shapesBlock.extend({ id }),
   balanceBlock.extend({ id }),
   solutionBlock.extend({ id }),
@@ -675,6 +700,7 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   pictogram: "Pictograma",
   clock: "Reloj",
   base_ten: "Bloques de base 10",
+  area_model: "Modelo de área",
   shapes: "Figuras geométricas",
   balance: "Balanza",
   solution: "Solución",
@@ -1101,6 +1127,8 @@ export function blockPreview(block: BlockInput): string {
       return block.caption || `Reloj: ${block.clocks.map(clock => `${clock.hour}:${String(clock.minute).padStart(2, "0")}`).join(", ")}`;
     case "base_ten":
       return block.caption || `Bloques de base 10: ${block.hundreds * 100 + block.tens * 10 + block.ones}`;
+    case "area_model":
+      return block.caption || `Modelo de área: ${block.rows.join(" + ")} por ${block.columns.join(" + ")}`;
     case "shapes":
       return block.caption || `Figuras: ${block.figures.map(figure => SHAPE_KIND_LABELS[figure.kind]).join(", ")}`;
     case "balance":

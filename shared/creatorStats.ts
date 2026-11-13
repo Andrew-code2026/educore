@@ -1,4 +1,5 @@
 import type { BlockInput } from "./creator";
+import { areaModelProduct, computeAreaModel, monomialText, polynomialText } from "./creatorAlgebra";
 import { niceStep, tickValues } from "./creatorFigures";
 import { formatNumber, formatNumberEs } from "./creatorMath";
 
@@ -297,6 +298,12 @@ export function describeComputed(block: BlockInput): string | null {
     case "histogram": {
       const total = block.classes.reduce((sum, item) => sum + item.frequency, 0);
       return `Histograma${block.title ? ` «${block.title}»` : ""}: ${total} datos en ${block.classes.length} clases.`;
+    }
+    case "area_model": {
+      const model = computeAreaModel(block.rows, block.columns);
+      if (!model) return null;
+      const cells = model.cells.map(row => row.map(cell => monomialText(cell)).join(", ")).join(" | ");
+      return `Modelo de área: ${areaModelProduct(model)} = ${polynomialText(model.total)}; celdas por filas: ${cells}.`;
     }
     default:
       return null;

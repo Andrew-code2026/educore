@@ -1,4 +1,5 @@
 import katex from "katex";
+import { areaModelIssues } from "./creatorAlgebra";
 import { BLOCK_TYPE_LABELS, blockTexts, CREATOR_LIMITS, extractMath, findMath, type BlockInput, type GraphSpec } from "./creator";
 import { barPartFits, parseProbability, pictogramIcons, probabilityValue, siblingGroups, sumProbabilities, treePaths, vennRegionsFor, vennUniverseChars, vennZoneChars } from "./creatorDiagrams";
 import { isMultipleOfFraction, labelFits, polygonArea } from "./creatorFigures";
@@ -318,6 +319,9 @@ export function validateBlock(block: BlockInput): string[] {
     case "base_ten":
       if (block.hundreds + block.tens + block.ones === 0) issues.push("Bloques de base 10: no hay ningún bloque.");
       break;
+    case "area_model":
+      issues.push(...areaModelIssues(block.rows, block.columns).map(issue => `Modelo de área: ${issue}`));
+      break;
     case "shapes":
       block.figures.forEach((figure, index) => {
         if (figure.kind !== "polygon") return;
@@ -494,7 +498,7 @@ function validateNumberLine(block: Extract<BlockInput, { type: "number_line" }>)
   return issues;
 }
 
-const FIGURE_TYPES: ReadonlySet<string> = new Set(["graph", "number_line", "fraction_model", "bar_chart", "pie_chart", "histogram", "box_plot", "line_chart", "scatter_plot", "angle", "venn", "tree_diagram", "bar_model", "pictogram", "clock", "base_ten", "shapes", "balance"]);
+const FIGURE_TYPES: ReadonlySet<string> = new Set(["graph", "number_line", "fraction_model", "bar_chart", "pie_chart", "histogram", "box_plot", "line_chart", "scatter_plot", "angle", "venn", "tree_diagram", "bar_model", "pictogram", "clock", "base_ten", "area_model", "shapes", "balance"]);
 
 /** Palabras con las que un enunciado se refiere a una figura. */
 const FIGURE_MENTION = /\b(gr[aá]fic[ao]s?|figuras?|planos?|diagramas?|histogramas?|pictogramas?|reloj(?:es)?|transportador|balanzas?|rectas?\s+num[eé]ricas?|dibujos?|modelos?)\b/i;
