@@ -2033,6 +2033,42 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-graph[data-size] .crt-plane__label { font-size: clamp(10px, calc(100cqw * 12.5 / var(--plane-wn)), 22px); line-height: 1.6em; }
 .crt-graph[data-size] .crt-plane__label--tall { line-height: 2.56em; }
 
+/* Notas del docente sobre la figura (FigureNotes): posición relativa a la caja de la figura y letra que
+   crece y se achica con ella, como sus rótulos (100cqw es el ancho de la caja). La línea va de la nota al
+   punto que señala; la nota la tapa en su borde. */
+.crt-figure[data-notes], .crt-plane[data-notes] { container-type: inline-size; }
+.crt-notes { position: absolute; inset: 0; pointer-events: none; font-size: clamp(10px, calc(100cqw * 13 / var(--fig-wn, 520)), 26px); }
+.crt-plane .crt-notes { font-size: clamp(10px, calc(100cqw * 12.5 / var(--plane-wn, 374)), 26px); }
+.crt-notes__lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.crt-notes__lines line { stroke: #36404A; stroke-width: 1.3; }
+
+.crt-note {
+  position: absolute;
+  width: max-content;
+  max-width: 16em;
+  margin: 0;
+  padding: .12em .5em .16em;
+  border: 1px solid #A9B4C0;
+  border-radius: .45em;
+  background: rgba(255, 255, 255, .95);
+  color: #111B24;
+  font: inherit;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+  transform: translate(-50%, -50%);
+}
+
+.crt-note .katex { font-size: 1em; }
+.crt-note__dot { position: absolute; width: .55em; height: .55em; margin: 0; padding: 0; border: 1.5px solid #FFFFFF; border-radius: 50%; background: #36404A; transform: translate(-50%, -50%); }
+
+/* En el bloque que se edita, las notas y sus puntos se toman con el puntero o el teclado */
+.crt-notes.is-editing :is(.crt-note, .crt-note__dot) { pointer-events: auto; cursor: grab; touch-action: none; user-select: none; }
+.crt-notes.is-editing :is(.crt-note, .crt-note__dot):active { cursor: grabbing; }
+.crt-notes.is-editing .crt-note__dot::before { content: ""; position: absolute; inset: -9px; border-radius: 50%; }
+.crt-notes.is-editing :is(.crt-note, .crt-note__dot):is(.is-selected, :focus-visible) { outline: 2px solid var(--sheet-accent, #0C62B5); outline-offset: 2px; }
+.crt-notes.is-editing .crt-note.is-selected { border-color: var(--sheet-accent, #0C62B5); }
+
 /* Añadir bloques */
 
 .crt-add { margin-top: 6px; }
@@ -2690,7 +2726,12 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt .crt-panel__keys { margin-right: auto; font-size: 12px; color: var(--edc-muted-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 /* Lámina en pantalla angosta: la hoja queda debajo, así que la figura se ve aquí, pegada arriba */
-.crt .crt-panel__preview { flex: none; max-height: 38vh; overflow: auto; padding: 0 12px 10px; }
+.crt .crt-panel__preview { flex: none; max-height: 40vh; overflow: auto; padding: 0 12px 10px; }
+/* La figura entera a la vista, aunque sea alta (un plano a todo lo ancho): se angosta hasta caber en el alto de la vista previa */
+.crt .crt-panel__preview .crt-graph > .crt-figure { width: min(100%, calc(var(--fig-w) * var(--fig-scale, 1)), calc(30vh * var(--fig-wn) / var(--fig-hn))); }
+.crt .crt-panel__preview .crt-graph > .crt-plane { width: min(100%, calc(var(--plane-w) * var(--fig-scale, 1)), calc(30vh * var(--plane-wn) / var(--plane-hn))); }
+.crt .crt-panel__preview .crt-graph[data-size="full"] > .crt-figure { width: min(100%, calc(var(--fig-w) * 2), calc(30vh * var(--fig-wn) / var(--fig-hn))); }
+.crt .crt-panel__preview .crt-graph[data-size="full"] > .crt-plane { width: min(100%, calc(var(--plane-w) * 2), calc(30vh * var(--plane-wn) / var(--plane-hn))); }
 .crt .crt-panel__paper { padding: 14px; border-radius: 12px; box-shadow: none; border: 1px solid var(--edc-hair); }
 
 /* Tamaño en la hoja: opciones como un control segmentado; cada una dibuja lo que ocupa en la hoja */
@@ -2727,3 +2768,14 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 @media (hover: none) {
   .crt .crt-panel__keys { visibility: hidden; }
 }
+
+/* Notas sobre la figura, en el panel: una fila por nota (texto, mover, línea, quitar); la elegida se marca igual que en la figura */
+.crt .crt-panel__row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.crt .crt-panel__count { font-size: 12px; color: var(--edc-muted); font-variant-numeric: tabular-nums; }
+.crt .crt-panel__add { align-self: flex-start; }
+.crt .crt-note-rows { display: flex; flex-direction: column; gap: 4px; }
+.crt .crt-note-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin: 0 -5px; padding: 4px; border-radius: 12px; border: 1px solid transparent; }
+.crt .crt-note-row.is-selected { border-color: color-mix(in srgb, var(--crt-accent) 40%, transparent); background: var(--crt-accent-soft); }
+.crt .crt-note-row > .crt-input { flex: 1 1 120px; min-width: 0; margin-right: 4px; }
+.crt .crt-note-row__point { flex-basis: 100%; justify-content: flex-start; }
+.crt .crt-panel .crt-icon-btn[aria-pressed="true"] { background: var(--crt-accent-soft); color: var(--crt-accent); }

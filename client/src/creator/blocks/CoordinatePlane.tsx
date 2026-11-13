@@ -4,6 +4,7 @@ import { formatNumber, formatNumberEs, tryCompile } from "@shared/creatorMath";
 import { areaLabel, areaShape, lineLabel, secantLine, tangentLine, type PlaneLine } from "@shared/creatorCalculus";
 import { CONIC_LABELS, conicCurves, conicEquation, shownConicElements, type ConicLine } from "@shared/creatorConics";
 import { functionColors, hasEqualUnits, insidePlane, sampleFunction, type CurveMark } from "@shared/creatorPlane";
+import { FigureNotes, useHasNotes } from "./FigureNotes";
 import { Formula } from "./Formula";
 
 /** Márgenes alrededor de la cuadrícula: caben las flechas de los ejes y los números. */
@@ -89,6 +90,7 @@ function describe(spec: GraphSpec): string {
 /** Plano cartesiano dibujado a partir de la función: lo que se ve siempre coincide con la fórmula. */
 export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: GraphSpec }) {
   const clipId = useId();
+  const noted = useHasNotes();
 
   const view = useMemo(() => {
     const xSpan = spec.xMax - spec.xMin;
@@ -427,7 +429,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
   const bottom = PAD.top + h + 10;
 
   return (
-    <div className="crt-plane" style={{ "--plane-w": `${width}px`, "--plane-wn": width, aspectRatio: `${width} / ${height}` } as CSSProperties}>
+    <div className="crt-plane" data-notes={noted ? "" : undefined} style={{ "--plane-w": `${width}px`, "--plane-wn": width, "--plane-hn": height, aspectRatio: `${width} / ${height}` } as CSSProperties}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={describe(spec)}>
         <defs>
           <clipPath id={clipId}>
@@ -549,6 +551,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
           <Formula latex={label.latex} />
         </span>
       ))}
+      <FigureNotes />
     </div>
   );
 });

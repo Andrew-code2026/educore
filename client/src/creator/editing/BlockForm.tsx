@@ -12,6 +12,7 @@ import { Field, NumberInput, type Draft, type FormProps } from "./fields";
 import { BalanceForm, BarChartForm, FractionModelForm, NumberLineForm, PieChartForm, ShapesForm } from "./FigureForms";
 import { FormulaInput } from "./FormulaInput";
 import { GraphForm } from "./GraphForm";
+import { notesIssue } from "./noteDraft";
 import { RichTextEditor } from "./RichTextEditor";
 import { BoxPlotForm, HistogramForm, LineChartForm, ScatterPlotForm, STAT_TEMPLATES } from "./StatForms";
 
@@ -361,7 +362,8 @@ function SolutionForm({ draft, onChange }: FormProps<"solution">) {
   );
 }
 
-function renderForm(draft: BlockInput, onChange: (next: BlockInput) => void, actions: FormActions): ReactNode {
+/** El formulario de un bloque: sus campos, sin marco ni botones (los pone el panel de edición). */
+export function BlockForm({ draft, onChange, actions }: { draft: BlockInput; onChange: (next: BlockInput) => void; actions: FormActions }): ReactNode {
   switch (draft.type) {
     case "paragraph":
       return <ParagraphForm draft={draft} onChange={onChange} />;
@@ -424,15 +426,13 @@ function renderForm(draft: BlockInput, onChange: (next: BlockInput) => void, act
   }
 }
 
-/** El formulario de un bloque: sus campos, sin marco ni botones (los pone el panel de edición). */
-export function BlockForm({ draft, onChange, actions }: { draft: BlockInput; onChange: (next: BlockInput) => void; actions: FormActions }) {
-  return <>{renderForm(draft, onChange, actions)}</>;
-}
-
 export type DraftCheck = { ok: true; block: BlockInput } | { ok: false; issues: string[] };
 
 /** Lo que se guardaría de un borrador: pasa las mismas validaciones que la IA, o dice qué corregir. */
 export function checkDraft(draft: BlockInput): DraftCheck {
+  // Una nota vacía se dice en palabras del docente, no con el aviso del esquema
+  const emptyNote = notesIssue(draft);
+  if (emptyNote) return { ok: false, issues: [emptyNote] };
   const parsed = blockInputSchema.safeParse(draft);
   if (!parsed.success) return { ok: false, issues: z.prettifyError(parsed.error).split("\n").filter(Boolean).slice(0, 6) };
   const normalized = normalizeBlock(parsed.data);

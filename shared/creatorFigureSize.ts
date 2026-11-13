@@ -76,7 +76,7 @@ export interface FigureSizeChoice {
   size: FigureSize;
   /** Todos los tamaños que dan este mismo ancho. */
   sizes: FigureSize[];
-  /** Ancho en pantalla, en píxeles CSS. */
+  /** Ancho en píxeles CSS, en papel o en pantalla según se pidió. */
   width: number;
 }
 
@@ -88,14 +88,16 @@ const SAME_WIDTH = 1.04;
  * disponible (el de la hoja o el de su celda, en pantalla). Los que dan el mismo ancho se reúnen
  * en una sola opción: en una columna angosta, mediano, grande y completo son lo mismo, y se ofrece
  * uno. El ancho completo no se ofrece si la figura no alcanza a llenar el ancho sin pasar del doble,
- * ni el pequeño a un tipo que no lo aguanta (`figureSizeAllowed`).
+ * ni el pequeño a un tipo que no lo aguanta (`figureSizeAllowed`). Con `print`, los anchos son los del
+ * papel, que es lo que se entrega: la pantalla puede ser más angosta que la hoja y juntar lo que en papel
+ * se ve distinto.
  */
-export function figureSizeChoices(design: number, available: number, type?: string): FigureSizeChoice[] {
+export function figureSizeChoices(design: number, available: number, type?: string, print?: FigureKind): FigureSizeChoice[] {
   const choices: FigureSizeChoice[] = [];
   for (const size of FIGURE_SIZES) {
     if (type !== undefined && !figureSizeAllowed(type, size)) continue;
     if (size === "full" && design * FIGURE_SCALE_MAX < available - 0.5) continue;
-    const width = figureWidth(size, design, available);
+    const width = figureWidth(size, design, available, print);
     const last = choices[choices.length - 1];
     if (last && width <= last.width * SAME_WIDTH) {
       last.sizes.push(size);

@@ -92,12 +92,25 @@ export function normalizeBlock<T extends BlockInput>(block: T): T {
   return withCells(own, blockCells(own).map(cell => cell.map(normalizeOwn))) as T;
 }
 
-/** Lo que el docente eligió para presentar una figura y la IA conserva al reescribirla: el tamaño, si ella no pide otro. */
-function keepOwnLayout(previous: BlockInput, next: BlockInput): BlockInput {
-  if (!isFigure(previous) || !isFigure(next)) return next;
-  if (next.size === undefined && previous.size !== undefined) return { ...next, size: previous.size };
-  return next;
+/**
+ * Lo que el docente eligió para presentar una figura y la IA conserva al reescribirla: el tamaño, si ella
+ * no pide otro, y las notas, siempre (son del docente: las que traiga la IA no cuentan). Si la figura
+ * pasa a ser de otro tipo, sus notas ya no señalan nada y se van; el tamaño sigue.
+ */
+function keepOwnLayout(previous: BlockInput | undefined, next: BlockInput): BlockInput {
+  if (!isFigure(next)) return next;
+  const { notes: _written, ...rest } = next;
+  let kept = rest as BlockInput & { size?: typeof next.size; notes?: typeof next.notes };
+  if (previous && isFigure(previous)) {
+    if (next.size === undefined && previous.size !== undefined) kept = { ...kept, size: previous.size };
+    if (previous.type === next.type && previous.notes?.length) kept = { ...kept, notes: previous.notes };
+  }
+  return kept;
 }
+
+/** Lo mismo para cada bloque de una lista, y para los de dentro de un contenedor. */
+const keepEach = (next: BlockInput, previousOf: (block: BlockInput, cell?: number, index?: number) => BlockInput | undefined): BlockInput =>
+  isContainer(next) ? withCells(next, blockCells(next).map((cell, c) => cell.map((inner, i) => keepOwnLayout(previousOf(inner, c, i), inner) as typeof inner))) : keepOwnLayout(previousOf(next), next);
 
 /**
  * La IA reescribe un bloque con update_block a partir de lo que lee, y puede omitir cómo se presenta una
@@ -105,12 +118,20 @@ function keepOwnLayout(previous: BlockInput, next: BlockInput): BlockInput {
  * dentro que siguen en la misma celda y posición.
  */
 export function keepFigureLayout(previous: Block, next: BlockInput): BlockInput {
-  if (!isContainer(previous) || !isContainer(next) || previous.type !== next.type) return keepOwnLayout(previous, next);
-  const before = blockCells(previous);
-  return withCells(
-    next,
-    blockCells(next).map((cell, c) => cell.map((inner, i) => (before[c]?.[i] ? (keepOwnLayout(before[c][i], inner) as typeof inner) : inner))),
-  );
+  if (!isContainer(next)) return keepOwnLayout(isContainer(previous) ? undefined : previous, next);
+  const before = isContainer(previous) && previous.type === next.type ? blockCells(previous) : [];
+  return keepEach(next, (_block, cell = 0, index = 0) => before[cell]?.[index]);
+}
+
+/**
+ * Al escribir una sección (nueva, o reescrita entera), las figuras no traen notas: si la sección ya
+ * existía, cada figura toma la presentación de la que ocupaba su lugar, emparejadas por tipo y en orden
+ * de lectura (la segunda gráfica de barras con la segunda gráfica de barras).
+ */
+export function keepSectionLayout(previous: readonly Block[], next: readonly BlockInput[]): BlockInput[] {
+  const queues = new Map<string, BlockInput[]>();
+  for (const block of flattenBlocks(previous)) if (isFigure(block)) queues.set(block.type, [...(queues.get(block.type) ?? []), block]);
+  return next.map(block => keepEach(block, inner => (isFigure(inner) ? queues.get(inner.type)?.shift() : undefined)));
 }
 
 /** Un bloque nuevo con ids nuevos: el suyo y, si es un contenedor, los de todo lo de dentro. Un id que traiga se descarta. */

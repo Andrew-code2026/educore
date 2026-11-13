@@ -1,7 +1,8 @@
 import { forwardRef, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { Pencil, X } from "lucide-react";
+import { Crosshair, Move, MoveUpRight, Pencil, Plus, Trash2, X } from "lucide-react";
 import { BLOCK_TYPE_LABELS, blockInputSchema, isFigure, type Block, type BlockInput, type BlockType, type ContainerBlock } from "@shared/creator";
 import { cellWidths, SHEET_WIDTH_PX } from "@shared/creatorContainers";
+import { arrowStep, FIGURE_NOTE_TEXT_MAX, FIGURE_NOTES_MAX, movePoint, type NotePoint } from "@shared/creatorFigureNotes";
 import {
   currentSizeChoice,
   FIGURE_SIZE_LABELS,
@@ -10,7 +11,6 @@ import {
   figureSizeChoices,
   figureWidth,
   pxToCm,
-  SCREEN_SHEET_WIDTH_PX,
   storedFigureSize,
   type FigureKind,
   type FigureSize,
@@ -18,10 +18,13 @@ import {
 } from "@shared/creatorFigureSize";
 import { sameJson } from "@shared/creatorTurn";
 import { PortalContainerProvider, usePortalContainerHost } from "@/components/ui/portal-container";
+import { cn } from "@/lib/utils";
 import { BlockView } from "../blocks/BlockView";
+import { NoteEditingContext, type NoteEditing, type NotePart } from "../blocks/FigureNotes";
 import { IS_MAC } from "../keyboard";
-import { BlockForm, checkDraft } from "./BlockEditor";
+import { BlockForm, checkDraft } from "./BlockForm";
 import type { BlockEditorHandle } from "./InlineBlockEditor";
+import { addNote, draftNotes, moveNote, removeNote, setNoteText, toggleNotePointer } from "./noteDraft";
 
 /** La figura tal como se dibuja en la hoja: su ancho de diseño (el del componente) y si es el plano. */
 export interface FigureMeasure {
@@ -44,13 +47,146 @@ interface BlockPanelProps {
   sheet: boolean;
   /** Lo que la hoja dibuja mientras se edita: el borrador, cada vez que se puede dibujar. */
   onLive: (draft: BlockInput) => void;
-  /** Aplica el borrador como un solo paso de deshacer. `false` si no se pudo (el aviso lo da quien aplica). */
-  onApply: (next: BlockInput) => boolean;
+  /** Aplica el borrador como un solo paso de deshacer. Si no se pudo (no cabe en su celda), devuelve el motivo. */
+  onApply: (next: BlockInput) => string | null;
   /** Cierra el panel: tras aplicar, o descartando el borrador. */
   onClose: (reason: "applied" | "cancel") => void;
+  /** La nota elegida (en la hoja o en la lista): se marca en los dos sitios. */
+  selectedNote: number | null;
+  onSelectNote: (index: number | null) => void;
+  /** Mover y elegir notas sobre la vista previa de la lámina (en pantalla ancha, sobre la hoja). */
+  noteEditing: NoteEditing | null;
+}
+
+interface NotesSectionProps {
+  draft: BlockInput;
+  selected: number | null;
+  sheet: boolean;
+  onSelect: (index: number | null) => void;
+  onChange: (next: BlockInput) => void;
+}
+
+/** Las notas del docente sobre la figura: su texto, la línea al punto que señalan y moverlas con el teclado. */
+function NotesSection({ draft, selected, sheet, onSelect, onChange }: NotesSectionProps) {
+  const labelId = useId();
+  const hintId = useId();
+  const list = useRef<HTMLDivElement>(null);
+  const notes = draftNotes(draft);
+
+  const add = () => {
+    onChange(addNote(draft));
+    onSelect(notes.length);
+    // El texto de muestra queda seleccionado para escribir el propio
+    requestAnimationFrame(() => {
+      const input = list.current?.querySelectorAll<HTMLInputElement>(".crt-note-row input")[notes.length];
+      input?.focus();
+      input?.select();
+    });
+  };
+
+  const nudge = (index: number, part: NotePart) => (event: KeyboardEvent<HTMLButtonElement>) => {
+    const step = arrowStep(event.key, event.shiftKey);
+    const from = part === "pointer" ? notes[index].pointer : notes[index];
+    if (!step || !from) return;
+    event.preventDefault();
+    onChange(moveNote(draft, index, part, movePoint(from, step)));
+  };
+
+  const where = (point: NotePoint) => `${Math.round(point.x * 100)} % desde la izquierda, ${Math.round(point.y * 100)} % desde arriba`;
+
+  return (
+    <section className="crt-panel__section" aria-labelledby={labelId}>
+      <div className="crt-panel__row">
+        <h3 id={labelId} className="crt-panel__label">
+          Notas sobre la figura
+        </h3>
+        {notes.length > 0 && (
+          <span className="crt-panel__count">
+            {notes.length} de {FIGURE_NOTES_MAX}
+          </span>
+        )}
+      </div>
+      <p id={hintId} className="crt-panel__hint">
+        {notes.length === 0 ? "Textos cortos encima de la figura, que se imprimen con ella." : `Arrástralas en la figura${sheet ? " de arriba" : ""}, o con las flechas desde aquí (Mayús, más lejos).`}
+      </p>
+      {notes.length > 0 && (
+        <div ref={list} className="crt-note-rows">
+          {notes.map((note, index) => (
+            <div key={index} className={cn("crt-note-row", selected === index && "is-selected")}>
+              <input
+                className="crt-input"
+                value={note.text}
+                maxLength={FIGURE_NOTE_TEXT_MAX}
+                placeholder="Texto de la nota"
+                aria-label={`Texto de la nota ${index + 1}`}
+                onFocus={() => onSelect(index)}
+                onChange={event => onChange(setNoteText(draft, index, event.target.value))}
+              />
+              <button type="button" className="crt-icon-btn" title={`Mover la nota con las flechas (${where(note)})`} aria-label={`Mover la nota ${index + 1} con las flechas: ${where(note)}`} aria-describedby={hintId} onFocus={() => onSelect(index)} onKeyDown={nudge(index, "note")}>
+                <Move aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="crt-icon-btn"
+                aria-pressed={note.pointer !== undefined}
+                title={note.pointer ? "Quitar la línea al punto que señala" : "Señalar un punto con una línea"}
+                aria-label={`Línea de la nota ${index + 1} a un punto`}
+                onClick={() => {
+                  onChange(toggleNotePointer(draft, index));
+                  onSelect(index);
+                }}
+              >
+                <MoveUpRight aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className="crt-icon-btn crt-icon-btn--danger"
+                aria-label={`Quitar la nota ${index + 1}`}
+                onClick={() => {
+                  onChange(removeNote(draft, index));
+                  onSelect(null);
+                }}
+              >
+                <Trash2 aria-hidden="true" />
+              </button>
+              {note.pointer && (
+                <button type="button" className="crt-btn crt-btn--ghost crt-btn--sm crt-note-row__point" title={where(note.pointer)} aria-label={`Mover el punto que señala la nota ${index + 1} con las flechas: ${where(note.pointer)}`} onFocus={() => onSelect(index)} onKeyDown={nudge(index, "pointer")}>
+                  <Crosshair aria-hidden="true" />
+                  Punto señalado: muévelo con las flechas
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {notes.length < FIGURE_NOTES_MAX && (
+        <button type="button" className="crt-btn crt-btn--ghost crt-btn--sm crt-panel__add" onClick={add}>
+          <Plus aria-hidden="true" />
+          Añadir nota
+        </button>
+      )}
+    </section>
+  );
 }
 
 const APPLY_HINT = IS_MAC ? "⌘ Intro" : "Ctrl+Intro";
+
+/** En la lámina (pantalla angosta) la hoja queda tapada: Tab da la vuelta dentro del panel en vez de irse a ella. */
+function keepFocusInside(event: KeyboardEvent<HTMLElement>) {
+  const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), textarea, select, math-field, [tabindex]:not([tabindex='-1'])")).filter(
+    element => element.getClientRects().length > 0,
+  );
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (!first || !last) return;
+  if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
 
 const withoutId = ({ id: _id, ...content }: Block) => content as BlockInput;
 
@@ -73,12 +209,13 @@ interface SizePickerProps {
 function SizePicker({ type, value, measure, place, onChange }: SizePickerProps) {
   const labelId = useId();
   const group = useRef<HTMLDivElement>(null);
-  const screen = place ? cellWidths(place.container, SCREEN_SHEET_WIDTH_PX)[place.cell] : SCREEN_SHEET_WIDTH_PX;
+  // Las opciones se cuentan en papel, que es lo que se entrega: en una pantalla angosta dos tamaños pueden verse
+  // iguales y salir distintos al imprimir
   const paper = place ? cellWidths(place.container)[place.cell] : SHEET_WIDTH_PX;
-  // Sin medida (la figura aún no se dibuja o sus datos no la dejan dibujar) se ofrecen los cuatro
+  // Sin medida (la figura aún no se dibuja o sus datos no la dejan dibujar) se ofrecen todos los que admite
   const choices = useMemo(
-    () => (measure ? figureSizeChoices(measure.design, screen, type) : FIGURE_SIZES.filter(size => figureSizeAllowed(type, size)).map(size => ({ size, sizes: [size], width: screen }))),
-    [measure, screen, type],
+    () => (measure ? figureSizeChoices(measure.design, paper, type, measure.kind) : FIGURE_SIZES.filter(size => figureSizeAllowed(type, size)).map(size => ({ size, sizes: [size], width: paper }))),
+    [measure, paper, type],
   );
   const current = currentSizeChoice(choices, value);
   const printed = measure ? figureWidth(value, measure.design, paper, measure.kind) : null;
@@ -113,7 +250,7 @@ function SizePicker({ type, value, measure, place, onChange }: SizePickerProps) 
             <button key={choice.size} type="button" role="radio" aria-checked={checked} tabIndex={checked || (!current && choice === choices[0]) ? 0 : -1} className="crt-size" onClick={() => pick(choice)}>
               {/* La hoja (o la celda) y lo que ocupa la figura en ella */}
               <span className="crt-size__glyph" aria-hidden="true">
-                <span style={{ width: `${Math.max(18, Math.min(100, (choice.width / screen) * 100))}%` }} />
+                <span style={{ width: `${Math.max(18, Math.min(100, (choice.width / paper) * 100))}%` }} />
               </span>
               {choiceLabel(choice, place)}
             </button>
@@ -135,7 +272,7 @@ function SizePicker({ type, value, measure, place, onChange }: SizePickerProps) 
  * Aplicar es un solo paso de deshacer; cancelar o Escape lo deja como estaba. Lo que no valida se avisa
  * aquí, sin perder lo escrito.
  */
-export const BlockPanel = forwardRef<BlockEditorHandle, BlockPanelProps>(function BlockPanel({ block, place, measure, sheet, onLive, onApply, onClose }, ref) {
+export const BlockPanel = forwardRef<BlockEditorHandle, BlockPanelProps>(function BlockPanel({ block, place, measure, sheet, onLive, onApply, onClose, selectedNote, onSelectNote, noteEditing }, ref) {
   const initial = useMemo(() => withoutId(block), [block]);
   const [draft, setDraft] = useState<BlockInput>(initial);
   /** Lo guardado contra lo que se compara el borrador. */
@@ -185,7 +322,9 @@ export const BlockPanel = forwardRef<BlockEditorHandle, BlockPanelProps>(functio
       setIssues(checked.issues);
       return false;
     }
-    return onApply(checked.block);
+    const error = onApply(checked.block);
+    if (error) setIssues([error]);
+    return error === null;
   };
 
   const apply = () => {
@@ -201,6 +340,11 @@ export const BlockPanel = forwardRef<BlockEditorHandle, BlockPanelProps>(functio
     () => ({
       settle: () => commitRef.current(),
       focus: () => root.current?.querySelector<HTMLElement>(".crt-panel__body :is(input, textarea, select, [contenteditable='true'], math-field)")?.focus(),
+      // Lo que se hace sobre la figura (arrastrar una nota) cambia el mismo borrador
+      edit: change => {
+        setDraft(change);
+        setIssues([]);
+      },
     }),
     [],
   );
@@ -224,7 +368,8 @@ export const BlockPanel = forwardRef<BlockEditorHandle, BlockPanelProps>(functio
         tabIndex={-1}
         onKeyDown={event => {
           if (event.defaultPrevented) return;
-          if (event.key === "Escape") {
+          if (sheet && event.key === "Tab") keepFocusInside(event);
+          else if (event.key === "Escape") {
             event.preventDefault();
             cancel();
           } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
@@ -250,15 +395,18 @@ export const BlockPanel = forwardRef<BlockEditorHandle, BlockPanelProps>(functio
 
         {sheet && (
           // En pantalla angosta la hoja queda debajo de la lámina: la vista previa va aquí
-          <div className="crt-panel__preview" aria-hidden="true">
+          <div className="crt-panel__preview" role="group" aria-label="Vista previa">
             <div className="crt-doc crt-panel__paper">
-              <BlockView block={{ ...(drawable ?? initial), id: block.id } as Block} />
+              <NoteEditingContext.Provider value={noteEditing}>
+                <BlockView block={{ ...(drawable ?? initial), id: block.id } as Block} />
+              </NoteEditingContext.Provider>
             </div>
           </div>
         )}
 
         <div className="crt-panel__body">
           {figure && <SizePicker type={figure.type} value={figure.size} measure={measure} place={place} onChange={size => change({ ...figure, size } as BlockInput)} />}
+          {figure && <NotesSection draft={draft} selected={selectedNote} sheet={sheet} onSelect={onSelectNote} onChange={change} />}
           <section className="crt-panel__section crt-form" aria-label={`Datos de ${label.toLowerCase()}`}>
             <BlockForm draft={draft} onChange={change} actions={{ submit: apply, cancel }} />
           </section>

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { areaModelProduct, computeAreaModel } from "./creatorAlgebra";
 import { CONIC_LABELS } from "./creatorConics";
 import { VENN_REGIONS } from "./creatorDiagrams";
+import { FIGURE_NOTE_TEXT_MAX, FIGURE_NOTES_MAX } from "./creatorFigureNotes";
 import { FIGURE_SIZES } from "./creatorFigureSize";
 import { MATH_EXPR_MAX } from "./creatorMath";
 
@@ -86,6 +87,24 @@ const label = z.string().trim().min(1).max(60);
 const figureSize = z
   .enum(FIGURE_SIZES)
   .meta({ id: "figure_size", description: 'Tamaño en la hoja. Omítelo para el normal; "small" ahorra espacio, "large" o "full" (todo el ancho, o el de su columna) para dibujar o leer detalles.' })
+  .optional();
+/** Una coordenada dentro de la caja de la figura: 0 es el borde izquierdo (o el de arriba) y 1 el opuesto. */
+const unit = z.number().min(0).max(1);
+/**
+ * Notas del docente sobre la figura (creatorFigureNotes.ts), en posición relativa a su caja. La IA no
+ * las escribe: no están en el esquema de sus herramientas y se conservan solas al editar la figura.
+ */
+const figureNotes = z
+  .array(
+    z.object({
+      text: z.string().trim().min(1).max(FIGURE_NOTE_TEXT_MAX),
+      x: unit,
+      y: unit,
+      pointer: z.object({ x: unit, y: unit }).optional(),
+    }),
+  )
+  .max(FIGURE_NOTES_MAX)
+  .meta({ id: "figure_notes" })
   .optional();
 
 const graphEnd = z.enum(["closed", "open", "none"]);
@@ -297,6 +316,7 @@ const graphBlock = z.object({
   type: z.literal("graph"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   spec: graphSpecSchema,
 });
 
@@ -310,6 +330,7 @@ const numberLineBlock = z.object({
   type: z.literal("number_line"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   min: z.number(),
   max: z.number(),
   step: z.number().positive().describe("Separación entre marcas, p. ej. 1 o 0.25."),
@@ -350,6 +371,7 @@ const fractionModelBlock = z.object({
   type: z.literal("fraction_model"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   shape: z.enum(["circle", "bar"]).default("circle").describe("Círculos partidos en sectores o barras partidas en casillas."),
   models: z
     .array(
@@ -372,6 +394,7 @@ const barChartBlock = z.object({
   type: z.literal("bar_chart"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   title: chartText,
   xLabel: z.string().trim().max(60).optional(),
   yLabel: z.string().trim().max(60).optional(),
@@ -386,6 +409,7 @@ const pieChartBlock = z.object({
   type: z.literal("pie_chart"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   title: chartText,
   slices: z.array(z.object({ label: shortLabel, value: z.number().positive() })).min(2).max(8).describe("Cada sector con su valor (frecuencia o cantidad); los porcentajes se calculan solos."),
   showPercent: z.boolean().default(true),
@@ -402,6 +426,7 @@ const histogramBlock = z.object({
   type: z.literal("histogram"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   title: chartText,
   xLabel: axisName.describe('Nombre de la variable, p. ej. "Estatura (cm)".'),
   yLabel: axisName.describe('Nombre del eje vertical, p. ej. "Número de estudiantes".'),
@@ -431,6 +456,7 @@ const boxPlotBlock = z.object({
   type: z.literal("box_plot"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   title: chartText,
   xLabel: axisName.describe('Nombre de la variable bajo el eje, p. ej. "Nota (de 0 a 5)".'),
   series: z
@@ -458,6 +484,7 @@ const lineChartBlock = z.object({
   type: z.literal("line_chart"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   title: chartText,
   xLabel: axisName,
   yLabel: axisName,
@@ -486,6 +513,7 @@ const scatterPlotBlock = z.object({
   type: z.literal("scatter_plot"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   title: chartText,
   xLabel: axisName,
   yLabel: axisName,
@@ -511,6 +539,7 @@ const angleBlock = z.object({
   type: z.literal("angle"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   angles: z
     .array(
       z.object({
@@ -528,6 +557,7 @@ const vennBlock = z.object({
   type: z.literal("venn"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   title: chartText,
   sets: z.array(shortLabel).min(2).max(3).describe('Nombre de cada conjunto: el primero es A, el segundo B y el tercero, si lo hay, C. P. ej. ["Fútbol", "Baloncesto"].'),
   regions: z
@@ -560,6 +590,7 @@ const treeDiagramBlock = z.object({
   type: z.literal("tree_diagram"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   root: z.string().trim().max(24).optional().describe('Rótulo del punto de partida, p. ej. "Inicio". Opcional.'),
   branches: z
     .array(treeLeaf.extend({ children: z.array(treeBranch).max(4).default([]) }))
@@ -573,6 +604,7 @@ const barModelBlock = z.object({
   type: z.literal("bar_model"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   bars: z
     .array(
       z.object({
@@ -599,6 +631,7 @@ const pictogramBlock = z.object({
   type: z.literal("pictogram"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   title: chartText,
   icon: z.enum(PICTOGRAM_ICONS).default("circle").describe("Dibujo que se repite."),
   iconValue: z.number().positive().default(1).describe("Cuánto vale cada dibujo, p. ej. 2. Medio dibujo vale la mitad."),
@@ -615,6 +648,7 @@ const clockBlock = z.object({
   type: z.literal("clock"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   clocks: z
     .array(
       z.object({
@@ -633,6 +667,7 @@ const baseTenBlock = z.object({
   type: z.literal("base_ten"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   hundreds: z.number().int().min(0).max(9).default(0).describe("Placas de 100."),
   tens: z.number().int().min(0).max(19).default(0).describe("Barras de 10. Más de 9 sirve para mostrar un reagrupamiento."),
   ones: z.number().int().min(0).max(19).default(0).describe("Cubos de 1."),
@@ -646,6 +681,7 @@ const areaModelBlock = z.object({
   type: z.literal("area_model"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   rows: z
     .array(areaTerm)
     .min(1)
@@ -697,6 +733,7 @@ const shapesBlock = z.object({
   type: z.literal("shapes"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   figures: z.array(shapeSchema).min(1).max(4),
   toScale: z.boolean().default(true).describe("true dibuja todas las figuras con la misma escala, para poder compararlas."),
 });
@@ -715,6 +752,7 @@ const balanceBlock = z.object({
   type: z.literal("balance"),
   caption,
   size: figureSize,
+  notes: figureNotes,
   variable: z
     .string()
     .regex(/^[a-zA-Z]$/)
@@ -1380,10 +1418,11 @@ function ownTexts(block: BlockInput): string[] {
   }
 }
 
-/** Los campos de texto Markdown de un bloque (incluido su pie), para recorrerlos al validar o normalizar. */
+/** Los campos de texto Markdown de un bloque (incluidos su pie y sus notas), para recorrerlos al validar o normalizar. */
 export function blockTexts(block: BlockInput): string[] {
   const caption = "caption" in block && block.caption ? [block.caption] : [];
-  return [...ownTexts(block), ...caption].filter(Boolean);
+  const notes = "notes" in block && block.notes ? block.notes.map(note => note.text) : [];
+  return [...ownTexts(block), ...caption, ...notes].filter(Boolean);
 }
 
 function mapOwnTexts<T extends BlockInput>(block: T, fn: (md: string) => string): T {
@@ -1408,10 +1447,11 @@ function mapOwnTexts<T extends BlockInput>(block: T, fn: (md: string) => string)
   }
 }
 
-/** Aplica una transformación a todos los campos Markdown de un bloque, incluido su pie. En un contenedor, solo a sus títulos. */
+/** Aplica una transformación a todos los campos Markdown de un bloque, incluidos su pie y sus notas. En un contenedor, solo a sus títulos. */
 export function mapBlockTexts<T extends BlockInput>(block: T, fn: (md: string) => string): T {
-  const mapped = mapOwnTexts(block, fn);
-  return "caption" in mapped && mapped.caption ? { ...mapped, caption: fn(mapped.caption) } : mapped;
+  const own = mapOwnTexts(block, fn);
+  const mapped = "caption" in own && own.caption ? { ...own, caption: fn(own.caption) } : own;
+  return "notes" in mapped && mapped.notes ? { ...mapped, notes: mapped.notes.map(note => ({ ...note, text: fn(note.text) })) } : mapped;
 }
 
 /** Una línea que resume el bloque: para el índice del documento y el contexto del chat. */

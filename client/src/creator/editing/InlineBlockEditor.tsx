@@ -6,7 +6,7 @@ import { $getSelection, $isRangeSelection, FORMAT_TEXT_COMMAND, type LexicalEdit
 import { Bold, Italic, List, ListOrdered, Plus, Sigma, Trash2 } from "lucide-react";
 import { BLOCK_TYPE_LABELS, type BlockInput } from "@shared/creator";
 import { AnswerSpace } from "../blocks/BlockView";
-import { ANSWER_SPACE_OPTIONS, CALLOUT_TONE_OPTIONS } from "./BlockEditor";
+import { ANSWER_SPACE_OPTIONS, CALLOUT_TONE_OPTIONS } from "./BlockForm";
 import { checkedInput, insertPart, removePart, resolveDraft, toDraft, type InlineBlock, type InlineBlockType, type InlineDraft } from "./inlineDraft";
 import { focusInlineField, InlineText, placeCaret, PlainText, type ActiveField, type BlockShortcuts, type EditEntry } from "./InlineText";
 import { insertFormula } from "./RichTextEditor";
@@ -21,6 +21,8 @@ export interface BlockEditorHandle {
   focus: () => void;
   /** El bloque se va a reemplazar por otro: lo escrito no se guarda y el editor ya no se cierra solo. */
   release?: () => void;
+  /** Cambia lo escrito desde fuera del editor (el panel: una nota que se arrastra sobre la figura). */
+  edit?: (change: (draft: BlockInput) => BlockInput) => void;
 }
 
 const PARTS_MAX = 8;

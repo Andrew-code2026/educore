@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { INNER_BLOCK_TYPES, type Block, type BlockType } from "@shared/creator";
 import { minBlockWidth } from "@shared/creatorContainers";
 import { BlockView } from "./blocks/BlockView";
-import { BLOCK_TEMPLATES } from "./editing/BlockEditor";
+import { BLOCK_TEMPLATES } from "./editing/BlockForm";
 
 /**
  * Qué cabe en una columna (shared/creatorContainers.ts) parte del ancho de diseño de cada figura, que
@@ -51,5 +51,24 @@ describe("tamaño de presentación", () => {
     const full = html({ ...BLOCK_TEMPLATES.bar_chart, size: "full", id: "x" } as Block);
     expect(full).toContain('data-size="full"');
     expect(full).not.toContain("--fig-scale");
+  });
+});
+
+describe("notas sobre la figura", () => {
+  const html = (block: Block) => renderToStaticMarkup(<BlockView block={block} />);
+  const notes = [{ text: "Vértice", x: 0.25, y: 0.75, pointer: { x: 0.5, y: 0.5 } }];
+
+  it.each(["bar_chart", "graph", "clock"] as const)("%s las dibuja dentro de su caja, en posición relativa", type => {
+    const markup = html({ ...BLOCK_TEMPLATES[type], notes, id: "x" } as Block);
+    expect(markup).toMatch(/class="crt-(figure|plane)" data-notes=""/);
+    expect(markup).toContain('class="crt-note" style="left:25%;top:75%"');
+    expect(markup).toContain('class="crt-note__dot" style="left:50%;top:50%"');
+    expect(markup).toContain("<line");
+  });
+
+  it("sin notas no se dibuja nada nuevo", () => {
+    const markup = html({ ...BLOCK_TEMPLATES.bar_chart, id: "x" } as Block);
+    expect(markup).not.toContain("data-notes");
+    expect(markup).not.toContain("crt-notes");
   });
 });

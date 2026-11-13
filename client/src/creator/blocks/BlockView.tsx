@@ -1,5 +1,6 @@
 import { Fragment, memo, type CSSProperties, type ReactNode } from "react";
 import type { Block, BlockOf, InnerBlock } from "@shared/creator";
+import type { FigureNote } from "@shared/creatorFigureNotes";
 import { FIGURE_SIZE_SCALE, type FigureSize } from "@shared/creatorFigureSize";
 import { formatTableNumber, valueTableDecimals } from "@shared/creatorPlane";
 import { computeValueTable, valueTableVariable } from "@shared/creatorValidate";
@@ -7,6 +8,7 @@ import { AreaModel } from "./AreaModel";
 import { BarChart, PieChart } from "./Charts";
 import { Angle, BarModel, BaseTen, Clock, Pictogram, TreeDiagram, Venn } from "./ClassroomFigures";
 import { CoordinatePlane } from "./CoordinatePlane";
+import { FigureNotesContext } from "./FigureNotes";
 import { Formula } from "./Formula";
 import { FractionModel } from "./FractionModel";
 import { NumberLine } from "./NumberLine";
@@ -18,11 +20,12 @@ import { BoxPlot, Histogram, LineChart, ScatterPlot } from "./StatCharts";
  * Una figura centrada con su pie. Con un tamaño elegido, la figura se amplía o se reduce entera desde su
  * ancho de diseño (ver creatorFigureSize.ts y las reglas de `.crt-graph[data-size]` en creator.css).
  */
-function Figure({ caption, size, children }: { caption?: string; size?: FigureSize; children: ReactNode }) {
+function Figure({ caption, size, notes, children }: { caption?: string; size?: FigureSize; notes?: readonly FigureNote[]; children: ReactNode }) {
   const scale = size && size !== "full" ? FIGURE_SIZE_SCALE[size] : undefined;
   return (
     <figure className="crt-graph" data-size={size} style={scale !== undefined ? ({ "--fig-scale": scale } as CSSProperties) : undefined}>
-      {children}
+      {/* Las notas del docente las dibuja cada figura en su propia caja (FigureFrame, CoordinatePlane) */}
+      <FigureNotesContext.Provider value={notes}>{children}</FigureNotesContext.Provider>
       {caption && (
         <figcaption>
           <RichText md={caption} inline />
@@ -276,115 +279,115 @@ export const BlockView = memo(function BlockView({ block }: { block: Block }) {
       return <ValueTableView block={block} />;
     case "graph":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <CoordinatePlane spec={block.spec} />
         </Figure>
       );
     case "number_line":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <NumberLine spec={block} />
         </Figure>
       );
     case "fraction_model":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <FractionModel spec={block} />
         </Figure>
       );
     case "bar_chart":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <BarChart spec={block} />
         </Figure>
       );
     case "pie_chart":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <PieChart spec={block} />
         </Figure>
       );
     case "histogram":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <Histogram spec={block} />
         </Figure>
       );
     case "box_plot":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <BoxPlot spec={block} />
         </Figure>
       );
     case "line_chart":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <LineChart spec={block} />
         </Figure>
       );
     case "scatter_plot":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <ScatterPlot spec={block} />
         </Figure>
       );
     case "angle":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <Angle spec={block} />
         </Figure>
       );
     case "venn":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <Venn spec={block} />
         </Figure>
       );
     case "tree_diagram":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <TreeDiagram spec={block} />
         </Figure>
       );
     case "bar_model":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <BarModel spec={block} />
         </Figure>
       );
     case "pictogram":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <Pictogram spec={block} />
         </Figure>
       );
     case "clock":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <Clock spec={block} />
         </Figure>
       );
     case "base_ten":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <BaseTen spec={block} />
         </Figure>
       );
     case "area_model":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <AreaModel spec={block} />
         </Figure>
       );
     case "shapes":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <Shapes spec={block} />
         </Figure>
       );
     case "balance":
       return (
-        <Figure caption={block.caption} size={block.size}>
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <Balance spec={block} />
         </Figure>
       );
