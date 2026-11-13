@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BetweenHorizontalStart, Columns2, Copy, GripVertical, LayoutGrid, MessageSquarePlus, Pencil, Plus, SquareDashedMousePointer, Trash2, TriangleAlert, Ungroup, X } from "lucide-react";
 import {
@@ -36,7 +36,8 @@ import { cn } from "@/lib/utils";
 import { BlockPicker } from "./BlockPicker";
 import { BlockView, ContainerView } from "./blocks/BlockView";
 import { CardTitle, EmptyCell } from "./ContainerControls";
-import { BLOCK_TEMPLATES, BlockEditor } from "./editing/BlockEditor";
+import { BLOCK_TEMPLATES } from "./editing/BlockEditor";
+import { BlockPanel, type FigureMeasure, type PanelPlace } from "./editing/BlockPanel";
 import { InlineBlockEditor, type BlockEditorHandle, type CloseReason } from "./editing/InlineBlockEditor";
 import { IS_MAC, isEditingTarget } from "./keyboard";
 import { isInlineBlock, isInlineType } from "./editing/inlineDraft";
@@ -67,6 +68,12 @@ interface EditableDocumentProps {
   /** Bloques que la IA añadió o cambió en su último turno y que el docente aún no da por vistos. */
   marks: ReadonlyMap<string, MarkKind>;
   onAcceptMark: (blockId: string) => void;
+  /** Dónde se monta el panel de edición de figuras y tablas (lo pone el espacio de trabajo, fuera de la hoja). */
+  panelHost: HTMLElement | null;
+  /** Pantalla angosta: el panel es una lámina propia, con su vista previa. */
+  panelSheet: boolean;
+  /** Avisa cuando el panel se abre o se cierra, para que el espacio de trabajo le haga sitio. */
+  onPanelChange?: (open: boolean) => void;
 }
 
 const MARK_LABELS: Record<MarkKind, string> = { added: "Añadido por la IA", changed: "Cambiado por la IA" };
@@ -78,7 +85,7 @@ export interface EditableDocumentHandle {
   settle: () => boolean;
 }
 
-/** El bloque abierto: los de texto se editan en su sitio y los demás con su formulario. */
+/** El bloque abierto: los de texto se editan en su sitio y los demás en el panel lateral. */
 interface Editing {
   id: string;
   inline: boolean;
@@ -255,7 +262,7 @@ function TitleEditor({ doc, readOnly, applyOp }: Pick<EditableDocumentProps, "do
 
 /** El recurso en pantalla: cada bloque se edita en su sitio, con las mismas reglas que sigue la IA. */
 export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocumentProps>(function EditableDocument(
-  { doc, readOnly, applyOp, schoolName, logoUrl, preview, working, attachedIds, onToggleAttach, marks, onAcceptMark },
+  { doc, readOnly, applyOp, schoolName, logoUrl, preview, working, attachedIds, onToggleAttach, marks, onAcceptMark, panelHost, panelSheet, onPanelChange },
   ref,
 ) {
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -263,6 +270,10 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
   editingRef.current = editing;
   const seq = useRef(0);
   const editor = useRef<BlockEditorHandle | null>(null);
+  /** Lo que el panel tiene escrito y la hoja dibuja en lugar del bloque, mientras se puede dibujar. */
+  const [live, setLive] = useState<{ seq: number; block: BlockInput } | null>(null);
+  /** El ancho de diseño de la figura que se edita, tal como la dibuja la hoja: de él salen los tamaños que se ofrecen. */
+  const [measure, setMeasure] = useState<FigureMeasure | null>(null);
   const paper = useRef<HTMLDivElement>(null);
   const dropLine = useRef<HTMLDivElement>(null);
   const dragChip = useRef<HTMLDivElement>(null);
@@ -295,12 +306,12 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
   useImperativeHandle(ref, () => ({ settle: () => editor.current?.settle() ?? true }), []);
 
   /** Lleva el foco a un bloque (tras moverlo, duplicarlo o cerrar un menú). Espera a que la hoja se dibuje. */
-  const focusBlock = useCallback((id: string, options?: { flash?: boolean }) => {
+  const focusBlock = useCallback((id: string, options?: { flash?: boolean; stay?: boolean }) => {
     requestAnimationFrame(() => {
       // La vista propia del bloque, no la de un bloque de dentro si es un contenedor
       const view = paper.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(id)}"] > .crt-block__view`);
       if (options?.flash) revealTarget({ blockIds: [id] });
-      view?.focus({ preventScroll: options?.flash });
+      view?.focus({ preventScroll: options?.flash || options?.stay });
       // Un bloque sin vista enfocable (el salto de página) al menos se trae a la vista
       if (!view) paper.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "nearest" });
     });
@@ -342,10 +353,13 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
   // Un menú abierto o el asa pulsada mantienen su bloque activo: su barra no desaparece debajo
   const activeId = dragging ?? held ?? menuFor ?? hoverOrFocusId;
 
-  /** Abre un bloque para editarlo. Un texto abierto con un dato por corregir no se cierra: se perdería lo escrito. */
+  /**
+   * Abre un bloque para editarlo. Lo que estaba abierto se guarda antes (lo del panel se aplica); si tiene un
+   * dato por corregir no se cierra: se perdería lo escrito.
+   */
   const open = (id: string, type: BlockType, entry: EditEntry) => {
     const current = editingRef.current;
-    if (current && current.id !== id && current.inline && editor.current && !editor.current.settle()) {
+    if (current && current.id !== id && editor.current && !editor.current.settle()) {
       editor.current.focus();
       return;
     }
@@ -366,6 +380,37 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     // Cerrado desde el teclado, el foco vuelve al bloque para seguir con Tab
     if (reason === "keyboard") focusBlock(id);
   };
+
+  /** Cierra el panel, aplicado o descartado. El foco vuelve al bloque sin mover la hoja. */
+  const closePanel = (id: string) => {
+    setEditing(current => (current?.id === id ? null : current));
+    setLive(null);
+    focusBlock(id, { stay: true });
+  };
+
+  /** El bloque abierto en el panel y dónde vive; `null` si no hay panel. */
+  const panelFound = editing && !editing.inline ? findBlock(doc, editing.id) : null;
+  const panelId = panelFound?.block.id;
+  const panelPlace: PanelPlace | null = panelFound?.parent ? { container: panelFound.parent.container, cell: panelFound.parent.cell } : null;
+
+  // Si el bloque del panel deja de existir (se deshizo su llegada, se restauró una versión), el panel se cierra sin aplicar nada
+  const panelGone = editing !== null && !editing.inline && !panelFound;
+  useEffect(() => {
+    if (panelGone) setEditing(null);
+  }, [panelGone]);
+
+  const panelOpen = panelId !== undefined;
+  useEffect(() => onPanelChange?.(panelOpen), [onPanelChange, panelOpen]);
+  useEffect(() => () => onPanelChange?.(false), [onPanelChange]);
+
+  // El ancho de diseño de la figura abierta, leído de su dibujo en la hoja (cada figura lo fija según sus datos)
+  useLayoutEffect(() => {
+    const figure = panelId ? paper.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(panelId)}"] > .crt-block__view > .crt-graph > :is(.crt-figure, .crt-plane)`) : null;
+    const plane = figure?.classList.contains("crt-plane") ?? false;
+    const design = figure ? Number.parseFloat(figure.style.getPropertyValue(plane ? "--plane-wn" : "--fig-wn")) : Number.NaN;
+    const next: FigureMeasure | null = Number.isFinite(design) ? { design, kind: plane ? "plane" : "figure" } : null;
+    setMeasure(current => (current?.design === next?.design && current?.kind === next?.kind ? current : next));
+  });
 
   const insert = (type: BlockType) => {
     if (!picker) return;
@@ -577,28 +622,14 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     );
   };
 
-  /** El formulario de un bloque que no se edita en su sitio (figuras, tablas de valores…). */
-  const renderForm = (block: Block) =>
-    editing && (
-      <BlockEditor
-        key={editing.seq}
-        ref={editor}
-        block={block}
-        onCancel={() => close(block.id)}
-        onSave={(next: BlockInput) => {
-          const result = applyOp({ op: "update_block", blockId: block.id, block: next });
-          // Lo que no cabe en su celda deja el formulario abierto, con el aviso, para corregirlo
-          if (result.ok) close(block.id);
-        }}
-      />
-    );
-
   const renderBlock = (block: Block, section: Section, parent?: Parent) => {
     const isEditing = editing?.id === block.id;
     const inline = isInlineBlock(block);
     const container = isContainer(block) ? block : null;
-    // Un bloque de dentro cuyo formulario está abierto bajo su contenedor no se vuelve a abrir desde la celda: perdería lo escrito
-    const canEdit = !readOnly && block.type !== "page_break" && !container && !(isEditing && parent);
+    // Abierto en el panel, el bloque se queda en su sitio y dibuja lo que se va escribiendo; no se vuelve a abrir desde la hoja
+    const inPanel = isEditing && !editing.inline;
+    const shown = inPanel && live?.seq === editing.seq ? ({ ...live.block, id: block.id } as Block) : block;
+    const canEdit = !readOnly && block.type !== "page_break" && !container && !inPanel;
     const active = !readOnly && !isEditing && activeId === block.id;
     const showTools = !readOnly && (noHover || active);
     const mark = marks.get(block.id);
@@ -627,8 +658,6 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
         <BlockPicker {...pickerFor(pickerHere)} onPick={insert} onClose={closePicker} />
       </PickerAnchor>
     );
-    /** El bloque de dentro que se edita con su formulario: el formulario se abre bajo las celdas, no en una columna angosta. */
-    const formInside = container && editing && !editing.inline ? (blockCells(container).flat().find(inner => inner.id === editing.id) ?? null) : null;
     /** El menú de bloques al final de una celda vacía de este contenedor. */
     const cellPicker = (cell: number) =>
       container && picker?.kind === "end" && picker.containerId === container.id && picker.cell === cell ? (
@@ -664,7 +693,6 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
             )
           }
         />
-        {formInside && <div className="crt-frame__form">{renderForm(formInside)}</div>}
         {!readOnly && (layoutHints.get(container.id) ?? []).map(hint => (
           // Solo en pantalla: un aviso de que las columnas se ven mal en la hoja, sin impedir nada
           <p key={hint.key} className="crt-layout-hint">
@@ -693,7 +721,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
             }
           : {})}
       >
-        <BlockView block={block} />
+        <BlockView block={shown} />
       </div>
     );
 
@@ -759,11 +787,9 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
               )
             }
           />
-        ) : isEditing && parent ? (
-          // El formulario de un bloque de dentro va debajo de su contenedor, a todo lo ancho; aquí queda el bloque, marcado
+        ) : inPanel ? (
+          // El formulario está en el panel lateral; aquí queda el bloque, marcado, con el borrador dibujado
           view
-        ) : isEditing ? (
-          renderForm(block)
         ) : (
           <>
             {view}
@@ -1024,6 +1050,26 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
           ))}
         </div>
       )}
+
+      {/* Fuera de la hoja: el panel va donde lo monta el espacio de trabajo (en el sitio del copiloto, o como lámina) */}
+      {panelHost &&
+        panelFound &&
+        editing &&
+        createPortal(
+          <BlockPanel
+            key={editing.seq}
+            ref={editor}
+            block={panelFound.block}
+            place={panelPlace}
+            measure={measure}
+            sheet={panelSheet}
+            onLive={draft => setLive({ seq: editing.seq, block: draft })}
+            // Aplicar es una sola operación: un paso de deshacer. Si no cabe en su celda, sale el aviso y el panel sigue abierto
+            onApply={next => applyOp({ op: "update_block", blockId: panelFound.block.id, block: next }).ok}
+            onClose={() => closePanel(panelFound.block.id)}
+          />,
+          panelHost,
+        )}
     </div>
   );
 });

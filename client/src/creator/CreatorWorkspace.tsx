@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, ArrowLeft, Check, CloudOff, Copy, FileText, History, Loader2, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, Printer, Redo2, Sparkles, Trash2, Undo2 } from "lucide-react";
 import { PanelResizeHandle, type ImperativePanelHandle } from "react-resizable-panels";
@@ -125,6 +125,19 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   const [chatCollapsed, setChatCollapsed] = useState(false);
   const chatCollapsedRef = useRef(chatCollapsed);
   chatCollapsedRef.current = chatCollapsed;
+  /** Dónde se monta el panel de edición de figuras y tablas, y si está abierto. */
+  const [panelHost, setPanelHost] = useState<HTMLDivElement | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  /** Ancho del copiloto: el panel de edición ocupa exactamente su sitio, así la hoja no se mueve. */
+  const copilotSlot = useRef<HTMLDivElement>(null);
+  const [copilotWidth, setCopilotWidth] = useState(0);
+  useEffect(() => {
+    const slot = copilotSlot.current;
+    if (!slot) return;
+    const observer = new ResizeObserver(() => setCopilotWidth(slot.getBoundingClientRect().width));
+    observer.observe(slot);
+    return () => observer.disconnect();
+  }, [narrow]);
   const toggleChatPanel = useCallback(() => {
     const panel = chatPanel.current;
     if (!panel) return;
@@ -789,6 +802,9 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
           onToggleAttach={blocked ? undefined : toggleAttach}
           marks={marks}
           onAcceptMark={blockId => setReview(current => current && acceptMark(current, blockId))}
+          panelHost={panelHost}
+          panelSheet={narrow}
+          onPanelChange={setEditorOpen}
         />
       )}
     </div>
@@ -845,7 +861,8 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
           </button>
         </div>
         <div className="crt-bar__actions">
-          {narrow && (
+          {/* Con el panel de edición abierto en pantalla angosta, primero se aplica o se cancela */}
+          {narrow && !editorOpen && (
             <button type="button" className="crt-btn crt-btn--outline" aria-pressed={pane === "chat"} onClick={() => setPane(current => (current === "chat" ? "doc" : "chat"))}>
               {pane === "chat" ? <FileText aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
               {pane === "chat" ? "Ver recurso" : "Copiloto"}
@@ -926,11 +943,14 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
               maxSize={46}
               collapsible
               collapsedSize={0}
-              inert={chatCollapsed}
+              // Con el panel de edición encima, la conversación sigue montada (conserva lo escrito) pero fuera del recorrido con Tab
+              inert={chatCollapsed || editorOpen}
               onCollapse={() => setChatCollapsed(true)}
               onExpand={() => setChatCollapsed(false)}
             >
-              {chat}
+              <div ref={copilotSlot} className="crt-copilot-slot">
+                {chat}
+              </div>
             </ResizablePanel>
             {/* Divisor propio del editor (el de @/components/ui lo usan otros módulos): se marca al acercar el
                 puntero; las flechas cambian el ancho y Enter pliega o despliega el copiloto */}
@@ -952,6 +972,14 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
             </ResizablePanel>
           </ResizablePanelGroup>
         )}
+        {/* El panel de edición de figuras y tablas: en el sitio del copiloto, flotando si está plegado, o como lámina
+            en pantalla angosta. Va encima, fuera de la hoja: abrirlo no la mueve */}
+        <div
+          ref={setPanelHost}
+          className="crt-side-host"
+          data-mode={narrow ? "sheet" : chatCollapsed ? "float" : "dock"}
+          style={{ "--crt-side-w": `${copilotWidth}px` } as CSSProperties}
+        />
       </div>
 
       <AlertDialog open={conflictOpen && saveState === "conflict"} onOpenChange={setConflictOpen}>

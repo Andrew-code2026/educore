@@ -4,7 +4,7 @@ import { parseNumberList } from "@shared/creatorFigures";
 import { formatNumberEs } from "@shared/creatorMath";
 import { buildHistogramClasses, fiveNumberSummary, histogramCounts, linearRegression, trendLineLatex } from "@shared/creatorStats";
 import { Formula } from "../blocks/Formula";
-import { BlockPreview, CaptionField, Check, Field, NumberInput, OptionalNumberInput, TextField, type Draft, type FormProps } from "./fields";
+import { CaptionField, Check, Field, NumberInput, OptionalNumberInput, TextField, type Draft, type FormProps } from "./fields";
 import { AddButton, RemoveButton, useListVersion } from "./FigureForms";
 
 type StatType = "histogram" | "box_plot" | "line_chart" | "scatter_plot";
@@ -163,7 +163,6 @@ export function HistogramForm({ draft, onChange }: FormProps<"histogram">) {
         {outside > 0 ? ` ${outside === 1 ? "Un dato queda" : `${outside} datos quedan`} fuera de las clases.` : ""}
       </p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -214,7 +213,6 @@ export function BoxPlotForm({ draft, onChange }: FormProps<"box_plot">) {
       {draft.series.length < 3 && <AddButton onClick={() => onChange({ ...draft, series: [...draft.series, { label: `Grupo ${draft.series.length + 1}`, data: [1, 2, 3, 4, 5] }] })}>Añadir grupo</AddButton>}
       <p className="crt-form__hint">El resumen se calcula solo. Los cuartiles son la mediana de cada mitad de los datos ordenados; si el número de datos es impar, la mediana central no entra en ninguna mitad. {DATA_HINT}</p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -266,7 +264,6 @@ export function LineChartForm({ draft, onChange }: FormProps<"line_chart">) {
       )}
       <p className="crt-form__hint">Los rótulos quedan a la misma distancia uno de otro. Para pares de números (x, y) usa el diagrama de dispersión. {DATA_HINT}</p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }
@@ -307,7 +304,6 @@ export function ScatterPlotForm({ draft, onChange }: FormProps<"scatter_plot">) 
         Los decimales van con punto: 1.5, 3; 2, 4.2.
       </p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
-      <BlockPreview draft={draft} />
     </>
   );
 }

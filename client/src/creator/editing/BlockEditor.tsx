@@ -1,20 +1,17 @@
-import { forwardRef, useImperativeHandle, useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { OptionSelect, type SelectOption } from "@/components/option-select";
-import { PortalContainerProvider, usePortalContainerHost } from "@/components/ui/portal-container";
 import { Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
-import { BLOCK_TYPE_LABELS, blockInputSchema, CREATOR_LIMITS, type Block, type BlockInput, type BlockType } from "@shared/creator";
+import { blockInputSchema, CREATOR_LIMITS, type BlockInput, type BlockType } from "@shared/creator";
 import { parseNumberList } from "@shared/creatorFigures";
 import { normalizeBlock } from "@shared/creatorOps";
 import { validateBlock, valueTableVariable } from "@shared/creatorValidate";
-import { Formula } from "../blocks/Formula";
 import { AREA_MODEL_TEMPLATE, AreaModelForm } from "./AreaModelForm";
 import { AngleForm, BarModelForm, BaseTenForm, CLASSROOM_TEMPLATES, ClockForm, PictogramForm, TreeDiagramForm, VennForm } from "./ClassroomForms";
 import { Field, NumberInput, type Draft, type FormProps } from "./fields";
 import { BalanceForm, BarChartForm, FractionModelForm, NumberLineForm, PieChartForm, ShapesForm } from "./FigureForms";
 import { FormulaInput } from "./FormulaInput";
 import { GraphForm } from "./GraphForm";
-import type { BlockEditorHandle } from "./InlineBlockEditor";
 import { RichTextEditor } from "./RichTextEditor";
 import { BoxPlotForm, HistogramForm, LineChartForm, ScatterPlotForm, STAT_TEMPLATES } from "./StatForms";
 
@@ -138,7 +135,7 @@ function CalloutForm({ draft, onChange }: FormProps<"callout">) {
 }
 
 /** Lo que un formulario puede pedirle al editor del bloque desde un campo que atiende su propio teclado. */
-interface FormActions {
+export interface FormActions {
   submit: () => void;
   cancel: () => void;
 }
@@ -147,7 +144,6 @@ function MathForm({ draft, onChange, actions }: FormProps<"math"> & { actions: F
   return (
     <>
       <FormulaInput value={draft.latex} display autoFocus onChange={latex => onChange({ ...draft, latex })} onEnter={actions.submit} onEscape={actions.cancel} />
-      <div className="crt-form__preview">{draft.latex.trim() ? <Formula latex={draft.latex} display /> : <span className="crt-muted">Vista previa</span>}</div>
     </>
   );
 }
@@ -428,88 +424,19 @@ function renderForm(draft: BlockInput, onChange: (next: BlockInput) => void, act
   }
 }
 
-interface BlockEditorProps {
-  block: Block;
-  onSave: (next: BlockInput) => void;
-  onCancel: () => void;
+/** El formulario de un bloque: sus campos, sin marco ni botones (los pone el panel de edición). */
+export function BlockForm({ draft, onChange, actions }: { draft: BlockInput; onChange: (next: BlockInput) => void; actions: FormActions }) {
+  return <>{renderForm(draft, onChange, actions)}</>;
 }
 
-/** Formulario de edición de un bloque. No guarda nada que no pase las mismas validaciones que la IA. */
-export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(function BlockEditor({ block, onSave, onCancel }, ref) {
-  const [draft, setDraft] = useState<BlockInput>(() => {
-    const { id: _id, ...content } = block;
-    return content as BlockInput;
-  });
-  const [issues, setIssues] = useState<string[]>([]);
-  const form = useRef<HTMLDivElement>(null);
-  // Las listas de los selects se montan dentro del formulario, igual que el resto de sus campos
-  const [portalContainer, formRef] = usePortalContainerHost(form);
+export type DraftCheck = { ok: true; block: BlockInput } | { ok: false; issues: string[] };
 
-  const save = (): boolean => {
-    const parsed = blockInputSchema.safeParse(draft);
-    if (!parsed.success) {
-      setIssues(z.prettifyError(parsed.error).split("\n").filter(Boolean).slice(0, 6));
-      return false;
-    }
-    const normalized = normalizeBlock(parsed.data);
-    const problems = validateBlock(normalized);
-    if (problems.length > 0) {
-      setIssues(problems.slice(0, 6));
-      return false;
-    }
-    onSave(normalized);
-    return true;
-  };
-
-  // La hoja puede pedir que se guarde lo que hay (antes de que la IA empiece a trabajar), siempre con el borrador al día
-  const saveRef = useRef(save);
-  saveRef.current = save;
-  useImperativeHandle(
-    ref,
-    () => ({
-      settle: () => saveRef.current(),
-      focus: () => form.current?.querySelector<HTMLElement>("input, textarea, select, [contenteditable='true']")?.focus(),
-    }),
-    [],
-  );
-
-  return (
-    <PortalContainerProvider container={portalContainer}>
-      <div
-        ref={formRef}
-        className="crt-form"
-        role="group"
-        aria-label={`Editar ${BLOCK_TYPE_LABELS[block.type].toLowerCase()}`}
-        onKeyDown={event => {
-          if (event.key === "Escape") onCancel();
-          if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) save();
-        }}
-      >
-        <span className="crt-form__title">{BLOCK_TYPE_LABELS[block.type]}</span>
-        {renderForm(
-          draft,
-          next => {
-            setDraft(next);
-            if (issues.length > 0) setIssues([]);
-          },
-          { submit: () => saveRef.current(), cancel: onCancel },
-        )}
-        {issues.length > 0 && (
-          <ul className="crt-form__issues" role="alert">
-            {issues.map((issue, index) => (
-              <li key={index}>{issue}</li>
-            ))}
-          </ul>
-        )}
-        <div className="crt-form__footer">
-          <button type="button" className="crt-btn crt-btn--ghost" onClick={onCancel}>
-            Cancelar
-          </button>
-          <button type="button" className="crt-btn crt-btn--primary" onClick={save}>
-            Guardar cambios
-          </button>
-        </div>
-      </div>
-    </PortalContainerProvider>
-  );
-});
+/** Lo que se guardaría de un borrador: pasa las mismas validaciones que la IA, o dice qué corregir. */
+export function checkDraft(draft: BlockInput): DraftCheck {
+  const parsed = blockInputSchema.safeParse(draft);
+  if (!parsed.success) return { ok: false, issues: z.prettifyError(parsed.error).split("\n").filter(Boolean).slice(0, 6) };
+  const normalized = normalizeBlock(parsed.data);
+  const problems = validateBlock(normalized);
+  if (problems.length > 0) return { ok: false, issues: problems.slice(0, 6) };
+  return { ok: true, block: normalized };
+}
