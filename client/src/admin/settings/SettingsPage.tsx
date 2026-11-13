@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import type { EduRole } from "@/components/shell";
+import { OptionSelect, type SelectOption } from "@/components/option-select";
 import {
   AdminHeader,
   AdminPage,
@@ -24,6 +25,17 @@ const TABS: SegmentOption<SettingsTab>[] = [
   { value: "institution", label: "Institución" },
   { value: "appearance", label: "Apariencia" },
   { value: "periods", label: "Año y periodos" },
+];
+
+const BORDER_RADIUS_OPTIONS: SelectOption[] = [
+  { value: "8px", label: "Compacto" },
+  { value: "12px", label: "Suave" },
+  { value: "16px", label: "Amplio" },
+];
+
+const THEME_MODE_OPTIONS: SelectOption[] = [
+  { value: "light", label: "Claro" },
+  { value: "dark", label: "Oscuro" },
 ];
 
 const PERIOD_TONE: Record<string, Tone> = { Activo: "green", Programado: "blue", Cerrado: "neutral" };
@@ -438,17 +450,10 @@ export function SettingsPage({ data, role, onChanged }: { data: any; role: EduRo
               <div className="set-divider" aria-hidden="true" />
               <div className="adm-form__row">
                 <Field label="Radio de bordes">
-                  <select className="adm-select" value={borderRadius} onChange={event => setBorderRadius(event.target.value)} disabled={!canEdit}>
-                    <option value="8px">Compacto</option>
-                    <option value="12px">Suave</option>
-                    <option value="16px">Amplio</option>
-                  </select>
+                  <OptionSelect className="adm-select" value={borderRadius} onValueChange={setBorderRadius} options={BORDER_RADIUS_OPTIONS} disabled={!canEdit} />
                 </Field>
                 <Field label="Tema">
-                  <select className="adm-select" value={themeMode} onChange={event => setThemeMode(event.target.value)} disabled={!canEdit}>
-                    <option value="light">Claro</option>
-                    <option value="dark">Oscuro</option>
-                  </select>
+                  <OptionSelect className="adm-select" value={themeMode} onValueChange={setThemeMode} options={THEME_MODE_OPTIONS} disabled={!canEdit} />
                 </Field>
               </div>
             </section>

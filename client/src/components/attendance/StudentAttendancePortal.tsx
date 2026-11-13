@@ -27,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { OptionSelect, type SelectOption } from "@/components/option-select";
 import {
   AttendanceJustificationItem,
   AttendanceJustificationReasonCategory,
@@ -58,6 +59,23 @@ interface AbsenceRecordItem {
   status: AttendanceStatus;
   existingJustification?: AttendanceJustificationItem;
 }
+
+const ABSENCE_REASON_OPTIONS: readonly SelectOption<AttendanceJustificationReasonCategory>[] = [
+  { value: "medical", label: "Enfermedad / Incapacidad médica" },
+  { value: "external_appointment", label: "Cita médica o procedimiento de salud" },
+  { value: "family_emergency", label: "Calamidad doméstica o emergencia familiar" },
+  { value: "force_majeure", label: "Situación familiar o personal / Fuerza mayor" },
+  { value: "institutional", label: "Compromiso institucional / Deportivo / Cultural" },
+  { value: "other", label: "Otra razón justificable" },
+];
+
+const SCHEDULED_ABSENCE_REASON_OPTIONS: readonly SelectOption<AttendanceJustificationReasonCategory>[] = [
+  { value: "external_appointment", label: "Cita médica especializada / Procedimiento de salud" },
+  { value: "medical", label: "Incapacidad médica / Reposo preventivo" },
+  { value: "institutional", label: "Compromiso institucional / Deportivo / Certamen académico" },
+  { value: "force_majeure", label: "Calamidad doméstica / Situación familiar inaplazable" },
+  { value: "other", label: "Otra razón justificada" },
+];
 
 export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = ({
   data,
@@ -1233,30 +1251,12 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                     <label className="font-bold text-slate-900 block mb-1.5">
                       1. Motivo de la inasistencia <span className="text-rose-500">*</span>
                     </label>
-                    <select
+                    <OptionSelect
                       value={reasonCategory}
-                      onChange={(e) =>
-                        setReasonCategory(
-                          e.target.value as AttendanceJustificationReasonCategory
-                        )
-                      }
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20"
-                    >
-                      <option value="medical">Enfermedad / Incapacidad médica</option>
-                      <option value="external_appointment">
-                        Cita médica o procedimiento de salud
-                      </option>
-                      <option value="family_emergency">
-                        Calamidad doméstica o emergencia familiar
-                      </option>
-                      <option value="force_majeure">
-                        Situación familiar o personal / Fuerza mayor
-                      </option>
-                      <option value="institutional">
-                        Compromiso institucional / Deportivo / Cultural
-                      </option>
-                      <option value="other">Otra razón justificable</option>
-                    </select>
+                      onValueChange={setReasonCategory}
+                      options={ABSENCE_REASON_OPTIONS}
+                      className="h-auto w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20"
+                    />
 
                     {reasonCategory === "other" && (
                       <input
@@ -1894,29 +1894,12 @@ export const StudentAttendancePortal: React.FC<StudentAttendancePortalProps> = (
                 <label className="font-bold text-slate-900 block mb-1.5">
                   2. Causal de la inasistencia <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <OptionSelect
                   value={scheduleReason}
-                  onChange={(e) =>
-                    setScheduleReason(
-                      e.target.value as AttendanceJustificationReasonCategory
-                    )
-                  }
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 bg-white"
-                >
-                  <option value="external_appointment">
-                    Cita médica especializada / Procedimiento de salud
-                  </option>
-                  <option value="medical">
-                    Incapacidad médica / Reposo preventivo
-                  </option>
-                  <option value="institutional">
-                    Compromiso institucional / Deportivo / Certamen académico
-                  </option>
-                  <option value="force_majeure">
-                    Calamidad doméstica / Situación familiar inaplazable
-                  </option>
-                  <option value="other">Otra razón justificada</option>
-                </select>
+                  onValueChange={setScheduleReason}
+                  options={SCHEDULED_ABSENCE_REASON_OPTIONS}
+                  className="h-auto w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:border-purple-500 focus:ring-1 focus:ring-purple-500/20 bg-white"
+                />
 
                 {scheduleReason === "other" && (
                   <input

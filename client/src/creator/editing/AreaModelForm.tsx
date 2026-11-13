@@ -1,13 +1,20 @@
 import type { BlockInput } from "@shared/creator";
+import { OptionSelect, type SelectOption } from "@/components/option-select";
 import { areaModelProduct, computeAreaModel, polynomialText, splitTerms } from "@shared/creatorAlgebra";
 import { Formula } from "../blocks/Formula";
-import { BlockPreview, CaptionField, Check, Field, type FormProps } from "./fields";
+import { BlockPreview, CaptionField, Check, Field, type Draft, type FormProps } from "./fields";
 
 /** Contenido inicial del modelo de área al añadirlo desde «Añadir bloque». */
 export const AREA_MODEL_TEMPLATE: Extract<BlockInput, { type: "area_model" }> = { type: "area_model", rows: ["x", "3"], columns: ["x", "2"], hide: "none", showTotal: true };
 
 /** Términos por lado que admite el esquema del bloque. */
 const SIDE_TERMS_MAX = 3;
+
+const HIDE_OPTIONS: readonly SelectOption<Draft<"area_model">["hide"]>[] = [
+  { value: "none", label: "Nada: se muestra todo" },
+  { value: "cells", label: "Las celdas (multiplica)" },
+  { value: "dimensions", label: "Los lados (factoriza)" },
+];
 
 /** Los términos de un lado como los escribe el docente: "x + 3", "2x - 5". */
 const sideText = (terms: string[]) => terms.map((term, index) => (index === 0 ? term : term.startsWith("-") ? `- ${term.slice(1)}` : `+ ${term}`)).join(" ");
@@ -28,11 +35,7 @@ export function AreaModelForm({ draft, onChange }: FormProps<"area_model">) {
       </div>
       <div className="crt-form__row">
         <Field label="Qué completa el estudiante">
-          <select className="crt-input" value={draft.hide} onChange={event => onChange({ ...draft, hide: event.target.value as typeof draft.hide })}>
-            <option value="none">Nada: se muestra todo</option>
-            <option value="cells">Las celdas (multiplica)</option>
-            <option value="dimensions">Los lados (factoriza)</option>
-          </select>
+          <OptionSelect className="crt-input" value={draft.hide} onValueChange={hide => onChange({ ...draft, hide })} options={HIDE_OPTIONS} />
         </Field>
         <Check label="Escribir el área total" checked={draft.showTotal} onChange={showTotal => onChange({ ...draft, showTotal })} />
       </div>

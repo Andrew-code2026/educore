@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent } from "react";
 import { ClipboardPenLine, ClipboardPlus, Loader2 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { OptionSelect } from "@/components/option-select";
 import { TYPE_META } from "../../data/curriculum";
 import { useGradeCenter } from "../../state/GradeCenterContext";
 import type { Evaluation, EvaluationStatus, EvaluationTypeId } from "../../types";
@@ -160,18 +161,13 @@ export function EvaluationFormDialog({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Tipo" htmlFor={ids.type}>
-                <select
+                <OptionSelect
                   id={ids.type}
                   value={form.type}
-                  onChange={(event) => update("type", event.target.value as EvaluationTypeId)}
-                  className={FIELD_CLASS}
-                >
-                  {TYPE_OPTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(next) => update("type", next)}
+                  options={TYPE_OPTIONS.map((option) => ({ value: option.id, label: option.label }))}
+                  className={cn(FIELD_CLASS, "h-auto")}
+                />
               </Field>
               <Field label="Fecha" optional htmlFor={ids.date}>
                 <input

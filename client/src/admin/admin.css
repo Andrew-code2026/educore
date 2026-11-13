@@ -1065,20 +1065,16 @@
   transition: border-color .15s ease, box-shadow .15s ease;
 }
 
+/* .adm-select es el disparador del Select de shadcn: aquí solo su aspecto, la lista es la de shadcn. */
 .adm .adm-select,
 .adm-dialog .adm-select {
-  padding-right: 32px;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2379818A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  background-size: 16px;
+  padding-right: 10px;
+  box-shadow: none;
 }
 
-.adm .adm-select option,
-.adm-dialog .adm-select option {
-  background: var(--adm-dialog-bg);
-  color: var(--edc-ink);
+.adm .adm-select[data-placeholder],
+.adm-dialog .adm-select[data-placeholder] {
+  color: var(--edc-muted-3);
 }
 
 .adm .adm-textarea,
@@ -1110,7 +1106,8 @@
 
 .adm .adm-input:disabled,
 .adm .adm-select:disabled,
-.adm .adm-textarea:disabled {
+.adm .adm-textarea:disabled,
+.adm-dialog .adm-select:disabled {
   opacity: .6;
   cursor: not-allowed;
 }

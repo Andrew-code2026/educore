@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, Download, Eye, PenLine, Search, SearchX, Users } from 'lucide-react';
+import { Download, Eye, PenLine, Search, SearchX, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { OptionSelect } from '@/components/option-select';
 import type { Activity, Student } from '../types';
 import { plural } from '../landing/courses';
 import { describeDue, formatDayMonth, formatTime } from '../course/overview';
@@ -106,22 +107,17 @@ export function SubmissionsView({
           <div className="ccw-brief__copy">
             <label className="ccw-picker">
               <span className="ccw-sr">Actividad</span>
-              <select
+              <OptionSelect
                 value={activity.id}
-                onChange={(e) => {
-                  const next = activities.find((a) => a.id === e.target.value);
+                onValueChange={(id) => {
+                  const next = activities.find((a) => a.id === id);
                   if (next) onSelectActivity(next);
                 }}
-              >
-                {(published.some((a) => a.id === activity.id) ? published : [activity, ...published]).map(
-                  (a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  )
-                )}
-              </select>
-              <ChevronDown aria-hidden="true" strokeWidth={2} />
+                options={(published.some((a) => a.id === activity.id) ? published : [activity, ...published]).map((a) => ({
+                  value: a.id,
+                  label: a.name,
+                }))}
+              />
             </label>
             <p className="ccw-brief__meta">{dueLabel}</p>
           </div>

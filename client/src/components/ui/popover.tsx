@@ -2,6 +2,11 @@ import * as React from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 
 import { cn } from "@/lib/utils";
+import {
+  PortalContainerProvider,
+  isEscapeForNestedPopup,
+  usePortalContainerHost,
+} from "@/components/ui/portal-container";
 
 function Popover({
   ...props
@@ -19,8 +24,12 @@ function PopoverContent({
   className,
   align = "center",
   sideOffset = 4,
+  ref,
+  children,
+  onEscapeKeyDown,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+  const [portalContainer, contentRef] = usePortalContainerHost(ref);
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
@@ -32,7 +41,16 @@ function PopoverContent({
           className
         )}
         {...props}
-      />
+        ref={contentRef}
+        onEscapeKeyDown={event => {
+          if (isEscapeForNestedPopup(event)) event.preventDefault();
+          else onEscapeKeyDown?.(event);
+        }}
+      >
+        <PortalContainerProvider container={portalContainer}>
+          {children}
+        </PortalContainerProvider>
+      </PopoverPrimitive.Content>
     </PopoverPrimitive.Portal>
   );
 }

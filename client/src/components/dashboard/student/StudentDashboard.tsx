@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { OptionSelect } from "@/components/option-select";
 import type { Section, EduRole } from "@/components/shell/shell.types";
 import { StudentHero } from "./StudentHero";
 import { StudentMetrics } from "./StudentMetrics";
@@ -478,21 +479,13 @@ export function StudentDashboard({
               <label htmlFor="guardian-student-select" className="text-xs font-semibold text-slate-500">
                 Cambiar estudiante:
               </label>
-              <select
+              <OptionSelect<number>
                 id="guardian-student-select"
-                value={selectedStudentId ?? currentStudent?.id ?? ""}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  if (val) onSelectStudent(val);
-                }}
+                value={selectedStudentId ?? currentStudent?.id ?? null}
+                onValueChange={onSelectStudent}
+                options={guardianStudents.map((s: any) => ({ value: s.id, label: `${s.name} (${s.course ?? "Estudiante"})` }))}
                 className="h-8 rounded-lg border border-slate-200 bg-slate-50 px-2.5 text-xs font-semibold text-slate-800 shadow-2xs outline-none focus:border-blue-500"
-              >
-                {guardianStudents.map((s: any) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.course ?? "Estudiante"})
-                  </option>
-                ))}
-              </select>
+              />
             </div>
           )}
         </div>
