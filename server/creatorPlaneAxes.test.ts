@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { blockInputSchema, graphSpecSchema, type BlockInput, type GraphSpec } from "@shared/creator";
-import { PLANE_PAD, axisNameWidth, planeAxisIssues, planeLayout, planeTicks, plotSize } from "@shared/creatorPlaneAxes";
+import { PLANE_PAD, axisNameWidth, piFraction, piLatex, piStep, piText, planeAxisIssues, planeLayout, planeTicks, planeXTicks, plotSize } from "@shared/creatorPlaneAxes";
 import { validateBlock } from "@shared/creatorValidate";
 
 const block = (input: unknown): BlockInput => blockInputSchema.parse(input);
@@ -92,5 +92,104 @@ describe("ejes con nombre", () => {
     expect(graphSpecSchema.safeParse({ ...PLANE, xLabel: "a".repeat(41) }).success).toBe(false);
     expect(graphSpecSchema.safeParse({ ...PLANE, xLabel: "  " }).success).toBe(false);
     expect(spec({ xLabel: "  Tiempo (h) " }).xLabel).toBe("Tiempo (h)");
+  });
+});
+
+describe("eje x en múltiplos de π", () => {
+  const PI = Math.PI;
+  const TRIG = { xMin: -6.2832, xMax: 6.2832, yMin: -2, yMax: 2, xStep: 1.5708, yStep: 1, xUnit: "pi" };
+
+  it("reconoce las fracciones de π de los ángulos notables", () => {
+    expect(piFraction(PI / 2)).toEqual({ n: 1, d: 2 });
+    expect(piFraction((-3 * PI) / 2)).toEqual({ n: -3, d: 2 });
+    expect(piFraction(2 * PI)).toEqual({ n: 2, d: 1 });
+    expect(piFraction((5 * PI) / 6)).toEqual({ n: 5, d: 6 });
+    expect(piFraction((7 * PI) / 12)).toEqual({ n: 7, d: 12 });
+    expect(piFraction(0)).toEqual({ n: 0, d: 1 });
+    // Un número cualquiera no es un múltiplo de π, y uno redondeado solo lo es con la tolerancia de lo escrito a mano
+    expect(piFraction(1)).toBeNull();
+    expect(piFraction(1.5708)).toBeNull();
+    expect(piFraction(1.5708, 1e-3)).toEqual({ n: 1, d: 2 });
+    expect(piFraction(1.5, 1e-3)).toBeNull();
+    expect(piFraction(PI / 5, 1e-3)).toBeNull();
+  });
+
+  it("los escribe como en el tablero, en texto y en LaTeX", () => {
+    expect([{ n: 0, d: 1 }, { n: 1, d: 1 }, { n: -1, d: 1 }, { n: 2, d: 1 }, { n: 1, d: 2 }, { n: -3, d: 2 }, { n: 5, d: 6 }].map(piText)).toEqual(["0", "π", "-π", "2π", "π/2", "-3π/2", "5π/6"]);
+    expect(piLatex({ n: 1, d: 2 })).toBe("\\frac{\\pi}{2}");
+    expect(piLatex({ n: -3, d: 2 })).toBe("-\\frac{3\\pi}{2}");
+    expect(piLatex({ n: -1, d: 1 })).toBe("-\\pi");
+    expect(piLatex({ n: 2, d: 1 })).toBe("2\\pi");
+  });
+
+  it("las marcas van en los múltiplos exactos de π/2, de −2π a 2π", () => {
+    const ticks = planeXTicks(spec(TRIG), 320);
+    expect(ticks.map(tick => tick.text)).toEqual(["-2π", "-3π/2", "-π", "-π/2", "0", "π/2", "π", "3π/2", "2π"]);
+    expect(ticks.every(tick => tick.labeled)).toBe(true);
+    // No en los múltiplos de 1,5708: la marca de π está en π
+    expect(ticks[6].value).toBe(PI);
+    expect(ticks[3].value).toBe(-PI / 2);
+  });
+
+  it("un rango escrito con dos decimales conserva la marca del borde", () => {
+    const ticks = planeXTicks(spec({ ...TRIG, xMin: 0, xMax: 6.28 }), 320);
+    expect(ticks.map(tick => tick.text)).toEqual(["0", "π/2", "π", "3π/2", "2π"]);
+    // La marca de 2π cae 0,003 fuera del rango: se dibuja en el borde
+    expect(ticks[4].value).toBe(6.28);
+  });
+
+  it("cuando los rótulos no caben se escribe uno de cada tantos, contando desde el cero", () => {
+    const ticks = planeXTicks(spec({ ...TRIG, xStep: 0.5236 }), 320);
+    expect(ticks).toHaveLength(25);
+    const written = ticks.filter(tick => tick.labeled).map(tick => tick.text);
+    expect(written).toContain("0");
+    expect(written).toContain("π");
+    expect(written).toContain("-π");
+    // Con marcas cada π/6 en 320 px quedan los múltiplos de π/2, que es lo que se espera leer
+    expect(written).toEqual(["-2π", "-3π/2", "-π", "-π/2", "0", "π/2", "π", "3π/2", "2π"]);
+    // Con marcas cada π/4, también
+    expect(planeXTicks(spec({ ...TRIG, xStep: 0.7854 }), 320).filter(tick => tick.labeled).map(tick => tick.text)).toEqual(written);
+    // En un plano de un solo período, las marcas cada π/6 se escriben todas
+    const period = planeXTicks(spec({ ...TRIG, xMin: 0, xMax: 3.1416, xStep: 0.5236 }), 320);
+    expect(period.filter(tick => tick.labeled).map(tick => tick.text)).toEqual(["0", "π/6", "π/3", "π/2", "2π/3", "5π/6", "π"]);
+  });
+
+  it("sin xUnit, el eje se rotula con números como siempre", () => {
+    const ticks = planeXTicks(spec({ xStep: 1 }), 320);
+    expect(ticks.map(tick => tick.text)).toEqual(["-5", "-4", "-3", "-2", "-1", "0", "1", "2", "3", "4", "5"]);
+    expect(ticks.map(tick => tick.value)).toEqual(planeTicks(-5, 5, 1));
+    expect(piStep(spec({ xStep: 1.5708 }))).toBeNull();
+    // Con más de catorce marcas se escribe una de cada dos, como antes
+    const many = planeXTicks(spec({ xMin: -10, xMax: 10 }), 320);
+    expect(many.filter(tick => tick.labeled)).toHaveLength(11);
+  });
+
+  it("acepta seno y tangente con sus asíntotas", () => {
+    expect(issuesOf({ ...TRIG, functions: [{ expr: "sin(x)", label: "y = \\sin x" }] })).toEqual([]);
+    expect(
+      issuesOf({
+        ...TRIG,
+        yMin: -4,
+        yMax: 4,
+        functions: [{ expr: "tan(x)" }],
+        verticalLines: [-4.7124, -1.5708, 1.5708, 4.7124].map(x => ({ x, style: "dashed" })),
+      }),
+    ).toEqual([]);
+  });
+
+  it("rechaza un paso que no es una fracción sencilla de π y dice cuáles sirven", () => {
+    const issues = issuesOf({ ...TRIG, xStep: 1 });
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain("1.5708 (π/2)");
+    expect(issues[0]).toContain("Ahora vale 1.");
+    expect(issuesOf({ ...TRIG, xStep: 1.5 })).toHaveLength(1);
+    expect(issuesOf({ ...TRIG, xStep: 0.7854 })).toEqual([]);
+    expect(issuesOf({ ...TRIG, xStep: 3.1416 })).toEqual([]);
+  });
+
+  it("rechaza un rango donde no cabe ninguna marca de π", () => {
+    const issues = issuesOf({ ...TRIG, xMin: -1, xMax: 1, xStep: 3.1416 });
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain("no cabe ninguna marca");
   });
 });

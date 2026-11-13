@@ -148,6 +148,16 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
   const setTangents = (next: GraphTangent[]) => setSpec({ tangents: next.length > 0 ? next : undefined });
   const secants = spec.secants ?? [];
   const setSecants = (next: GraphSecant[]) => setSpec({ secants: next.length > 0 ? next : undefined });
+  const piAxis = spec.xUnit === "pi";
+  /** Al pasar a múltiplos de π el rango se lleva al múltiplo de π/2 más cercano; al volver, a enteros. */
+  const togglePi = (on: boolean) => {
+    const unit = on ? Math.PI / 2 : 1;
+    const xMin = Math.round(spec.xMin / unit) * unit;
+    const rounded = Math.round(spec.xMax / unit) * unit;
+    const xMax = rounded > xMin ? rounded : xMin + 4 * unit;
+    const marks = Math.round((xMax - xMin) / unit);
+    setSpec({ xUnit: on ? "pi" : undefined, xMin, xMax, xStep: unit * Math.max(1, Math.ceil(marks / 20)) });
+  };
 
   return (
     <>
@@ -161,11 +171,17 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
             ["xStep", "Paso en x"],
             ["yStep", "Paso en y"],
           ] as const
-        ).map(([key, label]) => (
-          <Field key={key} label={label}>
-            <NumberInput label={label} value={spec[key]} onChange={value => setSpec({ [key]: value })} />
-          </Field>
-        ))}
+        ).map(([key, label]) => {
+          // Con el eje x en múltiplos de π, su rango y su paso se escriben en múltiplos de π (0,5 es π/2) y se guardan en radianes
+          const inPi = piAxis && key.startsWith("x");
+          const name = inPi ? `${label} (× π)` : label;
+          return (
+            <Field key={`${key}-${inPi}`} label={name}>
+              <NumberInput label={name} value={inPi ? Number((spec[key] / Math.PI).toFixed(4)) : spec[key]} onChange={value => setSpec({ [key]: inPi ? value * Math.PI : value })} />
+            </Field>
+          );
+        })}
+        <Check label="Eje x en múltiplos de π" checked={piAxis} onChange={togglePi} />
       </div>
       <div className="crt-form__row">
         {(

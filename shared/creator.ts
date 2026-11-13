@@ -247,6 +247,10 @@ export const graphSpecSchema = z.object({
   secants: z.array(graphSecantSchema).max(CREATOR_LIMITS.secantsMax).optional().describe("Rectas secantes por dos puntos de una función, para la razón de cambio promedio."),
   xLabel: planeAxisName.optional().describe('Nombre del eje x con su unidad, en texto plano, para problemas de contexto: "Tiempo (h)". Se escribe bajo el plano. Si se omite, el eje se llama x.'),
   yLabel: planeAxisName.optional().describe('Nombre del eje y con su unidad, en texto plano: "Costo ($)". Se escribe a la izquierda del plano, de abajo arriba. Si se omite, el eje se llama y.'),
+  xUnit: z
+    .enum(["pi"])
+    .optional()
+    .describe('"pi" rotula el eje x en múltiplos de π (π/2, π, 3π/2…), para seno, coseno y tangente. xMin, xMax y xStep se siguen dando en radianes con cuatro decimales, y xStep debe ser una fracción sencilla de π: 1.5708 (π/2), 0.7854 (π/4), 0.5236 (π/6), 3.1416 (π).'),
 });
 
 const headerFieldsBlock = z.object({

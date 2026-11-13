@@ -4,7 +4,7 @@ import { formatNumber, formatNumberEs, tryCompile } from "@shared/creatorMath";
 import { areaLabel, areaShape, lineLabel, secantLine, tangentLine, type PlaneLine } from "@shared/creatorCalculus";
 import { CONIC_LABELS, conicCurves, conicEquation, shownConicElements, type ConicLine } from "@shared/creatorConics";
 import { functionColors, insidePlane, sampleFunction, type CurveMark } from "@shared/creatorPlane";
-import { labelEvery, planeLayout, planeTicks } from "@shared/creatorPlaneAxes";
+import { labelEvery, planeLayout, planeTicks, planeXTicks } from "@shared/creatorPlaneAxes";
 import { FigureNotes, useHasNotes } from "./FigureNotes";
 import { Formula } from "./Formula";
 
@@ -51,8 +51,9 @@ function describe(spec: GraphSpec): string {
   const tangents = (spec.tangents ?? []).map(tangent => `x = ${formatNumber(tangent.x)}`).join(", ");
   const secants = (spec.secants ?? []).map(secant => `x = ${formatNumber(secant.x1)} y x = ${formatNumber(secant.x2)}`).join("; ");
   const axes = [spec.xLabel && `eje x: ${spec.xLabel}`, spec.yLabel && `eje y: ${spec.yLabel}`].filter(Boolean).join(", ");
+  const unit = spec.xUnit === "pi" ? "Eje x en múltiplos de π" : "";
   return (
-    [base, axes && `Ejes con nombre, ${axes}`, lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, tangents && `Recta tangente en ${tangents}`, secants && `Recta secante entre ${secants}`, points && `Puntos marcados: ${points}`]
+    [base, axes && `Ejes con nombre, ${axes}`, unit, lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, tangents && `Recta tangente en ${tangents}`, secants && `Recta secante entre ${secants}`, points && `Puntos marcados: ${points}`]
       .filter(Boolean)
       .join(". ") + "."
   );
@@ -74,12 +75,11 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     const sx = (x: number) => PAD.left + ((x - spec.xMin) / xSpan) * w;
     const sy = (y: number) => PAD.top + ((spec.yMax - y) / ySpan) * h;
 
-    const xTicks = planeTicks(spec.xMin, spec.xMax, spec.xStep);
+    const xTicks = planeXTicks(spec, w);
     const yTicks = planeTicks(spec.yMin, spec.yMax, spec.yStep);
     // Si el cero no está en el rango, el eje se dibuja en el borde más cercano
     const axisX = Math.min(Math.max(0, spec.yMin), spec.yMax);
     const axisY = Math.min(Math.max(0, spec.xMin), spec.xMax);
-    const everyX = labelEvery(xTicks.length);
     const everyY = labelEvery(yTicks.length);
 
     const inPlane = (x: number, y: number) => insidePlane(spec, x, y);
@@ -178,7 +178,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       return { x: anchor === "middle" ? anchorX - boxW / 2 : anchorX - boxW, y: baseline - 10, w: boxW, h: 13 };
     };
     const numberBoxes: Box[] = [
-      ...xTicks.filter((x, index) => index % everyX === 0 && !(originShown && x === 0)).map(x => numberBox(formatNumberEs(x), sx(x), sy(axisX) + 14, "middle")),
+      ...xTicks.filter(tick => tick.labeled && !(originShown && tick.value === 0)).map(tick => numberBox(tick.text, sx(tick.value), sy(axisX) + 14, "middle")),
       ...yTicks.filter((y, index) => index % everyY === 0 && !(originShown && y === 0)).map(y => numberBox(formatNumberEs(y), sx(axisY) - 7, sy(y) + 3.5, "end")),
       ...(originShown ? [numberBox("0", sx(axisY) - 7, sy(axisX) + 14, "end")] : []),
     ];
@@ -384,12 +384,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       .flatMap(curve => curve.marks.map((mark, index) => ({ ...mark, tone: curve.tone, key: `${curve.index}-${index}` })))
       .sort((a, b) => Number(a.filled) - Number(b.filled));
 
-    return { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf };
+    return { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf };
   }, [spec]);
 
   if (!view) return <div className="crt-plane crt-plane--invalid">Rango de la gráfica no válido.</div>;
 
-  const { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf } = view;
+  const { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf } = view;
   const { w, h, width, height, pad: PAD } = layout;
   const axisXpx = sy(axisX);
   const axisYpx = sx(axisY);
@@ -410,8 +410,8 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
         </defs>
 
         <g className="crt-plane__grid">
-          {xTicks.map(x => (
-            <line key={`gx${x}`} x1={sx(x)} x2={sx(x)} y1={PAD.top} y2={PAD.top + h} />
+          {xTicks.map(tick => (
+            <line key={`gx${tick.value}`} x1={sx(tick.value)} x2={sx(tick.value)} y1={PAD.top} y2={PAD.top + h} />
           ))}
           {yTicks.map(y => (
             <line key={`gy${y}`} x1={PAD.left} x2={PAD.left + w} y1={sy(y)} y2={sy(y)} />
@@ -426,8 +426,8 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
           <path d={`M${left - 6} ${axisXpx} l7 -3.5 v7 z`} />
           <path d={`M${axisYpx} ${top - 6} l-3.5 7 h7 z`} />
           <path d={`M${axisYpx} ${bottom + 6} l-3.5 -7 h7 z`} />
-          {xTicks.map(x => (
-            <line key={`tx${x}`} x1={sx(x)} x2={sx(x)} y1={axisXpx - 3} y2={axisXpx + 3} />
+          {xTicks.map(tick => (
+            <line key={`tx${tick.value}`} x1={sx(tick.value)} x2={sx(tick.value)} y1={axisXpx - 3} y2={axisXpx + 3} />
           ))}
           {yTicks.map(y => (
             <line key={`ty${y}`} x1={axisYpx - 3} x2={axisYpx + 3} y1={sy(y)} y2={sy(y)} />
@@ -435,10 +435,10 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
         </g>
 
         <g className="crt-plane__ticks">
-          {xTicks.map((x, index) =>
-            (originInside && x === 0) || index % everyX !== 0 ? null : (
-              <text key={`lx${x}`} x={sx(x)} y={axisXpx + 14} textAnchor="middle">
-                {formatNumberEs(x)}
+          {xTicks.map(tick =>
+            (originInside && tick.value === 0) || !tick.labeled ? null : (
+              <text key={`lx${tick.value}`} x={sx(tick.value)} y={axisXpx + 14} textAnchor="middle">
+                {tick.text}
               </text>
             ),
           )}

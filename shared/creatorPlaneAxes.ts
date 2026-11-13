@@ -1,5 +1,5 @@
 import type { GraphSpec } from "./creator";
-import { formatNumberEs } from "./creatorMath";
+import { formatNumber, formatNumberEs } from "./creatorMath";
 import { hasEqualUnits } from "./creatorPlane";
 
 /**
@@ -51,6 +51,102 @@ export function planeTicks(min: number, max: number, step: number): number[] {
 
 /** De cada cuántas marcas se escribe el número, para que no pasen de catorce por eje. */
 export const labelEvery = (count: number): number => Math.max(1, Math.ceil(count / 14));
+
+/* ── Eje x en múltiplos de π ── */
+
+/** Denominadores con que se escribe un múltiplo de π: los de los ángulos notables. */
+const PI_DENOMINATORS = [1, 2, 3, 4, 6, 12] as const;
+/** Error relativo con que se reconoce un paso escrito con cuatro decimales: 1,5708 es π/2; 1,5 no. */
+const PI_WRITTEN_TOLERANCE = 1e-3;
+/** Una marca que cae a menos de una centésima de paso fuera del rango (6,28 por 2π) se dibuja en el borde. */
+const PI_EDGE = 0.01;
+
+/** Un múltiplo de π como fracción irreducible: n/d · π. */
+export interface PiFraction {
+  n: number;
+  d: number;
+}
+
+function gcd(a: number, b: number): number {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y !== 0) [x, y] = [y, x % y];
+  return x || 1;
+}
+
+/**
+ * El número como fracción de π con un denominador de los ángulos notables (π/6, π/4, π/3, π/2…),
+ * o null si no lo es. `tolerance` es el error relativo admitido: casi nada para un valor que
+ * calculó el sistema, y el de cuatro decimales para uno escrito a mano.
+ */
+export function piFraction(value: number, tolerance = 1e-9): PiFraction | null {
+  if (!Number.isFinite(value)) return null;
+  if (value === 0) return { n: 0, d: 1 };
+  for (const d of PI_DENOMINATORS) {
+    const n = Math.round((value / Math.PI) * d);
+    if (n !== 0 && Math.abs(value - (n / d) * Math.PI) <= tolerance * Math.abs(value)) return { n, d };
+  }
+  return null;
+}
+
+/** Un múltiplo de π como se escribe en el eje: «π/2», «-3π/2», «2π», «0». */
+export function piText({ n, d }: PiFraction): string {
+  if (n === 0) return "0";
+  const top = `${n < 0 ? "-" : ""}${Math.abs(n) === 1 ? "" : Math.abs(n)}π`;
+  return d === 1 ? top : `${top}/${d}`;
+}
+
+/** Lo mismo en LaTeX, para los rótulos de la figura: «\frac{\pi}{2}», «-\frac{3\pi}{2}». */
+export function piLatex({ n, d }: PiFraction): string {
+  if (n === 0) return "0";
+  const top = `${Math.abs(n) === 1 ? "" : Math.abs(n)}\\pi`;
+  return `${n < 0 ? "-" : ""}${d === 1 ? top : `\\frac{${top}}{${d}}`}`;
+}
+
+/** El paso del eje x como fracción de π cuando el plano lo pide (xUnit "pi"); null si no lo pide o el paso no lo es. */
+export const piStep = (spec: GraphSpec): PiFraction | null => (spec.xUnit === "pi" ? piFraction(spec.xStep, PI_WRITTEN_TOLERANCE) : null);
+
+export interface PlaneTick {
+  value: number;
+  /** El número de la marca como se escribe en el eje. */
+  text: string;
+  /** Si la marca lleva su número: cuando hay muchas, se escribe una de cada tantas. */
+  labeled: boolean;
+}
+
+/**
+ * Marcas del eje x de un plano cuya cuadrícula mide `w` píxeles de ancho. En múltiplos de π van en
+ * los múltiplos exactos del paso (no en los del número redondeado que se escribió) y se rotulan
+ * π/2, π, 3π/2…; cuando los rótulos no caben, se escribe uno de cada tantos contando desde el cero.
+ */
+export function planeXTicks(spec: GraphSpec, w: number): PlaneTick[] {
+  const step = piStep(spec);
+  if (!step) {
+    const values = planeTicks(spec.xMin, spec.xMax, spec.xStep);
+    const every = labelEvery(values.length);
+    return values.map((value, index) => ({ value, text: formatNumberEs(value), labeled: index % every === 0 }));
+  }
+  const size = (step.n / step.d) * Math.PI;
+  const first = Math.ceil(spec.xMin / size - PI_EDGE);
+  const last = Math.floor(spec.xMax / size + PI_EDGE);
+  const marks: Array<{ k: number; text: string }> = [];
+  for (let k = first; k <= last; k++) {
+    const divisor = gcd(k * step.n, step.d);
+    marks.push({ k, text: piText({ n: (k * step.n) / divisor, d: step.d / divisor }) });
+  }
+  const spacing = (w * size) / (spec.xMax - spec.xMin);
+  // Se prueba a escribir todas, luego una de cada dos…: sirve el primer salto en que los rótulos caben
+  // y, si se salta alguna, quedan los que se esperan en el tablero (los múltiplos de π/2 o de π)
+  const fits = (every: number) => {
+    const shown = marks.filter(mark => mark.k % every === 0);
+    const widest = Math.max(0, ...shown.map(mark => mark.text.length)) * NUMBER_CHAR_W + 6;
+    const round = every === 1 || (2 * every * step.n) % step.d === 0;
+    return round && shown.length <= 14 && widest <= every * spacing;
+  };
+  let every = 1;
+  while (!fits(every) && every < marks.length) every++;
+  return marks.map(({ k, text }) => ({ value: Math.min(Math.max(k * size, spec.xMin), spec.xMax), text, labeled: k % every === 0 }));
+}
 
 export interface PlaneLayout {
   /** Ancho y alto de la cuadrícula. */
@@ -117,5 +213,16 @@ export function planeAxisIssues(spec: GraphSpec): string[] {
   };
   check(spec.xLabel, "x", layout.width - 8, "a lo ancho");
   check(spec.yLabel, "y", layout.height - 8, "a lo alto");
+
+  if (spec.xUnit === "pi") {
+    const step = piStep(spec);
+    if (!step) {
+      issues.push(
+        `Gráfica: con el eje x en múltiplos de π (xUnit "pi"), el paso (xStep) debe ser una fracción sencilla de π escrita con cuatro decimales: 0.2618 (π/12), 0.5236 (π/6), 0.7854 (π/4), 1.0472 (π/3), 1.5708 (π/2), 3.1416 (π) o un múltiplo de ellos. Ahora vale ${formatNumber(spec.xStep, 4)}.`,
+      );
+    } else if (!planeXTicks(spec, layout.w).some(tick => tick.value !== 0)) {
+      issues.push(`Gráfica: el eje x va en múltiplos de π, pero en este rango no cabe ninguna marca: el paso es ${piText(step)}. Amplía xMin/xMax o reduce xStep.`);
+    }
+  }
   return issues;
 }
