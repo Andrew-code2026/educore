@@ -144,8 +144,16 @@ describe("texto con fórmulas", () => {
     expect(extractMath("sin fórmulas")).toEqual([]);
   });
 
+  it("lee las fórmulas seguidas una por una, como el editor", () => {
+    expect(extractMath("$a$$b$$c$")).toEqual(["a", "b", "c"]);
+    expect(extractMath("$$x$$$y$")).toEqual(["x", "y"]);
+    // Un `$$` sin cierre es texto y no esconde las fórmulas que vienen después
+    expect(extractMath("abre $$ sin cierre y $x^2$")).toEqual(["x^2"]);
+  });
+
   it("resume a texto plano", () => {
     expect(plainText("**Ejercicio** con $y = 2x$ y \\$100")).toBe("Ejercicio con y = 2x y $100");
+    expect(plainText("Sea $a$$b$, cuesta \\$3.000 y \\$1.500")).toBe("Sea ab, cuesta $3.000 y $1.500");
     expect(plainText("a".repeat(200), 10)).toHaveLength(10);
   });
 });
@@ -225,6 +233,9 @@ describe("validación de bloques", () => {
   it("detecta LaTeX fuera de una fórmula", () => {
     expect(validateText("la pendiente es \\frac{1}{2}", "Texto")).toHaveLength(1);
     expect(validateText("la pendiente es $\\frac{1}{2}$ y cuesta \\$500", "Texto")).toEqual([]);
+    // Una fórmula en línea pegada a una destacada no deja su LaTeX "fuera"
+    expect(validateText("$\\frac{1}{2}$$$x = \\sqrt{2}$$", "Texto")).toEqual([]);
+    expect(validateText("$\\sqrt{2}$$x$$\\frac{1}{3}$", "Texto")).toEqual([]);
   });
 
   const graph = (points: unknown[]) =>

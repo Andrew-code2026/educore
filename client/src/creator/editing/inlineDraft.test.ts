@@ -1,11 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { blockInputSchema, type Block, type BlockInput } from "@shared/creator";
+import { blockInputSchema, extractMath, findMath, type Block, type BlockInput } from "@shared/creator";
 import { buildSampleDoc } from "@shared/creatorSample";
-import { validateBlock } from "@shared/creatorValidate";
+import { validateBlock, validateText } from "@shared/creatorValidate";
 import { canonicalDraft, insertPart, isInlineBlock, isInlineType, lineMd, nextPartLabel, removePart, resolveDraft, richMd, sameContent, toDraft } from "./inlineDraft";
-import { collapseSpaces, isolateDisplayFormulas, parseMd, serializeMd, serializeSingleLine } from "./mdModel";
+import { collapseSpaces, isolateDisplayFormulas, parseMd, serializeMd, serializeSingleLine, type Inline } from "./mdModel";
 
 const paragraph = (md: string): Block => ({ id: "b1", type: "paragraph", md });
+
+describe("fórmulas en línea seguidas", () => {
+  const formula = (latex: string, display = false): Inline => ({ t: "formula", latex, ...(display ? { display } : {}) });
+  const text = (value: string): Inline => ({ t: "text", text: value });
+
+  // Lo que deja el editor al insertar una fórmula justo después de otra, sin texto en medio
+  it.each([
+    ["sin texto alrededor", [formula("a"), formula("b")], "$a$$b$"],
+    ["con texto alrededor", [text("En "), formula("\\sqrt{2}"), formula("x"), text(" fin.")], "En $\\sqrt{2}$$x$ fin."],
+    ["tres seguidas", [text("Sea "), formula("a"), formula("b"), formula("c")], "Sea $a$$b$$c$"],
+    ["junto a una destacada", [formula("\\frac{1}{2}"), formula("x = 1", true), formula("y")], "$\\frac{1}{2}$$$x = 1$$$y$"],
+  ])("el editor, la hoja y la validación leen las mismas fórmulas: %s", (_case, inlines, md) => {
+    expect(serializeMd([{ t: "p", inlines }])).toBe(md);
+    expect(parseMd(md)).toEqual([{ t: "p", inlines }]);
+    const formulas = inlines.filter(inline => inline.t === "formula");
+    expect(findMath(md).map(span => formula(span.latex, span.display))).toEqual(formulas);
+    expect(extractMath(md)).toEqual(formulas.map(inline => inline.latex));
+    expect(validateText(md, "Texto")).toEqual([]);
+  });
+
+  it("siguen pegadas al pasar por el editor en sitio; la destacada se aparta como siempre", () => {
+    expect(richMd("En $\\sqrt{2}$$x$ fin.")).toBe("En $\\sqrt{2}$$x$ fin.");
+    expect(lineMd("Sea $a$$b$$c$")).toBe("Sea $a$$b$$c$");
+    expect(richMd("$\\frac{1}{2}$$$x = 1$$$y$")).toBe("$\\frac{1}{2}$\n\n$$x = 1$$\n\n$y$");
+    expect(resolveDraft(paragraph("En $a$$b$ fin."), { type: "paragraph", md: "En $a$$b$ fin." })).toEqual({ status: "unchanged" });
+  });
+});
 
 describe("texto del editor en sitio", () => {
   it("deja cada fórmula destacada en su propio párrafo, como la dibuja la hoja", () => {
