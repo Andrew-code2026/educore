@@ -326,14 +326,23 @@ function gcd(a: number, b: number): number {
 
 /** Pendiente de las asíntotas como fracción de los semiejes, simplificada si son enteros. */
 function slopeLatex(top: number, bottom: number): string {
-  if (Number.isInteger(top) && Number.isInteger(bottom)) {
-    const divisor = gcd(top, bottom);
-    const n = top / divisor;
-    const d = bottom / divisor;
-    return d === 1 ? (n === 1 ? "" : String(n)) : `\\frac{${n}}{${d}}`;
-  }
+  const fraction = (n: number, d: number) => {
+    const divisor = gcd(n, d);
+    return d === divisor ? (n === d ? "" : String(n / divisor)) : `\\frac{${n / divisor}}{${d / divisor}}`;
+  };
+  // Con semiejes enteros, la fracción b/a de clase (3/2, no 1,5)
+  if (Number.isInteger(top) && Number.isInteger(bottom)) return fraction(top, bottom);
   const ratio = clean(top / bottom);
-  return isExact(ratio) ? (ratio === 1 ? "" : numberLatex(ratio)) : `\\frac{${numberLatex(top)}}{${numberLatex(bottom)}}`;
+  if (isExact(ratio)) return ratio === 1 ? "" : numberLatex(ratio);
+  // Semiejes con decimales cuya razón no es exacta (2 y 1,5) se llevan a enteros: 20/15 = 4/3
+  for (const scale of [10, 100, 1000, 10000]) {
+    const n = clean(top * scale);
+    const d = clean(bottom * scale);
+    if (!Number.isInteger(n) || !Number.isInteger(d)) continue;
+    const divisor = gcd(n, d);
+    return `\\frac{${n / divisor}}{${d / divisor}}`;
+  }
+  return `\\frac{${numberLatex(top)}}{${numberLatex(bottom)}}`;
 }
 
 /** Las dos asíntotas de una hipérbola en una sola fórmula: y − k = ±(b/a)(x − h). */

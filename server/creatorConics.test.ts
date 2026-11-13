@@ -125,6 +125,9 @@ describe("ecuación canónica", () => {
     expect(asymptotes({ kind: "hyperbola", h: 0, k: 0, a: 2, b: 2 })).toBe("y = \\pm x");
     expect(asymptotes({ kind: "hyperbola", h: 1, k: -1, a: 4, b: 2, axis: "vertical" })).toBe("y + 1 = \\pm 2(x - 1)");
     expect(asymptotes({ kind: "hyperbola", h: 0, k: 2, a: 2, b: 1.5 })).toBe("y - 2 = \\pm 0{,}75x");
+    // Semiejes con decimales cuya razón no es exacta: 2/1,5 = 4/3
+    expect(asymptotes({ kind: "hyperbola", h: 3, k: 0, a: 2, b: 1.5, axis: "vertical" })).toBe("y = \\pm \\frac{4}{3}(x - 3)");
+    expect(asymptotes({ kind: "hyperbola", h: 0, k: 0, a: 2.5, b: 1 })).toBe("y = \\pm 0{,}4x");
   });
 });
 
