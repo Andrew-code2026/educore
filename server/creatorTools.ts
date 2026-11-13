@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { blockInputSchema, CREATOR_LIMITS, findBlock, SECTION_ROLES, type BlockInput, type CreatorActivity, type ResourceDoc } from "@shared/creator";
+import { blockName } from "@shared/creatorActivity";
 import { applyDocOp, normalizeBlock, type DocOp } from "@shared/creatorOps";
 import { describeComputed } from "@shared/creatorStats";
+import { REMOVED_MAX } from "@shared/creatorTurn";
 import { validateBlockOrder, validateBlocks } from "@shared/creatorValidate";
 
 /**
@@ -133,6 +135,16 @@ function locateActivity(before: ResourceDoc, after: ResourceDoc, op: DocOp, ids:
   return { ...(blockIds.length > 0 ? { blockIds } : {}), ...(sectionId ? { sectionId } : {}) };
 }
 
+/** Qué eliminó la operación, con el nombre que el docente ve en la hoja: después ya no se puede buscar. */
+function namedRemoved(before: ResourceDoc, blockIds: string[]): Pick<CreatorActivity, "removed"> {
+  // Los repetidos cuentan una vez, como en applyDocOp
+  const removed = Array.from(new Set(blockIds)).flatMap(id => {
+    const found = findBlock(before, id);
+    return found ? [{ type: found.block.type, name: blockName(found.block) }] : [];
+  });
+  return removed.length > 0 ? { removed: removed.slice(0, REMOVED_MAX) } : {};
+}
+
 /** Ejecuta una llamada de herramienta sobre el documento. No toca la base de datos. */
 export function executeCreatorTool(doc: ResourceDoc, name: string, rawInput: unknown, random?: () => number): ToolOutcome {
   if (!isCreatorTool(name)) return failure(doc, "Herramienta desconocida", `No existe la herramienta "${name}".`);
@@ -175,7 +187,13 @@ export function executeCreatorTool(doc: ResourceDoc, name: string, rawInput: unk
     doc: applied.doc,
     isError: false,
     result: `${applied.summary}.${applied.changed ? ids : " El documento quedó igual."}${computed}`,
-    activity: { label: applied.summary, ok: true, changed: applied.changed, ...(applied.changed ? locateActivity(doc, applied.doc, op, applied.ids) : {}) },
+    activity: {
+      label: applied.summary,
+      ok: true,
+      changed: applied.changed,
+      ...(applied.changed ? locateActivity(doc, applied.doc, op, applied.ids) : {}),
+      ...(op.op === "delete_blocks" ? namedRemoved(doc, op.blockIds) : {}),
+    },
   };
 }
 
