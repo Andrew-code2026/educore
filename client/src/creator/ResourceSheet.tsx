@@ -8,6 +8,8 @@ interface ResourceSheetProps {
   logoUrl?: string | null;
   /** Envuelve cada bloque: en pantalla añade los controles de edición; al imprimir no se usa. */
   renderBlock?: (block: Block, section: Section) => ReactNode;
+  /** Encabezado de cada sección en pantalla (título editable y sus controles). Sin esto, el título como texto desde la segunda. */
+  renderSectionTitle?: (section: Section, index: number) => ReactNode;
   /** Contenido extra al final de cada sección (p. ej. el botón para añadir bloques). */
   renderSectionEnd?: (section: Section) => ReactNode;
   /** Encabezado editable; si no se pasa, se muestra el título como texto. */
@@ -18,7 +20,7 @@ interface ResourceSheetProps {
  * La hoja del recurso: membrete, título y secciones. Es la misma en la pantalla del
  * editor y en la copia que se imprime, así lo que el docente ve es lo que sale en papel.
  */
-export function ResourceSheet({ doc, schoolName, logoUrl, renderBlock, renderSectionEnd, renderTitle }: ResourceSheetProps) {
+export function ResourceSheet({ doc, schoolName, logoUrl, renderBlock, renderSectionTitle, renderSectionEnd, renderTitle }: ResourceSheetProps) {
   return (
     <article className="crt-doc">
       {(schoolName || logoUrl) && (
@@ -42,7 +44,7 @@ export function ResourceSheet({ doc, schoolName, logoUrl, renderBlock, renderSec
       {doc.sections.map((section, index) => (
         <section key={section.id} id={`crt-${section.id}`} className="crt-doc__section" data-role={section.role}>
           {/* La primera sección es la guía misma: su nombre ya lo dice el título del recurso */}
-          {index > 0 && <h2 className="crt-doc__section-title">{section.title}</h2>}
+          {renderSectionTitle ? renderSectionTitle(section, index) : index > 0 && <h2 className="crt-doc__section-title">{section.title}</h2>}
           {section.blocks.map(block => (
             <Fragment key={block.id}>
               {renderBlock ? (

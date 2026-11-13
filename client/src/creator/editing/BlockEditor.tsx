@@ -68,38 +68,6 @@ export const BLOCK_TEMPLATES: Record<BlockType, BlockInput> = {
   page_break: { type: "page_break" },
 };
 
-/** Orden en que se ofrecen los bloques al añadir uno. */
-export const ADDABLE_BLOCKS: BlockType[] = [
-  "paragraph",
-  "exercise",
-  "callout",
-  "heading",
-  "math",
-  "table",
-  "value_table",
-  "graph",
-  "number_line",
-  "fraction_model",
-  "bar_chart",
-  "pie_chart",
-  "histogram",
-  "box_plot",
-  "line_chart",
-  "scatter_plot",
-  "angle",
-  "venn",
-  "tree_diagram",
-  "bar_model",
-  "pictogram",
-  "clock",
-  "base_ten",
-  "area_model",
-  "shapes",
-  "balance",
-  "solution",
-  "page_break",
-];
-
 function ParagraphForm({ draft, onChange }: FormProps<"paragraph">) {
   return <RichTextEditor label="Texto" value={draft.md} autoFocus onChange={md => onChange({ ...draft, md })} />;
 }

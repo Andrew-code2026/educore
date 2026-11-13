@@ -1,15 +1,22 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, MessageSquarePlus, Pencil, Plus, Trash2 } from "lucide-react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { ArrowDown, ArrowUp, BetweenHorizontalStart, Copy, GripVertical, MessageSquarePlus, Pencil, Plus, Trash2 } from "lucide-react";
 import { BLOCK_TYPE_LABELS, CREATOR_LIMITS, type Block, type BlockInput, type BlockType, type CreatorEvent, type ResourceDoc, type Section } from "@shared/creator";
 import type { DocOp, OpResult } from "@shared/creatorOps";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { BlockPicker } from "./BlockPicker";
 import { BlockView } from "./blocks/BlockView";
-import { ADDABLE_BLOCKS, BLOCK_TEMPLATES, BlockEditor } from "./editing/BlockEditor";
+import { BLOCK_TEMPLATES, BlockEditor } from "./editing/BlockEditor";
 import { InlineBlockEditor, type BlockEditorHandle, type CloseReason } from "./editing/InlineBlockEditor";
 import { isInlineBlock, isInlineType } from "./editing/inlineDraft";
 import type { EditEntry } from "./editing/InlineText";
+import { revealTarget } from "./reveal";
 import { ResourceSheet } from "./ResourceSheet";
+import { SectionMenu, SectionTitle, useMenuFollowUp, type SectionTitleHandle } from "./SectionControls";
+import { insertOp, moveShortcut, stepTarget, type DropTarget, type InsertPlace } from "./structure";
 import type { MarkKind } from "./turnReview";
+import { useBlockDrag } from "./useBlockDrag";
 
 type Preview = Extract<CreatorEvent, { type: "preview" }>;
 
@@ -34,6 +41,9 @@ interface EditableDocumentProps {
 
 const MARK_LABELS: Record<MarkKind, string> = { added: "Añadido por la IA", changed: "Cambiado por la IA" };
 
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const MOVE_HINT = IS_MAC ? { up: "⌥⇧↑", down: "⌥⇧↓" } : { up: "Alt+Mayús+↑", down: "Alt+Mayús+↓" };
+
 export interface EditableDocumentHandle {
   /** Guarda el bloque que esté abierto, si es válido. Devuelve `false` si sigue abierto con datos por corregir. */
   settle: () => boolean;
@@ -44,6 +54,8 @@ interface Editing {
   id: string;
   inline: boolean;
   entry: EditEntry;
+  /** Cambia cada vez que se abre: un bloque reemplazado por otro del mismo tipo monta un editor nuevo. */
+  seq: number;
 }
 
 /** Espera antes de mostrar las acciones de un bloque: al desplazar la hoja o cruzarla con el puntero no aparece nada. */
@@ -97,17 +109,22 @@ function useActiveBlock() {
   return { activeId, enter, leave, focus, blur };
 }
 
-function BlockTypeMenu({ onPick, onClose }: { onPick: (type: BlockType) => void; onClose: () => void }) {
+/** Un campo o un editor: ahí las teclas son del texto, no de la hoja. */
+const isTypingTarget = (target: EventTarget | null) =>
+  target instanceof Element && target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), .crt-inplace, .crt-picker') !== null;
+
+const PICKER_TITLES: Record<InsertPlace["kind"], string> = {
+  after: "Insertar debajo",
+  before: "Insertar encima",
+  start: "Insertar al inicio de la sección",
+  end: "Añadir al final de la sección",
+};
+
+/** El menú de bloques colgado de su sitio en la hoja: debajo (o encima) de donde se insertará. */
+function PickerAnchor({ above = false, children }: { above?: boolean; children: ReactNode }) {
   return (
-    <div className="crt-add__menu" role="menu" aria-label="Tipo de bloque" onKeyDown={event => event.key === "Escape" && onClose()}>
-      {ADDABLE_BLOCKS.map((type, index) => (
-        <button key={type} type="button" role="menuitem" autoFocus={index === 0} className="crt-add__option" onClick={() => onPick(type)}>
-          {BLOCK_TYPE_LABELS[type]}
-        </button>
-      ))}
-      <button type="button" className="crt-add__option crt-add__option--cancel" onClick={onClose}>
-        Cancelar
-      </button>
+    <div className="crt-picker-anchor" data-side={above ? "above" : "below"}>
+      {children}
     </div>
   );
 }
@@ -161,22 +178,68 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
   const [editing, setEditing] = useState<Editing | null>(null);
   const editingRef = useRef(editing);
   editingRef.current = editing;
+  const seq = useRef(0);
   const editor = useRef<BlockEditorHandle | null>(null);
   const paper = useRef<HTMLDivElement>(null);
-  /** Dónde está abierto el menú de añadir: después de un bloque o al final de una sección. */
-  const [inserter, setInserter] = useState<{ sectionId: string; afterBlockId?: string } | null>(null);
-  const { activeId, enter, leave, focus, blur } = useActiveBlock();
+  const dropLine = useRef<HTMLDivElement>(null);
+  const dragChip = useRef<HTMLDivElement>(null);
+  const docRef = useRef(doc);
+  docRef.current = doc;
+  /** Dónde está abierto el menú de bloques para insertar. */
+  const [picker, setPicker] = useState<InsertPlace | null>(null);
+  /** El párrafo vacío en el que se escribió «/»: su menú reemplaza el bloque. */
+  const [slashFor, setSlashFor] = useState<string | null>(null);
+  /** El bloque cuyo menú «más» está abierto. */
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  /** Lo que se le dice a un lector de pantalla tras mover un bloque o una sección. */
+  const [announcement, setAnnouncement] = useState("");
+  const titles = useRef(new Map<string, SectionTitleHandle>());
+  const { activeId: hoverOrFocusId, enter, leave, focus, blur } = useActiveBlock();
   const noHover = useNoHover();
+  const blockMenu = useMenuFollowUp();
 
   // Antes de que la IA empiece a trabajar, quien envía el mensaje pide guardar lo abierto (ver CreatorWorkspace)
   useImperativeHandle(ref, () => ({ settle: () => editor.current?.settle() ?? true }), []);
 
+  /** Lleva el foco a un bloque (tras moverlo, duplicarlo o cerrar un menú). Espera a que la hoja se dibuje. */
+  const focusBlock = useCallback((id: string, options?: { flash?: boolean }) => {
+    requestAnimationFrame(() => {
+      const view = paper.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(id)}"] .crt-block__view`);
+      if (options?.flash) revealTarget({ blockIds: [id] });
+      view?.focus({ preventScroll: options?.flash });
+      // Un bloque sin vista enfocable (el salto de página) al menos se trae a la vista
+      if (!view) paper.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "nearest" });
+    });
+  }, []);
+
+  /** Mueve un bloque a un hueco. Un solo paso de deshacer, sea arrastre, menú o teclado. */
+  const moveTo = useCallback(
+    (blockId: string, target: DropTarget) => {
+      const result = applyOp({ op: "move_block_to", blockId, ...target });
+      if (!result.ok || !result.changed) return;
+      const moved = result.doc.sections.find(section => section.id === target.sectionId);
+      if (!moved) return;
+      const position = moved.blocks.findIndex(block => block.id === blockId) + 1;
+      setAnnouncement(`Bloque movido: lugar ${position} de ${moved.blocks.length} en «${moved.title}».`);
+      focusBlock(blockId);
+    },
+    [applyOp, focusBlock],
+  );
+
+  const { dragging, held, press, cancel: cancelDrag } = useBlockDrag({ paper, line: dropLine, chip: dragChip, doc: () => docRef.current, onDrop: moveTo });
+
+  // Mientras la IA trabaja nada de esto se puede usar
   useEffect(() => {
-    if (readOnly) {
-      setEditing(null);
-      setInserter(null);
-    }
-  }, [readOnly]);
+    if (!readOnly) return;
+    setEditing(null);
+    setPicker(null);
+    setSlashFor(null);
+    setMenuFor(null);
+    cancelDrag();
+  }, [cancelDrag, readOnly]);
+
+  // Un menú abierto o el asa pulsada mantienen su bloque activo: su barra no desaparece debajo
+  const activeId = dragging ?? held ?? menuFor ?? hoverOrFocusId;
 
   /** Abre un bloque para editarlo. Un texto abierto con un dato por corregir no se cierra: se perdería lo escrito. */
   const open = (id: string, type: BlockType, entry: EditEntry) => {
@@ -185,29 +248,96 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
       editor.current.focus();
       return;
     }
-    setEditing({ id, inline: isInlineType(type), entry });
+    setEditing({ id, inline: isInlineType(type), entry, seq: ++seq.current });
   };
 
   const close = (id: string, reason: CloseReason = "blur") => {
     setEditing(current => (current?.id === id ? null : current));
+    setSlashFor(current => (current === id ? null : current));
     // Cerrado desde el teclado, el foco vuelve al bloque para seguir con Tab
-    if (reason === "keyboard") {
-      requestAnimationFrame(() => paper.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(id)}"] .crt-block__view`)?.focus());
-    }
+    if (reason === "keyboard") focusBlock(id);
   };
 
   const insert = (type: BlockType) => {
-    if (!inserter) return;
-    const result = applyOp({ op: "insert_blocks", sectionId: inserter.sectionId, afterBlockId: inserter.afterBlockId, blocks: [BLOCK_TEMPLATES[type]] });
-    setInserter(null);
+    if (!picker) return;
+    const result = applyOp(insertOp(docRef.current, picker, [BLOCK_TEMPLATES[type]]));
+    setPicker(null);
     // El bloque nuevo se abre de una vez para completarlo, con su texto de muestra seleccionado
-    if (result.ok && type !== "page_break" && result.ids[0]) open(result.ids[0], type, "all");
+    if (!result.ok || !result.ids[0]) return;
+    if (type === "page_break") focusBlock(result.ids[0]);
+    else open(result.ids[0], type, "all");
+  };
+
+  /** Cerrar el menú sin elegir con Escape devuelve el foco a lo que lo abrió. */
+  const closePicker = (reason: "escape" | "blur") => {
+    const place = picker;
+    setPicker(null);
+    if (reason !== "escape" || !place) return;
+    if (place.kind === "after" || place.kind === "before") focusBlock(place.blockId);
+    else requestAnimationFrame(() => document.querySelector<HTMLElement>(`#crt-${CSS.escape(place.sectionId)} > .crt-add .crt-add__button`)?.focus());
+  };
+
+  const openPicker = (place: InsertPlace) => {
+    setMenuFor(null);
+    setPicker(place);
+  };
+
+  /** El bloque que se edita pasa a ser otro (un atajo al escribir o la «/»): un solo paso de deshacer. */
+  const replace = (id: string, next: BlockInput, entry: EditEntry) => {
+    editor.current?.release?.();
+    setSlashFor(null);
+    const result = applyOp({ op: "update_block", blockId: id, block: next });
+    if (!result.ok) return;
+    if (next.type === "page_break") {
+      setEditing(null);
+      focusBlock(id);
+    } else {
+      setEditing({ id, inline: isInlineType(next.type), entry, seq: ++seq.current });
+    }
+  };
+
+  /** Duplica un bloque y devuelve el id de la copia. */
+  const duplicate = (id: string) => {
+    const result = applyOp({ op: "duplicate_block", blockId: id });
+    return result.ok ? result.ids[0] : undefined;
+  };
+
+  /** Borra un bloque (el aviso permite deshacerlo) y devuelve el vecino, para seguir con el teclado desde ahí. */
+  const remove = (id: string) => {
+    const section = docRef.current.sections.find(candidate => candidate.blocks.some(block => block.id === id));
+    const index = section?.blocks.findIndex(block => block.id === id) ?? -1;
+    const neighbour = section && (section.blocks[index + 1] ?? section.blocks[index - 1]);
+    const result = applyOp({ op: "delete_blocks", blockIds: [id] });
+    return result.ok ? neighbour?.id : undefined;
+  };
+
+  const step = (id: string, direction: "up" | "down") => {
+    const target = stepTarget(docRef.current, id, direction);
+    if (target) moveTo(id, target);
+  };
+
+  const addSection = () => {
+    const result = applyOp({ op: "write_section", title: "Nueva sección", role: "student", blocks: [] });
+    const id = result.ok ? result.ids[0] : undefined;
+    if (!id) return;
+    setAnnouncement("Sección nueva al final del recurso.");
+    // Se abre con el nombre seleccionado para escribir el suyo
+    requestAnimationFrame(() => {
+      document.getElementById(`crt-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      titles.current.get(id)?.rename();
+    });
+  };
+
+  const moveSection = (section: Section, direction: "up" | "down") => {
+    const result = applyOp({ op: "move_section", sectionId: section.id, direction });
+    if (!result.ok || !result.changed) return;
+    const position = result.doc.sections.findIndex(candidate => candidate.id === section.id) + 1;
+    setAnnouncement(`Sección «${section.title}» movida: ahora es la ${position} de ${result.doc.sections.length}.`);
   };
 
   const renderBlock = (block: Block, section: Section) => {
     const isEditing = editing?.id === block.id;
     const inline = isInlineBlock(block);
-    const index = section.blocks.indexOf(block);
     const canEdit = !readOnly && block.type !== "page_break";
     const active = !readOnly && !isEditing && activeId === block.id;
     const showTools = !readOnly && (noHover || active);
@@ -215,25 +345,72 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     const canAttach = !readOnly && onToggleAttach !== undefined && block.type !== "page_break";
     const attached = canAttach && attachedIds.has(block.id);
     const attachLabel = attached ? "Quitar del chat" : "Llevar al chat";
+    const label = BLOCK_TYPE_LABELS[block.type];
+    // Solo hace falta saberlo donde hay barra
+    const canUp = showTools && stepTarget(doc, block.id, "up") !== null;
+    const canDown = showTools && stepTarget(doc, block.id, "down") !== null;
+    const pickerHere = picker && (picker.kind === "after" || picker.kind === "before") && picker.blockId === block.id ? picker : null;
+    const blockPicker = pickerHere && (
+      <PickerAnchor above={pickerHere.kind === "before"}>
+        <BlockPicker title={PICKER_TITLES[pickerHere.kind]} onPick={insert} onClose={closePicker} />
+      </PickerAnchor>
+    );
+
     return (
       <div
-        className={cn("crt-block", `crt-block--${block.type}`, isEditing && (inline ? "is-inplace" : "is-editing"), !readOnly && "is-editable", active && "is-active", attached && "is-attached")}
+        className={cn(
+          "crt-block",
+          `crt-block--${block.type}`,
+          isEditing && (inline ? "is-inplace" : "is-editing"),
+          !readOnly && "is-editable",
+          active && "is-active",
+          attached && "is-attached",
+          dragging === block.id && "is-dragging",
+          pickerHere && "has-picker",
+        )}
         data-block-id={block.id}
         onPointerEnter={event => event.pointerType !== "touch" && enter(block.id)}
         onPointerLeave={() => leave(block.id)}
         onFocus={() => focus(block.id)}
         onBlur={event => !event.currentTarget.contains(event.relatedTarget) && blur(block.id)}
+        onKeyDown={event => {
+          // Alt+Mayús+↑/↓ mueve el bloque que tiene el foco; dentro de un texto o un campo, las teclas son suyas
+          const direction = moveShortcut(event);
+          if (!direction || readOnly || isEditing || isTypingTarget(event.target)) return;
+          event.preventDefault();
+          step(block.id, direction);
+        }}
       >
+        {pickerHere?.kind === "before" && blockPicker}
         {mark && (
           <button type="button" className="crt-block__mark" data-kind={mark} title={`${MARK_LABELS[mark]}. Clic para darlo por visto.`} aria-label={`${MARK_LABELS[mark]}: darlo por visto`} onClick={() => onAcceptMark(block.id)} />
         )}
         {isEditing && inline ? (
           <InlineBlockEditor
+            key={editing.seq}
             ref={editor}
             block={block}
             entry={editing.entry}
             onCommit={(next: BlockInput) => void applyOp({ op: "update_block", blockId: block.id, block: next })}
             onClose={reason => close(block.id, reason)}
+            onSlash={() => setSlashFor(block.id)}
+            onReplace={(next, entry) => replace(block.id, next, entry)}
+            overlay={
+              slashFor === block.id && (
+                <PickerAnchor>
+                  <BlockPicker
+                    title="Cambiar este texto por…"
+                    exclude={["paragraph"]}
+                    onPick={type => replace(block.id, BLOCK_TEMPLATES[type], "all")}
+                    onClose={reason => {
+                      setSlashFor(null);
+                      // Con Escape se sigue escribiendo en el texto
+                      if (reason === "escape") editor.current?.focus();
+                    }}
+                  />
+                </PickerAnchor>
+              )
+            }
             barEnd={
               canAttach && (
                 <button type="button" title={attached ? "Quitar este bloque del chat" : "Señalar este bloque en el chat para pedirle un cambio al asistente"} aria-pressed={attached} onClick={() => onToggleAttach(block.id)}>
@@ -245,6 +422,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
           />
         ) : isEditing ? (
           <BlockEditor
+            key={editing.seq}
             ref={editor}
             block={block}
             onCancel={() => close(block.id)}
@@ -261,7 +439,8 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                 ? {
                     role: "button",
                     tabIndex: 0,
-                    "aria-label": `Editar ${BLOCK_TYPE_LABELS[block.type].toLowerCase()}`,
+                    "aria-label": `Editar ${label.toLowerCase()}`,
+                    "aria-keyshortcuts": "Alt+Shift+ArrowUp Alt+Shift+ArrowDown",
                     // El cursor queda donde se hizo clic; con el teclado, al final del texto
                     onClick: (event: React.MouseEvent) => open(block.id, block.type, event.detail > 0 ? { x: event.clientX, y: event.clientY } : "end"),
                     onKeyDown: (event: React.KeyboardEvent) => {
@@ -276,29 +455,83 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
               <BlockView block={block} />
             </div>
             {showTools && (
-              <div className="crt-block__tools" role="toolbar" aria-label={`Acciones de ${BLOCK_TYPE_LABELS[block.type].toLowerCase()}`}>
-                {canEdit && (
-                  <button type="button" title="Editar" aria-label="Editar" onClick={() => open(block.id, block.type, "end")}>
-                    <Pencil aria-hidden="true" />
-                  </button>
-                )}
+              <div className="crt-block__tools" role="toolbar" aria-label={`Acciones de ${label.toLowerCase()}`}>
+                <DropdownMenu open={menuFor === block.id} onOpenChange={open => setMenuFor(open ? block.id : null)}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="crt-block__grip"
+                      title="Arrastra para mover · Clic para más acciones"
+                      aria-label={`Mover ${label.toLowerCase()} o más acciones`}
+                      onPointerDown={event => press(event, block.id, label, () => setMenuFor(block.id))}
+                    >
+                      <GripVertical aria-hidden="true" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" side="bottom" className="crt-menu w-64 data-[state=closed]:animate-none" onCloseAutoFocus={blockMenu.onCloseAutoFocus}>
+                    {canEdit && (
+                      <DropdownMenuItem onSelect={blockMenu.later(() => open(block.id, block.type, "end"))}>
+                        <Pencil aria-hidden="true" />
+                        Editar
+                        <DropdownMenuShortcut>Intro</DropdownMenuShortcut>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        const copy = duplicate(block.id);
+                        if (copy) blockMenu.then(() => focusBlock(copy, { flash: true }));
+                      }}
+                    >
+                      <Copy aria-hidden="true" />
+                      Duplicar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={blockMenu.later(() => openPicker({ sectionId: section.id, kind: "before", blockId: block.id }))}>
+                      <BetweenHorizontalStart aria-hidden="true" />
+                      Insertar encima
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={!canUp}
+                      onSelect={() => {
+                        step(block.id, "up");
+                        blockMenu.then(() => focusBlock(block.id));
+                      }}
+                    >
+                      <ArrowUp aria-hidden="true" />
+                      Subir
+                      <DropdownMenuShortcut>{MOVE_HINT.up}</DropdownMenuShortcut>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={!canDown}
+                      onSelect={() => {
+                        step(block.id, "down");
+                        blockMenu.then(() => focusBlock(block.id));
+                      }}
+                    >
+                      <ArrowDown aria-hidden="true" />
+                      Bajar
+                      <DropdownMenuShortcut>{MOVE_HINT.down}</DropdownMenuShortcut>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => {
+                        const next = remove(block.id);
+                        if (next) blockMenu.then(() => focusBlock(next));
+                      }}
+                    >
+                      <Trash2 aria-hidden="true" />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <button type="button" title="Añadir debajo" aria-label="Añadir un bloque debajo" aria-expanded={pickerHere?.kind === "after"} onClick={() => openPicker({ sectionId: section.id, kind: "after", blockId: block.id })}>
+                  <Plus aria-hidden="true" />
+                </button>
                 {canAttach && (
                   <button type="button" title={attachLabel} aria-label={attachLabel} aria-pressed={attached} onClick={() => onToggleAttach(block.id)}>
                     <MessageSquarePlus aria-hidden="true" />
                   </button>
                 )}
-                <button type="button" title="Subir" aria-label="Subir" disabled={index === 0} onClick={() => applyOp({ op: "move_block", blockId: block.id, direction: "up" })}>
-                  <ArrowUp aria-hidden="true" />
-                </button>
-                <button type="button" title="Bajar" aria-label="Bajar" disabled={index === section.blocks.length - 1} onClick={() => applyOp({ op: "move_block", blockId: block.id, direction: "down" })}>
-                  <ArrowDown aria-hidden="true" />
-                </button>
-                <button type="button" title="Añadir debajo" aria-label="Añadir un bloque debajo" onClick={() => setInserter({ sectionId: section.id, afterBlockId: block.id })}>
-                  <Plus aria-hidden="true" />
-                </button>
-                <button type="button" title="Eliminar" aria-label="Eliminar" className="is-danger" onClick={() => applyOp({ op: "delete_blocks", blockIds: [block.id] })}>
-                  <Trash2 aria-hidden="true" />
-                </button>
               </div>
             )}
             {attached && !showTools && (
@@ -308,22 +541,67 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
             )}
           </>
         )}
-        {inserter?.afterBlockId === block.id && <BlockTypeMenu onPick={insert} onClose={() => setInserter(null)} />}
+        {pickerHere?.kind === "after" && blockPicker}
       </div>
     );
   };
 
+  const renderSectionTitle = (section: Section, index: number) => (
+    <>
+      {/* La primera sección es la guía misma: su nombre ya lo dice el título del recurso */}
+      {index > 0 &&
+        (readOnly ? (
+          <h2 className="crt-doc__section-title">{section.title}</h2>
+        ) : (
+          <SectionTitle
+            ref={handle => {
+              if (handle) titles.current.set(section.id, handle);
+              else titles.current.delete(section.id);
+            }}
+            section={section}
+            readOnly={readOnly}
+            applyOp={applyOp}
+          />
+        ))}
+      {picker?.kind === "start" && picker.sectionId === section.id && (
+        <PickerAnchor>
+          <BlockPicker title={PICKER_TITLES.start} onPick={insert} onClose={closePicker} />
+        </PickerAnchor>
+      )}
+    </>
+  );
+
   const renderSectionEnd = (section: Section) => {
     if (readOnly) return null;
-    const open = inserter?.sectionId === section.id && !inserter.afterBlockId;
+    const index = doc.sections.indexOf(section);
+    const count = doc.sections.length;
+    const pickerAtEnd = picker?.kind === "end" && picker.sectionId === section.id;
     return (
       <div className="crt-add">
-        {open ? (
-          <BlockTypeMenu onPick={insert} onClose={() => setInserter(null)} />
-        ) : (
-          <button type="button" className="crt-add__button" onClick={() => setInserter({ sectionId: section.id })}>
+        <div className="crt-add__row">
+          <button type="button" className="crt-add__button" aria-expanded={pickerAtEnd} onClick={() => openPicker({ sectionId: section.id, kind: "end" })}>
             <Plus aria-hidden="true" />
             Añadir bloque
+          </button>
+          <SectionMenu
+            section={section}
+            index={index}
+            count={count}
+            onRename={index > 0 ? () => titles.current.get(section.id)?.rename() : undefined}
+            onAddAtStart={() => openPicker({ sectionId: section.id, kind: section.blocks.length > 0 ? "start" : "end" })}
+            onMove={direction => moveSection(section, direction)}
+            onDelete={() => applyOp({ op: "delete_section", sectionId: section.id })}
+          />
+          {pickerAtEnd && (
+            <PickerAnchor>
+              <BlockPicker title={PICKER_TITLES.end} onPick={insert} onClose={closePicker} />
+            </PickerAnchor>
+          )}
+        </div>
+        {index === count - 1 && count < CREATOR_LIMITS.sectionsMax && (
+          <button type="button" className="crt-add__section" onClick={addSection}>
+            <Plus aria-hidden="true" />
+            Nueva sección
           </button>
         )}
       </div>
@@ -337,9 +615,18 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
         schoolName={schoolName}
         logoUrl={logoUrl}
         renderBlock={renderBlock}
+        renderSectionTitle={renderSectionTitle}
         renderSectionEnd={renderSectionEnd}
         renderTitle={() => <TitleEditor doc={doc} readOnly={readOnly} applyOp={applyOp} />}
       />
+
+      {/* Mientras se arrastra: dónde caerá el bloque y qué se lleva. Se mueven sin volver a dibujar la hoja */}
+      <div ref={dropLine} className="crt-drop-line" hidden aria-hidden="true" />
+      {/* La etiqueta va en el cuerpo de la página: la hoja es un contenedor de consultas y no deja que `fixed` siga al puntero */}
+      {createPortal(<div ref={dragChip} className="crt-drag-chip" hidden aria-hidden="true" />, document.body)}
+      <p className="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </p>
 
       {preview && (
         <section className="crt-doc crt-doc--preview" aria-live="polite" aria-busy="true">
