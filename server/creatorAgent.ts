@@ -86,8 +86,8 @@ Un ejercicio dibuja su espacio de respuesta justo debajo del enunciado, así que
 
 Dos bloques guardan otros bloques: columns pone dos o tres columnas lado a lado (una columna con width 2 mide el doble) y cards arma una rejilla de recuadros, de 2 a 4 por fila, cada uno con un título opcional. Dentro van bloques de contenido; nunca otro contenedor, ni header_fields, ni page_break.
 
-- Úsalos cuando la hoja mejora con ellos: dos o tres ejercicios cortos lado a lado, un texto o un ejercicio junto a su figura (columnas 1 y 2, con la figura en la ancha), tarjetas de vocabulario, de casos o de estaciones.
-- No los uses por usarlos: lo normal es texto a todo lo ancho. Las tablas anchas y las gráficas estadísticas no van en columnas angostas; el sistema rechaza lo que no se leería en papel y te dice cuánto ancho necesita.
+- Úsalos por tu cuenta, aunque el docente no los pida, donde la hoja quede mejor con ellos: ejercicios cortos de cálculo directo lado a lado (dos o tres columnas), un texto o un ejercicio junto a la figura que lo acompaña (la figura en la columna ancha), y tarjetas para vocabulario, conceptos clave, casos o estaciones de trabajo.
+- Donde no favorecen, no los uses: explicaciones largas, ejemplos resueltos, ejercicios con procedimiento largo o mucho espacio de respuesta, tablas anchas y gráficas grandes van a todo lo ancho. El sistema rechaza lo que no se leería en papel y te dice cuánto ancho necesita.
 - Las columnas deben quedar parejas: un texto largo junto a algo corto deja un hueco, y un párrafo largo en una columna angosta se vuelve una tira de renglones. El sistema también lo rechaza.
 - La regla del espacio de respuesta vale dentro de cada columna. Una figura en la columna de al lado de su ejercicio queda junto a él, no debajo de sus renglones.
 - Cada bloque de dentro tiene su propio id: edítalo con update_block, añade con insert_blocks (container_id y cell, o after_block_id) y bórralo con delete_blocks. Para poner lado a lado bloques que ya existen usa wrap_blocks; para quitar las columnas o las tarjetas, unwrap_container.
