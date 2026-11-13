@@ -2544,3 +2544,7 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
   .crt-print .crt-cell > .crt-block:first-child { padding-top: 0; }
   .crt-print .crt-cell > .crt-block:last-child { padding-bottom: 0; }
 }
+
+/* Aviso del editor (no se imprime) cuando unas columnas se ven mal en la hoja: desparejas o con un texto largo en una angosta */
+.crt-layout-hint { display: flex; align-items: flex-start; gap: 6px; margin: 10px 0 0; padding: 6px 10px; border-radius: 8px; background: var(--sheet-warn-soft); color: #7A4B00; font-size: 12.5px; line-height: 1.4; }
+.crt-layout-hint svg { flex: none; width: 14px; height: 14px; margin-top: 2px; color: #B7791F; }

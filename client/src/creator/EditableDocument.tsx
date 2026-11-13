@@ -1,6 +1,6 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, BetweenHorizontalStart, Columns2, Copy, GripVertical, LayoutGrid, MessageSquarePlus, Pencil, Plus, SquareDashedMousePointer, Trash2, Ungroup, X } from "lucide-react";
+import { ArrowDown, ArrowUp, BetweenHorizontalStart, Columns2, Copy, GripVertical, LayoutGrid, MessageSquarePlus, Pencil, Plus, SquareDashedMousePointer, Trash2, TriangleAlert, Ungroup, X } from "lucide-react";
 import {
   BLOCK_TYPE_LABELS,
   blockCells,
@@ -17,7 +17,7 @@ import {
   type ResourceDoc,
   type Section,
 } from "@shared/creator";
-import { cellName, cellWidths, placementIssue } from "@shared/creatorContainers";
+import { cellName, cellWidths, containerLayoutIssues, placementIssue, type LayoutIssue } from "@shared/creatorContainers";
 import { applyDocOp, type DocOp, type OpResult } from "@shared/creatorOps";
 import {
   DropdownMenu,
@@ -266,6 +266,16 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
   const { activeId: hoverOrFocusId, point, focus } = useActiveBlock();
   const noHover = useNoHover();
   const blockMenu = useMenuFollowUp();
+  /** Los contenedores que se ven mal en la hoja (columnas desparejas, texto largo en una columna angosta), con su aviso. */
+  const layoutHints = useMemo(() => {
+    const hints = new Map<string, LayoutIssue[]>();
+    for (const block of doc.sections.flatMap(section => section.blocks)) {
+      if (!isContainer(block)) continue;
+      const issues = containerLayoutIssues(block);
+      if (issues.length > 0) hints.set(block.id, issues);
+    }
+    return hints;
+  }, [doc]);
 
   // Antes de que la IA empiece a trabajar, quien envía el mensaje pide guardar lo abierto (ver CreatorWorkspace)
   useImperativeHandle(ref, () => ({ settle: () => editor.current?.settle() ?? true }), []);
@@ -586,6 +596,13 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
             )
           }
         />
+        {!readOnly && (layoutHints.get(container.id) ?? []).map(hint => (
+          // Solo en pantalla: un aviso de que las columnas se ven mal en la hoja, sin impedir nada
+          <p key={hint.key} className="crt-layout-hint">
+            <TriangleAlert aria-hidden="true" />
+            {hint.message}
+          </p>
+        ))}
       </div>
     ) : (
       <div

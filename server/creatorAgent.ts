@@ -88,6 +88,7 @@ Dos bloques guardan otros bloques: columns pone dos o tres columnas lado a lado 
 
 - Úsalos cuando la hoja mejora con ellos: dos o tres ejercicios cortos lado a lado, un texto o un ejercicio junto a su figura (columnas 1 y 2, con la figura en la ancha), tarjetas de vocabulario, de casos o de estaciones.
 - No los uses por usarlos: lo normal es texto a todo lo ancho. Las tablas anchas y las gráficas estadísticas no van en columnas angostas; el sistema rechaza lo que no se leería en papel y te dice cuánto ancho necesita.
+- Las columnas deben quedar parejas: un texto largo junto a algo corto deja un hueco, y un párrafo largo en una columna angosta se vuelve una tira de renglones. El sistema también lo rechaza.
 - La regla del espacio de respuesta vale dentro de cada columna. Una figura en la columna de al lado de su ejercicio queda junto a él, no debajo de sus renglones.
 - Cada bloque de dentro tiene su propio id: edítalo con update_block, añade con insert_blocks (container_id y cell, o after_block_id) y bórralo con delete_blocks. Para poner lado a lado bloques que ya existen usa wrap_blocks; para quitar las columnas o las tarjetas, unwrap_container.
 

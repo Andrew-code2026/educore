@@ -13,7 +13,7 @@ import {
   type ContainerBlock,
   type ResourceDoc,
 } from "@shared/creator";
-import { cellWidths, minBlockWidth, placementIssue, SHEET_WIDTH_PX } from "@shared/creatorContainers";
+import { cellWidths, containerLayoutIssues, estimateHeight, layoutIssues, minBlockWidth, placementIssue, SHEET_WIDTH_PX, textLines } from "@shared/creatorContainers";
 import { applyDocOp, type DocOp, type OpResult } from "@shared/creatorOps";
 import { diffTurn, reuseUnchanged } from "@shared/creatorTurn";
 import { validateBlock, validateBlockOrder } from "@shared/creatorValidate";
@@ -380,5 +380,41 @@ describe("validación de contenedores", () => {
     // Resolver sobre la figura sigue siendo válido dentro de la celda
     const solved = { title: "Guía", blocks: [columns([exercise("Ejercicio 1", { answerSpace: "none" }), graph()], [p("x")])] };
     expect(validateBlockOrder([solved])).toEqual([]);
+  });
+});
+
+describe("columnas que se ven mal", () => {
+  const long = (chars: number) => p("Texto de prueba con palabras de largo normal. ".repeat(Math.ceil(chars / 46)).slice(0, chars).trim());
+  const issuesOf = (block: BlockInput) => containerLayoutIssues(block as never, "c");
+
+  it("estima los renglones de un texto según el ancho", () => {
+    const md = "a ".repeat(150).trim();
+    expect(textLines(md, 338)).toBeLessThan(textLines(md, 160));
+    expect(textLines("uno\n\ndos\n\ntres", 600)).toBe(3);
+    expect(estimateHeight(long(900), 338)).toBeGreaterThan(estimateHeight(long(900), 695));
+  });
+
+  it("avisa de un texto largo junto a algo corto, no de una figura alta junto a un texto corto", () => {
+    const uneven = issuesOf(columns([long(900)], [exercise("Ejercicio 1", { lines: 2 })]));
+    expect(uneven.map(issue => issue.key)).toEqual(["c:desparejas"]);
+    expect(uneven[0].message).toMatch(/^La columna 1 es mucho más larga que la columna 2 \(unos \d+ renglones contra \d+\)/);
+    expect(issuesOf(columns([long(120)], [graph()]))).toEqual([]);
+    expect(issuesOf(columns([exercise("Ejercicio 1")], [exercise("Ejercicio 2")]))).toEqual([]);
+    // Una columna vacía (recién puesta en columnas) no cuenta
+    expect(issuesOf(columns([long(900)], []))).toEqual([]);
+  });
+
+  it("avisa de un texto largo en una columna o tarjeta angosta", () => {
+    const narrow = issuesOf(blockInputSchema.parse({ type: "columns", columns: [{ blocks: [long(520)] }, { blocks: [long(500)] }, { blocks: [long(500)] }] }));
+    expect(narrow.filter(issue => issue.key.startsWith("c:largo")).length).toBe(3);
+    expect(narrow[0].message).toMatch(/ocupa unos \d+ renglones en la columna 1, que es angosta/);
+    expect(issuesOf(cards(4, { blocks: [long(400)] }, { blocks: [p("corto")] }))[0].message).toMatch(/en la tarjeta 1, que es angosta/);
+    // A media hoja el mismo texto se lee bien
+    expect(issuesOf(columns([long(520)], [long(500)]))).toEqual([]);
+  });
+
+  it("nombra la sección para la IA", () => {
+    const issues = layoutIssues([{ title: "Guía", blocks: [columns([long(900)], [p("corto")])] }]);
+    expect(issues[0].message).toMatch(/^Sección «Guía», columnas: La columna 1/);
   });
 });
