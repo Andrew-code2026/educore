@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyDoc, type BlockInput, type BlockType, type CreatorActivity, type ResourceDoc } from "@shared/creator";
 import { agree, agreementOf, blockName, clipWords, countLabel, describeActivity } from "@shared/creatorActivity";
+import { applyDocOp } from "@shared/creatorOps";
 import { parseMessageExtras, serializeMessageExtras } from "@shared/creatorTurn";
 import { executeCreatorTool } from "./creatorTools";
 
@@ -187,6 +188,20 @@ describe("cómo se lee cada acción de la IA", () => {
     expect(view).toMatchObject({ kind: "edit", subject: "Ejercicio 3", detail: "editado", linked: false });
     const loose = describeActivity({ label: "Actualizado: Una figura compuesta se divide en figuras básicas y se suman", ok: true, changed: true }, emptyDoc());
     expect(loose.subject).toBe("Bloque «Una figura compuesta se divide…»");
+  });
+
+  it("reconoce también las fichas de mover y duplicar", () => {
+    const start = base();
+    const [section] = start.doc.sections;
+    const callout = section.blocks[1];
+    const moved = applyDocOp(start.doc, { op: "move_block_to", blockId: callout.id, sectionId: start.doc.sections[1].id, index: 0 });
+    const copied = applyDocOp(start.doc, { op: "duplicate_block", blockId: section.blocks[2].id });
+    const sectionMoved = applyDocOp(start.doc, { op: "move_section", sectionId: start.doc.sections[1].id, direction: "up" });
+    if (!moved.ok || !copied.ok || !sectionMoved.ok) throw new Error("operación rechazada");
+    const as = (summary: string, ids: string[]): CreatorActivity => ({ label: summary, ok: true, changed: true, blockIds: ids });
+    expect(describeActivity(as(moved.summary, [callout.id]), moved.doc)).toMatchObject({ kind: "move", subject: "Recuadro «Conceptos clave»", detail: "movido a «Clave de respuestas (docente)»", linked: true });
+    expect(describeActivity(as(copied.summary, copied.ids), copied.doc)).toMatchObject({ kind: "add", subject: "Ejercicio 1", detail: "duplicado", linked: true });
+    expect(describeActivity({ label: sectionMoved.summary, ok: true, changed: true, sectionId: start.doc.sections[1].id }, sectionMoved.doc)).toMatchObject({ kind: "move", subject: "Sección «Clave de respuestas (docente)»", detail: "movida", linked: true });
   });
 
   it("los reintentos y lo que no cambió no cuentan como cambios", () => {

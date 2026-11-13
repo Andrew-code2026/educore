@@ -159,9 +159,10 @@ export function describeActivity(activity: CreatorActivity, doc: ResourceDoc): A
 
   if ((match = /^Título: «(.*)»$/.exec(label))) return { kind: "title", subject: "Título", detail: quote(match[1], 56), linked: false, counts: true };
 
-  if ((match = /^Sección «(.*)» (creada|actualizada|eliminada)$/.exec(label))) {
+  if ((match = /^Sección «(.*)» (creada|actualizada|eliminada|movida)$/.exec(label))) {
     const subject = `Sección ${quote(match[1], 44)}`;
     if (match[2] === "eliminada") return { kind: "delete", subject, detail: "eliminada", linked: false, counts: true };
+    if (match[2] === "movida") return { kind: "move", subject, detail: "movida", linked: section !== undefined, counts: true };
     return { kind: "section", subject, detail: match[2] === "creada" ? "creada" : "editada", linked: section !== undefined || liveBlocks(activity, doc, 40).length > 0, counts: true };
   }
 
@@ -193,10 +194,16 @@ export function describeActivity(activity: CreatorActivity, doc: ResourceDoc): A
     return { kind: "delete", subject: many(count, "Bloque", "bloques"), detail: `${count === 1 ? "eliminado" : "eliminados"}${where}`, linked: false, counts: true };
   }
 
-  // La IA no tiene hoy herramienta para mover, pero la operación existe en creatorOps.ts y su ficha se reconoce
-  if (label === "Bloque movido") {
+  // La IA no tiene hoy herramientas para mover ni duplicar, pero las operaciones existen en creatorOps.ts y sus fichas se reconocen
+  if ((match = /^Bloque movido(?: a «(.*)»)?$/.exec(label))) {
     const blocks = liveBlocks(activity, doc, 40);
-    return { kind: "move", subject: blocks.length > 0 ? listNames(blocks) : "Bloque", detail: agreeAll("movid", blocks), linked: blocks.length > 0, counts: true };
+    const where = match[1] ? ` a ${quote(match[1], 40)}` : "";
+    return { kind: "move", subject: blocks.length > 0 ? listNames(blocks) : "Bloque", detail: `${agreeAll("movid", blocks)}${where}`, linked: blocks.length > 0, counts: true };
+  }
+
+  if (label === "Bloque duplicado") {
+    const blocks = liveBlocks(activity, doc, 40);
+    return { kind: "add", subject: blocks.length > 0 ? listNames(blocks) : "Bloque", detail: agreeAll("duplicad", blocks), linked: blocks.length > 0, counts: true };
   }
 
   // Un texto que no se reconoce (de una versión futura o anterior): se muestra tal cual, recortado
