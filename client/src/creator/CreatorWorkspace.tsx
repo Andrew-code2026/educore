@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, ArrowLeft, Check, CloudOff, Copy, History, Loader2, Maximize2, MessageSquare, Minimize2, Printer, Redo2, Trash2, Undo2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, CloudOff, Copy, FileText, History, Loader2, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, Printer, Redo2, Sparkles, Trash2, Undo2 } from "lucide-react";
+import { PanelResizeHandle, type ImperativePanelHandle } from "react-resizable-panels";
 import { toast } from "sonner";
 import { emptyDoc, findBlock, type CreatorAttachment, type CreatorChatMessage, type CreatorEvent, type ResourceDoc } from "@shared/creator";
 import { applyDocOp, type DocOp, type OpResult } from "@shared/creatorOps";
@@ -17,7 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { trpc } from "@/lib/trpc";
 import { CreatorChat, type LiveTurn } from "./CreatorChat";
 import { historyKey, historyShortcut, locateChange, useDocHistory } from "./docHistory";
@@ -93,7 +94,7 @@ function useNarrow(query = "(max-width: 960px)") {
   return narrow;
 }
 
-/** Editor de un recurso: el asistente a un lado y la hoja al otro. */
+/** Editor de un recurso: el copiloto a un lado y la hoja al otro. */
 export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiReady, remaining, onBack, onOpen, onUsage }: CreatorWorkspaceProps) {
   const utils = trpc.useUtils();
   const input = useMemo(() => ({ role, id: resourceId }), [role, resourceId]);
@@ -118,7 +119,23 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   const sheetRef = useRef<EditableDocumentHandle>(null);
   const narrowRef = useRef(narrow);
   narrowRef.current = narrow;
-  /** Bloques señalados para el próximo mensaje al asistente. */
+  /** El panel del copiloto en pantalla ancha: se puede plegar del todo. Su ancho lo recuerda el grupo de paneles. */
+  const chatPanel = useRef<ImperativePanelHandle>(null);
+  const [chatCollapsed, setChatCollapsed] = useState(false);
+  const chatCollapsedRef = useRef(chatCollapsed);
+  chatCollapsedRef.current = chatCollapsed;
+  const toggleChatPanel = useCallback(() => {
+    const panel = chatPanel.current;
+    if (!panel) return;
+    if (panel.isCollapsed()) {
+      panel.expand();
+      setChatCollapsed(false);
+    } else {
+      panel.collapse();
+      setChatCollapsed(true);
+    }
+  }, []);
+  /** Bloques señalados para el próximo mensaje al copiloto. */
   const [attached, setAttached] = useState<string[]>([]);
   const attachedRef = useRef(attached);
   attachedRef.current = attached;
@@ -444,12 +461,12 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     async (message: string) => {
       // Mientras la IA trabaja la hoja no se edita: lo que haya abierto se guarda antes, y si no es válido no se pierde
       if (sheetRef.current && !sheetRef.current.settle()) {
-        toast.error("Hay un bloque abierto con un dato por corregir. Corrígelo o descarta el cambio antes de escribirle al asistente.");
+        toast.error("Hay un bloque abierto con un dato por corregir. Corrígelo o descarta el cambio antes de escribirle al copiloto.");
         throw new Error("editing");
       }
       // La IA debe partir de lo último que escribió el docente
       if (!(await flushAutosave())) {
-        explainUnsaved("escribirle al asistente");
+        explainUnsaved("escribirle al copiloto");
         throw new Error("unsaved");
       }
       // Solo viajan los bloques señalados que siguen en la hoja
@@ -579,7 +596,12 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
     setAttached([...current, blockId]);
     setAttachCount(count => count + 1);
     // En pantalla angosta el chat no está a la vista: se dice dónde quedó
-    if (narrowRef.current) toast("Bloque señalado para el asistente.", { id: ATTACH_TOAST, action: { label: "Abrir asistente", onClick: () => setPane("chat") } });
+    if (narrowRef.current) toast("Bloque señalado para el copiloto.", { id: ATTACH_TOAST, action: { label: "Abrir copiloto", onClick: () => setPane("chat") } });
+    // Plegado, el copiloto se abre: señalar un bloque es empezar a escribirle
+    else if (chatCollapsedRef.current && chatPanel.current) {
+      chatPanel.current.expand();
+      setChatCollapsed(false);
+    }
   }, []);
 
   /** Desde una ficha del chat o desde el resumen del turno: la hoja va hasta el bloque y lo destaca. */
@@ -702,6 +724,7 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   const chat = (
     <CreatorChat
       messages={messages}
+      doc={doc}
       live={working ? (live ?? { phase: "thinking", text: "", activities: [] }) : null}
       blocked={blocked}
       suggestions={suggestions}
@@ -773,6 +796,29 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
   return (
     <div className="crt crt--workspace">
       <header className="crt-bar">
+        {!narrow && (
+          <button
+            type="button"
+            className="crt-btn crt-btn--ghost crt-panel-toggle"
+            aria-expanded={!chatCollapsed}
+            aria-controls="crt-copilot"
+            aria-label={
+              chatCollapsed
+                ? `Mostrar copiloto${attachments.length > 0 ? ` (${attachments.length} ${attachments.length === 1 ? "bloque señalado" : "bloques señalados"})` : ""}`
+                : "Ocultar copiloto"
+            }
+            title={chatCollapsed ? "Mostrar copiloto" : "Ocultar copiloto: la hoja ocupa todo el ancho"}
+            onClick={toggleChatPanel}
+          >
+            {chatCollapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
+            {chatCollapsed && <span aria-hidden="true">Copiloto</span>}
+            {chatCollapsed && attachments.length > 0 && (
+              <span className="crt-count" aria-hidden="true">
+                {attachments.length}
+              </span>
+            )}
+          </button>
+        )}
         <button type="button" className="crt-btn crt-btn--ghost" onClick={() => void handleBack()}>
           <ArrowLeft aria-hidden="true" />
           Mis recursos
@@ -800,8 +846,8 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
         <div className="crt-bar__actions">
           {narrow && (
             <button type="button" className="crt-btn crt-btn--outline" aria-pressed={pane === "chat"} onClick={() => setPane(current => (current === "chat" ? "doc" : "chat"))}>
-              <MessageSquare aria-hidden="true" />
-              {pane === "chat" ? "Ver recurso" : "Asistente"}
+              {pane === "chat" ? <FileText aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
+              {pane === "chat" ? "Ver recurso" : "Copiloto"}
               {pane !== "chat" && attachments.length > 0 && (
                 <span className="crt-count" aria-label={`${attachments.length} ${attachments.length === 1 ? "bloque señalado" : "bloques señalados"}`}>
                   {attachments.length}
@@ -868,11 +914,39 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
           )
         ) : (
           <ResizablePanelGroup direction="horizontal" autoSaveId="educore-creator-split">
-            <ResizablePanel defaultSize={30} minSize={22} maxSize={46}>
+            {/* Plegado, el panel sigue montado (conserva lo escrito) pero queda fuera del recorrido con Tab.
+                Los ids fijos hacen que el ancho de antes de plegar se recuerde también al volver a abrir el editor. */}
+            <ResizablePanel
+              ref={chatPanel}
+              id="crt-copilot-panel"
+              order={1}
+              defaultSize={30}
+              minSize={22}
+              maxSize={46}
+              collapsible
+              collapsedSize={0}
+              inert={chatCollapsed}
+              onCollapse={() => setChatCollapsed(true)}
+              onExpand={() => setChatCollapsed(false)}
+            >
               {chat}
             </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={70} minSize={40}>
+            {/* Divisor propio del editor (el de @/components/ui lo usan otros módulos): se marca al acercar el
+                puntero; las flechas cambian el ancho y Enter pliega o despliega el copiloto */}
+            <PanelResizeHandle
+              className={chatCollapsed ? "crt-split is-collapsed" : "crt-split"}
+              aria-label="Ancho del copiloto"
+              title="Arrastra para cambiar el ancho del copiloto. Con el teclado: flechas, y Enter para plegarlo o desplegarlo."
+              // Enter lo resuelve el editor: el de la librería pliega sin avisar a onCollapse/onExpand y el botón de la barra quedaría al revés
+              onKeyDownCapture={event => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                toggleChatPanel();
+              }}
+            >
+              <span className="crt-split__grip" aria-hidden="true" />
+            </PanelResizeHandle>
+            <ResizablePanel id="crt-sheet-panel" order={2} defaultSize={70} minSize={40}>
               {sheet}
             </ResizablePanel>
           </ResizablePanelGroup>
