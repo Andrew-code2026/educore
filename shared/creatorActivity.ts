@@ -1,4 +1,4 @@
-import { BLOCK_TYPE_LABELS, findBlock, plainText, type BlockInput, type BlockType, type CreatorActivity, type ResourceDoc } from "./creator";
+import { BLOCK_TYPE_LABELS, blockCells, findBlock, plainText, type BlockInput, type BlockType, type CreatorActivity, type ResourceDoc } from "./creator";
 
 /**
  * Cómo se lee en el chat cada cosa que hizo la IA: qué tipo de acción fue (para el icono) y qué tocó,
@@ -71,6 +71,8 @@ const AGREEMENT: Record<BlockType, Agreement> = {
   balance: "f",
   solution: "f",
   page_break: "m",
+  columns: "fp",
+  cards: "fp",
 };
 
 const ENDINGS: Record<Agreement, string> = { m: "o", f: "a", mp: "os", fp: "as" };
@@ -118,6 +120,12 @@ export function blockName(block: BlockInput, max = 40): string {
     case "header_fields":
     case "page_break":
       return type;
+    case "columns":
+      return `${block.columns.length} columnas`;
+    case "cards": {
+      const titled = block.cards.find(card => card.title)?.title;
+      return titled ? `Tarjetas ${quote(plainText(titled, 400), max)}` : type;
+    }
   }
   // Tablas y figuras: el título o el pie de figura las distinguen de otras del mismo tipo
   const named = ("title" in block && block.title) || ("caption" in block && block.caption) || "";
@@ -204,6 +212,22 @@ export function describeActivity(activity: CreatorActivity, doc: ResourceDoc): A
   if (label === "Bloque duplicado") {
     const blocks = liveBlocks(activity, doc, 40);
     return { kind: "add", subject: blocks.length > 0 ? listNames(blocks) : "Bloque", detail: agreeAll("duplicad", blocks), linked: blocks.length > 0, counts: true };
+  }
+
+  if ((match = /^Puesto en (columnas|tarjetas)$/.exec(label))) {
+    // La ficha guarda el contenedor nuevo: se nombra lo que quedó dentro de él («Ejercicio 6 y Ejercicio 7»)
+    const inner = (activity.blockIds ?? []).flatMap(id => {
+      const found = findBlock(doc, id);
+      return found ? blockCells(found.block).flat().map(block => ({ type: block.type, name: blockName(block, 28) })) : [];
+    });
+    if (inner.length > 0) return { kind: "move", subject: listNames(inner), detail: `${agreeAll("puest", inner)} en ${match[1]}`, linked: true, counts: true };
+    const blocks = liveBlocks(activity, doc, 40);
+    return { kind: "move", subject: blocks.length > 0 ? listNames(blocks) : "Bloques", detail: `en ${match[1]}`, linked: blocks.length > 0, counts: true };
+  }
+
+  if ((match = /^Sacado de las (columnas|tarjetas)$/.exec(label))) {
+    const blocks = liveBlocks(activity, doc, 28);
+    return { kind: "move", subject: blocks.length > 0 ? listNames(blocks) : "Bloques", detail: `${agreeAll("sacad", blocks)} de las ${match[1]}`, linked: blocks.length > 0, counts: true };
   }
 
   // Un texto que no se reconoce (de una versión futura o anterior): se muestra tal cual, recortado

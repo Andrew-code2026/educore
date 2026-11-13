@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { emptyDoc, RESOURCE_KIND_LABELS, type ResourceDoc } from "@shared/creator";
+import { blockInputSchema, emptyDoc, RESOURCE_KIND_LABELS, type ResourceDoc } from "@shared/creator";
 import { applyDocOp } from "@shared/creatorOps";
 import { SAMPLE_IDS, SAMPLES } from "@shared/creatorSample";
+import { describeActivity } from "@shared/creatorActivity";
 import { buildCreatorMessages, CREATOR_SYSTEM_PROMPT } from "./creatorAgent";
 import { buildClarifyMessage, CLARIFY_SYSTEM_PROMPT } from "./creatorClarify";
 import { CREATOR_TOOLS, executeCreatorTool, previewBlocks } from "./creatorTools";
@@ -22,6 +23,8 @@ describe("herramientas del agente", () => {
       "insert_blocks",
       "update_block",
       "delete_blocks",
+      "wrap_blocks",
+      "unwrap_container",
     ]);
     for (const tool of CREATOR_TOOLS) {
       expect(tool.input_schema.type).toBe("object");
@@ -202,5 +205,122 @@ describe("petición al modelo", () => {
     expect(message).not.toContain("Grado:");
     expect(message).toContain("<solicitud_del_docente>\nTaller de la célula\n</solicitud_del_docente>");
     expect(CLARIFY_SYSTEM_PROMPT).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+  });
+});
+
+describe("la IA con columnas y tarjetas", () => {
+  const paragraph = (md: string) => ({ type: "paragraph", md });
+  const exercise = (label: string) => ({ type: "exercise", label, md: `Calcula lo de ${label}.` });
+
+  it("cada tipo de bloque va una vez en el esquema, con su nombre", () => {
+    const schema = CREATOR_TOOLS.find(tool => tool.name === "insert_blocks")!.input_schema as { $defs: Record<string, unknown> };
+    expect(Object.keys(schema.$defs)).toContain("exercise");
+    expect(Object.keys(schema.$defs).some(key => key.startsWith("__schema"))).toBe(false);
+    // Escrito una sola vez: no crece por llevar los bloques también dentro de las celdas
+    expect(JSON.stringify(schema).length).toBeLessThan(50_000);
+    expect(JSON.stringify(schema).match(/"const":"exercise"/g)).toHaveLength(1);
+  });
+
+  it("escribe columnas y luego añade y edita dentro de una celda", () => {
+    let doc = write(emptyDoc(), [paragraph("Intro"), { type: "columns", columns: [{ blocks: [exercise("Ejercicio 1")] }, { blocks: [exercise("Ejercicio 2")] }] }]).doc;
+    const section = doc.sections[0];
+    const columns = section.blocks[1];
+    expect(columns.type).toBe("columns");
+    const added = executeCreatorTool(doc, "insert_blocks", { section_id: section.id, container_id: columns.id, cell: 1, blocks: [exercise("Ejercicio 3")] });
+    expect(added.isError, added.result).toBe(false);
+    expect(added.activity.blockIds).toHaveLength(1);
+    doc = added.doc;
+    const third = added.activity.blockIds![0];
+    const edited = executeCreatorTool(doc, "update_block", { block_id: third, block: exercise("Ejercicio 3b") });
+    expect(edited.isError, edited.result).toBe(false);
+    expect(describeActivity(edited.activity, edited.doc)).toMatchObject({ kind: "edit", subject: "Ejercicio 3b", linked: true });
+  });
+
+  it("le explica al modelo qué no cabe y dónde", () => {
+    const outcome = write(emptyDoc(), [
+      { type: "columns", columns: [{ blocks: [{ type: "bar_chart", bars: [{ label: "A", value: 1 }, { label: "B", value: 2 }] }] }, { blocks: [paragraph("x")] }] },
+    ]);
+    expect(outcome.isError).toBe(true);
+    expect(outcome.result).toMatch(/Bloque 1 — Diagrama de barras no cabe legible en la columna 1: necesita al menos dos tercios/);
+  });
+
+  it("revisa el orden dentro de una celda y deja pasar una figura en la columna de al lado", () => {
+    const plane = { type: "graph", spec: { xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [], points: [] } };
+    const beside = write(emptyDoc(), [{ type: "columns", columns: [{ blocks: [exercise("Ejercicio 1")] }, { blocks: [plane] }] }]);
+    expect(beside.isError, beside.result).toBe(false);
+    const below = write(emptyDoc(), [{ type: "columns", columns: [{ blocks: [exercise("Ejercicio 1"), plane] }, { blocks: [paragraph("x")] }] }]);
+    expect(below.isError).toBe(true);
+    expect(below.result).toContain("columna 1, Ejercicio 1");
+  });
+
+  it("pone en columnas lo que ya existe y lo vuelve a sacar, con fichas que se leen", () => {
+    let doc = write(emptyDoc(), [exercise("Ejercicio 1"), exercise("Ejercicio 2"), paragraph("Cierre")]).doc;
+    const [first, second, closing] = doc.sections[0].blocks;
+    const wrapped = executeCreatorTool(doc, "wrap_blocks", { block_ids: [first.id, second.id], as: "columns" });
+    expect(wrapped.isError, wrapped.result).toBe(false);
+    expect(describeActivity(wrapped.activity, wrapped.doc)).toMatchObject({ kind: "move", subject: "Ejercicio 1 y Ejercicio 2", detail: "puestos en columnas", linked: true });
+    doc = wrapped.doc;
+    const container = wrapped.activity.blockIds![0];
+    const unwrapped = executeCreatorTool(doc, "unwrap_container", { container_id: container });
+    expect(unwrapped.isError, unwrapped.result).toBe(false);
+    expect(describeActivity(unwrapped.activity, unwrapped.doc)).toMatchObject({ kind: "move", subject: "Ejercicio 1 y Ejercicio 2", detail: "sacados de las columnas" });
+    expect(unwrapped.doc.sections[0].blocks.map(block => block.id)).toEqual([first.id, second.id, closing.id]);
+  });
+
+  it("borrar un contenedor lo nombra en la ficha", () => {
+    const doc = write(emptyDoc(), [{ type: "cards", cards: [{ title: "Pendiente", blocks: [paragraph("m")] }] }]).doc;
+    const removed = executeCreatorTool(doc, "delete_blocks", { block_ids: [doc.sections[0].blocks[0].id] });
+    expect(removed.activity.removed).toEqual([{ type: "cards", name: "Tarjetas «Pendiente»" }]);
+  });
+
+  it("devuelve los valores calculados de una figura dentro de una celda", () => {
+    const outcome = write(emptyDoc(), [
+      { type: "columns", columns: [{ blocks: [paragraph("Datos")] }, { width: 2, blocks: [{ type: "box_plot", series: [{ data: [1, 2, 3, 4, 5, 6, 7] }] }] }] },
+    ]);
+    expect(outcome.isError, outcome.result).toBe(false);
+    expect(outcome.result).toContain("Valores calculados por el sistema");
+  });
+
+  it("las instrucciones dicen cuándo convienen y cuándo no", () => {
+    expect(CREATOR_SYSTEM_PROMPT).toContain("## Columnas y tarjetas");
+    expect(CREATOR_SYSTEM_PROMPT).toContain("wrap_blocks");
+  });
+});
+
+describe("la IA no deja columnas desparejas", () => {
+  const longText = { type: "paragraph", md: "Un texto largo que explica con calma cada paso del procedimiento para el estudiante. ".repeat(12) };
+  const short = { type: "exercise", label: "Ejercicio 1", md: "Calcula 2 + 2.", lines: 2 };
+
+  it("rechaza un texto largo junto a algo corto y dice cómo arreglarlo", () => {
+    const outcome = write(emptyDoc(), [{ type: "columns", columns: [{ blocks: [longText] }, { blocks: [short] }] }]);
+    expect(outcome.isError).toBe(true);
+    expect(outcome.activity.label).toBe("Revisando el diseño");
+    expect(outcome.result).toMatch(/Sección «Guía», columnas: La columna 1 es mucho más larga que la columna 2/);
+  });
+
+  it("no la bloquea por columnas que ya estaban así", () => {
+    const blocks = [blockInputSchema.parse({ type: "columns", columns: [{ blocks: [longText] }, { blocks: [short] }] }), blockInputSchema.parse({ type: "paragraph", md: "Otro" })];
+    const made = applyDocOp(emptyDoc(), { op: "write_section", title: "Guía", role: "student", blocks });
+    if (!made.ok) throw new Error(made.error);
+    const other = made.doc.sections[0].blocks[1];
+    const outcome = executeCreatorTool(made.doc, "update_block", { block_id: other.id, block: { type: "paragraph", md: "Otro texto" } });
+    expect(outcome.isError, outcome.result).toBe(false);
+  });
+});
+
+describe("el orden dentro de una celda no se vuelve nuevo al cambiar de columna", () => {
+  it("añadir una columna delante no bloquea a la IA por un problema que ya estaba", () => {
+    const plane = { type: "graph", spec: { xMin: -5, xMax: 5, yMin: -5, yMax: 5, functions: [], points: [] } };
+    const blocks = [blockInputSchema.parse({ type: "columns", columns: [{ blocks: [{ type: "paragraph", md: "Texto" }] }, { blocks: [{ type: "exercise", label: "Ejercicio 1", md: "Mira el plano." }, plane] }] })];
+    const made = applyDocOp(emptyDoc(), { op: "write_section", title: "Guía", role: "student", blocks });
+    if (!made.ok) throw new Error(made.error);
+    const columns = made.doc.sections[0].blocks[0];
+    if (columns.type !== "columns") throw new Error("no es columnas");
+    // La IA reescribe las columnas con una columna nueva al principio: el ejercicio pasa de la columna 2 a la 3
+    const outcome = executeCreatorTool(made.doc, "update_block", {
+      block_id: columns.id,
+      block: { type: "columns", columns: [{ blocks: [{ type: "paragraph", md: "Nuevo" }] }, ...columns.columns.map((column, index) => ({ width: index === 1 ? 2 : 1, blocks: column.blocks.map(({ id: _id, ...rest }) => rest) }))] },
+    });
+    expect(outcome.isError, outcome.result).toBe(false);
   });
 });

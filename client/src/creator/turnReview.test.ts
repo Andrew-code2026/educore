@@ -204,3 +204,35 @@ describe("la respuesta que se puede deshacer desde el chat", () => {
     expect(lastTurnMessage([])).toBeNull();
   });
 });
+
+describe("marcas y deshacer con bloques dentro de columnas", () => {
+  /** La guía de muestra con sus dos primeros párrafos puestos en columnas. */
+  const withColumns = () => {
+    const start = buildSampleDoc("funciones");
+    const paragraphs = start.sections[0].blocks.filter(block => block.type === "paragraph").slice(0, 1);
+    return apply(start, { op: "wrap_blocks", blockIds: paragraphs.map(block => block.id), as: "columns" }).doc;
+  };
+
+  it("marca el bloque de dentro que cambió la IA y la marca sigue al objeto", () => {
+    const before = withColumns();
+    const columns = before.sections[0].blocks.find(block => block.type === "columns")!;
+    const inner = columns.type === "columns" ? columns.columns[0].blocks[0] : null;
+    const after = apply(before, { op: "update_block", blockId: inner!.id, block: paragraph("Texto que escribió la IA") }).doc;
+    const review = startReview(9, diffTurn(before, after), after);
+    expect(pendingMarks(review, after)).toEqual([{ id: inner!.id, kind: "changed" }]);
+    // El docente lo edita: la marca se va
+    const edited = apply(after, { op: "update_block", blockId: inner!.id, block: paragraph("Otra cosa") }).doc;
+    expect(pendingMarks(review, edited)).toEqual([]);
+  });
+
+  it("deshacer o rehacer lleva al bloque de dentro que cambió, no al contenedor", () => {
+    const before = withColumns();
+    const columns = before.sections[0].blocks.find(block => block.type === "columns")!;
+    const after = apply(before, { op: "insert_blocks", sectionId: before.sections[0].id, containerId: columns.id, cell: 1, blocks: [paragraph("Nuevo")] }).doc;
+    const added = after.sections[0].blocks.find(block => block.id === columns.id)!;
+    const inner = added.type === "columns" ? added.columns[1].blocks[0] : null;
+    expect(locateChange(before, after)).toEqual({ sectionId: before.sections[0].id, blockId: inner!.id });
+    // Al deshacer, el bloque nuevo ya no está: el cambio queda en el contenedor
+    expect(locateChange(after, before)).toEqual({ sectionId: before.sections[0].id, blockId: columns.id });
+  });
+});

@@ -45,6 +45,18 @@ export const CREATOR_LIMITS = {
   scatterPointsMax: 40,
   docBytesMax: 400_000,
   versionsKept: 20,
+  /** Columnas de un bloque de columnas: con cuatro, cada una mide menos que un renglón de cuaderno. */
+  columnsMin: 2,
+  columnsMax: 3,
+  /** La suma de los anchos relativos de las columnas: así la más angosta nunca baja de un cuarto de la hoja. */
+  columnWidthsMax: 4,
+  /** Tarjetas de una rejilla: tres filas de cuatro caben en una hoja. */
+  cardsMax: 12,
+  cardsPerRowMin: 2,
+  cardsPerRowMax: 4,
+  cardTitleMax: 80,
+  /** Bloques dentro de una columna o de una tarjeta. */
+  cellBlocksMax: 8,
 } as const;
 
 export const RESOURCE_KINDS = ["guia", "taller", "evaluacion", "calentamiento", "contexto_real"] as const;
@@ -698,6 +710,74 @@ const pageBreakBlock = z.object({
   type: z.literal("page_break"),
 });
 
+/* ───────────────────────── Contenedores ─────────────────────────
+ *
+ * Dos bloques guardan otros bloques: las columnas (lado a lado) y las tarjetas (una rejilla de
+ * recuadros). Hay un solo nivel: dentro de una columna o de una tarjeta van bloques de contenido,
+ * nunca otro contenedor, ni los datos del estudiante (encabezan la hoja) ni un salto de página
+ * (partiría la fila). Lo que además no cabe por ancho (una gráfica ancha en una columna angosta)
+ * lo decide `fitIssue` en creatorContainers.ts, porque depende de la celda.
+ *
+ * Las celdas no llevan id: se nombran por el id del contenedor y su posición (`cell`), que es lo
+ * que ve el docente («la columna 2») y lo que escribe el modelo sin tener que copiar otro id.
+ */
+
+/** Bloque que puede ir dentro de una columna o de una tarjeta, como lo escribe el modelo. */
+export const innerBlockInputSchema = z.discriminatedUnion("type", [
+  headingBlock,
+  paragraphBlock,
+  calloutBlock,
+  mathBlock,
+  exerciseBlock,
+  tableBlock,
+  valueTableBlock,
+  graphBlock,
+  numberLineBlock,
+  fractionModelBlock,
+  barChartBlock,
+  pieChartBlock,
+  histogramBlock,
+  boxPlotBlock,
+  lineChartBlock,
+  scatterPlotBlock,
+  angleBlock,
+  vennBlock,
+  treeDiagramBlock,
+  barModelBlock,
+  pictogramBlock,
+  clockBlock,
+  baseTenBlock,
+  areaModelBlock,
+  shapesBlock,
+  balanceBlock,
+  solutionBlock,
+]);
+
+const columnWidth = z.number().int().min(1).max(2).default(1).describe("Ancho relativo: una columna de 2 mide el doble que una de 1.");
+const cardTitle = z.string().trim().max(CREATOR_LIMITS.cardTitleMax).optional().describe("Título corto de la tarjeta, en Markdown; puede llevar una fórmula.");
+
+const columnsShape = <B extends z.ZodType>(block: B) => ({
+  type: z.literal("columns"),
+  columns: z
+    .array(z.object({ width: columnWidth, blocks: z.array(block).max(CREATOR_LIMITS.cellBlocksMax) }))
+    .min(CREATOR_LIMITS.columnsMin)
+    .max(CREATOR_LIMITS.columnsMax)
+    .describe(`De ${CREATOR_LIMITS.columnsMin} a ${CREATOR_LIMITS.columnsMax} columnas lado a lado, cada una con sus bloques. Los anchos suman como mucho ${CREATOR_LIMITS.columnWidthsMax}.`),
+});
+
+const cardsShape = <B extends z.ZodType>(block: B) => ({
+  type: z.literal("cards"),
+  perRow: z.number().int().min(CREATOR_LIMITS.cardsPerRowMin).max(CREATOR_LIMITS.cardsPerRowMax).default(2).describe("Tarjetas por fila."),
+  cards: z
+    .array(z.object({ title: cardTitle, blocks: z.array(block).max(CREATOR_LIMITS.cellBlocksMax) }))
+    .min(1)
+    .max(CREATOR_LIMITS.cardsMax)
+    .describe("Cada tarjeta es un recuadro con título opcional y sus bloques."),
+});
+
+const columnsBlock = z.object(columnsShape(innerBlockInputSchema));
+const cardsBlock = z.object(cardsShape(innerBlockInputSchema));
+
 /** Bloque tal como lo escribe el modelo o un formulario: aún sin identificador. */
 export const blockInputSchema = z.discriminatedUnion("type", [
   headerFieldsBlock,
@@ -729,9 +809,42 @@ export const blockInputSchema = z.discriminatedUnion("type", [
   balanceBlock,
   solutionBlock,
   pageBreakBlock,
+  columnsBlock,
+  cardsBlock,
 ]);
 
 const id = z.string().min(1).max(24);
+
+/** Bloque guardado dentro de un contenedor: tiene id propio, único en todo el documento. */
+export const innerBlockSchema = z.discriminatedUnion("type", [
+  headingBlock.extend({ id }),
+  paragraphBlock.extend({ id }),
+  calloutBlock.extend({ id }),
+  mathBlock.extend({ id }),
+  exerciseBlock.extend({ id }),
+  tableBlock.extend({ id }),
+  valueTableBlock.extend({ id }),
+  graphBlock.extend({ id }),
+  numberLineBlock.extend({ id }),
+  fractionModelBlock.extend({ id }),
+  barChartBlock.extend({ id }),
+  pieChartBlock.extend({ id }),
+  histogramBlock.extend({ id }),
+  boxPlotBlock.extend({ id }),
+  lineChartBlock.extend({ id }),
+  scatterPlotBlock.extend({ id }),
+  angleBlock.extend({ id }),
+  vennBlock.extend({ id }),
+  treeDiagramBlock.extend({ id }),
+  barModelBlock.extend({ id }),
+  pictogramBlock.extend({ id }),
+  clockBlock.extend({ id }),
+  baseTenBlock.extend({ id }),
+  areaModelBlock.extend({ id }),
+  shapesBlock.extend({ id }),
+  balanceBlock.extend({ id }),
+  solutionBlock.extend({ id }),
+]);
 
 /** Bloque guardado: el servidor le asigna un `id` estable para poder editarlo desde el chat. */
 export const blockSchema = z.discriminatedUnion("type", [
@@ -764,6 +877,8 @@ export const blockSchema = z.discriminatedUnion("type", [
   balanceBlock.extend({ id }),
   solutionBlock.extend({ id }),
   pageBreakBlock.extend({ id }),
+  z.object({ ...columnsShape(innerBlockSchema), id }),
+  z.object({ ...cardsShape(innerBlockSchema), id }),
 ]);
 
 export const sectionSchema = z.object({
@@ -792,6 +907,12 @@ export type BlockInput = z.infer<typeof blockInputSchema>;
 export type Block = z.infer<typeof blockSchema>;
 export type BlockType = Block["type"];
 export type BlockOf<T extends BlockType> = Extract<Block, { type: T }>;
+export type InnerBlockInput = z.infer<typeof innerBlockInputSchema>;
+export type InnerBlock = z.infer<typeof innerBlockSchema>;
+export type InnerBlockType = InnerBlock["type"];
+export type ContainerType = "columns" | "cards";
+export type ContainerBlock = BlockOf<ContainerType>;
+export type ContainerInput = Extract<BlockInput, { type: ContainerType }>;
 export type Section = z.infer<typeof sectionSchema>;
 export type ResourceDoc = z.infer<typeof resourceDocSchema>;
 
@@ -825,7 +946,42 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   balance: "Balanza",
   solution: "Solución",
   page_break: "Salto de página",
+  columns: "Columnas",
+  cards: "Tarjetas",
 };
+
+/** Los tipos que pueden ir dentro de una columna o de una tarjeta (el mismo orden del esquema). */
+export const INNER_BLOCK_TYPES: ReadonlySet<BlockType> = new Set(innerBlockInputSchema.options.map(option => option.shape.type.value));
+
+export const isContainer = <T extends BlockInput>(block: T): block is Extract<T, { type: ContainerType }> => block.type === "columns" || block.type === "cards";
+export const isContainerType = (type: BlockType): type is ContainerType => type === "columns" || type === "cards";
+
+/** Las listas de bloques de un contenedor, en orden de lectura (columna a columna, tarjeta a tarjeta). Vacío si no es contenedor. */
+export function blockCells(block: Block): InnerBlock[][];
+export function blockCells(block: BlockInput): InnerBlockInput[][];
+export function blockCells(block: BlockInput): InnerBlockInput[][] {
+  if (block.type === "columns") return block.columns.map(column => column.blocks);
+  if (block.type === "cards") return block.cards.map(card => card.blocks);
+  return [];
+}
+
+/** El mismo contenedor con otras listas de bloques; anchos y títulos se conservan. */
+export function withCells<T extends ContainerBlock>(block: T, cells: InnerBlock[][]): T;
+export function withCells<T extends ContainerInput>(block: T, cells: InnerBlockInput[][]): T;
+export function withCells(block: ContainerInput, cells: InnerBlockInput[][]): ContainerInput {
+  if (block.type === "columns") return { ...block, columns: block.columns.map((column, index) => ({ ...column, blocks: cells[index] ?? [] })) };
+  return { ...block, cards: block.cards.map((card, index) => ({ ...card, blocks: cells[index] ?? [] })) };
+}
+
+/** Todos los bloques de una lista, con los de dentro de cada contenedor justo después de él (el orden de lectura). */
+export function flattenBlocks(blocks: readonly Block[]): Block[];
+export function flattenBlocks(blocks: readonly BlockInput[]): BlockInput[];
+export function flattenBlocks(blocks: readonly BlockInput[]): BlockInput[] {
+  return blocks.flatMap(block => [block, ...blockCells(block).flat()]);
+}
+
+/** Todos los bloques del documento en orden de lectura, también los de dentro de columnas y tarjetas. */
+export const allBlocks = (doc: ResourceDoc): Block[] => doc.sections.flatMap(section => flattenBlocks(section.blocks));
 
 /* ───────────────────────── Preguntas aclaratorias ───────────────────────── */
 
@@ -955,14 +1111,33 @@ export function parseDoc(raw: unknown): ResourceDoc {
   }
 }
 
+/** Bloques del documento, contando los de dentro de columnas y tarjetas (un contenedor cuenta como uno más). */
 export function countBlocks(doc: ResourceDoc): number {
-  return doc.sections.reduce((total, section) => total + section.blocks.length, 0);
+  return allBlocks(doc).length;
 }
 
-export function findBlock(doc: ResourceDoc, blockId: string): { section: Section; block: Block; index: number } | null {
+/** Dónde está un bloque: su sección, su lugar en su lista y, si está dentro de un contenedor, cuál y en qué celda. */
+export interface FoundBlock {
+  section: Section;
+  block: Block;
+  /** Posición en su lista: la de la sección o la de su celda. */
+  index: number;
+  /** El contenedor que lo guarda, la celda y el lugar del contenedor en la sección; `null` en el primer nivel. */
+  parent: { container: ContainerBlock; cell: number; index: number } | null;
+}
+
+export function findBlock(doc: ResourceDoc, blockId: string): FoundBlock | null {
   for (const section of doc.sections) {
-    const index = section.blocks.findIndex(block => block.id === blockId);
-    if (index !== -1) return { section, block: section.blocks[index], index };
+    for (let index = 0; index < section.blocks.length; index++) {
+      const block = section.blocks[index];
+      if (block.id === blockId) return { section, block, index, parent: null };
+      if (!isContainer(block)) continue;
+      const cells = blockCells(block);
+      for (let cell = 0; cell < cells.length; cell++) {
+        const inner = cells[cell].findIndex(candidate => candidate.id === blockId);
+        if (inner !== -1) return { section, block: cells[cell][inner], index: inner, parent: { container: block, cell, index } };
+      }
+    }
   }
   return null;
 }
@@ -985,7 +1160,7 @@ export function collectIds(doc: ResourceDoc): Set<string> {
   const ids = new Set<string>();
   for (const section of doc.sections) {
     ids.add(section.id);
-    for (const block of section.blocks) ids.add(block.id);
+    for (const block of flattenBlocks(section.blocks)) ids.add(block.id);
   }
   return ids;
 }
@@ -1164,6 +1339,9 @@ function ownTexts(block: BlockInput): string[] {
       return block.figures.flatMap(shapeLabels);
     case "angle":
       return block.angles.map(angle => angle.label ?? "");
+    case "cards":
+      // Solo lo propio del contenedor: sus bloques se recorren aparte, cada uno con su nombre
+      return block.cards.map(card => card.title ?? "");
     default:
       return [];
   }
@@ -1190,12 +1368,14 @@ function mapOwnTexts<T extends BlockInput>(block: T, fn: (md: string) => string)
       return { ...block, figures: block.figures.map(figure => mapShapeLabels(figure, fn)) };
     case "angle":
       return { ...block, angles: block.angles.map(angle => (angle.label ? { ...angle, label: fn(angle.label) } : angle)) };
+    case "cards":
+      return { ...block, cards: block.cards.map(card => (card.title ? { ...card, title: fn(card.title) } : card)) };
     default:
       return block;
   }
 }
 
-/** Aplica una transformación a todos los campos Markdown de un bloque, incluido su pie. */
+/** Aplica una transformación a todos los campos Markdown de un bloque, incluido su pie. En un contenedor, solo a sus títulos. */
 export function mapBlockTexts<T extends BlockInput>(block: T, fn: (md: string) => string): T {
   const mapped = mapOwnTexts(block, fn);
   return "caption" in mapped && mapped.caption ? { ...mapped, caption: fn(mapped.caption) } : mapped;
@@ -1264,5 +1444,13 @@ export function blockPreview(block: BlockInput): string {
       return `${block.label}. ${plainText(block.answer ?? block.steps[0] ?? "", 110)}`;
     case "page_break":
       return "Salto de página";
+    case "columns": {
+      const parts = block.columns.map(column => (column.blocks[0] ? plainText(blockPreview(column.blocks[0]), 50) : "vacía"));
+      return `${block.columns.length} columnas: ${parts.join(" | ")}`;
+    }
+    case "cards": {
+      const parts = block.cards.map(card => plainText(card.title ?? (card.blocks[0] ? blockPreview(card.blocks[0]) : "vacía"), 40));
+      return `${block.cards.length === 1 ? "1 tarjeta" : `${block.cards.length} tarjetas`}: ${parts.join(" | ")}`;
+    }
   }
 }

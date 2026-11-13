@@ -11,9 +11,11 @@ import {
   ChartScatter,
   ChartSpline,
   Clock,
+  Columns2,
   Divide,
   Grid2x2,
   Heading,
+  LayoutGrid,
   ListChecks,
   MessageSquareQuote,
   MoveHorizontal,
@@ -65,6 +67,8 @@ const ICONS: Record<BlockType, ComponentType<{ "aria-hidden"?: boolean }>> = {
   area_model: Grid2x2,
   balance: Scale,
   page_break: SeparatorHorizontal,
+  columns: Columns2,
+  cards: LayoutGrid,
 };
 
 interface BlockPickerProps {

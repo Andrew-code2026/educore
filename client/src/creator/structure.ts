@@ -3,7 +3,7 @@
  * ofrecen al insertar y cómo se buscan, a dónde cae un bloque que se arrastra o se mueve con el
  * teclado, y los atajos que cambian el tipo de un bloque al escribir.
  */
-import { BLOCK_TYPE_LABELS, findBlock, type BlockInput, type BlockType, type ResourceDoc } from "@shared/creator";
+import { BLOCK_TYPE_LABELS, blockCells, findBlock, type BlockInput, type BlockType, type ResourceDoc } from "@shared/creator";
 import type { DocOp } from "@shared/creatorOps";
 
 /* ───────────────────────── Catálogo de bloques ───────────────────────── */
@@ -26,6 +26,7 @@ export const BLOCK_FAMILIES: readonly BlockFamily[] = [
   },
   { id: "geometry", label: "Geometría y medida", types: ["shapes", "angle", "clock"] },
   { id: "numbers", label: "Números y operaciones", types: ["number_line", "fraction_model", "bar_model", "base_ten", "area_model", "balance"] },
+  { id: "layout", label: "Columnas y tarjetas", types: ["columns", "cards"] },
   { id: "page", label: "Página", types: ["page_break"] },
 ];
 
@@ -62,6 +63,8 @@ export const BLOCK_INFO: Partial<Record<BlockType, { hint: string; keywords: str
   area_model: { hint: "Rectángulo partido para multiplicar o factorizar", keywords: "multiplicacion factorizar distributiva" },
   balance: { hint: "Una ecuación como balanza en equilibrio", keywords: "ecuaciones equilibrio igualdad" },
   page_break: { hint: "Lo que sigue empieza en una hoja nueva al imprimir", keywords: "hoja nueva imprimir" },
+  columns: { hint: "Dos o tres columnas lado a lado", keywords: "lado mitad dividir comparar paralelo dos tres" },
+  cards: { hint: "Recuadros en rejilla: vocabulario, casos, estaciones", keywords: "rejilla cuadricula fichas recuadros vocabulario casos estaciones grupos" },
 };
 
 /** Minúsculas y sin tildes: «grafica» encuentra «Gráfica». */
@@ -138,25 +141,42 @@ export function insertOp(doc: ResourceDoc, place: InsertPlace, blocks: BlockInpu
 
 /* ───────────────────────── Mover ───────────────────────── */
 
-/** A dónde va un bloque que se mueve: el hueco `index` de una sección (ver `move_block_to`). */
+/**
+ * A dónde va un bloque que se mueve: el hueco `index` de una lista (ver `move_block_to`). La lista es
+ * la de la sección o, con `containerId` y `cell`, la de una columna o una tarjeta de esa sección.
+ */
 export interface DropTarget {
   sectionId: string;
   index: number;
+  containerId?: string;
+  cell?: number;
 }
+
+/** ¿Es la lista donde ya está el bloque? */
+const inSameList = (found: NonNullable<ReturnType<typeof findBlock>>, target: DropTarget) =>
+  found.section.id === target.sectionId && (found.parent ? found.parent.container.id === target.containerId && found.parent.cell === target.cell : target.containerId === undefined);
 
 /** ¿Soltar ahí lo deja donde estaba? */
 export function isSamePlace(doc: ResourceDoc, blockId: string, target: DropTarget): boolean {
   const found = findBlock(doc, blockId);
-  return found !== null && found.section.id === target.sectionId && (target.index === found.index || target.index === found.index + 1);
+  return found !== null && inSameList(found, target) && (target.index === found.index || target.index === found.index + 1);
 }
 
 /**
  * Un paso arriba o abajo para el teclado y para «Subir» y «Bajar». En el borde de una sección pasa
  * a la vecina: al final de la anterior o al inicio de la siguiente. `null` en los extremos del documento.
+ * Un bloque de dentro de una columna o una tarjeta se mueve dentro de su celda.
  */
 export function stepTarget(doc: ResourceDoc, blockId: string, direction: "up" | "down"): DropTarget | null {
   const found = findBlock(doc, blockId);
   if (!found) return null;
+  if (found.parent) {
+    const { container, cell } = found.parent;
+    const length = blockCells(container)[cell].length;
+    const index = direction === "up" ? found.index - 1 : found.index + 2;
+    if (index < 0 || index > length) return null;
+    return { sectionId: found.section.id, containerId: container.id, cell, index };
+  }
   const at = doc.sections.indexOf(found.section);
   if (direction === "up") {
     if (found.index > 0) return { sectionId: found.section.id, index: found.index - 1 };

@@ -1,4 +1,4 @@
-import { findBlock, type Block, type CreatorChatMessage, type ResourceDoc } from "@shared/creator";
+import { findBlock, flattenBlocks, type Block, type CreatorChatMessage, type ResourceDoc } from "@shared/creator";
 import type { TurnChanges } from "@shared/creatorTurn";
 
 /**
@@ -53,7 +53,7 @@ export function pendingMarks(review: TurnReview | null, doc: ResourceDoc): TurnM
   if (!review || review.marks.size === 0) return [];
   const pending: TurnMark[] = [];
   for (const section of doc.sections) {
-    for (const block of section.blocks) {
+    for (const block of flattenBlocks(section.blocks)) {
       const mark = review.marks.get(block.id);
       if (mark && mark.block === block) pending.push({ id: block.id, kind: mark.kind });
     }
