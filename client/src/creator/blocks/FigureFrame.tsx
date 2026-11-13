@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { FigureNotes, useHasNotes } from "./FigureNotes";
 import { Formula } from "./Formula";
 import { RichText } from "./RichText";
 
@@ -59,8 +60,9 @@ export const TEXT_HALO = { paintOrder: "stroke", stroke: "#FFFFFF", strokeWidth:
  * colocados en porcentaje, de modo que la figura se ve igual en pantalla y en papel.
  */
 export function FigureFrame({ width, height, description, labels = [], children }: FigureFrameProps) {
+  const noted = useHasNotes();
   return (
-    <div className="crt-figure" style={{ "--fig-w": `${width}px`, "--fig-wn": width, aspectRatio: `${width} / ${height}` } as CSSProperties}>
+    <div className="crt-figure" data-notes={noted ? "" : undefined} style={{ "--fig-w": `${width}px`, "--fig-wn": width, "--fig-hn": height, aspectRatio: `${width} / ${height}` } as CSSProperties}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={description}>
         {children}
       </svg>
@@ -74,6 +76,7 @@ export function FigureFrame({ width, height, description, labels = [], children 
           {label.latex !== undefined ? <Formula latex={`\\displaystyle ${label.latex}`} /> : <RichText md={label.md ?? ""} inline />}
         </span>
       ))}
+      <FigureNotes />
     </div>
   );
 }

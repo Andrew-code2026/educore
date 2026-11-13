@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { blockInputSchema, CREATOR_LIMITS, findBlock, flattenBlocks, SECTION_ROLES, type BlockInput, type CreatorActivity, type ResourceDoc } from "@shared/creator";
 import { blockName } from "@shared/creatorActivity";
-import { applyDocOp, keepFigureLayout, normalizeBlock, type DocOp } from "@shared/creatorOps";
+import { applyDocOp, keepFigureLayout, keepSectionLayout, normalizeBlock, type DocOp } from "@shared/creatorOps";
 import { layoutIssues } from "@shared/creatorContainers";
 import { describeComputed } from "@shared/creatorStats";
 import { REMOVED_MAX } from "@shared/creatorTurn";
@@ -115,9 +115,25 @@ export function nameBlockDefs(schema: Record<string, Json>): Record<string, Json
   return { ...(walk(body) as Record<string, Json>), ...(names.size > 0 ? { $defs: named } : {}) };
 }
 
+/** Lo que solo escribe el docente: las notas sobre las figuras. La IA no las ve en sus herramientas. */
+const TEACHER_ONLY_REF = "#/$defs/figure_notes";
+
+/** Quita del esquema las propiedades que solo escribe el docente, y su definición. */
+export function withoutTeacherFields(schema: Record<string, Json>): Record<string, Json> {
+  const walk = (node: Json): Json => {
+    if (Array.isArray(node)) return node.map(walk);
+    if (!node || typeof node !== "object") return node;
+    const entries = Object.entries(node as Record<string, Json>).filter(([, value]) => !(value && typeof value === "object" && (value as { $ref?: unknown }).$ref === TEACHER_ONLY_REF));
+    return Object.fromEntries(entries.map(([field, value]) => [field, walk(value)]));
+  };
+  const { $defs, ...body } = schema;
+  const defs = Object.fromEntries(Object.entries(($defs ?? {}) as Record<string, Json>).filter(([key]) => `#/$defs/${key}` !== TEACHER_ONLY_REF));
+  return { ...(walk(body) as Record<string, Json>), ...($defs ? { $defs: walk(defs) } : {}) };
+}
+
 /** Definiciones para la API, en orden fijo: el prefijo de la petición no cambia y se puede cachear. */
 export const CREATOR_TOOLS: CreatorToolDefinition[] = (Object.keys(TOOL_INPUTS) as CreatorToolName[]).map(name => {
-  const { $schema: _schema, ...schema } = nameBlockDefs(z.toJSONSchema(TOOL_INPUTS[name], { io: "input", reused: "ref" }) as Record<string, Json>);
+  const { $schema: _schema, ...schema } = withoutTeacherFields(nameBlockDefs(z.toJSONSchema(TOOL_INPUTS[name], { io: "input", reused: "ref" }) as Record<string, Json>));
   return { name, description: TOOL_DESCRIPTIONS[name], input_schema: { ...schema, type: "object" } };
 });
 
@@ -215,12 +231,21 @@ export function executeCreatorTool(doc: ResourceDoc, name: string, rawInput: unk
   }
 
   let { op, blocks: written } = toOp(name, parsed.data);
-  // Al reescribir una figura, lo que el docente eligió para presentarla y la IA omitió se queda como estaba
-  const previous = op.op === "update_block" ? findBlock(doc, op.blockId)?.block : undefined;
-  if (op.op === "update_block" && previous) {
-    const block = keepFigureLayout(previous, op.block);
-    op = { ...op, block };
-    written = [block];
+  // Lo que el docente eligió para presentar una figura se queda: el tamaño que la IA omitió y las notas, que
+  // solo pone el docente. Una figura que la IA escribe de nuevo no trae notas
+  if (op.op === "update_block") {
+    const previous = findBlock(doc, op.blockId)?.block;
+    if (previous) {
+      const block = keepFigureLayout(previous, op.block);
+      op = { ...op, block };
+      written = [block];
+    }
+  } else if (op.op === "write_section" || op.op === "insert_blocks") {
+    const sectionId = op.op === "write_section" ? op.sectionId : undefined;
+    const before = sectionId ? (doc.sections.find(section => section.id === sectionId)?.blocks ?? []) : [];
+    const blocks = keepSectionLayout(before, op.blocks);
+    op = { ...op, blocks };
+    written = blocks;
   }
   const issues = validateBlocks(written.map(normalizeBlock));
   if (issues.length > 0) {

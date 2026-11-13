@@ -2033,6 +2033,42 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-graph[data-size] .crt-plane__label { font-size: clamp(10px, calc(100cqw * 12.5 / var(--plane-wn)), 22px); line-height: 1.6em; }
 .crt-graph[data-size] .crt-plane__label--tall { line-height: 2.56em; }
 
+/* Notas del docente sobre la figura (FigureNotes): posición relativa a la caja de la figura y letra que
+   crece y se achica con ella, como sus rótulos (100cqw es el ancho de la caja). La línea va de la nota al
+   punto que señala; la nota la tapa en su borde. */
+.crt-figure[data-notes], .crt-plane[data-notes] { container-type: inline-size; }
+.crt-notes { position: absolute; inset: 0; pointer-events: none; font-size: clamp(10px, calc(100cqw * 13 / var(--fig-wn, 520)), 26px); }
+.crt-plane .crt-notes { font-size: clamp(10px, calc(100cqw * 12.5 / var(--plane-wn, 374)), 26px); }
+.crt-notes__lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.crt-notes__lines line { stroke: #36404A; stroke-width: 1.3; }
+
+.crt-note {
+  position: absolute;
+  width: max-content;
+  max-width: 16em;
+  margin: 0;
+  padding: .12em .5em .16em;
+  border: 1px solid #A9B4C0;
+  border-radius: .45em;
+  background: rgba(255, 255, 255, .95);
+  color: #111B24;
+  font: inherit;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+  transform: translate(-50%, -50%);
+}
+
+.crt-note .katex { font-size: 1em; }
+.crt-note__dot { position: absolute; width: .55em; height: .55em; margin: 0; padding: 0; border: 1.5px solid #FFFFFF; border-radius: 50%; background: #36404A; transform: translate(-50%, -50%); }
+
+/* En el bloque que se edita, las notas y sus puntos se toman con el puntero o el teclado */
+.crt-notes.is-editing :is(.crt-note, .crt-note__dot) { pointer-events: auto; cursor: grab; touch-action: none; user-select: none; }
+.crt-notes.is-editing :is(.crt-note, .crt-note__dot):active { cursor: grabbing; }
+.crt-notes.is-editing .crt-note__dot::before { content: ""; position: absolute; inset: -9px; border-radius: 50%; }
+.crt-notes.is-editing :is(.crt-note, .crt-note__dot):is(.is-selected, :focus-visible) { outline: 2px solid var(--sheet-accent, #0C62B5); outline-offset: 2px; }
+.crt-notes.is-editing .crt-note.is-selected { border-color: var(--sheet-accent, #0C62B5); }
+
 /* Añadir bloques */
 
 .crt-add { margin-top: 6px; }
