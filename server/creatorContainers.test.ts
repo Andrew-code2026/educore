@@ -418,3 +418,18 @@ describe("columnas que se ven mal", () => {
     expect(issues[0].message).toMatch(/^Sección «Guía», columnas: La columna 1/);
   });
 });
+
+describe("ids al reescribir un contenedor", () => {
+  it("dos bloques nuevos idénticos no se quedan con el mismo bloque de antes", () => {
+    const random = seeded();
+    const doc = ok(applyDocOp(emptyDoc(), { op: "write_section", title: "Guía", role: "student", blocks: [columns([p("Respuesta")], [p("Respuesta")])] }, random)).doc;
+    const box = container(doc);
+    const rewritten = apply(doc, { op: "update_block", blockId: box.id, block: columns([p("Respuesta"), p("Respuesta")], [p("Respuesta")]) }).doc;
+    const ids = allBlocks(rewritten).map(block => block.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const inner = blockCells(container(rewritten)).flat();
+    expect(new Set(inner).size).toBe(3);
+    // Los dos de antes se reusan, cada uno una vez
+    expect(inner.filter(block => blockCells(box).flat().includes(block))).toHaveLength(2);
+  });
+});

@@ -655,7 +655,8 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                   onWrite={() => writeInCell(section, container, cell)}
                   onMore={() => openPicker({ sectionId: section.id, kind: "end", containerId: container.id, cell })}
                   moreOpen={picker?.kind === "end" && picker.containerId === container.id && picker.cell === cell}
-                  onRemove={tryOp({ op: "remove_cell", containerId: container.id, cell }) === null ? () => containerOp({ op: "remove_cell", containerId: container.id, cell }) : undefined}
+                  // Sin bloques que mover, una celda vacía se puede quitar si quedan las suficientes
+                  onRemove={blockCells(container).length > (container.type === "columns" ? CREATOR_LIMITS.columnsMin : 1) ? () => containerOp({ op: "remove_cell", containerId: container.id, cell }) : undefined}
                 />
                 {cellPicker(cell)}
               </>

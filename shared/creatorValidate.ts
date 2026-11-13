@@ -543,7 +543,16 @@ const solvedOnFigure = (block: BlockInput | undefined): boolean => block?.type =
  * después de un cambio.
  */
 export function validateBlockOrder(sections: Array<{ title: string; blocks: BlockInput[] }>): string[] {
-  const issues: string[] = [];
+  return blockOrderIssues(sections).map(issue => issue.message);
+}
+
+/**
+ * Los mismos problemas, cada uno con una clave que no depende de su texto: el id del ejercicio (o el
+ * texto, en bloques sin id). Así un problema que ya estaba sigue siendo el mismo aunque el ejercicio
+ * pase de la columna 2 a la 3 porque se añadió una columna delante.
+ */
+export function blockOrderIssues(sections: Array<{ title: string; blocks: BlockInput[] }>): Array<{ key: string; message: string }> {
+  const issues: Array<{ key: string; message: string }> = [];
   // Cada lista por su lado: la de la sección y la de cada columna o tarjeta. Una figura en la columna
   // de al lado de un ejercicio está junto a él, no debajo de su espacio de respuesta.
   for (const section of sections) {
@@ -556,8 +565,8 @@ export function validateBlockOrder(sections: Array<{ title: string; blocks: Bloc
   return issues;
 }
 
-function listOrderIssues(blocks: readonly BlockInput[], where: string): string[] {
-  const issues: string[] = [];
+function listOrderIssues(blocks: readonly BlockInput[], where: string): Array<{ key: string; message: string }> {
+  const issues: Array<{ key: string; message: string }> = [];
   blocks.forEach((block, index) => {
     const next = blocks[index + 1];
     if (block.type !== "exercise" || block.answerSpace === "none" || !next || !isFigure(next)) return;
@@ -570,13 +579,13 @@ function listOrderIssues(blocks: readonly BlockInput[], where: string): string[]
       if (!mentionsFigure || hasOwnFigure) return;
     }
 
-    issues.push(
+    const message =
       `${where}, ${block.label}: su espacio de respuesta queda entre el enunciado y la figura que sigue (${next.type}). ` +
-        `Si el ejercicio se resuelve sobre esa figura, usa answerSpace "none". Si la figura es un dato que el estudiante debe leer, ponla antes del enunciado. ` +
-        (followedByExercise
-          ? `Si la figura es del ejercicio siguiente, este enunciado necesita la suya delante, porque habla de una figura.`
-          : `Si la figura es de un ejercicio posterior, ponla justo antes de ese ejercicio.`),
-    );
+      `Si el ejercicio se resuelve sobre esa figura, usa answerSpace "none". Si la figura es un dato que el estudiante debe leer, ponla antes del enunciado. ` +
+      (followedByExercise
+        ? `Si la figura es del ejercicio siguiente, este enunciado necesita la suya delante, porque habla de una figura.`
+        : `Si la figura es de un ejercicio posterior, ponla justo antes de ese ejercicio.`);
+    issues.push({ key: "id" in block && typeof block.id === "string" ? block.id : message, message });
   });
   return issues;
 }

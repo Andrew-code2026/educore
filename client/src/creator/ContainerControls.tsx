@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LayoutList, Plus, X } from "lucide-react";
 import { CREATOR_LIMITS } from "@shared/creator";
 import type { DocOp } from "@shared/creatorOps";
@@ -28,6 +28,11 @@ interface CardTitleProps {
 export function CardTitle({ containerId, cell, title, readOnly, applyOp }: CardTitleProps) {
   const [editing, setEditing] = useState(false);
   const text = useRef<HTMLSpanElement>(null);
+
+  // Mientras la IA trabaja no se edita: al volver, el título se ve como estaba, no como un campo vacío
+  useEffect(() => {
+    if (readOnly) setEditing(false);
+  }, [readOnly]);
 
   useLayoutEffect(() => {
     const element = text.current;

@@ -102,16 +102,20 @@ function withIds(blocks: BlockInput[], taken: Set<string>, random?: () => number
 function adoptInnerIds(next: BlockInput, previous: Block, id: string, taken: Set<string>, random?: () => number): Block {
   if (!isContainer(next)) return { ...next, id } as Block;
   const old = blockCells(previous);
+  // Los ids de antes siguen apartados mientras se reparten: un id nuevo nunca coincide con uno que otro bloque va a reusar
   const free = new Set(old.flat());
-  for (const block of free) taken.delete(block.id);
   const strip = ({ id: _id, ...rest }: InnerBlock) => rest;
   const claim = (block: InnerBlock) => {
     free.delete(block);
-    taken.add(block.id);
     return block;
   };
-  const cells = blockCells(next).map(cell => cell.map(inner => Array.from(free).find(candidate => sameJson(strip(candidate), inner)) ?? null));
-  for (const cell of cells) for (const match of cell) if (match) claim(match);
+  // Cada bloque de antes se reusa una sola vez: dos bloques nuevos idénticos no comparten el mismo
+  const cells = blockCells(next).map(cell =>
+    cell.map(inner => {
+      const match = Array.from(free).find(candidate => sameJson(strip(candidate), inner));
+      return match ? claim(match) : null;
+    }),
+  );
   const result = blockCells(next).map((cell, c) =>
     cell.map((inner, i) => {
       if (cells[c][i]) return cells[c][i]!;
