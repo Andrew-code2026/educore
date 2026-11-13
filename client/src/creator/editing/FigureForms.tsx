@@ -2,7 +2,8 @@ import { useState, type ReactNode } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { SHAPE_KIND_LABELS, type ShapeFigure } from "@shared/creator";
 import { parseNumberList } from "@shared/creatorFigures";
-import { BlockPreview, CaptionField, Check, Field, NumberInput, OptionalNumberInput, type FormProps } from "./fields";
+import { OptionSelect, type SelectOption } from "@/components/option-select";
+import { BlockPreview, CaptionField, Check, Field, NumberInput, OptionalNumberInput, type Draft, type FormProps } from "./fields";
 
 /**
  * Formularios de las figuras. Las listas usan campos numéricos sin controlar, así que
@@ -124,24 +125,28 @@ export function NumberLineForm({ draft, onChange }: FormProps<"number_line">) {
   );
 }
 
+const FRACTION_SHAPE_OPTIONS: readonly SelectOption<Draft<"fraction_model">["shape"]>[] = [
+  { value: "circle", label: "Círculos" },
+  { value: "bar", label: "Barras" },
+];
+
+const FRACTION_OPERATOR_OPTIONS: readonly SelectOption<Draft<"fraction_model">["operator"]>[] = [
+  { value: "none", label: "Ninguno" },
+  { value: "equals", label: "Igual (=)" },
+  { value: "plus", label: "Más (+)" },
+  { value: "compare", label: "Círculo para comparar" },
+];
+
 export function FractionModelForm({ draft, onChange }: FormProps<"fraction_model">) {
   const [version, bump] = useListVersion();
   return (
     <>
       <div className="crt-form__row">
         <Field label="Forma">
-          <select className="crt-input" value={draft.shape} onChange={event => onChange({ ...draft, shape: event.target.value as typeof draft.shape })}>
-            <option value="circle">Círculos</option>
-            <option value="bar">Barras</option>
-          </select>
+          <OptionSelect className="crt-input" value={draft.shape} onValueChange={shape => onChange({ ...draft, shape })} options={FRACTION_SHAPE_OPTIONS} />
         </Field>
         <Field label="Signo entre modelos">
-          <select className="crt-input" value={draft.operator} onChange={event => onChange({ ...draft, operator: event.target.value as typeof draft.operator })}>
-            <option value="none">Ninguno</option>
-            <option value="equals">Igual (=)</option>
-            <option value="plus">Más (+)</option>
-            <option value="compare">Círculo para comparar</option>
-          </select>
+          <OptionSelect className="crt-input" value={draft.operator} onValueChange={operator => onChange({ ...draft, operator })} options={FRACTION_OPERATOR_OPTIONS} />
         </Field>
         <Check label="Mostrar las fracciones" checked={draft.showLabels} onChange={showLabels => onChange({ ...draft, showLabels })} />
       </div>
@@ -243,6 +248,20 @@ export function PieChartForm({ draft, onChange }: FormProps<"pie_chart">) {
   );
 }
 
+const TRIANGLE_APEX_OPTIONS: readonly SelectOption<number>[] = [
+  { value: 0.5, label: "Isósceles" },
+  { value: 0, label: "Rectángulo" },
+  { value: 0.3, label: "Escaleno" },
+];
+
+const CIRCLE_SHOW_OPTIONS: readonly SelectOption<Extract<ShapeFigure, { kind: "circle" }>["show"]>[] = [
+  { value: "radius", label: "Radio" },
+  { value: "diameter", label: "Diámetro" },
+  { value: "none", label: "Ninguno" },
+];
+
+const SHAPE_KIND_OPTIONS = (Object.keys(SHAPE_KIND_LABELS) as Array<ShapeFigure["kind"]>).map(kind => ({ value: kind, label: SHAPE_KIND_LABELS[kind] }));
+
 const SHAPE_TEMPLATES: Record<ShapeFigure["kind"], ShapeFigure> = {
   rectangle: { kind: "rectangle", width: 5, height: 3, widthLabel: "5 cm", heightLabel: "3 cm" },
   triangle: { kind: "triangle", base: 6, height: 4, apex: 0.5, baseLabel: "6 cm", heightLabel: "4 cm", showHeight: true },
@@ -287,12 +306,12 @@ function ShapeFields({ figure, index, onChange }: { figure: ShapeFigure; index: 
             <NumberInput label={`Altura de la figura ${index + 1}`} value={figure.height} onChange={height => onChange({ ...figure, height })} />
           </Field>
           <Field label="Tipo">
-            <select className="crt-input" value={String(figure.apex)} onChange={event => onChange({ ...figure, apex: Number(event.target.value) })}>
-              <option value="0.5">Isósceles</option>
-              <option value="0">Rectángulo</option>
-              <option value="0.3">Escaleno</option>
-              {![0, 0.3, 0.5].includes(figure.apex) && <option value={String(figure.apex)}>Personalizado</option>}
-            </select>
+            <OptionSelect
+              className="crt-input"
+              value={figure.apex}
+              onValueChange={apex => onChange({ ...figure, apex })}
+              options={TRIANGLE_APEX_OPTIONS.some(option => option.value === figure.apex) ? TRIANGLE_APEX_OPTIONS : [...TRIANGLE_APEX_OPTIONS, { value: figure.apex, label: "Personalizado" }]}
+            />
           </Field>
           {text(figure.baseLabel, "Rótulo de la base", baseLabel => onChange({ ...figure, baseLabel }))}
           {text(figure.heightLabel, "Rótulo de la altura", heightLabel => onChange({ ...figure, heightLabel }))}
@@ -306,11 +325,7 @@ function ShapeFields({ figure, index, onChange }: { figure: ShapeFigure; index: 
             <NumberInput label={`Radio de la figura ${index + 1}`} value={figure.radius} onChange={radius => onChange({ ...figure, radius })} />
           </Field>
           <Field label="Segmento">
-            <select className="crt-input" value={figure.show} onChange={event => onChange({ ...figure, show: event.target.value as typeof figure.show })}>
-              <option value="radius">Radio</option>
-              <option value="diameter">Diámetro</option>
-              <option value="none">Ninguno</option>
-            </select>
+            <OptionSelect className="crt-input" value={figure.show} onValueChange={show => onChange({ ...figure, show })} options={CIRCLE_SHOW_OPTIONS} />
           </Field>
           {text(figure.label, "Rótulo", label => onChange({ ...figure, label }))}
         </>
@@ -338,20 +353,15 @@ export function ShapesForm({ draft, onChange }: FormProps<"shapes">) {
         <div key={`${version}-${index}-${figure.kind}`} className="crt-form__group">
           <div className="crt-form__row">
             <Field label={`Figura ${index + 1}`}>
-              <select
+              <OptionSelect
                 className="crt-input"
                 value={figure.kind}
-                onChange={event => {
-                  setFigure(index, SHAPE_TEMPLATES[event.target.value as ShapeFigure["kind"]]);
+                onValueChange={kind => {
+                  setFigure(index, SHAPE_TEMPLATES[kind]);
                   bump();
                 }}
-              >
-                {(Object.keys(SHAPE_KIND_LABELS) as Array<ShapeFigure["kind"]>).map(kind => (
-                  <option key={kind} value={kind}>
-                    {SHAPE_KIND_LABELS[kind]}
-                  </option>
-                ))}
-              </select>
+                options={SHAPE_KIND_OPTIONS}
+              />
             </Field>
             <ShapeFields figure={figure} index={index} onChange={next => setFigure(index, next)} />
             {draft.figures.length > 1 && (

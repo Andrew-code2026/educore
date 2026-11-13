@@ -16,6 +16,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { OptionSelect } from "@/components/option-select";
+import { optionsFrom } from "@/lib/select-options";
 import { Textarea } from "@/components/ui/textarea";
 
 export interface ComposeInput {
@@ -36,6 +38,7 @@ interface ComposeDialogProps {
   onDraftWithAi: (draft: { title: string; message: string }) => Promise<{ title: string | null; message: string }>;
 }
 
+const AUDIENCE_OPTIONS = optionsFrom(ANNOUNCEMENT_AUDIENCES);
 const TITLE_MIN = 3;
 const MESSAGE_MIN = 5;
 
@@ -161,18 +164,13 @@ export function ComposeDialog({ open, onOpenChange, canSend, saving, aiPending, 
           </div>
 
           <Field id={`${ids}-audience`} label="Destinatarios">
-            <select
+            <OptionSelect
               id={`${ids}-audience`}
               value={audience}
-              onChange={(event) => setAudience(event.target.value as AnnouncementAudience)}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30"
-            >
-              {ANNOUNCEMENT_AUDIENCES.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+              onValueChange={setAudience}
+              options={AUDIENCE_OPTIONS}
+              className="w-full"
+            />
           </Field>
         </form>
 

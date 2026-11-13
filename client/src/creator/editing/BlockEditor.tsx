@@ -1,4 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef, useState, type ReactNode } from "react";
+import { OptionSelect, type SelectOption } from "@/components/option-select";
+import { PortalContainerProvider, usePortalContainerHost } from "@/components/ui/portal-container";
 import { Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { BLOCK_TYPE_LABELS, blockInputSchema, CREATOR_LIMITS, graphSpecSchema, type Block, type BlockInput, type BlockType } from "@shared/creator";
@@ -104,6 +106,24 @@ function ParagraphForm({ draft, onChange }: FormProps<"paragraph">) {
   return <RichTextEditor label="Texto" value={draft.md} autoFocus onChange={md => onChange({ ...draft, md })} />;
 }
 
+const HEADING_LEVEL_OPTIONS: readonly SelectOption<Draft<"heading">["level"]>[] = [
+  { value: 2, label: "Grande" },
+  { value: 3, label: "Mediano" },
+];
+
+export const CALLOUT_TONE_OPTIONS: readonly SelectOption<Draft<"callout">["tone"]>[] = [
+  { value: "info", label: "Concepto" },
+  { value: "tip", label: "Consejo" },
+  { value: "warning", label: "Atención" },
+];
+
+export const ANSWER_SPACE_OPTIONS: readonly SelectOption<Draft<"exercise">["answerSpace"]>[] = [
+  { value: "lines", label: "Renglones" },
+  { value: "grid", label: "Cuadrícula" },
+  { value: "blank", label: "En blanco" },
+  { value: "none", label: "Ninguno" },
+];
+
 function HeadingForm({ draft, onChange }: FormProps<"heading">) {
   return (
     <div className="crt-form__row">
@@ -111,10 +131,7 @@ function HeadingForm({ draft, onChange }: FormProps<"heading">) {
         <input className="crt-input" autoFocus value={draft.text} onChange={event => onChange({ ...draft, text: event.target.value })} />
       </Field>
       <Field label="Tamaño">
-        <select className="crt-input" value={draft.level} onChange={event => onChange({ ...draft, level: Number(event.target.value) === 3 ? 3 : 2 })}>
-          <option value={2}>Grande</option>
-          <option value={3}>Mediano</option>
-        </select>
+        <OptionSelect className="crt-input" value={draft.level} onValueChange={level => onChange({ ...draft, level })} options={HEADING_LEVEL_OPTIONS} />
       </Field>
     </div>
   );
@@ -128,11 +145,7 @@ function CalloutForm({ draft, onChange }: FormProps<"callout">) {
           <input className="crt-input" value={draft.title ?? ""} onChange={event => onChange({ ...draft, title: event.target.value })} />
         </Field>
         <Field label="Estilo">
-          <select className="crt-input" value={draft.tone} onChange={event => onChange({ ...draft, tone: event.target.value as Draft<"callout">["tone"] })}>
-            <option value="info">Concepto</option>
-            <option value="tip">Consejo</option>
-            <option value="warning">Atención</option>
-          </select>
+          <OptionSelect className="crt-input" value={draft.tone} onValueChange={tone => onChange({ ...draft, tone })} options={CALLOUT_TONE_OPTIONS} />
         </Field>
       </div>
       <RichTextEditor label="Contenido del recuadro" value={draft.md} autoFocus onChange={md => onChange({ ...draft, md })} />
@@ -180,12 +193,7 @@ function ExerciseForm({ draft, onChange }: FormProps<"exercise">) {
           <input className="crt-input" value={draft.label} onChange={event => onChange({ ...draft, label: event.target.value })} />
         </Field>
         <Field label="Espacio de respuesta">
-          <select className="crt-input" value={draft.answerSpace} onChange={event => onChange({ ...draft, answerSpace: event.target.value as Draft<"exercise">["answerSpace"] })}>
-            <option value="lines">Renglones</option>
-            <option value="grid">Cuadrícula</option>
-            <option value="blank">En blanco</option>
-            <option value="none">Ninguno</option>
-          </select>
+          <OptionSelect className="crt-input" value={draft.answerSpace} onValueChange={answerSpace => onChange({ ...draft, answerSpace })} options={ANSWER_SPACE_OPTIONS} />
         </Field>
         {draft.answerSpace !== "none" && (
           <Field label="Alto (renglones)">
@@ -411,14 +419,13 @@ function GraphForm({ draft, onChange }: FormProps<"graph">) {
             <NumberInput label={`x del punto ${index + 1}`} value={point.x} onChange={x => setPoint({ x })} />
             <NumberInput label={`y del punto ${index + 1}`} value={point.y} onChange={y => setPoint({ y })} />
             <input className="crt-input crt-input--code" aria-label={`Etiqueta del punto ${index + 1} en LaTeX`} spellCheck={false} placeholder="(0, -3)" value={point.label ?? ""} onChange={event => setPoint({ label: event.target.value || undefined })} />
-            <select className="crt-input" aria-label={`Función del punto ${index + 1}`} value={point.on ?? ""} onChange={event => setPoint({ on: event.target.value === "" ? null : Number(event.target.value) })}>
-              <option value="">Punto libre</option>
-              {spec.functions.map((fn, i) => (
-                <option key={i} value={i}>
-                  Sobre {fn.expr || `función ${i + 1}`}
-                </option>
-              ))}
-            </select>
+            <OptionSelect<number | "">
+              className="crt-input"
+              aria-label={`Función del punto ${index + 1}`}
+              value={point.on ?? ""}
+              onValueChange={on => setPoint({ on: on === "" ? null : on })}
+              options={[{ value: "", label: "Punto libre" }, ...spec.functions.map((fn, i) => ({ value: i, label: `Sobre ${fn.expr || `función ${i + 1}`}` }))]}
+            />
             <button
               type="button"
               className="crt-icon-btn crt-icon-btn--danger"
@@ -562,6 +569,8 @@ export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(funct
   });
   const [issues, setIssues] = useState<string[]>([]);
   const form = useRef<HTMLDivElement>(null);
+  // Las listas de los selects se montan dentro del formulario, igual que el resto de sus campos
+  const [portalContainer, formRef] = usePortalContainerHost(form);
 
   const save = (): boolean => {
     const parsed = blockInputSchema.safeParse(draft);
@@ -592,40 +601,42 @@ export const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(funct
   );
 
   return (
-    <div
-      ref={form}
-      className="crt-form"
-      role="group"
-      aria-label={`Editar ${BLOCK_TYPE_LABELS[block.type].toLowerCase()}`}
-      onKeyDown={event => {
-        if (event.key === "Escape") onCancel();
-        if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) save();
-      }}
-    >
-      <span className="crt-form__title">{BLOCK_TYPE_LABELS[block.type]}</span>
-      {renderForm(
-        draft,
-        next => {
-          setDraft(next);
-          if (issues.length > 0) setIssues([]);
-        },
-        { submit: () => saveRef.current(), cancel: onCancel },
-      )}
-      {issues.length > 0 && (
-        <ul className="crt-form__issues" role="alert">
-          {issues.map((issue, index) => (
-            <li key={index}>{issue}</li>
-          ))}
-        </ul>
-      )}
-      <div className="crt-form__footer">
-        <button type="button" className="crt-btn crt-btn--ghost" onClick={onCancel}>
-          Cancelar
-        </button>
-        <button type="button" className="crt-btn crt-btn--primary" onClick={save}>
-          Guardar cambios
-        </button>
+    <PortalContainerProvider container={portalContainer}>
+      <div
+        ref={formRef}
+        className="crt-form"
+        role="group"
+        aria-label={`Editar ${BLOCK_TYPE_LABELS[block.type].toLowerCase()}`}
+        onKeyDown={event => {
+          if (event.key === "Escape") onCancel();
+          if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) save();
+        }}
+      >
+        <span className="crt-form__title">{BLOCK_TYPE_LABELS[block.type]}</span>
+        {renderForm(
+          draft,
+          next => {
+            setDraft(next);
+            if (issues.length > 0) setIssues([]);
+          },
+          { submit: () => saveRef.current(), cancel: onCancel },
+        )}
+        {issues.length > 0 && (
+          <ul className="crt-form__issues" role="alert">
+            {issues.map((issue, index) => (
+              <li key={index}>{issue}</li>
+            ))}
+          </ul>
+        )}
+        <div className="crt-form__footer">
+          <button type="button" className="crt-btn crt-btn--ghost" onClick={onCancel}>
+            Cancelar
+          </button>
+          <button type="button" className="crt-btn crt-btn--primary" onClick={save}>
+            Guardar cambios
+          </button>
+        </div>
       </div>
-    </div>
+    </PortalContainerProvider>
   );
 });

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { AlertCircle, CalendarDays, Check, Inbox, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PortalContainerProvider, isEscapeForNestedPopup, usePortalContainerHost } from "@/components/ui/portal-container";
 import "./admin.css";
 
 /* ── Formato ─────────────────────────────────────────────── */
@@ -226,12 +227,19 @@ interface AdminDialogProps {
 
 /** Se monta dentro de `.edc-shell` para heredar los tokens de tema (claro/oscuro). */
 export function AdminDialog({ open, onClose, eyebrow, title, description, wide = false, busy = false, children }: AdminDialogProps) {
+  const [selectContainer, contentRef] = usePortalContainerHost<HTMLDivElement>();
   const container = typeof document !== "undefined" ? document.querySelector<HTMLElement>(".edc-shell") : null;
   return (
     <Dialog.Root open={open} onOpenChange={next => !next && !busy && onClose()}>
       <Dialog.Portal container={container}>
         <Dialog.Overlay className="adm-dialog-overlay" />
-        <Dialog.Content className={cn("adm-dialog", wide && "adm-dialog--wide")}>
+        <Dialog.Content
+          ref={contentRef}
+          className={cn("adm-dialog", wide && "adm-dialog--wide")}
+          onEscapeKeyDown={event => {
+            if (isEscapeForNestedPopup(event)) event.preventDefault();
+          }}
+        >
           <div className="adm-dialog__head">
             <div>
               {eyebrow ? <p className="adm-dialog__eyebrow">{eyebrow}</p> : null}
@@ -246,7 +254,7 @@ export function AdminDialog({ open, onClose, eyebrow, title, description, wide =
               <X aria-hidden="true" strokeWidth={2} />
             </Dialog.Close>
           </div>
-          {open ? children : null}
+          <PortalContainerProvider container={selectContainer}>{open ? children : null}</PortalContainerProvider>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

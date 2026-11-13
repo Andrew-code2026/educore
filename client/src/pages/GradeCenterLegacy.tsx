@@ -2,6 +2,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { OptionSelect } from "@/components/option-select";
 import { trpc } from "@/lib/trpc";
 import { BarChart3, ChevronDown, Sparkles, X, Calculator, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -1388,17 +1389,15 @@ function GuardianPerformanceView({ context, subjectId, onSubjectChange }: any) {
       <div className="flex flex-col gap-3 sm:flex-row">
         <label className="text-xs font-semibold text-slate-600 flex-1">
           Estudiante
-          <select
-            value={studentId ?? ""}
-            onChange={e => setStudentId(Number(e.target.value))}
+          <OptionSelect<number>
+            value={studentId ?? null}
+            onValueChange={setStudentId}
+            options={context.rows.map((item: any) => ({
+              value: item.enrollment.studentUserId,
+              label: `${studentName(item.student)} · ${context.selected?.course?.name}`,
+            }))}
             className="mt-1 h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700"
-          >
-            {context.rows.map((item: any) => (
-              <option key={item.enrollment.studentUserId} value={item.enrollment.studentUserId}>
-                {studentName(item.student)} · {context.selected?.course?.name}
-              </option>
-            ))}
-          </select>
+          />
         </label>
       </div>
 

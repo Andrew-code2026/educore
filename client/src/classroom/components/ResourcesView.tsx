@@ -1,6 +1,7 @@
 import { useId, useState, type DragEvent, type FormEvent } from 'react';
 import { Download, FileText, FolderOpen, LoaderCircle, Plus, Search, SearchX, Trash2, UploadCloud, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { OptionSelect } from '@/components/option-select';
 import { trpc } from '@/lib/trpc';
 import { ALLOWED_RESOURCE_EXTENSIONS, MAX_RESOURCE_BYTES, checkResourceFile } from '@shared/courseResources';
 import type { Activity } from '../types';
@@ -329,19 +330,13 @@ function UploadPanel({
           <label htmlFor={`${ids}-activity`} className="ccw-field__label">
             Actividad relacionada <span className="ccw-field__optional">opcional</span>
           </label>
-          <select
+          <OptionSelect
             id={`${ids}-activity`}
             className="ccw-input ccw-input--select"
             value={assignmentId}
-            onChange={(e) => setAssignmentId(e.target.value)}
-          >
-            <option value="">Todo el curso</option>
-            {published.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
+            onValueChange={setAssignmentId}
+            options={[{ value: '', label: 'Todo el curso' }, ...published.map((a) => ({ value: a.id, label: a.name }))]}
+          />
         </div>
       </div>
 

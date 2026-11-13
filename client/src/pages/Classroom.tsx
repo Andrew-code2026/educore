@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { OptionSelect } from '@/components/option-select';
+import { optionsFrom } from '@/lib/select-options';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -28,6 +30,9 @@ export interface ClassroomPageProps {
   onChanged: () => void;
   setSection: (s: Section) => void;
 }
+
+const TASK_SUBJECT_OPTIONS = optionsFrom(['Matemáticas', 'Física', 'Filosofía', 'Inglés', 'Biología']);
+const TASK_COURSE_OPTIONS = optionsFrom(['11-2', '11-1', '10-1']);
 
 const formatDate = (
   value: Date | string | null | undefined,
@@ -261,29 +266,21 @@ function ClassroomLegacyPage({
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-slate-700">
                   Materia
-                  <select
+                  <OptionSelect
                     value={subject}
-                    onChange={(event) => setSubject(event.target.value)}
+                    onValueChange={setSubject}
+                    options={TASK_SUBJECT_OPTIONS}
                     className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
-                  >
-                    <option>Matemáticas</option>
-                    <option>Física</option>
-                    <option>Filosofía</option>
-                    <option>Inglés</option>
-                    <option>Biología</option>
-                  </select>
+                  />
                 </label>
                 <label className="block text-sm font-medium text-slate-700">
                   Curso
-                  <select
+                  <OptionSelect
                     value={course}
-                    onChange={(event) => setCourse(event.target.value)}
+                    onValueChange={setCourse}
+                    options={TASK_COURSE_OPTIONS}
                     className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
-                  >
-                    <option>11-2</option>
-                    <option>11-1</option>
-                    <option>10-1</option>
-                  </select>
+                  />
                 </label>
               </div>
               <label className="block text-sm font-medium text-slate-700">

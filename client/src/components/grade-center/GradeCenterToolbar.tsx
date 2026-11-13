@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OptionSelect } from "@/components/option-select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Search,
@@ -152,53 +153,38 @@ export function GradeCenterToolbar({
         <div className="grid flex-1 grid-cols-1 gap-1.5 sm:grid-cols-3 sm:max-w-xl">
           {/* Selector de Curso */}
           <div className="relative">
-            <select
-              value={selectedCourseId ?? ""}
-              onChange={e => onCourseChange(Number(e.target.value))}
+            <OptionSelect
+              value={selectedCourseId ?? null}
+              onValueChange={onCourseChange}
+              options={courses.map(c => ({ value: c.id, label: `Curso: ${c.name}` }))}
+              placeholder="Seleccionar curso"
               aria-label="Seleccionar curso"
-              className="h-8 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 px-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-[var(--edc-accent)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              <option value="" disabled>Seleccionar curso</option>
-              {courses.map(c => (
-                <option key={c.id} value={c.id}>
-                  Curso: {c.name}
-                </option>
-              ))}
-            </select>
+              className="h-8 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 px-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-[var(--edc-accent)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-800 dark:text-slate-200"
+            />
           </div>
 
           {/* Selector de Materia */}
           <div className="relative">
-            <select
-              value={selectedSubjectId ?? ""}
-              onChange={e => onSubjectChange(Number(e.target.value))}
+            <OptionSelect
+              value={selectedSubjectId ?? null}
+              onValueChange={onSubjectChange}
+              options={subjects.map(s => ({ value: s.id, label: `Materia: ${s.name}` }))}
+              placeholder="Seleccionar materia"
               aria-label="Seleccionar materia"
-              className="h-8 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 px-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-[var(--edc-accent)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              <option value="" disabled>Seleccionar materia</option>
-              {subjects.map(s => (
-                <option key={s.id} value={s.id}>
-                  Materia: {s.name}
-                </option>
-              ))}
-            </select>
+              className="h-8 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 px-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-[var(--edc-accent)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-800 dark:text-slate-200"
+            />
           </div>
 
           {/* Selector de Periodo */}
           <div className="relative">
-            <select
-              value={selectedPeriodId ?? ""}
-              onChange={e => onPeriodChange(Number(e.target.value))}
+            <OptionSelect
+              value={selectedPeriodId ?? null}
+              onValueChange={onPeriodChange}
+              options={periods.map(p => ({ value: p.id, label: p.name }))}
+              placeholder="Seleccionar periodo"
               aria-label="Seleccionar periodo académico"
-              className="h-8 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 px-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-[var(--edc-accent)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              <option value="" disabled>Seleccionar periodo</option>
-              {periods.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              className="h-8 w-full rounded-xl border border-slate-200/90 bg-slate-50/80 px-2.5 text-xs font-semibold text-slate-700 shadow-xs focus:border-[var(--edc-accent)] focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-800 dark:text-slate-200"
+            />
           </div>
         </div>
 
