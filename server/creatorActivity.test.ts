@@ -41,6 +41,11 @@ describe("cortar texto en límite de palabra", () => {
     expect(clipWords("Cálculo de áreas compuestas, escribirás", 30)).toBe("Cálculo de áreas compuestas…");
   });
 
+  it("no deja una preposición o un artículo colgando al final", () => {
+    expect(clipWords("Calcula el área de la figura sombreada", 22)).toBe("Calcula el área…");
+    expect(clipWords("Una figura compuesta se divide en figuras básicas", 40)).toBe("Una figura compuesta se divide…");
+  });
+
   it("deja igual lo que cabe y normaliza los espacios", () => {
     expect(clipWords("  Ejercicio   3  ", 40)).toBe("Ejercicio 3");
   });
@@ -98,7 +103,7 @@ describe("cómo se lee cada acción de la IA", () => {
     const { doc, activities } = run([["update_block", { block_id: intro.id, block: { type: "paragraph", md: "En este taller calcularás el área de figuras compuestas, escribirás funciones lineales a partir de una situación." } }]], start.doc);
     const view = describeActivity(activities[0], doc);
     expect(view.kind).toBe("edit");
-    expect(view.subject).toBe("Texto «En este taller calcularás el área de…»");
+    expect(view.subject).toBe("Texto «En este taller calcularás el área…»");
     expect(view.detail).toBe("editado");
     expect(view.linked).toBe(true);
   });
@@ -135,7 +140,7 @@ describe("cómo se lee cada acción de la IA", () => {
     const views = stored.map(activity => describeActivity(activity, doc));
     expect(views[0]).toMatchObject({ kind: "delete", subject: "Sección «Parte 4 · Producto final (en grupo)»", detail: "eliminada", linked: false });
     expect(views[1]).toMatchObject({ kind: "delete", subject: "Bloque", detail: "eliminado de «Clave de respuestas (docente)»", linked: false });
-    expect(views[2]).toMatchObject({ kind: "edit", subject: "Texto «En este taller calcularás el área de…»", linked: true });
+    expect(views[2]).toMatchObject({ kind: "edit", subject: "Texto «En este taller calcularás el área…»", linked: true });
     expect(countLabel(views)).toBe("3 cambios");
   });
 
@@ -143,7 +148,7 @@ describe("cómo se lee cada acción de la IA", () => {
     const view = describeActivity({ label: "Actualizado: Ejercicio 3. Calcula el área sombreada", ok: true, changed: true, blockIds: ["bnoexiste"] }, emptyDoc());
     expect(view).toMatchObject({ kind: "edit", subject: "Ejercicio 3", detail: "editado", linked: false });
     const loose = describeActivity({ label: "Actualizado: Una figura compuesta se divide en figuras básicas y se suman", ok: true, changed: true }, emptyDoc());
-    expect(loose.subject).toBe("Bloque «Una figura compuesta se divide en…»");
+    expect(loose.subject).toBe("Bloque «Una figura compuesta se divide…»");
   });
 
   it("los reintentos y lo que no cambió no cuentan como cambios", () => {

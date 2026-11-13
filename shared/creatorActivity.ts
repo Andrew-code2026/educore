@@ -20,15 +20,20 @@ export interface ActivityView {
   counts: boolean;
 }
 
-/** Corta en límite de palabra, sin dejar puntuación colgando antes de los puntos suspensivos. */
+/** Palabras que no deben quedar al final de un texto cortado: «el área de…» se lee mejor como «el área…». */
+const DANGLING = new Set(["a", "al", "con", "de", "del", "e", "el", "en", "la", "las", "lo", "los", "o", "para", "por", "que", "se", "su", "sus", "u", "un", "una", "y"]);
+
+/** Corta en límite de palabra, sin dejar puntuación ni una preposición colgando antes de los puntos suspensivos. */
 export function clipWords(text: string, max: number): string {
   const flat = text.replace(/\s+/g, " ").trim();
   if (flat.length <= max) return flat;
   const room = flat.slice(0, Math.max(1, max - 1));
   const space = room.lastIndexOf(" ");
   // Una sola palabra más larga que el espacio se corta donde caiga
-  const cut = space >= max * 0.4 ? room.slice(0, space) : room;
-  return `${cut.replace(/[\s,;:.·—–-]+$/u, "")}…`;
+  if (space < max * 0.4) return `${room}…`;
+  const words = room.slice(0, space).split(" ");
+  while (words.length > 1 && DANGLING.has(words[words.length - 1].toLowerCase()) && words.slice(0, -1).join(" ").length >= max * 0.4) words.pop();
+  return `${words.join(" ").replace(/[\s,;:.·—–-]+$/u, "")}…`;
 }
 
 const quote = (text: string, max = 40) => `«${clipWords(text, max)}»`;
