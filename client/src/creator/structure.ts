@@ -250,10 +250,16 @@ export const CONTAINER_EDGE = 12;
 /** Cuántos bloques de la lista tienen su mitad por encima de `y`. */
 const slotIn = (blocks: readonly BlockBox[], y: number) => blocks.filter(block => y > (block.top + block.bottom) / 2).length;
 
-/** La celda bajo el punto o, en la separación entre dos, la más cercana. */
+/** Hasta dónde fuera de una celda (la separación entre columnas o tarjetas) el puntero todavía cuenta como dentro de ella. */
+const CELL_REACH = 24;
+
+/**
+ * La celda bajo el punto o, en la separación entre dos, la más cercana. Lejos de todas (bajo las celdas,
+ * donde el contenedor muestra un aviso o un formulario) no hay celda: el destino es encima o debajo del contenedor.
+ */
 function cellAt(cells: readonly CellLayout[], x: number, y: number): CellLayout | null {
   let best: CellLayout | null = null;
-  let distance = Infinity;
+  let distance = CELL_REACH;
   for (const cell of cells) {
     const dx = x < cell.left ? cell.left - x : x > cell.right ? x - cell.right : 0;
     const dy = y < cell.top ? cell.top - y : y > cell.bottom ? y - cell.bottom : 0;

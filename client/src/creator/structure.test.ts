@@ -334,3 +334,36 @@ describe("columnas y tarjetas: insertar, mover y arrastrar", () => {
     expect(isSamePlace(doc, id(doc, "A"), { sectionId: guide, containerId: box(doc), cell: 0, index: 0 })).toBe(false);
   });
 });
+
+describe("arrastrar sobre lo que el contenedor muestra bajo sus celdas", () => {
+  it("lejos de las celdas (un aviso, un formulario) el destino es encima o debajo del contenedor", () => {
+    let doc = emptyDoc("Prueba");
+    const columns = blockInputSchema.parse({ type: "columns", columns: [{ blocks: paragraphs("B") }, { blocks: paragraphs("D") }] });
+    doc = apply(doc, { op: "write_section", title: "Guía", role: "student", blocks: [...paragraphs("A"), columns] });
+    const [a, box] = doc.sections[0].blocks;
+    // Las celdas llegan hasta 300; el contenedor sigue hasta 700 con un formulario abierto debajo
+    const layout: SheetLayout = {
+      sections: [
+        {
+          id: doc.sections[0].id,
+          top: 0,
+          end: 800,
+          blocks: [
+            { id: a.id, top: 40, bottom: 80 },
+            {
+              id: box.id,
+              top: 100,
+              bottom: 700,
+              cells: [
+                { containerId: box.id, cell: 0, left: 0, right: 300, top: 104, bottom: 300, blocks: [] },
+                { containerId: box.id, cell: 1, left: 320, right: 620, top: 104, bottom: 300, blocks: [] },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    expect(dropTarget(layout, 310, 100, true)).toMatchObject({ containerId: box.id, cell: 0 });
+    expect(dropTarget(layout, 600, 100, true)).toEqual({ sectionId: doc.sections[0].id, index: 2 });
+  });
+});

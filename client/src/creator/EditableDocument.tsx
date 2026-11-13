@@ -597,7 +597,8 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     const isEditing = editing?.id === block.id;
     const inline = isInlineBlock(block);
     const container = isContainer(block) ? block : null;
-    const canEdit = !readOnly && block.type !== "page_break" && !container;
+    // Un bloque de dentro cuyo formulario está abierto bajo su contenedor no se vuelve a abrir desde la celda: perdería lo escrito
+    const canEdit = !readOnly && block.type !== "page_break" && !container && !(isEditing && parent);
     const active = !readOnly && !isEditing && activeId === block.id;
     const showTools = !readOnly && (noHover || active);
     const mark = marks.get(block.id);

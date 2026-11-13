@@ -179,7 +179,11 @@ export function useBlockDrag({ paper, line, chip, doc, onDrop, blocked }: DragOp
           active = true;
           document.body.classList.add("crt-is-dragging");
           setDragging(blockId);
-          if (chip.current) chip.current.textContent = label;
+          if (chip.current) {
+            chip.current.textContent = label;
+            // El motivo del arrastre anterior no se arrastra a este: se vuelve a decir al calcular el hueco
+            chip.current.dataset.reason = "";
+          }
         }
         follow();
         schedule();
