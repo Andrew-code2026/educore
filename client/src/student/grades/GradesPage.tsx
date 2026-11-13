@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { BookOpen, ChevronRight, FileText } from "lucide-react";
 import { LEVELS } from "@/gradecenter/domain/scale";
 import { cn } from "@/lib/utils";
@@ -6,6 +6,7 @@ import { useStudentGrades } from "../data";
 import { formatGrade, subjectInitials } from "../format";
 import { useStudentParam } from "../links";
 import { EmptyState, ErrorState, Grade, LevelPill, PageFrame, PageHeader, PageSkeleton, Section, Segmented, Sheet, SummaryStrip } from "../ui";
+import { STUDENT_VIEWER, viewerCopy, type Viewer } from "../viewer";
 import { attentionNote, buildGradesModel, visiblePeriods, type SubjectModel } from "./grades";
 import { ReportCardView } from "./ReportCardView";
 import { SubjectDetail } from "./SubjectDetail";
@@ -24,35 +25,45 @@ function useIsDesktop() {
   return matches;
 }
 
-export function StudentGradesPage({ data }: { data: any }) {
+interface StudentGradesPageProps {
+  data: any;
+  /** Estudiante (por defecto) o acudiente con el hijo elegido. */
+  viewer?: Viewer;
+  /** Selector de hijo del acudiente, junto a las acciones del encabezado. */
+  switcher?: ReactNode;
+}
+
+export function StudentGradesPage({ data, viewer = STUDENT_VIEWER, switcher }: StudentGradesPageProps) {
   const [now] = useState(() => new Date());
   const [periodId, setPeriodId] = useState<number | undefined>(undefined);
   const [showReport, setShowReport] = useState(false);
   const [subjectParam, setSubjectParam] = useStudentParam("materia");
   const isDesktop = useIsDesktop();
-  const query = useStudentGrades(periodId);
-  const model = useMemo(() => (query.data ? buildGradesModel(query.data, now) : null), [query.data, now]);
+  const copy = viewerCopy(viewer);
+  const query = useStudentGrades(periodId, viewer);
+  const model = useMemo(() => (query.data ? buildGradesModel(query.data, now, viewer.kind) : null), [query.data, now, viewer.kind]);
   const periods = useMemo(() => visiblePeriods(query.data?.periods ?? []), [query.data?.periods]);
 
   // Selección: la de la URL; en escritorio, si no hay, la que requiere atención (en móvil abre un cajón)
   const selectedId = subjectParam ?? (isDesktop ? model?.defaultSubjectId ?? null : null);
   const selected = model?.subjects.find(subject => subject.id === selectedId) ?? null;
 
-  if (showReport) return <ReportCardView school={data?.school} periodId={query.data?.period?.id} onBack={() => setShowReport(false)} />;
+  if (showReport) return <ReportCardView school={data?.school} periodId={query.data?.period?.id} viewer={viewer} onBack={() => setShowReport(false)} />;
 
   return (
-    <PageFrame label="Mis calificaciones">
-      {!model && query.isLoading && <PageSkeleton label="Cargando tus calificaciones" rows={6} />}
-      {!model && query.isError && <ErrorState onRetry={() => void query.refetch()} title="No pudimos cargar tus calificaciones" />}
+    <PageFrame label={copy.grades.title}>
+      {!model && query.isLoading && <PageSkeleton label={copy.grades.loading} rows={6} />}
+      {!model && query.isError && <ErrorState onRetry={() => void query.refetch()} title={copy.grades.error} />}
 
       {model && (
         <>
           <PageHeader
-            title="Mis calificaciones"
-            lede="Tu desempeño por materia, cada evaluación y lo que necesitas para aprobar."
+            title={copy.grades.title}
+            lede={copy.grades.lede}
             period={model.periodName}
             actions={
               <>
+                {switcher}
                 {periods.length > 1 && (
                   <Segmented
                     label="Periodo"
@@ -85,7 +96,7 @@ export function StudentGradesPage({ data }: { data: any }) {
           />
 
           {model.subjects.length === 0 ? (
-            <EmptyState page icon={<BookOpen {...ICON} />} title="Aún no hay materias en este periodo" note="Cuando tus docentes registren evaluaciones, verás aquí tus notas por materia." />
+            <EmptyState page icon={<BookOpen {...ICON} />} title="Aún no hay materias en este periodo" note={copy.grades.emptyNote} />
           ) : (
             <div className="stp-split">
               <Section id="stp-subjects-heading" title="Materias" count={model.subjects.length}>
@@ -109,7 +120,7 @@ export function StudentGradesPage({ data }: { data: any }) {
                       {selected.teacherName && <p className="stp-panel__sub">{selected.teacherName}</p>}
                     </div>
                   </div>
-                  <SubjectDetail subject={selected} />
+                  <SubjectDetail subject={selected} emptyNote={copy.noEvaluations} />
                 </aside>
               )}
             </div>
@@ -129,7 +140,7 @@ export function StudentGradesPage({ data }: { data: any }) {
               title={selected?.name ?? "Materia"}
               subtitle={selected?.teacherName}
             >
-              {selected && <SubjectDetail subject={selected} />}
+              {selected && <SubjectDetail subject={selected} emptyNote={copy.noEvaluations} />}
             </Sheet>
           )}
         </>

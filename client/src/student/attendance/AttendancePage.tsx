@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { AlertTriangle, CalendarCheck, FileText, Send } from "lucide-react";
 import { resolveActivePeriod } from "@/attendance/landing/landing";
 import { useStudentAttendance } from "../data";
@@ -6,12 +6,23 @@ import { capitalize, dateBadge, formatLongDate, formatShortDate, plural } from "
 import { EmptyState, ErrorState, PageFrame, PageHeader, PageSkeleton, Pill, Section, SummaryStrip } from "../ui";
 import { STATUS_META, absenceNote, type DayModel, type JustificationModel } from "./attendance";
 import { JustifyDialog } from "./JustifyDialog";
+import { STUDENT_VIEWER, viewerCopy, type Viewer } from "../viewer";
 
 const ICON = { "aria-hidden": true, strokeWidth: 1.9 } as const;
 
-export function StudentAttendancePage({ data, user }: { data: any; user: any }) {
+interface StudentAttendancePageProps {
+  data: any;
+  user: any;
+  /** Estudiante (por defecto) o acudiente con el hijo elegido. */
+  viewer?: Viewer;
+  /** Selector de hijo del acudiente en el encabezado. */
+  switcher?: ReactNode;
+}
+
+export function StudentAttendancePage({ data, user, viewer = STUDENT_VIEWER, switcher }: StudentAttendancePageProps) {
   const [now] = useState(() => new Date());
-  const attendance = useStudentAttendance();
+  const copy = viewerCopy(viewer).attendance;
+  const attendance = useStudentAttendance(viewer);
   const [excuseFor, setExcuseFor] = useState<DayModel | null>(null);
   const period = resolveActivePeriod(data?.academicPeriods, now)?.name ?? null;
   const model = attendance.model;
@@ -33,16 +44,17 @@ export function StudentAttendancePage({ data, user }: { data: any; user: any }) 
   }, [model]);
 
   return (
-    <PageFrame label="Mi asistencia">
-      {!model && attendance.isLoading && <PageSkeleton label="Cargando tu asistencia" />}
-      {!model && attendance.isError && <ErrorState onRetry={() => void attendance.refetch()} title="No pudimos cargar tu asistencia" />}
+    <PageFrame label={copy.title}>
+      {!model && attendance.isLoading && <PageSkeleton label={copy.loading} />}
+      {!model && attendance.isError && <ErrorState onRetry={() => void attendance.refetch()} title={copy.error} />}
 
       {model && summary && (
         <>
           <PageHeader
-            title="Mi asistencia"
-            lede="Tu registro diario y las excusas que has enviado. Justifica cada ausencia lo antes posible."
+            title={copy.title}
+            lede={copy.lede}
             period={period}
+            actions={switcher}
             summary={<SummaryStrip label="Resumen de asistencia" items={summary} />}
           />
 
@@ -53,11 +65,9 @@ export function StudentAttendancePage({ data, user }: { data: any; user: any }) 
               </span>
               <span className="stp-callout__body">
                 <span className="stp-callout__title">
-                  {model.pendingExcuses.length === 1
-                    ? `Tienes una ausencia sin justificar: ${formatLongDate(firstPending.date)}`
-                    : `Tienes ${model.pendingExcuses.length} ausencias sin justificar`}
+                  {model.pendingExcuses.length === 1 ? copy.pendingOne(formatLongDate(firstPending.date)) : copy.pendingMany(model.pendingExcuses.length)}
                 </span>
-                <span className="stp-callout__text">Envía la excusa con un soporte para que coordinación la revise.</span>
+                <span className="stp-callout__text">{copy.pendingNote}</span>
               </span>
               <button type="button" className="stp-btn stp-btn--dark" onClick={() => setExcuseFor(firstPending)}>
                 <Send {...ICON} />
@@ -77,11 +87,11 @@ export function StudentAttendancePage({ data, user }: { data: any; user: any }) 
                   ))}
                 </ul>
               ) : (
-                <EmptyState icon={<CalendarCheck {...ICON} />} title="Aún no hay registros de asistencia" note="Tus docentes registran la asistencia en cada clase; aquí verás cada día." />
+                <EmptyState icon={<CalendarCheck {...ICON} />} title="Aún no hay registros de asistencia" note={copy.daysEmptyNote} />
               )}
             </Section>
 
-            <Section id="stp-attendance-excuses" title="Mis excusas" count={model.justifications.length} className="stp-split__side">
+            <Section id="stp-attendance-excuses" title={copy.excusesTitle} count={model.justifications.length} className="stp-split__side">
               {model.justifications.length ? (
                 <ul className="stp-surface stp-list" aria-label="Excusas enviadas">
                   {model.justifications.map(item => (
@@ -91,14 +101,14 @@ export function StudentAttendancePage({ data, user }: { data: any; user: any }) 
                   ))}
                 </ul>
               ) : (
-                <EmptyState icon={<FileText {...ICON} />} title="No has enviado excusas" note="Cuando justifiques una ausencia, verás aquí su estado." />
+                <EmptyState icon={<FileText {...ICON} />} title={copy.excusesEmpty} note={copy.excusesEmptyNote} />
               )}
             </Section>
           </div>
         </>
       )}
 
-      <JustifyDialog day={excuseFor} studentName={user?.name ?? ""} onClose={() => setExcuseFor(null)} onSent={() => void attendance.refetch()} />
+      <JustifyDialog day={excuseFor} viewer={viewer} studentName={user?.name ?? ""} onClose={() => setExcuseFor(null)} onSent={() => void attendance.refetch()} />
     </PageFrame>
   );
 }

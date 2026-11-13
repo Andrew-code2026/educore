@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { useLocation } from "wouter";
-import { DEFAULT_SECTION, pathToSection, sectionToPath } from "./routes";
+import { useLocation, useSearch } from "wouter";
+import { DEFAULT_SECTION, pathToSection, persistentQuery, sectionToPath } from "./routes";
 import type { Section } from "./shell.types";
 
 export interface NavigateToSectionOptions {
@@ -21,16 +21,19 @@ export type NavigateToSection = (section: Section, options?: NavigateToSectionOp
  */
 export function useSectionRoute(): [Section, NavigateToSection] {
   const [location, navigate] = useLocation();
+  const search = useSearch();
   const section = pathToSection(location) ?? DEFAULT_SECTION;
 
   const navigateToSection = useCallback<NavigateToSection>(
     (nextSection, options) => {
-      const target = sectionToPath(nextSection);
+      // Conserva los parámetros persistentes (p. ej. el hijo que mira el acudiente)
+      const query = persistentQuery(search).toString();
+      const target = query ? `${sectionToPath(nextSection)}?${query}` : sectionToPath(nextSection);
       // Evita entradas duplicadas en el historial al re-seleccionar la misma sección.
       if (pathToSection(location) === nextSection) return;
       navigate(target, { replace: options?.replace });
     },
-    [location, navigate]
+    [location, navigate, search]
   );
 
   return [section, navigateToSection];

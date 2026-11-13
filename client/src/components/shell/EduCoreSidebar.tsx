@@ -15,7 +15,7 @@ interface EduCoreSidebarProps {
 }
 
 const getRoleAvatarInitials = (role: EduRole, user?: any) => {
-  if ((role === "teacher" || role === "admin" || role === "student") && user?.name) {
+  if (user?.name) {
     const parts = user.name.trim().split(/\s+/);
     if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
     return parts[0].slice(0, 2).toUpperCase();
@@ -206,7 +206,7 @@ export function EduCoreSidebar({
     };
   }, [indicator.visible, indicator.ready]);
 
-  const displayName = role === "teacher" ? (user?.name || "Juan Diego Loaiza") : role === "admin" ? (user?.name || "Valentina Ríos") : role === "student" ? (user?.name || ROLE_LABELS.student) : ROLE_LABELS[role];
+  const displayName = role === "teacher" ? (user?.name || "Juan Diego Loaiza") : role === "admin" ? (user?.name || "Valentina Ríos") : user?.name || ROLE_LABELS[role];
   const displaySub = role === "admin" ? ROLE_LABELS.admin : schoolName;
 
   return (

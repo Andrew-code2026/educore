@@ -1,0 +1,171 @@
+/*
+ * Portal acudiente: solo lo propio (el selector de hijo).
+ * Las páginas reutilizan el portal estudiante (.stp) y el Inicio docente (.edc-home); aquí se
+ * declaran los tokens del selector porque aparece en ambos contextos.
+ */
+
+.gdn-switch {
+  --gdn-track: rgba(17, 27, 36, .05);
+  --gdn-active: #FFFFFF;
+  --gdn-active-shadow: 0 1px 2px rgba(17, 27, 36, .08), 0 2px 6px -2px rgba(17, 27, 36, .12);
+  --gdn-chip-bg: rgba(255, 255, 255, .7);
+  --gdn-chip-border: rgba(255, 255, 255, .95);
+  --gdn-avatar-bg: #DEEDFE;
+  --gdn-avatar-fg: #0C62B5;
+  --gdn-avatar-active-bg: #111B24;
+  --gdn-avatar-active-fg: #FFFFFF;
+}
+
+.dark .gdn-switch {
+  --gdn-track: rgba(255, 255, 255, .06);
+  --gdn-active: #263445;
+  --gdn-active-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  --gdn-chip-bg: rgba(255, 255, 255, .05);
+  --gdn-chip-border: rgba(255, 255, 255, .08);
+  --gdn-avatar-bg: rgba(111, 177, 250, .16);
+  --gdn-avatar-fg: #9CCBFF;
+  --gdn-avatar-active-bg: #EEF3F8;
+  --gdn-avatar-active-fg: #111B24;
+}
+
+.gdn-switch {
+  align-self: flex-start;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  margin: 0;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--gdn-track);
+}
+
+/* Un solo hijo: identificación, no control */
+.gdn-switch--single {
+  padding: 0;
+  background: transparent;
+}
+
+.gdn-switch__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px 0 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--edc-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s ease, color .15s ease;
+}
+
+.gdn-switch__option:hover {
+  color: var(--edc-ink);
+  transform: none;
+}
+
+.gdn-switch__option:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+}
+
+.gdn-switch__option[aria-pressed="true"] {
+  background: var(--gdn-active);
+  box-shadow: var(--gdn-active-shadow);
+  color: var(--edc-ink);
+  font-weight: 600;
+}
+
+.gdn-switch--single .gdn-switch__option {
+  cursor: default;
+  color: var(--edc-ink);
+  font-weight: 600;
+  background: var(--gdn-chip-bg);
+  border: 1px solid var(--gdn-chip-border);
+}
+
+.gdn-switch__avatar {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--gdn-avatar-bg);
+  color: var(--gdn-avatar-fg);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
+.gdn-switch__option[aria-pressed="true"] .gdn-switch__avatar {
+  background: var(--gdn-avatar-active-bg);
+  color: var(--gdn-avatar-active-fg);
+}
+
+.gdn-switch__course {
+  color: var(--edc-muted-2, var(--edc-muted));
+  font-weight: 500;
+}
+
+/* Muchos hijos: lista nativa (accesible y cómoda en móvil) */
+.gdn-switch--select {
+  position: relative;
+  padding: 0;
+}
+
+.gdn-switch__select {
+  appearance: none;
+  height: 40px;
+  min-width: 220px;
+  padding: 0 40px 0 16px;
+  border: 1px solid var(--gdn-chip-border);
+  border-radius: 999px;
+  background: var(--gdn-chip-bg);
+  color: var(--edc-ink);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.gdn-switch__select:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: 2px;
+}
+
+.gdn-switch__chevron {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  transform: translateY(-50%);
+  color: var(--edc-muted);
+  pointer-events: none;
+}
+
+.gdn-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* El selector bajo el saludo del Inicio */
+.gdn-greeting {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}

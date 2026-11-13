@@ -19,7 +19,7 @@ const ROLE_PROFILES: Record<EduRole, { name: string; roleLabel: string; menuLabe
   teacher: { name: "Prof. Juan Diego Loaiza", roleLabel: "Docente", menuLabel: "Docente", initials: "JD" },
   admin: { name: "Valentina Ríos", roleLabel: "Coordinación", menuLabel: "Rectoría / Coordinación", initials: "VR" },
   student: { name: "Sofía Martínez Cadavid", roleLabel: "Estudiante", menuLabel: "Estudiante", initials: "SM" },
-  guardian: { name: "Fernando Martínez", roleLabel: "Acudiente", menuLabel: "Acudiente", initials: "FM" },
+  guardian: { name: "Mariana Martínez", roleLabel: "Acudiente", menuLabel: "Acudiente", initials: "MM" },
 };
 
 const initialsOf = (name: string) =>
@@ -77,8 +77,8 @@ export function EduCoreHeader({
   };
 
   const activeProfile = ROLE_PROFILES[role] || ROLE_PROFILES.teacher;
-  // Docente, directivo y estudiante muestran sus propias iniciales; las demás vistas demo usan el perfil de rol
-  const avatarInitials = (role === "teacher" || role === "admin" || role === "student") && user?.name ? initialsOf(user.name) : activeProfile.initials;
+  // Cada rol muestra las iniciales del usuario de la sesión; sin sesión, las del perfil demo
+  const avatarInitials = user?.name ? initialsOf(user.name) : activeProfile.initials;
 
   return (
     <header className="edc-topbar edc-chrome">
@@ -164,7 +164,7 @@ export function EduCoreHeader({
                 const subtitle =
                   opt === "teacher" && role === "teacher" && user?.name
                     ? (user.name.startsWith("Prof.") ? user.name : `Prof. ${user.name}`)
-                    : opt === "admin" && role === "admin" && user?.name
+                    : isSelected && user?.name
                       ? user.name
                       : meta.name;
                 return (

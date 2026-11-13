@@ -39,6 +39,23 @@ const PATH_TO_SECTION: ReadonlyMap<string, Section> = new Map(
   ])
 );
 
+/**
+ * Parámetros de la URL que sobreviven al cambiar de sección: `estudiante` es el hijo que
+ * consulta el acudiente, y debe seguir elegido en Inicio, Calificaciones o Asistencia.
+ */
+export const PERSISTENT_QUERY_PARAMS = ["estudiante"] as const;
+
+/** Solo los parámetros persistentes de una búsqueda ("?estudiante=7&materia=2" → "estudiante=7"). */
+export function persistentQuery(search: string): URLSearchParams {
+  const current = new URLSearchParams(search);
+  const kept = new URLSearchParams();
+  for (const key of PERSISTENT_QUERY_PARAMS) {
+    const value = current.get(key);
+    if (value) kept.set(key, value);
+  }
+  return kept;
+}
+
 export function sectionToPath(section: Section): string {
   return SECTION_PATHS[section] ?? SECTION_PATHS[DEFAULT_SECTION];
 }

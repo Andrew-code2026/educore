@@ -5,10 +5,11 @@ import { trpc } from "@/lib/trpc";
 import { capitalize, formatBytes, formatLongDate } from "../format";
 import { Sheet } from "../ui";
 import type { DayModel } from "./attendance";
+import { viewerCopy, type Viewer } from "../viewer";
 
 const ICON = { "aria-hidden": true, strokeWidth: 1.9 } as const;
 
-/** Motivos que acepta el servidor, con etiquetas para el estudiante. */
+/** Motivos que acepta el servidor, con etiquetas legibles. */
 const REASONS = [
   { value: "medical", label: "Salud" },
   { value: "family_emergency", label: "Calamidad familiar" },
@@ -25,6 +26,8 @@ const MAX_EVIDENCE_BYTES = 5 * 1024 * 1024;
 
 interface JustifyDialogProps {
   day: DayModel | null;
+  viewer: Viewer;
+  /** Nombre del estudiante autenticado (el acudiente firma con su propio nombre). */
   studentName: string;
   onClose: () => void;
   onSent: () => void;
@@ -38,8 +41,9 @@ const readAsDataUrl = (file: File) =>
     reader.readAsDataURL(file);
   });
 
-export function JustifyDialog({ day, studentName, onClose, onSent }: JustifyDialogProps) {
+export function JustifyDialog({ day, viewer, studentName, onClose, onSent }: JustifyDialogProps) {
   const formId = useId();
+  const copy = viewerCopy(viewer).justify;
   const [reason, setReason] = useState<Reason>("medical");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -75,7 +79,7 @@ export function JustifyDialog({ day, studentName, onClose, onSent }: JustifyDial
     event.preventDefault();
     if (!day || busy) return;
     if (description.trim().length < 10) {
-      setError("Cuéntanos el motivo en al menos 10 caracteres.");
+      setError(copy.tooShort);
       return;
     }
     try {
@@ -86,12 +90,12 @@ export function JustifyDialog({ day, studentName, onClose, onSent }: JustifyDial
         attendanceDate: new Date(Date.UTC(day.date.getFullYear(), day.date.getMonth(), day.date.getDate())),
         reasonCategory: reason,
         description: description.trim(),
-        submittedByRole: "student",
-        submittedByName: studentName,
+        submittedByRole: viewer.kind,
+        submittedByName: viewer.kind === "guardian" ? viewer.guardianName : studentName,
         digitalEvidenceUrl: evidence?.url ?? null,
         digitalEvidenceName: evidence?.fileName ?? null,
       });
-      toast.success("Enviaste la excusa. Coordinación la revisará.");
+      toast.success(copy.sent);
       onSent();
       onClose();
     } catch (err) {
@@ -132,7 +136,7 @@ export function JustifyDialog({ day, studentName, onClose, onSent }: JustifyDial
 
         <div className="stp-field">
           <label className="stp-label" htmlFor={`${formId}-description`}>
-            Cuéntanos qué pasó
+            {copy.describeLabel}
           </label>
           <textarea
             id={`${formId}-description`}
@@ -140,7 +144,7 @@ export function JustifyDialog({ day, studentName, onClose, onSent }: JustifyDial
             maxLength={2000}
             value={description}
             onChange={event => setDescription(event.target.value)}
-            placeholder="Por ejemplo: tuve cita médica en la mañana; adjunto la constancia."
+            placeholder={copy.placeholder}
           />
         </div>
 

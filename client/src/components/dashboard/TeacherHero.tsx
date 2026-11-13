@@ -2,12 +2,13 @@ import React from "react";
 
 interface TeacherHeroProps {
   teacherName: string;
+  /** Periodo académico activo; sin él, la fecha va sola (nunca un periodo inventado). */
   activePeriodName?: string;
 }
 
 export function TeacherHero({
   teacherName,
-  activePeriodName = "Periodo 2",
+  activePeriodName,
 }: TeacherHeroProps) {
   const currentHour = new Date().getHours();
   const greeting =
@@ -36,8 +37,12 @@ export function TeacherHero({
           <path d="M3 10h18" />
         </svg>
         {capitalizedDate}
-        <span className="edc-date-chip__dot">·</span>
-        <span className="edc-date-chip__period">{activePeriodName}</span>
+        {activePeriodName && (
+          <>
+            <span className="edc-date-chip__dot" aria-hidden="true">·</span>
+            <span className="edc-date-chip__period">{activePeriodName}</span>
+          </>
+        )}
       </div>
       <h1 className="edc-greeting__title">
         <span className="edc-greeting__muted">{greeting},</span> {teacherName}

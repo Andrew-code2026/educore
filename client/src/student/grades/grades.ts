@@ -5,6 +5,7 @@
 import { APPROVAL_GRADE, MAX_GRADE, PROVISIONAL_THRESHOLD, levelFromScore, needsAttention } from "@/gradecenter/domain/scale";
 import type { LevelId } from "@/gradecenter/types";
 import { formatGrade, plural, toDate } from "../format";
+import type { Audience } from "../viewer";
 
 export interface RawEvaluation {
   id: number;
@@ -110,11 +111,34 @@ export const typeLabel = (type: string) => TYPE_LABELS[type?.toUpperCase()] ?? "
 
 const round1 = (value: number) => Math.round(value * 10) / 10;
 
+/** Textos del pronóstico: al estudiante en segunda persona; al acudiente, de usted y sobre el estudiante. */
+const OUTLOOK_TEXT = {
+  student: {
+    noGrades: "Todavía no tienes notas en esta materia.",
+    passedClosed: "Aprobaste la materia en este periodo.",
+    passingAll: "Con todas tus notas, apruebas el periodo.",
+    failed: (approval: string) => `Quedaste por debajo de ${approval}. Pregunta a tu docente por el plan de mejoramiento.`,
+    secured: "Ya tienes asegurada la aprobación.",
+    unreachable: (max: string, approval: string) => `Aun con ${max} en lo pendiente no alcanzas ${approval}. Habla con tu docente.`,
+    needs: (needed: string) => `Necesitas ${needed} en promedio en lo pendiente para aprobar.`,
+  },
+  guardian: {
+    noGrades: "Todavía no tiene notas en esta materia.",
+    passedClosed: "Aprobó la materia en este periodo.",
+    passingAll: "Con todas sus notas, aprueba el periodo.",
+    failed: (approval: string) => `Quedó por debajo de ${approval}. Consulte al docente por el plan de mejoramiento.`,
+    secured: "Ya tiene asegurada la aprobación.",
+    unreachable: (max: string, approval: string) => `Aun con ${max} en lo pendiente no alcanza ${approval}. Le sugerimos hablar con el docente.`,
+    needs: (needed: string) => `Necesita ${needed} en promedio en lo pendiente para aprobar.`,
+  },
+} satisfies Record<Audience, unknown>;
+
 /**
- * ¿Qué necesitas para aprobar? Mismo contrato que `approvalOutlook` del Grade Center
- * (pondera sobre el peso calificable y el umbral institucional), en segunda persona.
+ * ¿Qué se necesita para aprobar? Mismo contrato que `approvalOutlook` del Grade Center
+ * (pondera sobre el peso calificable y el umbral institucional).
  */
-export function subjectOutlook(evaluations: Pick<EvaluationModel, "weight" | "value">[], closed: boolean): Outlook {
+export function subjectOutlook(evaluations: Pick<EvaluationModel, "weight" | "value">[], closed: boolean, audience: Audience = "student"): Outlook {
+  const text = OUTLOOK_TEXT[audience];
   const counted = evaluations.filter(evaluation => evaluation.weight > 0);
   const totalWeight = counted.reduce((sum, evaluation) => sum + evaluation.weight, 0);
   const graded = counted.filter((evaluation): evaluation is { weight: number; value: number } => evaluation.value !== null);
@@ -122,25 +146,25 @@ export function subjectOutlook(evaluations: Pick<EvaluationModel, "weight" | "va
   const weightedSum = graded.reduce((sum, evaluation) => sum + evaluation.value * evaluation.weight, 0);
 
   if (totalWeight === 0) return { tone: "empty", text: "Aún no hay evaluaciones en esta materia.", needed: null };
-  if (graded.length === 0) return { tone: "empty", text: "Todavía no tienes notas en esta materia.", needed: null };
+  if (graded.length === 0) return { tone: "empty", text: text.noGrades, needed: null };
   const average = weightedSum / (totalWeight - pendingWeight);
 
   if (pendingWeight === 0 || closed) {
     return average >= APPROVAL_GRADE
-      ? { tone: "good", text: closed ? "Aprobaste la materia en este periodo." : "Con todas tus notas, apruebas el periodo.", needed: null }
-      : { tone: "bad", text: `Quedaste por debajo de ${formatGrade(APPROVAL_GRADE)}. Pregunta a tu docente por el plan de mejoramiento.`, needed: null };
+      ? { tone: "good", text: closed ? text.passedClosed : text.passingAll, needed: null }
+      : { tone: "bad", text: text.failed(formatGrade(APPROVAL_GRADE)), needed: null };
   }
   const needed = (APPROVAL_GRADE * totalWeight - weightedSum) / pendingWeight;
-  if (needed <= 0) return { tone: "good", text: "Ya tienes asegurada la aprobación.", needed: null };
-  if (needed > MAX_GRADE) return { tone: "bad", text: `Aun con ${formatGrade(MAX_GRADE)} en lo pendiente no alcanzas ${formatGrade(APPROVAL_GRADE)}. Habla con tu docente.`, needed };
+  if (needed <= 0) return { tone: "good", text: text.secured, needed: null };
+  if (needed > MAX_GRADE) return { tone: "bad", text: text.unreachable(formatGrade(MAX_GRADE), formatGrade(APPROVAL_GRADE)), needed };
   return {
     tone: average < APPROVAL_GRADE ? "warn" : "neutral",
-    text: `Necesitas ${formatGrade(round1(needed))} en promedio en lo pendiente para aprobar.`,
+    text: text.needs(formatGrade(round1(needed))),
     needed: round1(needed),
   };
 }
 
-export function buildGradesModel(data: RawGrades, now: Date = new Date()): GradesModel {
+export function buildGradesModel(data: RawGrades, now: Date = new Date(), audience: Audience = "student"): GradesModel {
   const periodClosed = data.period?.state === "closed";
   const subjects = data.subjects.map((subject): SubjectModel => {
     const evaluations = subject.evaluations
@@ -171,7 +195,7 @@ export function buildGradesModel(data: RawGrades, now: Date = new Date()): Grade
       graded: evaluations.filter(evaluation => evaluation.state === "graded").length,
       total: evaluations.length,
       evaluations,
-      outlook: subjectOutlook(evaluations, periodClosed),
+      outlook: subjectOutlook(evaluations, periodClosed, audience),
     };
   });
 
@@ -206,7 +230,7 @@ export function attentionNote(model: GradesModel): string {
   return model.attention ? `${plural(model.attention, "requiere", "requieren")} atención` : "Todas por encima de 3.5";
 }
 
-/** Periodos que el estudiante puede consultar: los cerrados y el activo. */
+/** Periodos que se pueden consultar: los cerrados y el activo. */
 export function visiblePeriods(periods: RawPeriod[]): RawPeriod[] {
   return periods.filter(period => period.state !== "scheduled");
 }

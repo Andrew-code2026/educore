@@ -1030,3 +1030,232 @@
     flex-basis: 100%;
   }
 }
+
+/* ── Franja resumen (Inicio de estudiante y acudiente) ─────────────────── */
+
+.edc-summary {
+  --home-summary-alert: #B42343;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 6px;
+}
+
+.dark .edc-summary {
+  --home-summary-alert: #FF8FA6;
+}
+
+.edc-summary__tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+}
+
+/* Líneas finas entre datos, como la franja resumen de las páginas */
+.edc-summary__tile + .edc-summary__tile::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18px;
+  bottom: 18px;
+  width: 1px;
+  background: var(--edc-hair);
+}
+
+.edc-summary__tile--link {
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+
+.edc-summary__tile--link:hover {
+  background: var(--home-tile-bg);
+  transform: none;
+}
+
+.edc-summary__tile--link:focus-visible {
+  outline: 2px solid var(--edc-blue);
+  outline-offset: -2px;
+}
+
+.edc-summary__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--edc-muted);
+}
+
+.edc-summary__value {
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: -.02em;
+  color: var(--edc-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.edc-summary__unit {
+  margin-left: 2px;
+  font-size: 18px;
+  color: var(--edc-muted);
+}
+
+.edc-summary__note {
+  font-size: 13px;
+  color: var(--edc-muted);
+}
+
+.edc-summary__note--alert {
+  color: var(--home-summary-alert);
+  font-weight: 600;
+}
+
+.edc-summary__chevron {
+  position: absolute;
+  top: 16px;
+  right: 14px;
+  width: 16px;
+  height: 16px;
+  color: var(--edc-muted);
+  opacity: .6;
+}
+
+/* ── Fila inferior: pendientes + próximos eventos ──────────────────────── */
+
+.edc-home__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.edc-home__row > .edc-todo {
+  flex: 2 1 460px;
+  min-width: 0;
+}
+
+.edc-events {
+  flex: 1 1 300px;
+  min-width: 0;
+}
+
+.edc-events__empty {
+  margin-top: 16px;
+}
+
+.edc-events__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.edc-events__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--home-tile-bg);
+  border: 1px solid var(--home-tile-border);
+}
+
+.edc-events__date {
+  flex: none;
+  width: 42px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--edc-blue-soft, #DEEDFE);
+  color: var(--edc-blue-ink, #045AA5);
+}
+
+.dark .edc-events__date {
+  background: rgba(111, 177, 250, .16);
+  color: #9CCBFF;
+}
+
+.edc-events__month {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
+.edc-events__day {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.edc-events__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.edc-events__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--edc-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edc-events__when {
+  font-size: 12.5px;
+  color: var(--edc-muted);
+}
+
+/* En móvil la franja sigue siendo de tres columnas: un vistazo, no una lista */
+@media (max-width: 640px) {
+  .edc-summary {
+    padding: 4px;
+  }
+
+  .edc-summary__tile {
+    padding: 12px 10px;
+    gap: 2px;
+  }
+
+  .edc-summary__tile + .edc-summary__tile::before {
+    top: 14px;
+    bottom: 14px;
+  }
+
+  .edc-summary__label {
+    font-size: 10px;
+    letter-spacing: .06em;
+  }
+
+  .edc-summary__value {
+    font-size: 26px;
+  }
+
+  .edc-summary__unit {
+    font-size: 14px;
+  }
+
+  .edc-summary__note {
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .edc-summary__chevron {
+    display: none;
+  }
+}

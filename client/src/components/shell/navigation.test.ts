@@ -113,23 +113,19 @@ describe("EduCore Shell Navigation System", () => {
       expect(isSectionAllowed("admin", "users")).toBe(true);
     });
 
-    it("restricts guardian navigation to family monitoring", () => {
+    it("gives guardians only their child's follow-up and the school sections", () => {
       const groups = getNavGroupsForRole("guardian");
-      const labels = groups.map(g => g.label);
-      expect(labels).toContain("Seguimiento Familiar");
-
+      expect(groups.map(g => g.label)).toEqual(["Seguimiento", "Colegio"]);
       const allItems = groups.flatMap(g => g.items);
-      const sectionIds = allItems.map(i => i.id);
-      expect(sectionIds).toContain("overview");
-      expect(sectionIds).toContain("grades");
-      expect(sectionIds).toContain("attendance");
+      expect(allItems.map(i => i.id)).toEqual(["overview", "grades", "attendance", "calendar", "communications"]);
+      expect(allItems.find(i => i.id === "grades")?.label).toBe("Calificaciones");
+    });
 
-      // Guardians should NOT see teacher classroom management
-      expect(sectionIds).not.toContain("classroom");
-      expect(sectionIds).not.toContain("settings");
-
-      const gradesItem = allItems.find(i => i.id === "grades");
-      expect(gradesItem?.label).toBe("Rendimiento");
+    it("blocks by URL every section outside the guardian navigation", () => {
+      const blocked: Section[] = ["classroom", "academic", "users", "settings", "reports", "analytics", "piar", "creator"];
+      for (const section of blocked) expect(isSectionAllowed("guardian", section)).toBe(false);
+      const allowed: Section[] = ["overview", "grades", "attendance", "calendar", "communications"];
+      for (const section of allowed) expect(isSectionAllowed("guardian", section)).toBe(true);
     });
   });
 
