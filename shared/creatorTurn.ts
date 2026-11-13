@@ -23,6 +23,9 @@ export const SUGGESTION_CHARS_MAX = 90;
 const PREVIEW_CHARS = 90;
 /** Ids que guarda cada ficha o cada lista del turno: acota lo que ocupa un mensaje en la base de datos. */
 const IDS_MAX = 200;
+/** Bloques eliminados que nombra una ficha, y lo que mide cada nombre. */
+export const REMOVED_MAX = 8;
+const REMOVED_NAME_MAX = 120;
 
 /* ───────────────────────── Comparar documentos ───────────────────────── */
 
@@ -218,6 +221,17 @@ export type MessageExtras = Pick<CreatorChatMessage, "activity" | "attachments" 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const idList = (value: unknown): string[] => (Array.isArray(value) ? value.filter((id): id is string => typeof id === "string" && id.length > 0 && id.length <= 24).slice(0, IDS_MAX) : []);
 
+/** Lo eliminado que nombra una ficha: tipo conocido y nombre corto. */
+function readRemoved(value: unknown): Pick<CreatorActivity, "removed"> {
+  if (!Array.isArray(value)) return {};
+  const removed = value
+    .filter(isRecord)
+    .filter(item => typeof item.type === "string" && item.type in BLOCK_TYPE_LABELS && typeof item.name === "string" && item.name.length > 0 && item.name.length <= REMOVED_NAME_MAX)
+    .slice(0, REMOVED_MAX)
+    .map(item => ({ type: item.type, name: item.name }) as NonNullable<CreatorActivity["removed"]>[number]);
+  return removed.length > 0 ? { removed } : {};
+}
+
 function readActivity(value: unknown): CreatorActivity[] {
   if (!Array.isArray(value)) return [];
   return value.filter(isRecord).flatMap(item => {
@@ -230,6 +244,7 @@ function readActivity(value: unknown): CreatorActivity[] {
         changed: item.changed === true,
         ...(blockIds.length > 0 ? { blockIds } : {}),
         ...(typeof item.sectionId === "string" ? { sectionId: item.sectionId } : {}),
+        ...readRemoved(item.removed),
       },
     ];
   });

@@ -767,6 +767,8 @@ export interface CreatorActivity {
   blockIds?: string[];
   /** Sección donde ocurrió, para cuando no queda un bloque al que ir (renombrarla, borrarle bloques). */
   sectionId?: string;
+  /** Lo que eliminó, nombrado como lo ve el docente («Ejercicio 8»): después ya no está en el documento. */
+  removed?: Array<{ type: BlockType; name: string }>;
 }
 
 /** Bloque que el docente señaló al escribirle al asistente, como se ve en el chat. */
