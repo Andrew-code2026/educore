@@ -21,6 +21,8 @@ export interface BlockEditorHandle {
   focus: () => void;
   /** El bloque se va a reemplazar por otro: lo escrito no se guarda y el editor ya no se cierra solo. */
   release?: () => void;
+  /** Cambia lo escrito desde fuera del editor (el panel: una nota que se arrastra sobre la figura). */
+  edit?: (change: (draft: BlockInput) => BlockInput) => void;
 }
 
 const PARTS_MAX = 8;

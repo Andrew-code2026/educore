@@ -12,6 +12,7 @@ import { Field, NumberInput, type Draft, type FormProps } from "./fields";
 import { BalanceForm, BarChartForm, FractionModelForm, NumberLineForm, PieChartForm, ShapesForm } from "./FigureForms";
 import { FormulaInput } from "./FormulaInput";
 import { GraphForm } from "./GraphForm";
+import { notesIssue } from "./noteDraft";
 import { RichTextEditor } from "./RichTextEditor";
 import { BoxPlotForm, HistogramForm, LineChartForm, ScatterPlotForm, STAT_TEMPLATES } from "./StatForms";
 
@@ -433,6 +434,9 @@ export type DraftCheck = { ok: true; block: BlockInput } | { ok: false; issues: 
 
 /** Lo que se guardaría de un borrador: pasa las mismas validaciones que la IA, o dice qué corregir. */
 export function checkDraft(draft: BlockInput): DraftCheck {
+  // Una nota vacía se dice en palabras del docente, no con el aviso del esquema
+  const emptyNote = notesIssue(draft);
+  if (emptyNote) return { ok: false, issues: [emptyNote] };
   const parsed = blockInputSchema.safeParse(draft);
   if (!parsed.success) return { ok: false, issues: z.prettifyError(parsed.error).split("\n").filter(Boolean).slice(0, 6) };
   const normalized = normalizeBlock(parsed.data);

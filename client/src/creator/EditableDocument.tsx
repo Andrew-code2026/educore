@@ -35,9 +35,11 @@ import {
 import { cn } from "@/lib/utils";
 import { BlockPicker } from "./BlockPicker";
 import { BlockView, ContainerView } from "./blocks/BlockView";
+import { NoteEditingContext, type NoteEditing } from "./blocks/FigureNotes";
 import { CardTitle, EmptyCell } from "./ContainerControls";
 import { BLOCK_TEMPLATES } from "./editing/BlockEditor";
 import { BlockPanel, type FigureMeasure, type PanelPlace } from "./editing/BlockPanel";
+import { moveNote } from "./editing/noteDraft";
 import { InlineBlockEditor, type BlockEditorHandle, type CloseReason } from "./editing/InlineBlockEditor";
 import { IS_MAC, isEditingTarget } from "./keyboard";
 import { isInlineBlock, isInlineType } from "./editing/inlineDraft";
@@ -274,6 +276,8 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
   const [live, setLive] = useState<{ seq: number; block: BlockInput } | null>(null);
   /** El ancho de diseño de la figura que se edita, tal como la dibuja la hoja: de él salen los tamaños que se ofrecen. */
   const [measure, setMeasure] = useState<FigureMeasure | null>(null);
+  /** La nota elegida de la figura abierta en el panel: se marca en la figura y en la lista. */
+  const [noteSelected, setNoteSelected] = useState<number | null>(null);
   const paper = useRef<HTMLDivElement>(null);
   const dropLine = useRef<HTMLDivElement>(null);
   const dragChip = useRef<HTMLDivElement>(null);
@@ -385,6 +389,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
   const closePanel = (id: string) => {
     setEditing(current => (current?.id === id ? null : current));
     setLive(null);
+    setNoteSelected(null);
     focusBlock(id, { stay: true });
   };
 
@@ -400,6 +405,14 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
   }, [panelGone]);
 
   const panelOpen = panelId !== undefined;
+  // Otra figura en el panel empieza sin nota elegida
+  useEffect(() => setNoteSelected(null), [panelId]);
+
+  /** Las notas de la figura abierta se arrastran sobre ella; cada movimiento cambia el borrador del panel. */
+  const noteEditing = useMemo<NoteEditing | null>(
+    () => (panelOpen ? { selected: noteSelected, onSelect: setNoteSelected, onMove: (index, part, to) => editor.current?.edit?.(draft => moveNote(draft, index, part, to)) } : null),
+    [noteSelected, panelOpen],
+  );
   useEffect(() => onPanelChange?.(panelOpen), [onPanelChange, panelOpen]);
   useEffect(() => () => onPanelChange?.(false), [onPanelChange]);
 
@@ -721,7 +734,10 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
             }
           : {})}
       >
-        <BlockView block={shown} />
+        {/* En la figura abierta en el panel, sus notas se arrastran aquí mismo (en pantalla angosta, en la lámina) */}
+        <NoteEditingContext.Provider value={inPanel && !panelSheet ? noteEditing : null}>
+          <BlockView block={shown} />
+        </NoteEditingContext.Provider>
       </div>
     );
 
@@ -1067,6 +1083,9 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
             // Aplicar es una sola operación: un paso de deshacer. Si no cabe en su celda, sale el aviso y el panel sigue abierto
             onApply={next => applyOp({ op: "update_block", blockId: panelFound.block.id, block: next }).ok}
             onClose={() => closePanel(panelFound.block.id)}
+            selectedNote={noteSelected}
+            onSelectNote={setNoteSelected}
+            noteEditing={panelSheet ? noteEditing : null}
           />,
           panelHost,
         )}

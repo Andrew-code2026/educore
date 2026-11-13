@@ -2726,7 +2726,12 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt .crt-panel__keys { margin-right: auto; font-size: 12px; color: var(--edc-muted-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 /* Lámina en pantalla angosta: la hoja queda debajo, así que la figura se ve aquí, pegada arriba */
-.crt .crt-panel__preview { flex: none; max-height: 38vh; overflow: auto; padding: 0 12px 10px; }
+.crt .crt-panel__preview { flex: none; max-height: 40vh; overflow: auto; padding: 0 12px 10px; }
+/* La figura entera a la vista, aunque sea alta (un plano a todo lo ancho): se angosta hasta caber en el alto de la vista previa */
+.crt .crt-panel__preview .crt-graph > .crt-figure { width: min(100%, calc(var(--fig-w) * var(--fig-scale, 1)), calc(30vh * var(--fig-wn) / var(--fig-hn))); }
+.crt .crt-panel__preview .crt-graph > .crt-plane { width: min(100%, calc(var(--plane-w) * var(--fig-scale, 1)), calc(30vh * var(--plane-wn) / var(--plane-hn))); }
+.crt .crt-panel__preview .crt-graph[data-size="full"] > .crt-figure { width: min(100%, calc(var(--fig-w) * 2), calc(30vh * var(--fig-wn) / var(--fig-hn))); }
+.crt .crt-panel__preview .crt-graph[data-size="full"] > .crt-plane { width: min(100%, calc(var(--plane-w) * 2), calc(30vh * var(--plane-wn) / var(--plane-hn))); }
 .crt .crt-panel__paper { padding: 14px; border-radius: 12px; box-shadow: none; border: 1px solid var(--edc-hair); }
 
 /* Tamaño en la hoja: opciones como un control segmentado; cada una dibuja lo que ocupa en la hoja */
@@ -2763,3 +2768,14 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 @media (hover: none) {
   .crt .crt-panel__keys { visibility: hidden; }
 }
+
+/* Notas sobre la figura, en el panel: una fila por nota (texto, mover, línea, quitar); la elegida se marca igual que en la figura */
+.crt .crt-panel__row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.crt .crt-panel__count { font-size: 12px; color: var(--edc-muted); font-variant-numeric: tabular-nums; }
+.crt .crt-panel__add { align-self: flex-start; }
+.crt .crt-note-rows { display: flex; flex-direction: column; gap: 4px; }
+.crt .crt-note-row { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin: 0 -5px; padding: 4px; border-radius: 12px; border: 1px solid transparent; }
+.crt .crt-note-row.is-selected { border-color: color-mix(in srgb, var(--crt-accent) 40%, transparent); background: var(--crt-accent-soft); }
+.crt .crt-note-row > .crt-input { flex: 1 1 120px; min-width: 0; margin-right: 4px; }
+.crt .crt-note-row__point { flex-basis: 100%; justify-content: flex-start; }
+.crt .crt-panel .crt-icon-btn[aria-pressed="true"] { background: var(--crt-accent-soft); color: var(--crt-accent); }
