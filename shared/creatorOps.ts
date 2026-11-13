@@ -26,7 +26,16 @@ export type DocOp =
   | { op: "insert_blocks"; sectionId: string; afterBlockId?: string; at?: "start" | "end"; blocks: BlockInput[] }
   | { op: "update_block"; blockId: string; block: BlockInput }
   | { op: "delete_blocks"; blockIds: string[] }
-  | { op: "move_block"; blockId: string; direction: "up" | "down" };
+  | { op: "move_block"; blockId: string; direction: "up" | "down" }
+  /**
+   * Lleva un bloque a cualquier sitio del documento, también a otra sección. `index` es el hueco de
+   * destino contado con el bloque todavía en su sitio: 0 es antes del primer bloque de la sección y
+   * `blocks.length`, después del último. Así lo calcula quien arrastra sin restar nada.
+   */
+  | { op: "move_block_to"; blockId: string; sectionId: string; index: number }
+  /** Inserta una copia del bloque justo debajo, con un id nuevo. */
+  | { op: "duplicate_block"; blockId: string }
+  | { op: "move_section"; sectionId: string; direction: "up" | "down" };
 
 export type OpResult =
   | { ok: true; doc: ResourceDoc; changed: boolean; summary: string; ids: string[] }
@@ -146,6 +155,50 @@ export function applyDocOp(doc: ResourceDoc, op: DocOp, random?: () => number): 
       [blocks[found.index], blocks[target]] = [blocks[target], blocks[found.index]];
       const sections = doc.sections.map(section => (section === found.section ? { ...section, blocks } : section));
       return { ok: true, doc: { ...doc, sections }, changed: true, summary: "Bloque movido", ids: [op.blockId] };
+    }
+
+    case "move_block_to": {
+      const found = findBlock(doc, op.blockId);
+      if (!found) return fail(`No existe el bloque ${op.blockId}.`);
+      const target = doc.sections.find(section => section.id === op.sectionId);
+      if (!target) return fail(`No existe la sección ${op.sectionId}. Secciones: ${sectionNames(doc)}.`);
+      if (!Number.isInteger(op.index) || op.index < 0 || op.index > target.blocks.length) return fail(`La posición ${op.index} no existe en la sección ${target.id}.`);
+      const same = target === found.section;
+      // Caer justo antes o justo después de sí mismo lo deja donde estaba
+      if (same && (op.index === found.index || op.index === found.index + 1)) return { ok: true, doc, changed: false, summary: "Sin cambios", ids: [op.blockId] };
+      if (!same && target.blocks.length >= CREATOR_LIMITS.blocksPerSectionMax) return fail(`Una sección admite hasta ${CREATOR_LIMITS.blocksPerSectionMax} bloques.`);
+
+      // Quitarlo de su sitio corre una posición los huecos que quedan detrás de él
+      const position = same && op.index > found.index ? op.index - 1 : op.index;
+      const sections = doc.sections.map(section => {
+        if (section !== found.section && section !== target) return section;
+        // El bloque conserva su objeto: las marcas de la IA y el historial se guían por él
+        const blocks = section === found.section ? section.blocks.filter(block => block !== found.block) : [...section.blocks];
+        if (section === target) blocks.splice(position, 0, found.block);
+        return { ...section, blocks };
+      });
+      return { ok: true, doc: { ...doc, sections }, changed: true, summary: same ? "Bloque movido" : `Bloque movido a «${target.title}»`, ids: [op.blockId] };
+    }
+
+    case "duplicate_block": {
+      const found = findBlock(doc, op.blockId);
+      if (!found) return fail(`No existe el bloque ${op.blockId}.`);
+      if (found.section.blocks.length >= CREATOR_LIMITS.blocksPerSectionMax) return fail(`Una sección admite hasta ${CREATOR_LIMITS.blocksPerSectionMax} bloques.`);
+      // Copia honda: la copia y el original no comparten listas que una edición pudiera tocar
+      const copy = { ...structuredClone(found.block), id: createId("b", taken, random) } as Block;
+      const blocks = [...found.section.blocks.slice(0, found.index + 1), copy, ...found.section.blocks.slice(found.index + 1)];
+      const sections = doc.sections.map(section => (section === found.section ? { ...section, blocks } : section));
+      return { ok: true, doc: { ...doc, sections }, changed: true, summary: "Bloque duplicado", ids: [copy.id] };
+    }
+
+    case "move_section": {
+      const index = doc.sections.findIndex(section => section.id === op.sectionId);
+      if (index === -1) return fail(`No existe la sección ${op.sectionId}. Secciones: ${sectionNames(doc)}.`);
+      const target = index + (op.direction === "up" ? -1 : 1);
+      if (target < 0 || target >= doc.sections.length) return { ok: true, doc, changed: false, summary: "Sin cambios", ids: [op.sectionId] };
+      const sections = [...doc.sections];
+      [sections[index], sections[target]] = [sections[target], sections[index]];
+      return { ok: true, doc: { ...doc, sections }, changed: true, summary: `Sección «${sections[target].title}» movida`, ids: [op.sectionId] };
     }
   }
 }
