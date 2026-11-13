@@ -809,14 +809,18 @@ export function CreatorWorkspace({ role, resourceId, schoolName, logoUrl, aiRead
             className="crt-btn crt-btn--ghost crt-panel-toggle"
             aria-expanded={!chatCollapsed}
             aria-controls="crt-copilot"
-            aria-label={chatCollapsed ? "Mostrar copiloto" : "Ocultar copiloto"}
+            aria-label={
+              chatCollapsed
+                ? `Mostrar copiloto${attachments.length > 0 ? ` (${attachments.length} ${attachments.length === 1 ? "bloque señalado" : "bloques señalados"})` : ""}`
+                : "Ocultar copiloto"
+            }
             title={chatCollapsed ? "Mostrar copiloto" : "Ocultar copiloto: la hoja ocupa todo el ancho"}
             onClick={toggleChatPanel}
           >
             {chatCollapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
             {chatCollapsed && <span aria-hidden="true">Copiloto</span>}
             {chatCollapsed && attachments.length > 0 && (
-              <span className="crt-count" aria-label={`${attachments.length} ${attachments.length === 1 ? "bloque señalado" : "bloques señalados"}`}>
+              <span className="crt-count" aria-hidden="true">
                 {attachments.length}
               </span>
             )}
