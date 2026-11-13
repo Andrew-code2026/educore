@@ -137,7 +137,8 @@ function locateActivity(before: ResourceDoc, after: ResourceDoc, op: DocOp, ids:
 
 /** Qué eliminó la operación, con el nombre que el docente ve en la hoja: después ya no se puede buscar. */
 function namedRemoved(before: ResourceDoc, blockIds: string[]): Pick<CreatorActivity, "removed"> {
-  const removed = blockIds.flatMap(id => {
+  // Los repetidos cuentan una vez, como en applyDocOp
+  const removed = Array.from(new Set(blockIds)).flatMap(id => {
     const found = findBlock(before, id);
     return found ? [{ type: found.block.type, name: blockName(found.block) }] : [];
   });

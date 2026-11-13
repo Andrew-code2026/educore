@@ -226,7 +226,7 @@ function readRemoved(value: unknown): Pick<CreatorActivity, "removed"> {
   if (!Array.isArray(value)) return {};
   const removed = value
     .filter(isRecord)
-    .filter(item => typeof item.type === "string" && item.type in BLOCK_TYPE_LABELS && typeof item.name === "string" && item.name.length > 0 && item.name.length <= REMOVED_NAME_MAX)
+    .filter(item => typeof item.type === "string" && Object.hasOwn(BLOCK_TYPE_LABELS, item.type) && typeof item.name === "string" && item.name.length > 0 && item.name.length <= REMOVED_NAME_MAX)
     .slice(0, REMOVED_MAX)
     .map(item => ({ type: item.type, name: item.name }) as NonNullable<CreatorActivity["removed"]>[number]);
   return removed.length > 0 ? { removed } : {};
@@ -279,7 +279,7 @@ export function parseMessageExtras(raw: string | null | undefined): MessageExtra
   if (Array.isArray(value.attachments)) {
     const attachments = value.attachments
       .filter(isRecord)
-      .filter(item => typeof item.id === "string" && typeof item.preview === "string" && typeof item.type === "string" && item.type in BLOCK_TYPE_LABELS)
+      .filter(item => typeof item.id === "string" && typeof item.preview === "string" && typeof item.type === "string" && Object.hasOwn(BLOCK_TYPE_LABELS, item.type))
       .map(item => ({ id: item.id, type: item.type, preview: item.preview }) as CreatorAttachment);
     if (attachments.length > 0) extras.attachments = attachments;
   }

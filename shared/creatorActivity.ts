@@ -39,7 +39,7 @@ export function clipWords(text: string, max: number): string {
 const quote = (text: string, max = 40) => `«${clipWords(text, max)}»`;
 
 /** Género y número de cada tipo, para que el participio concuerde: «Gráfica añadida», «Ángulos añadidos». */
-type Agreement = "m" | "f" | "mp" | "fp";
+export type Agreement = "m" | "f" | "mp" | "fp";
 
 const AGREEMENT: Record<BlockType, Agreement> = {
   header_fields: "mp",
@@ -75,12 +75,30 @@ const AGREEMENT: Record<BlockType, Agreement> = {
 
 const ENDINGS: Record<Agreement, string> = { m: "o", f: "a", mp: "os", fp: "as" };
 
-/** «añadid» + tipos → «añadido», «añadida», «añadidos»… Varios tipos mezclados van en masculino plural. */
-export function agree(stem: string, types: readonly BlockType[]): string {
-  if (types.length === 0) return `${stem}o`;
-  if (types.length === 1) return stem + ENDINGS[AGREEMENT[types[0]]];
-  return stem + (types.every(type => AGREEMENT[type] === "f" || AGREEMENT[type] === "fp") ? "as" : "os");
+/**
+ * Un ejercicio se llama como su rótulo, y el rótulo lo pone quien escribe: «Pregunta 12», «Actividad 2».
+ * El participio concuerda con la primera palabra del rótulo; si no se reconoce, en masculino como «Ejercicio».
+ */
+const FEMININE_LABELS = new Set(["actividad", "consigna", "evaluacion", "lectura", "mision", "parte", "practica", "pregunta", "prueba", "situacion", "tarea"]);
+
+function labelAgreement(label: string): Agreement {
+  const first = (label.trim().split(/\s+/)[0] ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  return FEMININE_LABELS.has(first) ? "f" : "m";
 }
+
+/** La concordancia de un bloque: la de su tipo, o la de su rótulo si es un ejercicio. */
+export function agreementOf(item: { type: BlockType; name: string }): Agreement {
+  return item.type === "exercise" ? labelAgreement(item.name) : AGREEMENT[item.type];
+}
+
+/** «añadid» + concordancias → «añadido», «añadida», «añadidos»… Varias mezcladas van en masculino plural. */
+export function agree(stem: string, agreements: readonly Agreement[]): string {
+  if (agreements.length === 0) return `${stem}o`;
+  if (agreements.length === 1) return stem + ENDINGS[agreements[0]];
+  return stem + (agreements.every(agreement => agreement === "f" || agreement === "fp") ? "as" : "os");
+}
+
+const agreeAll = (stem: string, items: ReadonlyArray<{ type: BlockType; name: string }>) => agree(stem, items.map(agreementOf));
 
 /** El nombre con que el docente reconoce un bloque en la hoja. */
 export function blockName(block: BlockInput, max = 40): string {
@@ -106,10 +124,12 @@ export function blockName(block: BlockInput, max = 40): string {
   return named ? `${type} ${quote(plainText(named, 400), max)}` : type;
 }
 
-function listNames(items: ReadonlyArray<{ name: string }>): string {
-  if (items.length === 1) return items[0].name;
-  if (items.length === 2) return `${items[0].name} y ${items[1].name}`;
-  return `${items[0].name}, ${items[1].name} y ${items.length - 2} más`;
+/** «Ejercicio 3», «Ejercicio 3 y Gráfica», «Ejercicio 3, Gráfica y 4 más». `total` cuenta también los que no tienen nombre guardado. */
+function listNames(items: ReadonlyArray<{ name: string }>, total = items.length): string {
+  if (total <= 1) return items[0].name;
+  if (total === 2 && items.length >= 2) return `${items[0].name} y ${items[1].name}`;
+  if (items.length === 1) return `${items[0].name} y ${total - 1} más`;
+  return `${items[0].name}, ${items[1].name} y ${total - 2} más`;
 }
 
 /** Bloques de la ficha que siguen en el documento, con su nombre de ahora. */
@@ -148,14 +168,14 @@ export function describeActivity(activity: CreatorActivity, doc: ResourceDoc): A
   if ((match = /^(?:Bloque añadido|(\d+) bloques añadidos) en «(.*)»$/.exec(label))) {
     const where = `en ${quote(match[2], 40)}`;
     const blocks = liveBlocks(activity, doc, 28);
-    if (blocks.length > 0) return { kind: "add", subject: listNames(blocks), detail: `${agree("añadid", blocks.map(block => block.type))} ${where}`, linked: true, counts: true };
+    if (blocks.length > 0) return { kind: "add", subject: listNames(blocks), detail: `${agreeAll("añadid", blocks)} ${where}`, linked: true, counts: true };
     const count = Number(match[1] ?? 1);
     return { kind: "add", subject: many(count, "Bloque", "bloques"), detail: `${count === 1 ? "añadido" : "añadidos"} ${where}`, linked: section !== undefined, counts: true };
   }
 
   if ((match = /^Actualizado: (.*)$/.exec(label))) {
     const blocks = liveBlocks(activity, doc, 40);
-    if (blocks.length > 0) return { kind: "edit", subject: listNames(blocks), detail: agree("editad", blocks.map(block => block.type)), linked: true, counts: true };
+    if (blocks.length > 0) return { kind: "edit", subject: listNames(blocks), detail: agreeAll("editad", blocks), linked: true, counts: true };
     return { kind: "edit", subject: nameFromPreview(match[1]), detail: "editado", linked: false, counts: true };
   }
 
@@ -164,13 +184,19 @@ export function describeActivity(activity: CreatorActivity, doc: ResourceDoc): A
     const count = Number(match[1] ?? 1);
     // La ficha guarda la sección del primer bloque borrado: solo se nombra si fue uno solo (un ejercicio y su solución viven en secciones distintas)
     const where = section && count === 1 ? ` de ${quote(section.title, 40)}` : "";
-    if (removed.length > 0) return { kind: "delete", subject: listNames(removed), detail: `${agree("eliminad", removed.map(item => item.type))}${where}`, linked: false, counts: true };
+    // El servidor guarda hasta REMOVED_MAX nombres; el recuento real lo da el texto de la ficha
+    const total = Math.max(count, removed.length);
+    if (removed.length > 0) {
+      const agreement = total > removed.length ? agree("eliminad", ["m", "m"]) : agreeAll("eliminad", removed);
+      return { kind: "delete", subject: listNames(removed, total), detail: `${agreement}${where}`, linked: false, counts: true };
+    }
     return { kind: "delete", subject: many(count, "Bloque", "bloques"), detail: `${count === 1 ? "eliminado" : "eliminados"}${where}`, linked: false, counts: true };
   }
 
+  // La IA no tiene hoy herramienta para mover, pero la operación existe en creatorOps.ts y su ficha se reconoce
   if (label === "Bloque movido") {
     const blocks = liveBlocks(activity, doc, 40);
-    return { kind: "move", subject: blocks.length > 0 ? listNames(blocks) : "Bloque", detail: agree("movid", blocks.map(block => block.type)), linked: blocks.length > 0, counts: true };
+    return { kind: "move", subject: blocks.length > 0 ? listNames(blocks) : "Bloque", detail: agreeAll("movid", blocks), linked: blocks.length > 0, counts: true };
   }
 
   // Un texto que no se reconoce (de una versión futura o anterior): se muestra tal cual, recortado

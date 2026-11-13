@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { emptyDoc, type BlockInput, type CreatorActivity, type ResourceDoc } from "@shared/creator";
-import { agree, blockName, clipWords, countLabel, describeActivity } from "@shared/creatorActivity";
+import { emptyDoc, type BlockInput, type BlockType, type CreatorActivity, type ResourceDoc } from "@shared/creator";
+import { agree, agreementOf, blockName, clipWords, countLabel, describeActivity } from "@shared/creatorActivity";
 import { parseMessageExtras, serializeMessageExtras } from "@shared/creatorTurn";
 import { executeCreatorTool } from "./creatorTools";
 
@@ -73,12 +73,21 @@ describe("el nombre de un bloque", () => {
 });
 
 describe("la concordancia del participio", () => {
+  const of = (type: BlockType, name = "") => agreementOf({ type, name });
+
   it("sigue el género y el número del tipo de bloque", () => {
-    expect(agree("añadid", ["exercise"])).toBe("añadido");
-    expect(agree("añadid", ["graph"])).toBe("añadida");
-    expect(agree("añadid", ["angle"])).toBe("añadidos");
-    expect(agree("eliminad", ["table", "solution"])).toBe("eliminadas");
-    expect(agree("eliminad", ["table", "exercise"])).toBe("eliminados");
+    expect(agree("añadid", [of("exercise", "Ejercicio 3")])).toBe("añadido");
+    expect(agree("añadid", [of("graph")])).toBe("añadida");
+    expect(agree("añadid", [of("angle")])).toBe("añadidos");
+    expect(agree("eliminad", [of("table"), of("solution")])).toBe("eliminadas");
+    expect(agree("eliminad", [of("table"), of("exercise", "Ejercicio 3")])).toBe("eliminados");
+  });
+
+  it("en un ejercicio sigue a su rótulo, que puede ser femenino", () => {
+    expect(agree("editad", [of("exercise", "Pregunta 12")])).toBe("editada");
+    expect(agree("añadid", [of("exercise", "Actividad 2"), of("table")])).toBe("añadidas");
+    expect(agree("editad", [of("exercise", "Situación 1")])).toBe("editada");
+    expect(agree("editad", [of("exercise", "Reto final")])).toBe("editado");
   });
 });
 
@@ -115,6 +124,27 @@ describe("cómo se lee cada acción de la IA", () => {
     expect(activities[0].removed).toEqual([{ type: "exercise", name: "Ejercicio 1" }]);
     expect(describeActivity(activities[0], doc)).toMatchObject({ kind: "delete", subject: "Ejercicio 1", detail: "eliminado de «Parte 1 · Áreas de figuras compuestas»", linked: false });
     expect(describeActivity(activities[1], doc).subject).toBe("Recuadro «Conceptos clave»");
+  });
+
+  it("con más bloques borrados de los que se guardan, el recuento es el real", () => {
+    const many = Array.from({ length: 10 }, (_, index) => exercise(`Pregunta ${index + 1}`));
+    const start = run([["write_section", { title: "Guía", role: "student", blocks: many }]]);
+    const { doc, activities } = run([["delete_blocks", { block_ids: start.doc.sections[0].blocks.map(block => block.id) }]], start.doc);
+    expect(activities[0].removed).toHaveLength(8);
+    expect(describeActivity(activities[0], doc)).toMatchObject({ subject: "Pregunta 1, Pregunta 2 y 8 más", detail: "eliminados" });
+  });
+
+  it("un id repetido en el borrado se nombra una vez", () => {
+    const start = base();
+    const first = start.doc.sections[0].blocks[2].id;
+    const { doc, activities } = run([["delete_blocks", { block_ids: [first, first] }]], start.doc);
+    expect(activities[0].removed).toEqual([{ type: "exercise", name: "Ejercicio 1" }]);
+    expect(describeActivity(activities[0], doc).subject).toBe("Ejercicio 1");
+  });
+
+  it("lo guardado con un tipo que no existe, aunque sea una propiedad heredada, se descarta", () => {
+    const raw = JSON.stringify([{ label: "Bloque eliminado", ok: true, changed: true, removed: [{ type: "constructor", name: "X" }] }]);
+    expect(parseMessageExtras(raw).activity[0].removed).toBeUndefined();
   });
 
   it("un ejercicio y su solución borrados juntos no se atribuyen a una sola sección", () => {

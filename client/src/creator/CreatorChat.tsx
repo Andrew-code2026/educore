@@ -142,12 +142,12 @@ function TurnSummary({
   const label = live && !views.some(view => view.counts) ? "Preparando los cambios…" : countLabel(views);
 
   return (
-    <section className={`crt-turn${open ? " is-open" : ""}${live ? " is-live" : ""}`} aria-label="Cambios de esta respuesta">
+    <div className={`crt-turn${open ? " is-open" : ""}${live ? " is-live" : ""}`} role="group" aria-label="Cambios de esta respuesta">
       <div className="crt-turn__head">
         {live ? (
           <span className="crt-turn__label">{label}</span>
         ) : (
-          <button type="button" className="crt-turn__toggle" aria-expanded={open} aria-controls={listId} onClick={() => setChoice(!open)}>
+          <button type="button" className="crt-turn__toggle" aria-expanded={open} aria-controls={open ? listId : undefined} onClick={() => setChoice(!open)}>
             <ChevronRight className="crt-turn__chev" aria-hidden="true" />
             <span className="crt-turn__label">{label}</span>
             {!open && kinds.length > 0 && (
@@ -185,24 +185,39 @@ function TurnSummary({
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }
 
-/** Un mensaje largo del docente (el pedido inicial con sus aclaraciones) se muestra recortado hasta que lo despliega. */
-const LONG_MESSAGE_CHARS = 280;
-const LONG_MESSAGE_LINES = 6;
-
+/**
+ * Un mensaje largo del docente (el pedido inicial con sus aclaraciones) se muestra recortado a seis renglones
+ * hasta que lo despliega. Si cabe entero en el ancho de ahora, no hay nada que desplegar ni botón.
+ */
 function UserMessage({ content }: { content: string }) {
-  const long = content.length > LONG_MESSAGE_CHARS || content.split("\n").length > LONG_MESSAGE_LINES;
   const [open, setOpen] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const textRef = useRef<HTMLParagraphElement>(null);
   const textId = useId();
+
+  useLayoutEffect(() => {
+    const text = textRef.current;
+    if (!text || open) return;
+    const measure = () => setOverflows(text.scrollHeight > text.clientHeight + 1);
+    measure();
+    // El panel cambia de ancho al arrastrar el divisor: lo que no cabía puede caber, y al revés
+    const observer = new ResizeObserver(measure);
+    observer.observe(text);
+    return () => observer.disconnect();
+  }, [content, open]);
+
   return (
     <>
-      <div className={`crt-chat__msg crt-chat__msg--user${long && !open ? " is-clamped" : ""}`}>
-        <p id={textId}>{content}</p>
+      <div className={`crt-chat__msg crt-chat__msg--user${open ? "" : " is-clamped"}`}>
+        <p ref={textRef} id={textId}>
+          {content}
+        </p>
       </div>
-      {long && (
+      {(open || overflows) && (
         <button type="button" className="crt-chat__more" aria-expanded={open} aria-controls={textId} onClick={() => setOpen(!open)}>
           {open ? "Ver menos" : "Ver mensaje completo"}
         </button>
@@ -244,12 +259,13 @@ export function CreatorChat({ messages, doc, live, blocked, suggestions, attachm
   const stick = useRef(true);
   const [away, setAway] = useState(false);
 
-  const scrollToEnd = (smooth = false) => {
+  // Sin animación: un desplazamiento suave dispararía onScroll a medio camino y la conversación dejaría de seguir al final
+  const scrollToEnd = () => {
     const list = scrollRef.current;
     if (!list) return;
     stick.current = true;
     setAway(false);
-    list.scrollTo({ top: list.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+    list.scrollTop = list.scrollHeight;
   };
 
   const lastAssistant = useMemo(() => {
@@ -335,12 +351,19 @@ export function CreatorChat({ messages, doc, live, blocked, suggestions, attachm
                   />
                   <RichText md={message.content} />
                   {/* Un turno con cambios siempre trae fichas; por si no, «Deshacer» no se pierde */}
-                  {undoable?.messageId === message.id && message.activity.length === 0 && !undoable.undone && (
-                    <button type="button" className="crt-turn__undo crt-turn__undo--alone" disabled={undoable.busy} onClick={() => onUndoTurn(message.id)}>
-                      {undoable.busy ? <Loader2 className="crt-spin" aria-hidden="true" /> : <Undo2 aria-hidden="true" />}
-                      Deshacer estos cambios
-                    </button>
-                  )}
+                  {undoable?.messageId === message.id &&
+                    message.activity.length === 0 &&
+                    (undoable.undone ? (
+                      <span className="crt-turn__undone crt-turn__undo--alone">
+                        <Check aria-hidden="true" />
+                        Cambios deshechos
+                      </span>
+                    ) : (
+                      <button type="button" className="crt-turn__undo crt-turn__undo--alone" disabled={undoable.busy} onClick={() => onUndoTurn(message.id)}>
+                        {undoable.busy ? <Loader2 className="crt-spin" aria-hidden="true" /> : <Undo2 aria-hidden="true" />}
+                        Deshacer estos cambios
+                      </button>
+                    ))}
                 </div>
               )}
             </Fragment>
@@ -349,7 +372,8 @@ export function CreatorChat({ messages, doc, live, blocked, suggestions, attachm
             <div className="crt-chat__msg crt-chat__msg--assistant" aria-busy="true">
               <TurnSummary activities={live.activities} doc={doc} live latest undo={null} onReveal={onReveal} />
               {live.text && <RichText md={live.text} />}
-              <span className="crt-chat__working" role="status">
+              {/* Sin role="status": el registro de la conversación ya anuncia lo nuevo */}
+              <span className="crt-chat__working">
                 <BotAvatar thinking className="crt-bot--xs" />
                 <span className="crt-chat__working-text">{live.phase === "writing" ? "Escribiendo en el recurso…" : "Pensando…"}</span>
               </span>
@@ -380,7 +404,17 @@ export function CreatorChat({ messages, doc, live, blocked, suggestions, attachm
       >
         {/* Flota sobre el cuadro de escritura, por alto que este llegue a ser */}
         {away && (
-          <button type="button" className="crt-chat__to-end" aria-label="Ir al final de la conversación" title="Ir al final" onClick={() => scrollToEnd(true)}>
+          <button
+            type="button"
+            className="crt-chat__to-end"
+            aria-label="Ir al final de la conversación"
+            title="Ir al final"
+            onClick={() => {
+              scrollToEnd();
+              // El botón desaparece al llegar: el foco pasa al cuadro de escritura en vez de perderse
+              if (!blocked) inputRef.current?.focus({ preventScroll: true });
+            }}
+          >
             <ArrowDown aria-hidden="true" />
           </button>
         )}

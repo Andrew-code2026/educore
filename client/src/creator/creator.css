@@ -27,8 +27,6 @@
   --crt-outline-border: rgba(17, 27, 36, .1);
   --crt-input-bg: #FBFCFE;
   --crt-input-border: rgba(17, 27, 36, .14);
-  --crt-user-bg: #111B24;
-  --crt-user-fg: #FFFFFF;
   --crt-stage-bg: rgba(17, 27, 36, .045);
   --crt-skeleton: rgba(17, 27, 36, .06);
   --crt-skeleton-shine: rgba(255, 255, 255, .7);
@@ -74,8 +72,6 @@
   --crt-outline-border: rgba(255, 255, 255, .12);
   --crt-input-bg: rgba(255, 255, 255, .03);
   --crt-input-border: rgba(255, 255, 255, .14);
-  --crt-user-bg: #EEF3F8;
-  --crt-user-fg: #111B24;
   --crt-stage-bg: rgba(0, 0, 0, .22);
   --crt-skeleton: rgba(255, 255, 255, .06);
   --crt-skeleton-shine: rgba(255, 255, 255, .08);
