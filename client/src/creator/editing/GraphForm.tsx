@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { OptionSelect, type SelectOption } from "@/components/option-select";
-import { CREATOR_LIMITS, graphSpecSchema, type GraphFunction, type GraphVerticalLine } from "@shared/creator";
+import { CREATOR_LIMITS, graphSpecSchema, type GraphConic, type GraphFunction, type GraphVerticalLine } from "@shared/creator";
+import { CONIC_LABELS, CONIC_SHOW_LABELS, CONIC_SHOWS, conicEquation, type ConicKind, type ConicShow } from "@shared/creatorConics";
 import type { EndStyle } from "@shared/creatorPlane";
 import { CoordinatePlane } from "../blocks/CoordinatePlane";
+import { Formula } from "../blocks/Formula";
 import { Check, Field, NumberInput, OptionalNumberInput, type FormProps } from "./fields";
 import { AddButton, RemoveButton, useListVersion } from "./FigureForms";
 
@@ -28,6 +30,86 @@ const COLOR_OPTIONS: readonly SelectOption<number | "">[] = [
   { value: 3, label: "Naranja" },
 ];
 
+const CONIC_KIND_OPTIONS: readonly SelectOption<ConicKind>[] = (Object.keys(CONIC_LABELS) as ConicKind[]).map(kind => ({ value: kind, label: CONIC_LABELS[kind] }));
+
+/** Una cónica de cada tipo con el centro dado, para empezar a editarla. */
+const conicTemplate = (kind: ConicKind, h = 0, k = 0): GraphConic => {
+  switch (kind) {
+    case "circle":
+      return { kind, h, k, r: 3, show: ["center"] };
+    case "ellipse":
+      return { kind, h, k, rx: 4, ry: 2, show: ["center", "foci"] };
+    case "parabola":
+      return { kind, h, k, p: 1, axis: "vertical", show: ["foci", "directrix"] };
+    case "hyperbola":
+      return { kind, h, k, a: 2, b: 1.5, axis: "horizontal", show: ["foci", "asymptotes"] };
+  }
+};
+
+const PARABOLA_AXIS_OPTIONS: readonly SelectOption<"vertical" | "horizontal">[] = [
+  { value: "vertical", label: "Abre hacia arriba o abajo" },
+  { value: "horizontal", label: "Abre hacia un lado" },
+];
+
+const HYPERBOLA_AXIS_OPTIONS: readonly SelectOption<"horizontal" | "vertical">[] = [
+  { value: "horizontal", label: "Ramas a izquierda y derecha" },
+  { value: "vertical", label: "Ramas arriba y abajo" },
+];
+
+/** Los parámetros propios de cada cónica. */
+function ConicFields({ conic, index, onChange }: { conic: GraphConic; index: number; onChange: (next: GraphConic) => void }) {
+  const number = (label: string, name: string, value: number, set: (value: number) => GraphConic) => (
+    <Field label={label}>
+      <NumberInput label={`${name} de la cónica ${index + 1}`} value={value} onChange={next => onChange(set(next))} />
+    </Field>
+  );
+  const vertexOrCenter = conic.kind === "parabola" ? "vértice" : "centro";
+  const shared = (
+    <>
+      {number(`x del ${vertexOrCenter}`, `x del ${vertexOrCenter}`, conic.h, h => ({ ...conic, h }))}
+      {number(`y del ${vertexOrCenter}`, `y del ${vertexOrCenter}`, conic.k, k => ({ ...conic, k }))}
+    </>
+  );
+  switch (conic.kind) {
+    case "circle":
+      return (
+        <>
+          {shared}
+          {number("Radio", "Radio", conic.r, r => ({ ...conic, r }))}
+        </>
+      );
+    case "ellipse":
+      return (
+        <>
+          {shared}
+          {number("Semieje horizontal", "Semieje horizontal", conic.rx, rx => ({ ...conic, rx }))}
+          {number("Semieje vertical", "Semieje vertical", conic.ry, ry => ({ ...conic, ry }))}
+        </>
+      );
+    case "parabola":
+      return (
+        <>
+          {shared}
+          {number("p (del vértice al foco)", "Parámetro p", conic.p, p => ({ ...conic, p }))}
+          <Field label="Orientación">
+            <OptionSelect className="crt-input" aria-label={`Orientación de la cónica ${index + 1}`} value={conic.axis} onValueChange={axis => onChange({ ...conic, axis })} options={PARABOLA_AXIS_OPTIONS} />
+          </Field>
+        </>
+      );
+    case "hyperbola":
+      return (
+        <>
+          {shared}
+          {number("a (al vértice)", "Semieje a", conic.a, a => ({ ...conic, a }))}
+          {number("b", "Semieje b", conic.b, b => ({ ...conic, b }))}
+          <Field label="Orientación">
+            <OptionSelect className="crt-input" aria-label={`Orientación de la cónica ${index + 1}`} value={conic.axis} onValueChange={axis => onChange({ ...conic, axis })} options={HYPERBOLA_AXIS_OPTIONS} />
+          </Field>
+        </>
+      );
+  }
+}
+
 /** ¿La función usa alguna de las opciones que el formulario guarda plegadas? */
 const hasOptions = (fn: GraphFunction) => fn.from !== undefined || fn.to !== undefined || fn.color !== undefined || fn.style !== undefined;
 
@@ -43,6 +125,9 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
   const verticalLines = spec.verticalLines ?? [];
   // Una lista que queda vacía se quita del bloque: así un plano sin rectas se guarda como antes
   const setVerticalLines = (next: GraphVerticalLine[]) => setSpec({ verticalLines: next.length > 0 ? next : undefined });
+  const conics = spec.conics ?? [];
+  const setConics = (next: GraphConic[]) => setSpec({ conics: next.length > 0 ? next : undefined });
+  const setConic = (index: number, next: GraphConic) => setConics(conics.map((current, i) => (i === index ? next : current)));
 
   return (
     <>
@@ -155,6 +240,54 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
       <p className="crt-form__hint">
         La parte entera se escribe floor(x). Para una función a trozos, añade una función por trozo, cada una con su dominio y todas con el mismo color; los círculos de los extremos y de los saltos se dibujan solos. Una asíntota horizontal u oblicua es una función con trazo punteado.
       </p>
+
+      <span className="crt-form__legend">Cónicas</span>
+      {conics.map((conic, index) => {
+        const shown = conic.show ?? [];
+        const toggle = (item: ConicShow, on: boolean) => {
+          const next = CONIC_SHOWS[conic.kind].filter(value => (value === item ? on : shown.includes(value)));
+          setConic(index, { ...conic, show: next.length > 0 ? next : undefined });
+        };
+        const equation = conicEquation(conic);
+        return (
+          <div key={`${listVersion}-c${index}-${conic.kind}`} className="crt-form__group crt-form__stack">
+            <div className="crt-form__row">
+              <Field label={`Cónica ${index + 1}`}>
+                <OptionSelect
+                  className="crt-input"
+                  aria-label={`Tipo de la cónica ${index + 1}`}
+                  value={conic.kind}
+                  onValueChange={kind => {
+                    setConic(index, conicTemplate(kind, conic.h, conic.k));
+                    bump();
+                  }}
+                  options={CONIC_KIND_OPTIONS}
+                />
+              </Field>
+              <ConicFields conic={conic} index={index} onChange={next => setConic(index, next)} />
+              <RemoveButton
+                label={`Quitar la cónica ${index + 1}`}
+                onClick={() => {
+                  setConics(conics.filter((_, i) => i !== index));
+                  bump();
+                }}
+              />
+            </div>
+            <div className="crt-form__row">
+              {CONIC_SHOWS[conic.kind].map(item => (
+                <Check key={item} label={CONIC_SHOW_LABELS[item]} checked={shown.includes(item)} onChange={on => toggle(item, on)} />
+              ))}
+            </div>
+            {equation && (
+              <p className="crt-form__hint">
+                Ecuación: <Formula latex={equation} />
+              </p>
+            )}
+          </div>
+        );
+      })}
+      {conics.length < CREATOR_LIMITS.conicsMax && <AddButton onClick={() => setConics([...conics, conicTemplate("circle")])}>Añadir cónica</AddButton>}
+      {conics.length > 0 && <p className="crt-form__hint">El centro, los focos, los vértices, la directriz, las asíntotas y la ecuación se calculan solos. Con cónicas, deja el plano más o menos cuadrado: así tiene la misma unidad en los dos ejes y una circunferencia se ve redonda.</p>}
 
       <span className="crt-form__legend">Rectas verticales</span>
       {verticalLines.map((line, index) => {

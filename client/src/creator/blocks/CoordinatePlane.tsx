@@ -1,14 +1,14 @@
 import { memo, useId, useMemo, type CSSProperties } from "react";
 import type { GraphSpec } from "@shared/creator";
 import { formatNumber, formatNumberEs, tryCompile } from "@shared/creatorMath";
-import { sampleFunction, type CurveMark } from "@shared/creatorPlane";
+import { CONIC_LABELS, conicCurves, conicEquation, shownConicElements, type ConicLine } from "@shared/creatorConics";
+import { hasEqualUnits, sampleFunction, type CurveMark } from "@shared/creatorPlane";
 import { Formula } from "./Formula";
 
 /** Márgenes alrededor de la cuadrícula: caben las flechas de los ejes y los números. */
 const PAD = { left: 30, right: 24, top: 22, bottom: 28 };
 const MAX_W = 320;
 const MAX_H = 320;
-const MIN_SIDE = 150;
 const LABEL_H = 20;
 const TONES = ["a", "b", "c", "d"] as const;
 /** Radio de los puntos marcados y de los círculos de extremos y saltos. */
@@ -33,7 +33,7 @@ interface PlacedLabel extends Box {
  */
 function plotSize(xSpan: number, ySpan: number): { w: number; h: number } {
   const ratio = ySpan / xSpan;
-  if (ratio >= MIN_SIDE / MAX_W && ratio <= MAX_H / MIN_SIDE) {
+  if (hasEqualUnits(xSpan, ySpan)) {
     let w = MAX_W;
     let h = w * ratio;
     if (h > MAX_H) {
@@ -66,7 +66,8 @@ function describe(spec: GraphSpec): string {
   const functions = spec.functions.map(fn => fn.expr).join("; ");
   const points = spec.points.map(point => `(${formatNumber(point.x)}, ${formatNumber(point.y)})${point.open ? " vacío" : ""}`).join(", ");
   const lines = (spec.verticalLines ?? []).map(line => `x = ${formatNumber(line.x)}`).join(", ");
-  const base = functions ? `Plano cartesiano con ${functions}` : "Plano cartesiano en blanco";
+  const drawn = [functions, ...(spec.conics ?? []).map(conic => CONIC_LABELS[conic.kind].toLowerCase())].filter(Boolean).join("; ");
+  const base = drawn ? `Plano cartesiano con ${drawn}` : "Plano cartesiano en blanco";
   return [base, lines && `Rectas verticales: ${lines}`, points && `Puntos marcados: ${points}`].filter(Boolean).join(". ") + ".";
 }
 
@@ -111,11 +112,31 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     });
     const verticals = (spec.verticalLines ?? []).filter(line => line.x >= spec.xMin && line.x <= spec.xMax);
 
+    // Las cónicas siguen la paleta después de las funciones
+    const linePath = (line: ConicLine) =>
+      line.vertical !== undefined
+        ? `M${sx(line.vertical).toFixed(2)} ${PAD.top} V${PAD.top + h}`
+        : `M${PAD.left} ${sy(line.slope! * spec.xMin + line.intercept!).toFixed(2)} L${PAD.left + w} ${sy(line.slope! * spec.xMax + line.intercept!).toFixed(2)}`;
+    const conics = (spec.conics ?? []).map((conic, index) => {
+      const branches = conicCurves(conic, spec);
+      const shown = shownConicElements(conic);
+      return {
+        index,
+        tone: TONES[(spec.functions.length + index) % TONES.length],
+        paths: branches.map(pathOf),
+        samples: branches.flat().filter(([x, y]) => inPlane(x, y)),
+        lines: shown.lines.map(linePath),
+        points: shown.points.filter(point => inPlane(point.x, point.y)),
+        equation: (conic.show ?? []).includes("equation") ? conicEquation(conic) : null,
+      };
+    });
+
     // Las etiquetas se ubican por prioridad: primero los puntos, luego las curvas
     const plot: Box = { x: PAD.left, y: PAD.top, w, h };
     const occupied: Box[] = [
       ...spec.points.map(point => ({ x: sx(point.x) - 6, y: sy(point.y) - 6, w: 12, h: 12 })),
       ...curves.flatMap(curve => curve.marks.map(mark => ({ x: sx(mark.x) - 5, y: sy(mark.y) - 5, w: 10, h: 10 }))),
+      ...conics.flatMap(conic => conic.points.map(point => ({ x: sx(point.x) - 5, y: sy(point.y) - 5, w: 10, h: 10 }))),
     ];
     const labels: PlacedLabel[] = [];
 
@@ -136,6 +157,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     ];
     const curvePixels = [
       ...curves.flatMap(curve => curve.samples.map(([x, y]) => [sx(x), sy(y)] as const)),
+      ...conics.flatMap(conic => conic.samples.filter((_, i) => i % 2 === 0).map(([x, y]) => [sx(x), sy(y)] as const)),
       // Las rectas verticales también son trazo que una etiqueta no debería tapar
       ...verticals.flatMap(line => Array.from({ length: 25 }, (_, i) => [sx(line.x), PAD.top + (h * i) / 24] as const)),
     ];
@@ -189,6 +211,22 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       ]);
     }
 
+    /** Sitios alrededor de un punto, del preferido (arriba a la derecha) al último. */
+    const around = (px: number, py: number, labelW: number) => [
+      { x: px + 8, y: py - LABEL_H - 2 },
+      { x: px + 8, y: py + 4 },
+      { x: px - labelW - 8, y: py - LABEL_H - 2 },
+      { x: px - labelW - 8, y: py + 4 },
+      { x: px - labelW / 2, y: py - LABEL_H - 8 },
+      { x: px - labelW / 2, y: py + 10 },
+      { x: px + 12, y: py - LABEL_H / 2 },
+      { x: px - labelW - 12, y: py - LABEL_H / 2 },
+    ];
+
+    for (const conic of conics) {
+      for (const point of conic.points) place(point.name, `crt-plane__label--${conic.tone}`, around(sx(point.x), sy(point.y), estimateWidth(point.name)));
+    }
+
     for (const line of verticals) {
       if (!line.label) continue;
       const px = sx(line.x);
@@ -222,12 +260,29 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       place(label, `crt-plane__label--${curve.tone}`, candidates);
     }
 
-    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, labels, toneOf };
+    for (const conic of conics) {
+      if (!conic.equation || conic.samples.length === 0) continue;
+      const labelW = estimateWidth(conic.equation);
+      const candidates = [0.13, 0.37, 0.63, 0.87, 0.5, 0.25, 0.75].flatMap(t => {
+        const [x, y] = conic.samples[Math.min(conic.samples.length - 1, Math.floor(conic.samples.length * t))];
+        const px = sx(x);
+        const py = sy(y);
+        return [
+          { x: px + 10, y: py - LABEL_H - 4 },
+          { x: px + 10, y: py + 4 },
+          { x: px - labelW - 10, y: py - LABEL_H - 4 },
+          { x: px - labelW - 10, y: py + 4 },
+        ];
+      });
+      place(conic.equation, `crt-plane__label--${conic.tone}`, candidates);
+    }
+
+    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, conics, labels, toneOf };
   }, [spec]);
 
   if (!view) return <div className="crt-plane crt-plane--invalid">Rango de la gráfica no válido.</div>;
 
-  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, labels, toneOf } = view;
+  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, verticals, conics, labels, toneOf } = view;
   const axisXpx = sy(axisX);
   const axisYpx = sx(axisY);
   // Con el origen a la vista, el cero se escribe una sola vez junto al cruce de los ejes
@@ -303,11 +358,13 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
           {verticals.map((line, index) => (
             <line key={`v${index}`} className={`crt-plane__vline${line.style === "dashed" ? " crt-plane__curve--dashed" : ""}`} x1={sx(line.x)} x2={sx(line.x)} y1={PAD.top} y2={PAD.top + h} />
           ))}
+          {conics.map(conic => conic.lines.map((d, index) => <path key={`cl${conic.index}-${index}`} className={`crt-plane__aux crt-plane__tone--${conic.tone}`} d={d} />))}
           {curves.map(curve =>
             curve.paths.map((d, index) => (
               <path key={`${curve.index}-${index}`} className={`crt-plane__curve crt-plane__curve--${curve.tone}${curve.dashed ? " crt-plane__curve--dashed" : ""}`} d={d} />
             )),
           )}
+          {conics.map(conic => conic.paths.map((d, index) => <path key={`c${conic.index}-${index}`} className={`crt-plane__curve crt-plane__curve--${conic.tone}`} d={d} />))}
         </g>
 
         <g className="crt-plane__marks">
@@ -322,6 +379,10 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
               />
             )),
           )}
+        </g>
+
+        <g className="crt-plane__marks">
+          {conics.map(conic => conic.points.map((point, index) => <circle key={`${conic.index}-${index}`} className={`crt-plane__dot crt-plane__tone--${conic.tone}`} cx={sx(point.x)} cy={sy(point.y)} r={3.2} />))}
         </g>
 
         <g className="crt-plane__points">

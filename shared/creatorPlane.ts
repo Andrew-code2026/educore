@@ -40,6 +40,18 @@ export interface SampledCurve {
   exhausted: boolean;
 }
 
+/**
+ * Proporción alto/ancho del rango con la que el plano se dibuja con la misma unidad en los
+ * dos ejes (una recta de pendiente 1 a 45°, una circunferencia redonda). Fuera de ella cada
+ * eje toma su propia escala para que la figura no quede como una tira.
+ */
+export const PLANE_EQUAL_UNITS = { min: 150 / 320, max: 320 / 150 } as const;
+
+export const hasEqualUnits = (xSpan: number, ySpan: number): boolean => {
+  const ratio = ySpan / xSpan;
+  return ratio >= PLANE_EQUAL_UNITS.min && ratio <= PLANE_EQUAL_UNITS.max;
+};
+
 /* ── Números ── */
 
 const EPS = 1e-9;

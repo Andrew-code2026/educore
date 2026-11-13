@@ -30,6 +30,7 @@ export const CREATOR_LIMITS = {
   pointsMax: 12,
   /** Rectas x = k de un plano: las asíntotas de una tangente en dos períodos. */
   verticalLinesMax: 6,
+  conicsMax: 3,
   /** Marcas por eje: más que esto deja la cuadrícula ilegible al imprimir. */
   ticksMax: 40,
   /** Datos crudos de un histograma o de una caja y bigotes: hasta cinco cursos de 40 estudiantes. */
@@ -110,6 +111,36 @@ export const graphVerticalLineSchema = z.object({
   label: latex.optional().describe('Etiqueta en LaTeX, p. ej. "x = 2".'),
 });
 
+const conicBase = {
+  h: z.number().describe("Coordenada x del centro; en la parábola, del vértice."),
+  k: z.number().describe("Coordenada y del centro; en la parábola, del vértice."),
+  show: z
+    .array(z.enum(["equation", "center", "foci", "vertices", "directrix", "asymptotes"]))
+    .max(6)
+    .optional()
+    .describe('Lo que el sistema calcula y dibuja además de la curva: "equation" (la ecuación canónica), "center", "foci", "vertices", "directrix" (solo la parábola) y "asymptotes" (solo la hipérbola).'),
+};
+const positive = z.number().positive();
+
+/** Una cónica dada por sus parámetros; la curva y sus elementos los calcula el sistema (creatorConics.ts). */
+export const graphConicSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("circle"), ...conicBase, r: positive.describe("Radio.") }),
+  z.object({ kind: z.literal("ellipse"), ...conicBase, rx: positive.describe("Semieje horizontal."), ry: positive.describe("Semieje vertical.") }),
+  z.object({
+    kind: z.literal("parabola"),
+    ...conicBase,
+    p: z.number().describe("Distancia dirigida del vértice al foco: positiva si abre hacia arriba (o a la derecha), negativa si abre hacia abajo (o a la izquierda)."),
+    axis: z.enum(["vertical", "horizontal"]).default("vertical").describe('Eje de simetría: "vertical" (abre hacia arriba o hacia abajo) u "horizontal" (hacia un lado).'),
+  }),
+  z.object({
+    kind: z.literal("hyperbola"),
+    ...conicBase,
+    a: positive.describe("Semieje transversal: distancia del centro a cada vértice."),
+    b: positive.describe("Semieje conjugado."),
+    axis: z.enum(["horizontal", "vertical"]).default("horizontal").describe('Eje transversal: "horizontal" (las ramas abren a izquierda y derecha) o "vertical" (hacia arriba y hacia abajo).'),
+  }),
+]);
+
 export const graphSpecSchema = z.object({
   xMin: z.number(),
   xMax: z.number(),
@@ -128,6 +159,11 @@ export const graphSpecSchema = z.object({
     .max(CREATOR_LIMITS.verticalLinesMax)
     .optional()
     .describe("Rectas verticales x = k, que no se pueden escribir como función: asíntotas verticales y directrices."),
+  conics: z
+    .array(graphConicSchema)
+    .max(CREATOR_LIMITS.conicsMax)
+    .optional()
+    .describe("Cónicas por parámetros: circunferencia, elipse, parábola e hipérbola. Con cónicas el plano debe ser más o menos cuadrado, para que tenga la misma unidad en los dos ejes."),
 });
 
 const headerFieldsBlock = z.object({
@@ -707,6 +743,7 @@ export type GraphSpec = z.infer<typeof graphSpecSchema>;
 export type GraphFunction = z.infer<typeof graphFunctionSchema>;
 export type GraphPoint = z.infer<typeof graphPointSchema>;
 export type GraphVerticalLine = z.infer<typeof graphVerticalLineSchema>;
+export type GraphConic = z.infer<typeof graphConicSchema>;
 export type BlockInput = z.infer<typeof blockInputSchema>;
 export type Block = z.infer<typeof blockSchema>;
 export type BlockType = Block["type"];
@@ -848,6 +885,11 @@ export type CreatorEvent =
   | { type: "activity"; activity: CreatorActivity }
   | { type: "doc"; doc: ResourceDoc }
   | { type: "done"; ok: boolean; error?: string };
+
+const CONIC_KIND_LABELS: Record<GraphConic["kind"], string> = { circle: "Circunferencia", ellipse: "Elipse", parabola: "Parábola", hyperbola: "Hipérbola" };
+
+/** Lo que hay en un plano, en pocas palabras: las funciones y los nombres de las cónicas. */
+const graphContents = (spec: GraphSpec): string => [...spec.functions.map(fn => fn.expr), ...(spec.conics ?? []).map(conic => CONIC_KIND_LABELS[conic.kind])].join(", ");
 
 export const SHAPE_KIND_LABELS: Record<ShapeFigure["kind"], string> = {
   rectangle: "Rectángulo",
@@ -1135,7 +1177,7 @@ export function blockPreview(block: BlockInput): string {
     case "value_table":
       return block.caption || `Valores de ${block.expr}`;
     case "graph":
-      return block.caption || block.spec.functions.map(fn => fn.expr).join(", ") || "Plano en blanco";
+      return block.caption || graphContents(block.spec) || "Plano en blanco";
     case "number_line":
       return block.caption || `Recta numérica de ${block.min} a ${block.max}`;
     case "fraction_model":

@@ -4,6 +4,7 @@ import { BLOCK_TYPE_LABELS, blockTexts, CREATOR_LIMITS, extractMath, findMath, t
 import { barPartFits, parseProbability, pictogramIcons, probabilityValue, siblingGroups, sumProbabilities, treePaths, vennRegionsFor, vennUniverseChars, vennZoneChars } from "./creatorDiagrams";
 import { isMultipleOfFraction, labelFits, polygonArea } from "./creatorFigures";
 import { formatNumber, tryCompile, type CompileResult } from "./creatorMath";
+import { planeConicIssues } from "./creatorConics";
 import { planeFunctionIssues, planePointIssue } from "./creatorPlane";
 import { histogramClassIssues, histogramCounts, linearRegression, resolveAxis, type AxisOverride } from "./creatorStats";
 
@@ -127,6 +128,8 @@ export function validateGraphSpec(spec: GraphSpec): string[] {
       if (error) issues.push(`Gráfica: la etiqueta de la recta vertical ${name} no es LaTeX válido (${error}).`);
     }
   });
+
+  issues.push(...planeConicIssues(spec));
 
   return issues;
 }
