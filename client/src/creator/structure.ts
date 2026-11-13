@@ -115,26 +115,30 @@ export function filterBlockFamilies(query: string, families: readonly BlockFamil
 
 /* ───────────────────────── Dónde insertar ───────────────────────── */
 
-/** Dónde va un bloque nuevo: al inicio o al final de una sección, o junto a un bloque. */
+/**
+ * Dónde va un bloque nuevo: al inicio o al final de una sección o de una celda (una columna o una
+ * tarjeta, con `containerId` y `cell`), o junto a un bloque, esté donde esté.
+ */
 export type InsertPlace =
-  | { sectionId: string; kind: "start" | "end" }
+  | { sectionId: string; kind: "start" | "end"; containerId?: string; cell?: number }
   | { sectionId: string; kind: "after" | "before"; blockId: string };
 
-/** La operación que inserta `blocks` en `place`. «Antes del primero» es el inicio de la sección. */
+/** La operación que inserta `blocks` en `place`. «Antes del primero» es el inicio de su lista. */
 export function insertOp(doc: ResourceDoc, place: InsertPlace, blocks: BlockInput[]): DocOp {
   const base = { op: "insert_blocks" as const, sectionId: place.sectionId, blocks };
   switch (place.kind) {
     case "start":
     case "end":
-      return { ...base, at: place.kind };
+      return place.containerId !== undefined ? { ...base, at: place.kind, containerId: place.containerId, cell: place.cell ?? 0 } : { ...base, at: place.kind };
     case "after":
       return { ...base, afterBlockId: place.blockId };
     case "before": {
-      const section = doc.sections.find(candidate => candidate.id === place.sectionId);
-      const index = section?.blocks.findIndex(block => block.id === place.blockId) ?? -1;
+      const found = findBlock(doc, place.blockId);
       // Si el bloque ya no está, la operación falla con su propio aviso
-      if (index === -1) return { ...base, afterBlockId: place.blockId };
-      return index === 0 ? { ...base, at: "start" } : { ...base, afterBlockId: section!.blocks[index - 1].id };
+      if (!found) return { ...base, afterBlockId: place.blockId };
+      const list = found.parent ? blockCells(found.parent.container)[found.parent.cell] : found.section.blocks;
+      if (found.index > 0) return { ...base, afterBlockId: list[found.index - 1].id };
+      return found.parent ? { ...base, at: "start", containerId: found.parent.container.id, cell: found.parent.cell } : { ...base, at: "start" };
     }
   }
 }
@@ -165,16 +169,18 @@ export function isSamePlace(doc: ResourceDoc, blockId: string, target: DropTarge
 /**
  * Un paso arriba o abajo para el teclado y para «Subir» y «Bajar». En el borde de una sección pasa
  * a la vecina: al final de la anterior o al inicio de la siguiente. `null` en los extremos del documento.
- * Un bloque de dentro de una columna o una tarjeta se mueve dentro de su celda.
+ * Un bloque de dentro se mueve dentro de su celda y, en su borde, sale del contenedor: queda justo
+ * encima o justo debajo de él. Un contenedor se mueve entero y los demás bloques lo saltan.
  */
 export function stepTarget(doc: ResourceDoc, blockId: string, direction: "up" | "down"): DropTarget | null {
   const found = findBlock(doc, blockId);
   if (!found) return null;
   if (found.parent) {
-    const { container, cell } = found.parent;
+    const { container, cell, index: containerIndex } = found.parent;
     const length = blockCells(container)[cell].length;
     const index = direction === "up" ? found.index - 1 : found.index + 2;
-    if (index < 0 || index > length) return null;
+    if (index < 0) return { sectionId: found.section.id, index: containerIndex };
+    if (index > length) return { sectionId: found.section.id, index: containerIndex + 1 };
     return { sectionId: found.section.id, containerId: container.id, cell, index };
   }
   const at = doc.sections.indexOf(found.section);
@@ -188,41 +194,125 @@ export function stepTarget(doc: ResourceDoc, blockId: string, direction: "up" | 
   return next ? { sectionId: next.id, index: 0 } : null;
 }
 
-/** Alt+Mayús+↑ y Alt+Mayús+↓ mueven el bloque que tiene el foco. */
-export function moveShortcut(event: Pick<KeyboardEvent, "key" | "altKey" | "shiftKey" | "ctrlKey" | "metaKey">): "up" | "down" | null {
-  if (!event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) return null;
-  return event.key === "ArrowUp" ? "up" : event.key === "ArrowDown" ? "down" : null;
+/**
+ * Un bloque de dentro pasa a la columna o la tarjeta de al lado, a la misma altura de la lista (o al
+ * final, si la otra es más corta). `null` si no está dentro de un contenedor o ya está en el borde.
+ */
+export function sideTarget(doc: ResourceDoc, blockId: string, direction: "left" | "right"): DropTarget | null {
+  const found = findBlock(doc, blockId);
+  if (!found?.parent) return null;
+  const { container, cell } = found.parent;
+  const cells = blockCells(container);
+  const next = cell + (direction === "left" ? -1 : 1);
+  if (next < 0 || next >= cells.length) return null;
+  return { sectionId: found.section.id, containerId: container.id, cell: next, index: Math.min(found.index, cells[next].length) };
 }
 
-/** Dónde está cada sección y cada bloque en pantalla, de arriba abajo. */
+const MOVE_KEYS: Record<string, "up" | "down" | "left" | "right"> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
+
+/** Alt+Mayús+↑/↓ mueven el bloque que tiene el foco; Alt+Mayús+←/→ lo pasan a la columna o la tarjeta de al lado. */
+export function moveShortcut(event: Pick<KeyboardEvent, "key" | "altKey" | "shiftKey" | "ctrlKey" | "metaKey">): "up" | "down" | "left" | "right" | null {
+  if (!event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey) return null;
+  return MOVE_KEYS[event.key] ?? null;
+}
+
+interface BlockBox {
+  id: string;
+  top: number;
+  bottom: number;
+}
+
+/** Una columna o una tarjeta en pantalla: su caja y sus bloques. */
+export interface CellLayout {
+  containerId: string;
+  cell: number;
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  blocks: BlockBox[];
+}
+
+/** Dónde está cada sección y cada bloque en pantalla, de arriba abajo; un contenedor, con sus celdas. */
 export interface SheetLayout {
   sections: Array<{
     id: string;
     top: number;
     /** Dónde termina la lista de bloques (arriba del botón de añadir). */
     end: number;
-    blocks: Array<{ id: string; top: number; bottom: number }>;
+    blocks: Array<BlockBox & { cells?: CellLayout[] }>;
   }>;
 }
 
-/** El hueco bajo el puntero: la sección que empieza más arriba de él y, dentro, cuántos bloques tiene encima su mitad. */
-export function dropTarget(layout: SheetLayout, y: number): DropTarget | null {
+/** Franja del borde de arriba y de abajo de un contenedor que cuenta como «encima» o «debajo» de él, no como dentro. */
+export const CONTAINER_EDGE = 12;
+
+/** Cuántos bloques de la lista tienen su mitad por encima de `y`. */
+const slotIn = (blocks: readonly BlockBox[], y: number) => blocks.filter(block => y > (block.top + block.bottom) / 2).length;
+
+/** La celda bajo el punto o, en la separación entre dos, la más cercana. */
+function cellAt(cells: readonly CellLayout[], x: number, y: number): CellLayout | null {
+  let best: CellLayout | null = null;
+  let distance = Infinity;
+  for (const cell of cells) {
+    const dx = x < cell.left ? cell.left - x : x > cell.right ? x - cell.right : 0;
+    const dy = y < cell.top ? cell.top - y : y > cell.bottom ? y - cell.bottom : 0;
+    const d = Math.hypot(dx, dy);
+    if (d < distance) {
+      best = cell;
+      distance = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * El hueco bajo el puntero: la sección que empieza más arriba de él y, dentro, cuántos bloques tiene
+ * encima su mitad. Con `into`, un bloque que puede ir dentro de un contenedor cae en la columna o la
+ * tarjeta bajo el puntero, salvo en la franja de arriba o de abajo del contenedor, que es «encima» o
+ * «debajo» de él. Sin `into` (un contenedor, un salto de página), los contenedores cuentan enteros.
+ */
+export function dropTarget(layout: SheetLayout, y: number, x = 0, into = false): DropTarget | null {
   const sections = layout.sections;
   if (sections.length === 0) return null;
   let section = sections[0];
   for (const candidate of sections) if (y >= candidate.top) section = candidate;
-  const index = section.blocks.filter(block => y > (block.top + block.bottom) / 2).length;
-  return { sectionId: section.id, index };
+  if (into) {
+    const container = section.blocks.find(block => block.cells && block.cells.length > 0 && y >= block.top + CONTAINER_EDGE && y <= block.bottom - CONTAINER_EDGE);
+    const cell = container?.cells && cellAt(container.cells, x, y);
+    if (cell) return { sectionId: section.id, containerId: cell.containerId, cell: cell.cell, index: slotIn(cell.blocks, y) };
+  }
+  return { sectionId: section.id, index: slotIn(section.blocks, y) };
 }
 
-/** Altura de la línea que marca el hueco: entre dos bloques, o un poco por fuera del primero o del último. */
-export function gapLine(layout: SheetLayout, target: DropTarget, outside = 6): number | null {
+/** La celda de un destino dentro de un contenedor, para dibujar la línea a su ancho. */
+export function targetCell(layout: SheetLayout, target: DropTarget): CellLayout | null {
+  if (target.containerId === undefined) return null;
   const section = layout.sections.find(candidate => candidate.id === target.sectionId);
-  if (!section) return null;
-  const { blocks } = section;
-  if (blocks.length === 0) return section.end - outside;
-  if (target.index <= 0) return blocks[0].top - outside;
-  if (target.index >= blocks.length) return blocks[blocks.length - 1].bottom + outside;
+  const container = section?.blocks.find(block => block.id === target.containerId);
+  return container?.cells?.find(cell => cell.cell === target.cell) ?? null;
+}
+
+/** Altura de la línea que marca el hueco: entre dos bloques, o un poco por fuera del primero o del último. En una celda vacía, a media altura. */
+export function gapLine(layout: SheetLayout, target: DropTarget, outside = 6): number | null {
+  let blocks: readonly BlockBox[];
+  let empty: number;
+  let margin = outside;
+  if (target.containerId !== undefined) {
+    const cell = targetCell(layout, target);
+    if (!cell) return null;
+    blocks = cell.blocks;
+    empty = (cell.top + cell.bottom) / 2;
+    margin = Math.min(outside, 3);
+  } else {
+    const section = layout.sections.find(candidate => candidate.id === target.sectionId);
+    if (!section) return null;
+    blocks = section.blocks;
+    empty = section.end - outside;
+  }
+  if (blocks.length === 0) return empty;
+  if (target.index <= 0) return blocks[0].top - margin;
+  if (target.index >= blocks.length) return blocks[blocks.length - 1].bottom + margin;
   return (blocks[target.index - 1].bottom + blocks[target.index].top) / 2;
 }
 

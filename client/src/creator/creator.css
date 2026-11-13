@@ -1717,6 +1717,14 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 
 .crt-drop-line[hidden], .crt-drag-chip[hidden] { display: none; }
 
+/* Dentro de una columna o una tarjeta la línea mide lo que la celda, con los extremos más cerca */
+.crt-drop-line[data-cell]::before { left: -4px; }
+.crt-drop-line[data-cell]::after { right: -4px; }
+/* Donde el bloque no cabe (una gráfica ancha en una columna angosta) la línea se ve cortada y la etiqueta lo dice */
+.crt-drop-line[data-blocked] { background: repeating-linear-gradient(90deg, #B42343 0 6px, transparent 6px 10px); }
+.crt-drop-line[data-blocked]::before, .crt-drop-line[data-blocked]::after { border-color: #B42343; }
+.crt-drag-chip:not([data-reason=""])[data-reason]::after { content: " · " attr(data-reason); color: #FFB4C0; }
+
 /* Menú de bloques: un buscador y los tipos por familias, colgado de donde se insertará */
 .crt-picker-anchor { position: relative; z-index: 30; height: 0; }
 .crt-block.has-picker { z-index: 30; }
@@ -2450,7 +2458,12 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-cell__empty { display: flex; align-items: center; gap: 4px; min-height: 56px; padding: 6px; border: 1px dashed var(--sheet-rule); border-radius: 8px; }
 .crt-cell__write { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--sheet-muted); font: inherit; font-size: 13px; cursor: pointer; }
 .crt-cell__write:hover, .crt-cell__write:focus-visible { background: var(--sheet-accent-soft); color: var(--sheet-accent); }
-.crt-cell__write svg, .crt-cell__remove svg { width: 14px; height: 14px; }
+.crt-cell__write svg, .crt-cell__remove svg, .crt-cell__more svg { width: 14px; height: 14px; }
+.crt-cell__more { display: grid; flex: none; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; color: var(--sheet-muted); cursor: pointer; }
+.crt-cell__more:hover, .crt-cell__more:focus-visible, .crt-cell__more[aria-expanded="true"] { background: var(--sheet-accent-soft); color: var(--sheet-accent); }
+/* El menú de bloques no se encoge a lo ancho de una celda; en la última columna (o la última tarjeta de la fila) se abre hacia la izquierda */
+.crt-cell .crt-picker { width: 320px; }
+.crt-cell--column:last-child:not(:first-child) .crt-picker, .crt-tiles[data-per-row="2"] > .crt-tile:nth-child(2n) .crt-picker, .crt-tiles[data-per-row="3"] > .crt-tile:nth-child(3n) .crt-picker, .crt-tiles[data-per-row="4"] > .crt-tile:nth-child(4n) .crt-picker { left: auto; right: 0; }
 .crt-cell__remove { display: grid; flex: none; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 50%; background: transparent; color: var(--sheet-muted); cursor: pointer; }
 .crt-cell__remove:hover, .crt-cell__remove:focus-visible { background: #FDEEF1; color: #B42343; }
 
@@ -2544,3 +2557,7 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
   .crt-print .crt-cell > .crt-block:first-child { padding-top: 0; }
   .crt-print .crt-cell > .crt-block:last-child { padding-bottom: 0; }
 }
+
+/* El formulario de una figura o una tabla de dentro de un contenedor se abre bajo las celdas, a todo lo ancho */
+.crt-frame__form { margin-top: 12px; padding: 4px 10px; border-radius: 10px; background: #F5F9FE; outline: 1px solid var(--sheet-accent-line); }
+.crt-cell > .crt-block.is-editing { outline-color: var(--sheet-accent-line); }

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { LayoutList, Plus, X } from "lucide-react";
 import { CREATOR_LIMITS } from "@shared/creator";
 import type { DocOp } from "@shared/creatorOps";
 import { RichText } from "./blocks/RichText";
@@ -120,18 +120,29 @@ interface EmptyCellProps {
   /** «columna» o «tarjeta». */
   noun: string;
   onWrite: () => void;
+  /** Abre el menú de bloques para poner otra cosa que un texto. */
+  onMore?: () => void;
+  moreOpen?: boolean;
   /** Sin esto la celda no se puede quitar (son dos columnas o es la única tarjeta). */
   onRemove?: () => void;
 }
 
-/** Una celda vacía en el editor: un recuadro punteado para empezar a escribir ahí, o quitarla. En papel queda en blanco. */
-export function EmptyCell({ noun, onWrite, onRemove }: EmptyCellProps) {
+/**
+ * Una celda vacía en el editor: un recuadro punteado para empezar a escribir ahí, elegir otro bloque o
+ * quitarla. En papel queda en blanco.
+ */
+export function EmptyCell({ noun, onWrite, onMore, moreOpen = false, onRemove }: EmptyCellProps) {
   return (
     <div className="crt-cell__empty">
       <button type="button" className="crt-cell__write" onClick={onWrite}>
         <Plus aria-hidden="true" />
         Escribir aquí
       </button>
+      {onMore && (
+        <button type="button" className="crt-cell__more" title="Otro bloque…" aria-label={`Añadir otro bloque a esta ${noun}`} aria-expanded={moreOpen} onClick={onMore}>
+          <LayoutList aria-hidden="true" />
+        </button>
+      )}
       {onRemove && (
         <button type="button" className="crt-cell__remove" title={`Quitar esta ${noun}`} aria-label={`Quitar esta ${noun}`} onClick={onRemove}>
           <X aria-hidden="true" />
