@@ -1,6 +1,7 @@
 import { memo, type ReactNode } from "react";
 import ReactMarkdown, { type Components, type ExtraProps } from "react-markdown";
 import remarkMath from "remark-math";
+import { findMath } from "@shared/creator";
 import { Formula } from "./Formula";
 
 interface RichTextProps {
@@ -50,19 +51,40 @@ const INLINE_COMPONENTS: Components = {
   p: ({ children }: { children?: ReactNode }) => <>{children}</>,
 };
 
+/** Invisible y sin ancho; además no deja partir el renglón entre las dos fórmulas que separa. */
+const WORD_JOINER = "\u2060";
+
 /**
- * `$$...$$` solo es una fórmula en bloque si va en sus propias líneas; el modelo suele
- * escribirlo seguido del texto. Se separa para que se centre como en un libro.
+ * Deja el Markdown listo para remark-math con las fórmulas que lee `findMath`, igual que el editor
+ * y la validación:
+ * - Dos fórmulas en línea seguidas se guardan `$a$$b$`, y remark-math tomaría ese `$$` por un
+ *   delimitador. Se separan con un carácter invisible para que se dibujen pegadas en el renglón.
+ * - `$$...$$` solo es una fórmula en bloque si va en sus propias líneas; el modelo suele escribirlo
+ *   seguido del texto. Fuera de los rótulos se separa para que se centre como en un libro.
  */
-function isolateDisplayMath(md: string): string {
-  return md.replace(/\$\$([\s\S]+?)\$\$/g, (_match, body: string) => `\n\n$$\n${body.trim()}\n$$\n\n`);
+function prepareMath(md: string, isolateDisplay: boolean): string {
+  let out = "";
+  let last = 0;
+  let inlineEnd = -1;
+  for (const span of findMath(md)) {
+    out += md.slice(last, span.start);
+    if (span.display && isolateDisplay) {
+      out += `\n\n$$\n${span.latex}\n$$\n\n`;
+    } else {
+      if (span.start === inlineEnd) out += WORD_JOINER;
+      out += md.slice(span.start, span.end);
+      inlineEnd = span.end;
+    }
+    last = span.end;
+  }
+  return out + md.slice(last);
 }
 
 /** Texto en Markdown con fórmulas LaTeX (`$...$` en línea, `$$...$$` en bloque). */
 export const RichText = memo(function RichText({ md, inline = false, className }: RichTextProps) {
   const content = (
     <ReactMarkdown remarkPlugins={REMARK_PLUGINS} disallowedElements={DISALLOWED} unwrapDisallowed components={inline ? INLINE_COMPONENTS : MATH_COMPONENTS}>
-      {inline ? md : isolateDisplayMath(md)}
+      {prepareMath(md, !inline)}
     </ReactMarkdown>
   );
   if (inline) return <span className={className}>{content}</span>;

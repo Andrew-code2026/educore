@@ -1,5 +1,5 @@
 import katex from "katex";
-import { BLOCK_TYPE_LABELS, blockTexts, CREATOR_LIMITS, extractMath, type BlockInput, type GraphSpec } from "./creator";
+import { BLOCK_TYPE_LABELS, blockTexts, CREATOR_LIMITS, extractMath, findMath, type BlockInput, type GraphSpec } from "./creator";
 import { barPartFits, parseProbability, pictogramIcons, probabilityValue, siblingGroups, sumProbabilities, treePaths, vennRegionsFor, vennUniverseChars, vennZoneChars } from "./creatorDiagrams";
 import { isMultipleOfFraction, labelFits, polygonArea } from "./creatorFigures";
 import { formatNumber, nearlyEqual, tryCompile, type CompileResult } from "./creatorMath";
@@ -29,7 +29,13 @@ const LATEX_OUTSIDE_MATH = /\\(frac|sqrt|cdot|times|div|pm|leq|geq|neq|approx|al
 
 /** Texto fuera de las fórmulas `$...$`, para detectar LaTeX que quedó sin delimitar. */
 function outsideMath(md: string): string {
-  return md.replace(/\\\$/g, "").replace(/\$\$[\s\S]*?\$\$/g, " ").replace(/\$[^$\n]*\$/g, " ");
+  let out = "";
+  let last = 0;
+  for (const span of findMath(md)) {
+    out += `${md.slice(last, span.start)} `;
+    last = span.end;
+  }
+  return (out + md.slice(last)).replace(/\\\$/g, "");
 }
 
 /**

@@ -909,9 +909,21 @@ function findClosingDollar(md: string, from: number): number {
   return -1;
 }
 
-/** Fórmulas LaTeX que contiene un texto Markdown (`$...$` y `$$...$$`), para validarlas. */
-export function extractMath(md: string): string[] {
-  const found: string[] = [];
+/** Una fórmula dentro de un texto Markdown; `md.slice(start, end)` la incluye con sus signos de dólar. */
+export interface MathSpan {
+  start: number;
+  end: number;
+  latex: string;
+  display: boolean;
+}
+
+/**
+ * Fórmulas de un texto Markdown (`$...$` en línea, `$$...$$` destacada), leídas de izquierda a
+ * derecha como las lee el editor: `$a$$b$` son dos fórmulas en línea seguidas, no el comienzo de
+ * una destacada. La hoja, la validación y las vistas previas parten de aquí para leer lo mismo.
+ */
+export function findMath(md: string): MathSpan[] {
+  const spans: MathSpan[] = [];
   let i = 0;
   while (i < md.length) {
     if (md[i] === "\\") {
@@ -922,28 +934,33 @@ export function extractMath(md: string): string[] {
       i++;
       continue;
     }
-    if (md[i + 1] === "$") {
-      const end = md.indexOf("$$", i + 2);
-      if (end === -1) break;
-      found.push(md.slice(i + 2, end).trim());
-      i = end + 2;
-      continue;
-    }
-    const close = findClosingDollar(md, i + 1);
+    const display = md[i + 1] === "$";
+    const open = display ? 2 : 1;
+    const close = display ? md.indexOf("$$", i + 2) : findClosingDollar(md, i + 1);
     if (close === -1) {
-      i++;
+      // Un `$` o un `$$` sin cierre es texto
+      i += open;
       continue;
     }
-    found.push(md.slice(i + 1, close).trim());
-    i = close + 1;
+    const latex = md.slice(i + open, close).trim();
+    if (latex) spans.push({ start: i, end: close + open, latex, display });
+    i = close + open;
   }
-  return found.filter(Boolean);
+  return spans;
 }
+
+/** Fórmulas LaTeX que contiene un texto Markdown (`$...$` y `$$...$$`), para validarlas. */
+export const extractMath = (md: string): string[] => findMath(md).map(span => span.latex);
 
 /** Texto plano de un Markdown con fórmulas: para vistas previas y títulos de lista. */
 export function plainText(md: string, max = 140): string {
-  const flat = md
-    .replace(/\$\$?([^$]*)\$\$?/g, "$1")
+  let unwrapped = "";
+  let last = 0;
+  for (const span of findMath(md)) {
+    unwrapped += md.slice(last, span.start) + span.latex;
+    last = span.end;
+  }
+  const flat = (unwrapped + md.slice(last))
     .replace(/\\\$/g, "$")
     .replace(/[*_`#>]/g, "")
     .replace(/\s+/g, " ")

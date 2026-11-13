@@ -102,4 +102,27 @@ describe("fórmulas en el texto", () => {
   it("muestra el texto de una fórmula que no compila en vez de romper la hoja", () => {
     expect(html("Mal: $\\frac{1}{$ fin")).toContain("<code");
   });
+
+  /** El LaTeX de cada fórmula dibujada, en orden: KaTeX lo deja en su anotación. */
+  const drawn = (out: string) => Array.from(out.matchAll(/<annotation encoding="application\/x-tex">([^<]*)<\/annotation>/g), match => match[1]);
+
+  it("dibuja pegadas y en el mismo renglón dos fórmulas en línea seguidas", () => {
+    // Así las guarda el editor y así puede escribirlas el modelo; los recursos ya guardados no cambian
+    const out = html("En $\\sqrt{2}$$x$ y $a$$b$$c$ fin.");
+    expect(drawn(out)).toEqual(["\\sqrt{2}", "x", "a", "b", "c"]);
+    expect(out).not.toContain("katex-display");
+    expect(out).not.toContain("<code");
+    expect(out).not.toContain("$");
+    expect(out.match(/<p>/g)).toHaveLength(1);
+    // Entre las dos solo queda un carácter invisible que no deja partir el renglón
+    expect(out).toMatch(/<\/span>\u2060<span>/);
+    expect(drawn(html("$a$$b$ cm", true))).toEqual(["a", "b"]);
+  });
+
+  it("aparta solo la fórmula destacada que va junto a una en línea", () => {
+    const out = html("$\\frac{1}{2}$$$x = 1$$$y$");
+    expect(drawn(out)).toEqual(["\\frac{1}{2}", "x = 1", "y"]);
+    expect(out.match(/katex-display/g)).toHaveLength(1);
+    expect(html("Sea $$A = b \\cdot h$$$$P = 2b + 2h$$ fin.").match(/katex-display/g)).toHaveLength(2);
+  });
 });
