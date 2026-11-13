@@ -26,6 +26,7 @@ export const BLOCK_FAMILIES: readonly BlockFamily[] = [
   },
   { id: "geometry", label: "Geometría y medida", types: ["shapes", "angle", "clock"] },
   { id: "numbers", label: "Números y operaciones", types: ["number_line", "fraction_model", "bar_model", "base_ten", "area_model", "balance"] },
+  { id: "layout", label: "Columnas y tarjetas", types: ["columns", "cards"] },
   { id: "page", label: "Página", types: ["page_break"] },
 ];
 
@@ -62,6 +63,8 @@ export const BLOCK_INFO: Partial<Record<BlockType, { hint: string; keywords: str
   area_model: { hint: "Rectángulo partido para multiplicar o factorizar", keywords: "multiplicacion factorizar distributiva" },
   balance: { hint: "Una ecuación como balanza en equilibrio", keywords: "ecuaciones equilibrio igualdad" },
   page_break: { hint: "Lo que sigue empieza en una hoja nueva al imprimir", keywords: "hoja nueva imprimir" },
+  columns: { hint: "Dos o tres columnas lado a lado", keywords: "lado mitad dividir comparar paralelo dos tres" },
+  cards: { hint: "Recuadros en rejilla: vocabulario, casos, estaciones", keywords: "rejilla cuadricula fichas recuadros vocabulario casos estaciones grupos" },
 };
 
 /** Minúsculas y sin tildes: «grafica» encuentra «Gráfica». */

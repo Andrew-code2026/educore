@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { countBlocks, type ResourceDoc } from "@shared/creator";
+import { blockCells, countBlocks, isContainer, type Block, type ResourceDoc } from "@shared/creator";
 import type { DocOp } from "@shared/creatorOps";
 import { reuseUnchanged } from "@shared/creatorTurn";
 
@@ -90,12 +90,20 @@ export function locateChange(from: ResourceDoc, to: ResourceDoc): ChangeLocation
     const index = section.blocks.findIndex((block, position) => block !== previous.blocks[position]);
     // Si se quitaron bloques del final, el cambio queda junto al último que sigue; si no hay diferencia en los bloques, cambió el encabezado
     const at = index !== -1 ? index : section.blocks.length < previous.blocks.length ? section.blocks.length - 1 : -1;
-    return { sectionId: section.id, blockId: section.blocks[at]?.id ?? null };
+    return { sectionId: section.id, blockId: innerChange(section.blocks[at], previous.blocks) ?? section.blocks[at]?.id ?? null };
   }
   const removed = from.sections.findIndex(section => !to.sections.some(candidate => candidate.id === section.id));
   if (removed !== -1 && to.sections.length > 0) return { sectionId: to.sections[Math.min(removed, to.sections.length - 1)].id, blockId: null };
   if (from.title !== to.title || from.subtitle !== to.subtitle) return { sectionId: null, blockId: null };
   return null;
+}
+
+/** Si lo que cambió es un contenedor que ya estaba, el primer bloque de dentro que no es el de antes: ahí está el cambio. */
+function innerChange(block: Block | undefined, before: readonly Block[]): string | null {
+  const old = block && before.find(candidate => candidate.id === block.id);
+  if (!block || !old || !isContainer(block) || !isContainer(old)) return null;
+  const previous = new Set(blockCells(old).flat());
+  return blockCells(block).flat().find(inner => !previous.has(inner))?.id ?? null;
 }
 
 export type HistoryCommand = "undo" | "redo";

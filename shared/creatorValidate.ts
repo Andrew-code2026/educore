@@ -1,6 +1,7 @@
 import katex from "katex";
 import { areaModelIssues } from "./creatorAlgebra";
-import { BLOCK_TYPE_LABELS, blockTexts, CREATOR_LIMITS, extractMath, findMath, type BlockInput, type GraphSpec } from "./creator";
+import { BLOCK_TYPE_LABELS, blockCells, blockTexts, CREATOR_LIMITS, extractMath, findMath, isContainer, type BlockInput, type GraphSpec } from "./creator";
+import { cellName, containerIssues } from "./creatorContainers";
 import { barPartFits, parseProbability, pictogramIcons, probabilityValue, siblingGroups, sumProbabilities, treePaths, vennRegionsFor, vennUniverseChars, vennZoneChars } from "./creatorDiagrams";
 import { isMultipleOfFraction, labelFits, polygonArea } from "./creatorFigures";
 import { formatNumber, tryCompile, type CompileResult } from "./creatorMath";
@@ -342,6 +343,20 @@ export function validateBlock(block: BlockInput): string[] {
         if (side.variables + side.units + side.weights.length === 0) issues.push(`Balanza: el platillo ${name} está vacío.`);
       }
       break;
+    case "columns":
+    case "cards": {
+      // La forma (anchos, qué cabe en cada celda) y luego cada bloque de dentro, nombrado por su celda
+      issues.push(...containerIssues(block));
+      const cells = blockCells(block);
+      if (cells.every(cell => cell.length === 0)) issues.push(`${BLOCK_TYPE_LABELS[block.type]}: no tiene ningún bloque dentro.`);
+      cells.forEach((cell, c) =>
+        cell.forEach((inner, i) => {
+          const where = `${cellName(block, c).replace(/^la /, "")}, bloque ${i + 1}`;
+          issues.push(...validateBlock(inner).map(issue => `${where[0].toUpperCase()}${where.slice(1)} — ${issue}`));
+        }),
+      );
+      break;
+    }
     default:
       break;
   }
@@ -529,28 +544,40 @@ const solvedOnFigure = (block: BlockInput | undefined): boolean => block?.type =
  */
 export function validateBlockOrder(sections: Array<{ title: string; blocks: BlockInput[] }>): string[] {
   const issues: string[] = [];
+  // Cada lista por su lado: la de la sección y la de cada columna o tarjeta. Una figura en la columna
+  // de al lado de un ejercicio está junto a él, no debajo de su espacio de respuesta.
   for (const section of sections) {
-    section.blocks.forEach((block, index) => {
-      const next = section.blocks[index + 1];
-      if (block.type !== "exercise" || block.answerSpace === "none" || !next || !isFigure(next)) return;
-
-      const followedByExercise = section.blocks[index + 2]?.type === "exercise";
-      if (followedByExercise) {
-        const mentionsFigure = [block.md, ...block.parts.map(part => part.md)].some(md => FIGURE_MENTION.test(md));
-        // La figura de delante es suya, salvo que el ejercicio anterior se resuelva sobre ella
-        const hasOwnFigure = isFigure(section.blocks[index - 1]) && !solvedOnFigure(section.blocks[index - 2]);
-        if (!mentionsFigure || hasOwnFigure) return;
-      }
-
-      issues.push(
-        `Sección «${section.title}», ${block.label}: su espacio de respuesta queda entre el enunciado y la figura que sigue (${next.type}). ` +
-          `Si el ejercicio se resuelve sobre esa figura, usa answerSpace "none". Si la figura es un dato que el estudiante debe leer, ponla antes del enunciado. ` +
-          (followedByExercise
-            ? `Si la figura es del ejercicio siguiente, este enunciado necesita la suya delante, porque habla de una figura.`
-            : `Si la figura es de un ejercicio posterior, ponla justo antes de ese ejercicio.`),
-      );
-    });
+    issues.push(...listOrderIssues(section.blocks, `Sección «${section.title}»`));
+    for (const block of section.blocks) {
+      if (!isContainer(block)) continue;
+      blockCells(block).forEach((cell, index) => issues.push(...listOrderIssues(cell, `Sección «${section.title}», ${cellName(block, index).replace(/^la /, "")}`)));
+    }
   }
+  return issues;
+}
+
+function listOrderIssues(blocks: readonly BlockInput[], where: string): string[] {
+  const issues: string[] = [];
+  blocks.forEach((block, index) => {
+    const next = blocks[index + 1];
+    if (block.type !== "exercise" || block.answerSpace === "none" || !next || !isFigure(next)) return;
+
+    const followedByExercise = blocks[index + 2]?.type === "exercise";
+    if (followedByExercise) {
+      const mentionsFigure = [block.md, ...block.parts.map(part => part.md)].some(md => FIGURE_MENTION.test(md));
+      // La figura de delante es suya, salvo que el ejercicio anterior se resuelva sobre ella
+      const hasOwnFigure = isFigure(blocks[index - 1]) && !solvedOnFigure(blocks[index - 2]);
+      if (!mentionsFigure || hasOwnFigure) return;
+    }
+
+    issues.push(
+      `${where}, ${block.label}: su espacio de respuesta queda entre el enunciado y la figura que sigue (${next.type}). ` +
+        `Si el ejercicio se resuelve sobre esa figura, usa answerSpace "none". Si la figura es un dato que el estudiante debe leer, ponla antes del enunciado. ` +
+        (followedByExercise
+          ? `Si la figura es del ejercicio siguiente, este enunciado necesita la suya delante, porque habla de una figura.`
+          : `Si la figura es de un ejercicio posterior, ponla justo antes de ese ejercicio.`),
+    );
+  });
   return issues;
 }
 

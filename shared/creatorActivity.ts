@@ -71,6 +71,8 @@ const AGREEMENT: Record<BlockType, Agreement> = {
   balance: "f",
   solution: "f",
   page_break: "m",
+  columns: "fp",
+  cards: "fp",
 };
 
 const ENDINGS: Record<Agreement, string> = { m: "o", f: "a", mp: "os", fp: "as" };
@@ -118,6 +120,12 @@ export function blockName(block: BlockInput, max = 40): string {
     case "header_fields":
     case "page_break":
       return type;
+    case "columns":
+      return `${block.columns.length} columnas`;
+    case "cards": {
+      const titled = block.cards.find(card => card.title)?.title;
+      return titled ? `Tarjetas ${quote(plainText(titled, 400), max)}` : type;
+    }
   }
   // Tablas y figuras: el título o el pie de figura las distinguen de otras del mismo tipo
   const named = ("title" in block && block.title) || ("caption" in block && block.caption) || "";

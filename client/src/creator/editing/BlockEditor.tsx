@@ -68,6 +68,22 @@ export const BLOCK_TEMPLATES: Record<BlockType, BlockInput> = {
   solution: { type: "solution", label: "Ejercicio", steps: ["Escribe aquí el primer paso."] },
   header_fields: { type: "header_fields", fields: ["Nombre", "Fecha", "Grado"] },
   page_break: { type: "page_break" },
+  // Un contenedor nuevo trae algo en cada celda: así se ve de una vez cómo queda la fila
+  columns: {
+    type: "columns",
+    columns: [
+      { width: 1, blocks: [{ type: "paragraph", md: "Texto de la columna izquierda." }] },
+      { width: 1, blocks: [{ type: "paragraph", md: "Texto de la columna derecha." }] },
+    ],
+  },
+  cards: {
+    type: "cards",
+    perRow: 2,
+    cards: [
+      { title: "Tarjeta 1", blocks: [{ type: "paragraph", md: "Escribe aquí el contenido." }] },
+      { title: "Tarjeta 2", blocks: [{ type: "paragraph", md: "Escribe aquí el contenido." }] },
+    ],
+  },
 };
 
 function ParagraphForm({ draft, onChange }: FormProps<"paragraph">) {

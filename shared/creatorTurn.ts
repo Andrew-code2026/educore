@@ -1,8 +1,13 @@
 import {
+  allBlocks,
   BLOCK_TYPE_LABELS,
+  blockCells,
   blockPreview,
   findBlock,
+  isContainer,
+  withCells,
   type Block,
+  type InnerBlock,
   type CreatorActivity,
   type CreatorAttachment,
   type CreatorChatMessage,
@@ -46,26 +51,29 @@ export function sameJson(a: unknown, b: unknown): boolean {
 
 export type TurnChanges = Omit<CreatorTurn, "baseVersion">;
 
+/** Lo propio de un bloque, sin lo que guarda dentro: un contenedor «cambia» si cambian sus anchos o sus títulos, no su contenido. */
+const shellOf = (block: Block): Block => (isContainer(block) ? withCells(block, blockCells(block).map(() => [])) : block);
+
 /**
  * Qué cambió entre el documento de antes de un turno y el de después. Los bloques se siguen por su id:
  * una sección reescrita entera estrena ids, así que cuenta como bloques eliminados y bloques añadidos.
- * Cambiar un bloque de sitio sin tocarlo no cuenta.
+ * Cambiar un bloque de sitio sin tocarlo no cuenta, tampoco meterlo en columnas o sacarlo de ellas.
+ * Lo de dentro de un contenedor cuenta por su lado: editar un ejercicio de una columna cambia el
+ * ejercicio, no las columnas.
  */
 export function diffTurn(before: ResourceDoc, after: ResourceDoc): TurnChanges {
   const previous = new Map<string, Block>();
-  for (const section of before.sections) for (const block of section.blocks) previous.set(block.id, block);
+  for (const block of allBlocks(before)) previous.set(block.id, block);
 
   const added: string[] = [];
   const changed: string[] = [];
   let kept = 0;
-  for (const section of after.sections) {
-    for (const block of section.blocks) {
-      const old = previous.get(block.id);
-      if (!old) added.push(block.id);
-      else {
-        kept++;
-        if (!sameJson(old, block)) changed.push(block.id);
-      }
+  for (const block of allBlocks(after)) {
+    const old = previous.get(block.id);
+    if (!old) added.push(block.id);
+    else {
+      kept++;
+      if (!sameJson(shellOf(old), shellOf(block))) changed.push(block.id);
     }
   }
 
@@ -101,14 +109,24 @@ export function describeTurn(changes: TurnChanges): string {
 export function reuseUnchanged(prev: ResourceDoc, next: ResourceDoc): ResourceDoc {
   if (prev === next) return prev;
   const known = new Map<string, Block>();
-  for (const section of prev.sections) for (const block of section.blocks) known.set(block.id, block);
+  for (const block of allBlocks(prev)) known.set(block.id, block);
+
+  const reuse = (block: Block): Block => {
+    const old = known.get(block.id);
+    if (!isContainer(block)) return old && sameJson(old, block) ? old : block;
+    // Un contenedor se rehace con lo de dentro ya reutilizado; si todo quedó igual, vuelve el de antes
+    const cells = blockCells(block).map(cell => cell.map(inner => reuse(inner) as InnerBlock));
+    if (old && isContainer(old)) {
+      const oldCells = blockCells(old);
+      const sameCells = cells.length === oldCells.length && cells.every((cell, c) => cell.length === oldCells[c].length && cell.every((inner, i) => inner === oldCells[c][i]));
+      if (sameCells && sameJson(shellOf(old), shellOf(block))) return old;
+    }
+    return withCells(block, cells);
+  };
 
   const sections = next.sections.map(section => {
     const old = prev.sections.find(candidate => candidate.id === section.id);
-    const blocks = section.blocks.map(block => {
-      const same = known.get(block.id);
-      return same && sameJson(same, block) ? same : block;
-    });
+    const blocks = section.blocks.map(reuse);
     const untouched = old !== undefined && old.blocks.length === blocks.length && blocks.every((block, index) => block === old.blocks[index]);
     return untouched && old.title === section.title && old.role === section.role ? old : { ...section, blocks };
   });
@@ -140,7 +158,10 @@ export function describeFocus(doc: ResourceDoc, blockIds: readonly string[]): st
   return blockIds
     .map(id => findBlock(doc, id))
     .filter(found => found !== null)
-    .map(found => `- ${found.block.id} (${BLOCK_TYPE_LABELS[found.block.type]}, en «${found.section.title}»): ${describeAttachment(found.block).preview}`)
+    .map(found => {
+      const where = found.parent ? `en ${found.parent.container.type === "columns" ? "la columna" : "la tarjeta"} ${found.parent.cell + 1} de ${found.parent.container.id}, sección «${found.section.title}»` : `en «${found.section.title}»`;
+      return `- ${found.block.id} (${BLOCK_TYPE_LABELS[found.block.type]}, ${where}): ${describeAttachment(found.block).preview}`;
+    })
     .join("\n");
 }
 
