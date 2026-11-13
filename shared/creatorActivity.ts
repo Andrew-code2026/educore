@@ -214,6 +214,16 @@ export function describeActivity(activity: CreatorActivity, doc: ResourceDoc): A
     return { kind: "add", subject: blocks.length > 0 ? listNames(blocks) : "Bloque", detail: agreeAll("duplicad", blocks), linked: blocks.length > 0, counts: true };
   }
 
+  if ((match = /^Puesto en (columnas|tarjetas)$/.exec(label))) {
+    const blocks = liveBlocks(activity, doc, 40);
+    return { kind: "move", subject: blocks.length > 0 ? listNames(blocks) : "Bloques", detail: `en ${match[1]}`, linked: blocks.length > 0, counts: true };
+  }
+
+  if ((match = /^Sacado de las (columnas|tarjetas)$/.exec(label))) {
+    const blocks = liveBlocks(activity, doc, 28);
+    return { kind: "move", subject: blocks.length > 0 ? listNames(blocks) : "Bloques", detail: `${agreeAll("sacad", blocks)} de las ${match[1]}`, linked: blocks.length > 0, counts: true };
+  }
+
   // Un texto que no se reconoce (de una versión futura o anterior): se muestra tal cual, recortado
   const linked = liveBlocks(activity, doc, 40).length > 0 || section !== undefined;
   return { kind: "edit", subject: clipWords(label, 60), detail: "", linked, counts: true };

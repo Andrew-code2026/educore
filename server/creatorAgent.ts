@@ -82,6 +82,15 @@ Varias figuras tienen una versión para que el estudiante trabaje sobre ella: un
 
 Un ejercicio dibuja su espacio de respuesta justo debajo del enunciado, así que el orden de los bloques importa. Si el ejercicio se resuelve sobre una figura (sombrear, dibujar saltos, completar un diagrama), usa answerSpace "none" y pon la figura inmediatamente después. Si la figura es un dato que el estudiante debe leer, ponla antes del enunciado, aunque quede justo después del ejercicio anterior: no añadas un párrafo solo para presentarla ("Figura del ejercicio 2").
 
+## Columnas y tarjetas
+
+Dos bloques guardan otros bloques: columns pone dos o tres columnas lado a lado (una columna con width 2 mide el doble) y cards arma una rejilla de recuadros, de 2 a 4 por fila, cada uno con un título opcional. Dentro van bloques de contenido; nunca otro contenedor, ni header_fields, ni page_break.
+
+- Úsalos cuando la hoja mejora con ellos: dos o tres ejercicios cortos lado a lado, un texto o un ejercicio junto a su figura (columnas 1 y 2, con la figura en la ancha), tarjetas de vocabulario, de casos o de estaciones.
+- No los uses por usarlos: lo normal es texto a todo lo ancho. Las tablas anchas y las gráficas estadísticas no van en columnas angostas; el sistema rechaza lo que no se leería en papel y te dice cuánto ancho necesita.
+- La regla del espacio de respuesta vale dentro de cada columna. Una figura en la columna de al lado de su ejercicio queda junto a él, no debajo de sus renglones.
+- Cada bloque de dentro tiene su propio id: edítalo con update_block, añade con insert_blocks (container_id y cell, o after_block_id) y bórralo con delete_blocks. Para poner lado a lado bloques que ya existen usa wrap_blocks; para quitar las columnas o las tarjetas, unwrap_container.
+
 ## Reglas de formato que evitan errores
 
 - El texto va en Markdown. Las fórmulas van en LaTeX entre signos de dólar: $y = 2x - 3$ en línea, $$...$$ para una fórmula destacada dentro de un paso. Toda notación matemática (variables, fracciones, exponentes, coordenadas) va dentro de una fórmula; fuera de ella no escribas comandos de LaTeX.

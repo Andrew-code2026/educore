@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { blockInputSchema, CREATOR_LIMITS, findBlock, SECTION_ROLES, type BlockInput, type CreatorActivity, type ResourceDoc } from "@shared/creator";
+import { blockInputSchema, CREATOR_LIMITS, findBlock, flattenBlocks, SECTION_ROLES, type BlockInput, type CreatorActivity, type ResourceDoc } from "@shared/creator";
 import { blockName } from "@shared/creatorActivity";
 import { applyDocOp, normalizeBlock, type DocOp } from "@shared/creatorOps";
 import { describeComputed } from "@shared/creatorStats";
@@ -36,8 +36,12 @@ const TOOL_INPUTS = {
   delete_section: z.object({ section_id: sectionId }),
   insert_blocks: z.object({
     section_id: sectionId,
-    after_block_id: blockId.optional().describe("Inserta justo después de este bloque. Si se omite, se usa `at`."),
+    after_block_id: blockId
+      .optional()
+      .describe("Inserta justo después de este bloque. Puede ser un bloque de dentro de una columna o tarjeta: los nuevos van en esa misma celda. Si se omite, se usa `at`."),
     at: z.enum(["start", "end"]).default("end").describe("Dónde insertar cuando no se indica after_block_id."),
+    container_id: blockId.optional().describe("Para insertar dentro de un bloque de columnas o de tarjetas: su id. Va con cell."),
+    cell: z.number().int().min(0).max(CREATOR_LIMITS.cardsMax - 1).optional().describe("La columna o la tarjeta, contando desde 0, cuando se indica container_id."),
     blocks,
   }),
   update_block: z.object({
@@ -45,6 +49,11 @@ const TOOL_INPUTS = {
     block: blockInputSchema.describe("El bloque completo que reemplaza al actual. Puede cambiar de tipo."),
   }),
   delete_blocks: z.object({ block_ids: z.array(blockId).min(1).max(CREATOR_LIMITS.blocksPerSectionMax) }),
+  wrap_blocks: z.object({
+    block_ids: z.array(blockId).min(1).max(CREATOR_LIMITS.cardsMax).describe("Bloques seguidos de una misma sección, fuera de cualquier contenedor."),
+    as: z.enum(["columns", "cards"]).describe('"columns" pone cada bloque en su columna (hasta 3; con uno solo, la segunda queda vacía). "cards" pone cada bloque en su tarjeta.'),
+  }),
+  unwrap_container: z.object({ container_id: blockId }),
 } as const;
 
 export type CreatorToolName = keyof typeof TOOL_INPUTS;
@@ -57,7 +66,9 @@ const TOOL_DESCRIPTIONS: Record<CreatorToolName, string> = {
   delete_section: "Elimina una sección con todos sus bloques.",
   insert_blocks: "Añade bloques nuevos a una sección existente, en la posición indicada.",
   update_block: "Reemplaza un bloque por una versión corregida. Es la herramienta para ediciones puntuales: cambia solo lo que se pidió y conserva el resto del bloque.",
-  delete_blocks: "Elimina uno o varios bloques.",
+  delete_blocks: "Elimina uno o varios bloques. Un bloque de columnas o de tarjetas se va con todo lo que guarda.",
+  wrap_blocks: "Pone bloques que ya están en el recurso lado a lado en columnas, o cada uno en una tarjeta, sin reescribirlos.",
+  unwrap_container: "Saca los bloques de un bloque de columnas o de tarjetas y los deja en la sección, en orden de lectura. El título de cada tarjeta queda como un título.",
 };
 
 export interface CreatorToolDefinition {
@@ -66,9 +77,41 @@ export interface CreatorToolDefinition {
   input_schema: { type: "object"; [key: string]: unknown };
 }
 
+type Json = unknown;
+
+/**
+ * Cada tipo de bloque aparece dos veces en el esquema: en la sección y dentro de las columnas y las
+ * tarjetas. Escrito dos veces, el esquema de una herramienta pasaría de 38 KB a 115 KB y cada turno
+ * pagaría esa diferencia. Zod lo escribe una sola vez en `$defs`, con nombres genéricos (`__schema12`):
+ * aquí cada bloque toma el nombre de su tipo, y lo demás que zod reutilizó vuelve a su sitio.
+ */
+export function nameBlockDefs(schema: Record<string, Json>): Record<string, Json> {
+  const defs = (schema.$defs ?? {}) as Record<string, Record<string, Json>>;
+  const names = new Map<string, string>();
+  for (const [key, def] of Object.entries(defs)) {
+    const type = (def.properties as Record<string, { const?: unknown }> | undefined)?.type?.const;
+    if (typeof type === "string") names.set(key, type);
+  }
+  const walk = (node: Json): Json => {
+    if (Array.isArray(node)) return node.map(walk);
+    if (!node || typeof node !== "object") return node;
+    const { $ref, ...rest } = node as Record<string, Json>;
+    if (typeof $ref === "string" && $ref.startsWith("#/$defs/")) {
+      const key = $ref.slice("#/$defs/".length);
+      const named = names.get(key);
+      if (named) return { $ref: `#/$defs/${named}`, ...(walk(rest) as object) };
+      return { ...(walk(defs[key]) as object), ...(walk(rest) as object) };
+    }
+    return Object.fromEntries(Object.entries(node as Record<string, Json>).map(([field, value]) => [field, walk(value)]));
+  };
+  const { $defs: _defs, ...body } = schema;
+  const named = Object.fromEntries(Array.from(names, ([key, name]) => [name, walk(defs[key])]));
+  return { ...(walk(body) as Record<string, Json>), ...(names.size > 0 ? { $defs: named } : {}) };
+}
+
 /** Definiciones para la API, en orden fijo: el prefijo de la petición no cambia y se puede cachear. */
 export const CREATOR_TOOLS: CreatorToolDefinition[] = (Object.keys(TOOL_INPUTS) as CreatorToolName[]).map(name => {
-  const { $schema: _schema, ...schema } = z.toJSONSchema(TOOL_INPUTS[name], { io: "input" }) as Record<string, unknown>;
+  const { $schema: _schema, ...schema } = nameBlockDefs(z.toJSONSchema(TOOL_INPUTS[name], { io: "input", reused: "ref" }) as Record<string, Json>);
   return { name, description: TOOL_DESCRIPTIONS[name], input_schema: { ...schema, type: "object" } };
 });
 
@@ -107,7 +150,8 @@ function toOp(name: CreatorToolName, input: unknown): { op: DocOp; blocks: Block
     }
     case "insert_blocks": {
       const data = input as z.infer<(typeof TOOL_INPUTS)["insert_blocks"]>;
-      return { op: { op: "insert_blocks", sectionId: data.section_id, afterBlockId: data.after_block_id, at: data.at, blocks: data.blocks }, blocks: data.blocks };
+      const cell = data.container_id !== undefined ? { containerId: data.container_id, cell: data.cell ?? 0 } : {};
+      return { op: { op: "insert_blocks", sectionId: data.section_id, afterBlockId: data.after_block_id, at: data.at, ...cell, blocks: data.blocks }, blocks: data.blocks };
     }
     case "update_block": {
       const data = input as z.infer<(typeof TOOL_INPUTS)["update_block"]>;
@@ -116,6 +160,14 @@ function toOp(name: CreatorToolName, input: unknown): { op: DocOp; blocks: Block
     case "delete_blocks": {
       const data = input as z.infer<(typeof TOOL_INPUTS)["delete_blocks"]>;
       return { op: { op: "delete_blocks", blockIds: data.block_ids }, blocks: [] };
+    }
+    case "wrap_blocks": {
+      const data = input as z.infer<(typeof TOOL_INPUTS)["wrap_blocks"]>;
+      return { op: { op: "wrap_blocks", blockIds: data.block_ids, as: data.as }, blocks: [] };
+    }
+    case "unwrap_container": {
+      const data = input as z.infer<(typeof TOOL_INPUTS)["unwrap_container"]>;
+      return { op: { op: "unwrap_container", containerId: data.container_id }, blocks: [] };
     }
   }
 }
@@ -126,9 +178,11 @@ export const isCreatorTool = (name: string): name is CreatorToolName => name in 
 function locateActivity(before: ResourceDoc, after: ResourceDoc, op: DocOp, ids: string[]): Pick<CreatorActivity, "blockIds" | "sectionId"> {
   const blockIds = ids.filter(id => findBlock(after, id) !== null);
   const touched =
-    op.op === "delete_blocks"
+    op.op === "delete_blocks" || op.op === "wrap_blocks"
       ? findBlock(before, op.blockIds[0])?.section.id
-      : "sectionId" in op && op.sectionId
+      : op.op === "unwrap_container"
+        ? findBlock(before, op.containerId)?.section.id
+        : "sectionId" in op && op.sectionId
         ? op.sectionId
         : (ids.find(id => after.sections.some(section => section.id === id)) ?? (blockIds[0] ? findBlock(after, blockIds[0])?.section.id : undefined));
   const sectionId = after.sections.some(section => section.id === touched) ? touched : undefined;
@@ -181,7 +235,7 @@ export function executeCreatorTool(doc: ResourceDoc, name: string, rawInput: unk
 
   const ids = applied.ids.length > 0 ? ` Ids: ${applied.ids.join(", ")}.` : "";
   // Cuartiles, recta de tendencia…: el modelo los recibe ya calculados, para que la clave coincida con la figura
-  const facts = written.map(describeComputed).filter(Boolean);
+  const facts = flattenBlocks(written).map(describeComputed).filter(Boolean);
   const computed = facts.length > 0 ? ` Valores calculados por el sistema, tal como salen en la figura: ${facts.join(" ")}` : "";
   return {
     doc: applied.doc,
