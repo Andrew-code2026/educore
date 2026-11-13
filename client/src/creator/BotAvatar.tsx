@@ -1,10 +1,10 @@
 /**
- * Avatar del asistente del Creador: un robot dibujado para EduCore, con el azul de la marca.
+ * Avatar del copiloto del Creador: un robot dibujado para EduCore, con el azul de la marca.
  * Es decorativo; `thinking` lo anima mientras la IA trabaja.
  */
-export function BotAvatar({ thinking = false }: { thinking?: boolean }) {
+export function BotAvatar({ thinking = false, className }: { thinking?: boolean; className?: string }) {
   return (
-    <svg className="crt-bot" data-thinking={thinking ? "" : undefined} viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+    <svg className={className ? `crt-bot ${className}` : "crt-bot"} data-thinking={thinking ? "" : undefined} viewBox="0 0 40 40" aria-hidden="true" focusable="false">
       <rect className="crt-bot__tile" width="40" height="40" rx="13" />
       {/* Antena */}
       <path className="crt-bot__stem" d="M20 12.5V9" />
