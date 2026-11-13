@@ -258,7 +258,7 @@ describe("la IA con columnas y tarjetas", () => {
     const [first, second, closing] = doc.sections[0].blocks;
     const wrapped = executeCreatorTool(doc, "wrap_blocks", { block_ids: [first.id, second.id], as: "columns" });
     expect(wrapped.isError, wrapped.result).toBe(false);
-    expect(describeActivity(wrapped.activity, wrapped.doc)).toMatchObject({ kind: "move", subject: "2 columnas", detail: "en columnas", linked: true });
+    expect(describeActivity(wrapped.activity, wrapped.doc)).toMatchObject({ kind: "move", subject: "Ejercicio 1 y Ejercicio 2", detail: "puestos en columnas", linked: true });
     doc = wrapped.doc;
     const container = wrapped.activity.blockIds![0];
     const unwrapped = executeCreatorTool(doc, "unwrap_container", { container_id: container });

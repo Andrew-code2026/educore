@@ -551,9 +551,10 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
     const sectionIndex = doc.sections.indexOf(section);
     const canUp = index > 0 || (!parent && sectionIndex > 0);
     const canDown = index < list.length - 1 || (!parent && sectionIndex < doc.sections.length - 1);
-    // Poner en columnas: un bloque del primer nivel que pueda ir dentro, solo o con el que le sigue. Se
-    // comprueba solo para el bloque con la barra a la vista, que es el único que la muestra
-    const wrappable = showTools && !parent && !container && INNER_BLOCK_TYPES.has(block.type);
+    // Poner en columnas: un bloque del primer nivel que pueda ir dentro, solo o con el que le sigue. Lo que
+    // depende de aplicar la operación se calcula solo con el menú abierto (en táctil todas las barras están a la vista)
+    const menuOpen = menuFor === block.id;
+    const wrappable = menuOpen && !parent && !container && INNER_BLOCK_TYPES.has(block.type);
     const next = wrappable ? section.blocks[index + 1] : undefined;
     const wrapWithNext = wrappable && next !== undefined && !isContainer(next) && INNER_BLOCK_TYPES.has(next.type) && tryOp({ op: "wrap_blocks", blockIds: [block.id, next.id], as: "columns" }) === null;
     const wrapIssue = wrappable ? tryOp({ op: "wrap_blocks", blockIds: [block.id], as: "columns" }) : null;
@@ -689,7 +690,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
             {view}
             {showTools && (
               <div className="crt-block__tools" role="toolbar" aria-label={`Acciones de ${label.toLowerCase()}`}>
-                <DropdownMenu open={menuFor === block.id} onOpenChange={open => setMenuFor(open ? block.id : null)}>
+                <DropdownMenu open={menuOpen} onOpenChange={open => setMenuFor(open ? block.id : null)}>
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
@@ -762,7 +763,7 @@ export const EditableDocument = forwardRef<EditableDocumentHandle, EditableDocum
                         )}
                       </>
                     )}
-                    {container && containerItems(container)}
+                    {container && menuOpen && containerItems(container)}
                     {parent && (
                       <>
                         <DropdownMenuSeparator />

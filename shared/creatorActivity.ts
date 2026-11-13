@@ -1,4 +1,4 @@
-import { BLOCK_TYPE_LABELS, findBlock, plainText, type BlockInput, type BlockType, type CreatorActivity, type ResourceDoc } from "./creator";
+import { BLOCK_TYPE_LABELS, blockCells, findBlock, plainText, type BlockInput, type BlockType, type CreatorActivity, type ResourceDoc } from "./creator";
 
 /**
  * Cómo se lee en el chat cada cosa que hizo la IA: qué tipo de acción fue (para el icono) y qué tocó,
@@ -215,6 +215,12 @@ export function describeActivity(activity: CreatorActivity, doc: ResourceDoc): A
   }
 
   if ((match = /^Puesto en (columnas|tarjetas)$/.exec(label))) {
+    // La ficha guarda el contenedor nuevo: se nombra lo que quedó dentro de él («Ejercicio 6 y Ejercicio 7»)
+    const inner = (activity.blockIds ?? []).flatMap(id => {
+      const found = findBlock(doc, id);
+      return found ? blockCells(found.block).flat().map(block => ({ type: block.type, name: blockName(block, 28) })) : [];
+    });
+    if (inner.length > 0) return { kind: "move", subject: listNames(inner), detail: `${agreeAll("puest", inner)} en ${match[1]}`, linked: true, counts: true };
     const blocks = liveBlocks(activity, doc, 40);
     return { kind: "move", subject: blocks.length > 0 ? listNames(blocks) : "Bloques", detail: `en ${match[1]}`, linked: blocks.length > 0, counts: true };
   }
