@@ -285,8 +285,11 @@ describe("desarrollo plano", () => {
     const three = block([{ kind: "cube", edge: 4, net: "only" }, { kind: "rectangular_prism", length: 8, width: 3, height: 5, net: "only" }, { kind: "cylinder", radius: 3, height: 5, net: "only" }]);
     expect(solidIssues(three, () => null, SHEET_WIDTH_PX)).toEqual([]);
     expect(solidIssues(three, () => null, 400).join(" ")).toContain("no caben a lo ancho de la hoja");
-    // El desarrollo solo lo tienen el cubo, los prismas y el cilindro
+    // El desarrollo solo lo tienen el cubo, los prismas y el cilindro: en un cono no se pierde en silencio
     expect(blockInputSchema.safeParse({ type: "solid", solids: [{ kind: "cylinder", radius: 3, height: 5, net: true }] }).success).toBe(false);
+    const cone = executeCreatorTool(emptyDoc(), "write_section", { title: "Taller", role: "student", blocks: [{ type: "solid", solids: [{ kind: "cone", radius: 3, height: 4, net: "beside" }] }] });
+    expect(cone.isError).toBe(true);
+    expect(cone.result).toContain("net");
   });
 
   it("tiene nombre, y en la hoja ocupa el alto de sus filas", () => {

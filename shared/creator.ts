@@ -1017,10 +1017,11 @@ const solidNet = z
   .meta({ id: "solid_net", description: 'Desarrollo plano con sus medidas: "beside" lo dibuja junto al sólido; "only" dibuja solo el desarrollo (para reconocer o armar el sólido). Sin él, solo el sólido.' })
   .optional();
 
+// Estrictos: un campo que no es de ese sólido (net en un cono, slant en un cilindro) se rechaza en vez de perderse
 const solidSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("cube"), edge: solidLength, edgeLabel: solidLabel, net: solidNet }),
-  z.object({ kind: z.literal("rectangular_prism"), length: solidLength, width: solidLength, height: solidLength, lengthLabel: solidLabel, widthLabel: solidLabel, heightLabel: solidLabel, net: solidNet }),
-  z.object({
+  z.strictObject({ kind: z.literal("cube"), edge: solidLength, edgeLabel: solidLabel, net: solidNet }),
+  z.strictObject({ kind: z.literal("rectangular_prism"), length: solidLength, width: solidLength, height: solidLength, lengthLabel: solidLabel, widthLabel: solidLabel, heightLabel: solidLabel, net: solidNet }),
+  z.strictObject({
     kind: z.literal("triangular_prism"),
     base: solidLength.describe("Base del triángulo de las caras paralelas."),
     triangleHeight: solidLength.describe("Altura de ese triángulo."),
@@ -1031,8 +1032,8 @@ const solidSchema = z.discriminatedUnion("kind", [
     lengthLabel: solidLabel,
     net: solidNet,
   }),
-  z.object({ kind: z.literal("cylinder"), radius: solidLength, height: solidLength, radiusLabel: solidLabel, heightLabel: solidLabel, net: solidNet }),
-  z.object({
+  z.strictObject({ kind: z.literal("cylinder"), radius: solidLength, height: solidLength, radiusLabel: solidLabel, heightLabel: solidLabel, net: solidNet }),
+  z.strictObject({
     kind: z.literal("cone"),
     radius: solidLength,
     height: solidLength,
@@ -1041,7 +1042,7 @@ const solidSchema = z.discriminatedUnion("kind", [
     heightLabel: solidLabel,
     slantLabel: solidLabel,
   }),
-  z.object({
+  z.strictObject({
     kind: z.literal("square_pyramid"),
     base: solidLength.describe("Arista de la base cuadrada."),
     height: solidLength,
@@ -1050,7 +1051,7 @@ const solidSchema = z.discriminatedUnion("kind", [
     heightLabel: solidLabel,
     slantLabel: solidLabel,
   }),
-  z.object({ kind: z.literal("sphere"), radius: solidLength, radiusLabel: solidLabel }),
+  z.strictObject({ kind: z.literal("sphere"), radius: solidLength, radiusLabel: solidLabel }),
 ]);
 
 const solidBlock = z.object({
