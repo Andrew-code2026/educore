@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { blockInputSchema, graphSpecSchema, type BlockInput, type GraphSpec } from "@shared/creator";
-import { PLANE_PAD, axisNameBands, axisNameWidth, piFraction, piLatex, piStep, piText, planeAxisIssues, planeLayout, planeTicks, planeXTicks, plotSize } from "@shared/creatorPlaneAxes";
+import { PLANE_PAD, axisNameBands, axisNameWidth, planeAxisNumbers, piFraction, piLatex, piStep, piText, planeAxisIssues, planeLayout, planeTicks, planeXTicks, plotSize } from "@shared/creatorPlaneAxes";
 import { minBlockWidth } from "@shared/creatorContainers";
 import { validateBlock } from "@shared/creatorValidate";
 
@@ -229,5 +229,57 @@ describe("el plano dentro de una columna", () => {
     expect(minBlockWidth(graph({ yLabel: "Costo ($)" }))).toBe(286);
     // Con el eje y en el borde y números de seis caracteres, también el sitio de los números
     expect(minBlockWidth(graph({ xMin: 0, xMax: 10, yMin: 0, yMax: 20000, yStep: 5000, yLabel: "Costo ($)" }))).toBe(270 + 6 * 6 + 13 + 16 - 30);
+  });
+});
+
+describe("números de los ejes junto al origen", () => {
+  const numbers = (extra: Record<string, unknown>) => {
+    const plane = spec(extra);
+    return planeAxisNumbers(plane, planeLayout(plane)!);
+  };
+  const texts = (list: Array<{ text: string }>) => list.map(item => item.text);
+
+  it("en un plano corriente se escriben todos, y el cero una sola vez", () => {
+    const plain = numbers({});
+    expect(texts(plain.x)).toEqual(["-5", "-4", "-3", "-2", "-1", "1", "2", "3", "4", "5"]);
+    expect(texts(plain.y)).toEqual(["-5", "-4", "-3", "-2", "-1", "1", "2", "3", "4", "5"]);
+    expect(plain.origin).not.toBeNull();
+  });
+
+  it("con las marcas muy juntas, el -1 que caería sobre el cero no se escribe", () => {
+    // Trece unidades en 240 px: el «-1» quedaba pegado al «0» y se leía «-10»
+    const tight = numbers({ xMin: -3, xMax: 10, yMin: -2000, yMax: 26000, yStep: 2000 });
+    expect(texts(tight.x)).toEqual(["-3", "-2", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]);
+    // En el eje y hay sitio: el número de debajo del origen se conserva
+    expect(texts(tight.y)).toContain("-2.000");
+    // Ningún número que quede comparte sitio con el cero
+    const origin = tight.origin!;
+    for (const item of [...tight.x, ...tight.y]) {
+      const wide = Math.min(item.box.x + item.box.w, origin.x + origin.w) - Math.max(item.box.x, origin.x);
+      const tall = Math.min(item.box.y + item.box.h, origin.y + origin.h) - Math.max(item.box.y, origin.y);
+      expect(wide > -2 && tall > 3, item.text).toBe(false);
+    }
+  });
+
+  it("lo mismo en vertical: el número de debajo del origen cede cuando no cabe", () => {
+    const tall = numbers({ xMin: -1, xMax: 9, yMin: -3, yMax: 20 });
+    expect(texts(tall.y)).not.toContain("-1");
+    // Con 24 marcas se escribe una de cada dos: -3, (-1), 1, 3…
+    expect(texts(tall.y)).toContain("-3");
+    expect(texts(tall.y)).toContain("1");
+    // Y en horizontal, a 24 px por unidad el «-1» quedaría a un píxel del cero: también cede
+    expect(texts(tall.x)).toEqual(["1", "2", "3", "4", "5", "6", "7", "8", "9"]);
+    // A 32 px por unidad (el plano corriente) hay sitio de sobra
+    expect(texts(numbers({ xMin: -1, xMax: 9, yMin: -1, yMax: 9 }).x)).toContain("-1");
+  });
+
+  it("sin el origen a la vista no hay cero aparte ni nada que quitar", () => {
+    const shifted = numbers({ xMin: 2, xMax: 12, yMin: 1, yMax: 11 });
+    expect(shifted.origin).toBeNull();
+    expect(texts(shifted.x)).toEqual(["2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]);
+    // Con el eje y en el borde y el x dentro, el cero de cada eje se escribe en su sitio
+    const edge = numbers({ xMin: 0, xMax: 10, yMin: -5, yMax: 5 });
+    expect(edge.origin).not.toBeNull();
+    expect(texts(edge.x)).toEqual(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]);
   });
 });

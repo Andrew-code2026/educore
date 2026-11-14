@@ -1,11 +1,11 @@
 import { memo, useId, useMemo, type CSSProperties } from "react";
 import type { GraphSpec } from "@shared/creator";
-import { formatNumber, formatNumberEs, tryCompile } from "@shared/creatorMath";
+import { formatNumber, tryCompile } from "@shared/creatorMath";
 import { areaLabel, areaShape, lineLabel, secantLine, tangentLine, type PlaneLine } from "@shared/creatorCalculus";
 import { CONIC_LABELS, conicCurves, conicEquation, shownConicElements, type ConicLine } from "@shared/creatorConics";
 import { describeNotable, shownNotablePoints } from "@shared/creatorNotable";
 import { functionColors, insidePlane, sampleFunction, type CurveMark } from "@shared/creatorPlane";
-import { labelEvery, planeLayout, planePointLatex, planeTicks, planeXTicks, usesPi } from "@shared/creatorPlaneAxes";
+import { planeAxisNumbers, planeLayout, planePointLatex, planeTicks, planeXTicks, usesPi } from "@shared/creatorPlaneAxes";
 import { describeFigure, figureShows, midpointLabel, mirrorLine, planeFigure, sideLabel, transformCenter, vertexLabel } from "@shared/creatorPlaneGeometry";
 import { boundarySegment, commonRegion, describeInequalities, halfPlaneRegion, inequalityLatex, isStrict, regionVertices } from "@shared/creatorRegions";
 import { TEXT_HALO } from "./FigureFrame";
@@ -124,7 +124,6 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     // Si el cero no está en el rango, el eje se dibuja en el borde más cercano
     const axisX = Math.min(Math.max(0, spec.yMin), spec.yMax);
     const axisY = Math.min(Math.max(0, spec.xMin), spec.xMax);
-    const everyY = labelEvery(yTicks.length);
 
     const inPlane = (x: number, y: number) => insidePlane(spec, x, y);
     const pathOf = (points: Array<[number, number]>) => points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${sx(x).toFixed(2)} ${sy(y).toFixed(2)}`).join(" ");
@@ -304,16 +303,8 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     const labels: PlacedLabel[] = [];
 
     // Lo que una etiqueta no debería tapar: los números de los ejes, los ejes y las curvas
-    const originShown = axisX === 0 && axisY === 0;
-    const numberBox = (text: string, anchorX: number, baseline: number, anchor: "middle" | "end"): Box => {
-      const boxW = text.length * 6 + 4;
-      return { x: anchor === "middle" ? anchorX - boxW / 2 : anchorX - boxW, y: baseline - 10, w: boxW, h: 13 };
-    };
-    const numberBoxes: Box[] = [
-      ...xTicks.filter(tick => tick.labeled && !(originShown && tick.value === 0)).map(tick => numberBox(tick.text, sx(tick.value), sy(axisX) + 14, "middle")),
-      ...yTicks.filter((y, index) => index % everyY === 0 && !(originShown && y === 0)).map(y => numberBox(formatNumberEs(y), sx(axisY) - 7, sy(y) + 3.5, "end")),
-      ...(originShown ? [numberBox("0", sx(axisY) - 7, sy(axisX) + 14, "end")] : []),
-    ];
+    const numbers = planeAxisNumbers(spec, layout);
+    const numberBoxes: Box[] = [...numbers.x.map(number => number.box), ...numbers.y.map(number => number.box), ...(numbers.origin ? [numbers.origin] : [])];
     const axisBoxes: Box[] = [
       { x: PAD.left, y: sy(axisX) - 2, w, h: 4 },
       { x: sx(axisY) - 2, y: PAD.top, w: 4, h },
@@ -614,12 +605,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       .sort((a, b) => Number(a.filled) - Number(b.filled));
 
     // La descripción para lectores de pantalla repite cálculos de arriba: se hace una vez por plano, no en cada render
-    return { description: describe(spec), layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, notable, figures, figureShapes, bounds, regionPath, corners, labels, toneOf };
+    return { description: describe(spec), layout, sx, sy, xTicks, yTicks, numbers, axisX, axisY, curves, marks, verticals, conics, areas, lines, notable, figures, figureShapes, bounds, regionPath, corners, labels, toneOf };
   }, [spec]);
 
   if (!view) return <div className="crt-plane crt-plane--invalid">Rango de la gráfica no válido.</div>;
 
-  const { description, layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, notable, figures, figureShapes, bounds, regionPath, corners, labels, toneOf } = view;
+  const { description, layout, sx, sy, xTicks, yTicks, numbers, axisX, axisY, curves, marks, verticals, conics, areas, lines, notable, figures, figureShapes, bounds, regionPath, corners, labels, toneOf } = view;
   const { w, h, width, height, pad: PAD } = layout;
   const axisXpx = sy(axisX);
   const axisYpx = sx(axisY);
@@ -632,13 +623,11 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
   // En múltiplos de π las raíces de seno y coseno caen justo en las marcas: sus rótulos van encima de
   // las curvas, con halo, para que se lean. Con números, el eje se dibuja como siempre, debajo.
   const piAxis = usesPi(spec);
-  const xNumbers = xTicks.map(tick =>
-    (originInside && tick.value === 0) || !tick.labeled ? null : (
-      <text key={`lx${tick.value}`} x={sx(tick.value)} y={axisXpx + 14} textAnchor="middle" style={piAxis ? TEXT_HALO : undefined}>
-        {tick.text}
-      </text>
-    ),
-  );
+  const xNumbers = numbers.x.map(number => (
+    <text key={`lx${number.value}`} x={sx(number.value)} y={axisXpx + 14} textAnchor="middle" style={piAxis ? TEXT_HALO : undefined}>
+      {number.text}
+    </text>
+  ));
 
   return (
     <div className="crt-plane" data-notes={noted ? "" : undefined} style={{ "--plane-w": `${width}px`, "--plane-wn": width, "--plane-hn": height, aspectRatio: `${width} / ${height}` } as CSSProperties}>
@@ -676,13 +665,11 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
 
         <g className="crt-plane__ticks">
           {!piAxis && xNumbers}
-          {yTicks.map((y, index) =>
-            (originInside && y === 0) || index % everyY !== 0 ? null : (
-              <text key={`ly${y}`} x={axisYpx - 7} y={sy(y) + 3.5} textAnchor="end">
-                {formatNumberEs(y)}
-              </text>
-            ),
-          )}
+          {numbers.y.map(number => (
+            <text key={`ly${number.value}`} x={axisYpx - 7} y={sy(number.value) + 3.5} textAnchor="end">
+              {number.text}
+            </text>
+          ))}
           {originInside && (
             <text x={axisYpx - 7} y={axisXpx + 14} textAnchor="end">
               0

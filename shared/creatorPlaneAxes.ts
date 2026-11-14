@@ -290,3 +290,66 @@ export const point4 = (x: number, y: number): string => `(${formatNumber(x, 4)},
 
 /** Una lista en una frase: «a, b y c». */
 export const listEs = (items: string[]): string => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`);
+
+/* ── Números de los ejes ── */
+
+export interface AxisBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface AxisNumber {
+  value: number;
+  text: string;
+  /** Sitio que ocupa el número en la figura. */
+  box: AxisBox;
+}
+
+export interface AxisNumbers {
+  x: AxisNumber[];
+  y: AxisNumber[];
+  /** El cero del cruce de los ejes, cuando el origen está a la vista: se escribe una sola vez, abajo a la izquierda. */
+  origin: AxisBox | null;
+}
+
+/** Caja de un número de eje: centrado bajo su marca (eje x) o terminado junto a ella (eje y). */
+const numberBox = (text: string, anchorX: number, baseline: number, anchor: "middle" | "end"): AxisBox => {
+  const w = text.length * NUMBER_CHAR_W + 4;
+  return { x: anchor === "middle" ? anchorX - w / 2 : anchorX - w, y: baseline - 10, w, h: 13 };
+};
+
+/**
+ * Los números que se escriben en cada eje. Con las marcas muy juntas, el número vecino al origen
+ * (el -1) cae sobre el cero del cruce y los dos se leen como uno solo («-10»): ese vecino no se
+ * escribe. Su marca sigue en el eje.
+ */
+export function planeAxisNumbers(spec: GraphSpec, layout: PlaneLayout): AxisNumbers {
+  const sx = (x: number) => layout.pad.left + ((x - spec.xMin) / (spec.xMax - spec.xMin)) * layout.w;
+  const sy = (y: number) => layout.pad.top + ((spec.yMax - y) / (spec.yMax - spec.yMin)) * layout.h;
+  // Si el cero no está en el rango, el eje se dibuja en el borde más cercano
+  const axisX = Math.min(Math.max(0, spec.yMin), spec.yMax);
+  const axisY = Math.min(Math.max(0, spec.xMin), spec.xMax);
+  const originShown = axisX === 0 && axisY === 0;
+  const origin = originShown ? numberBox("0", sx(axisY) - 7, sy(axisX) + 14, "end") : null;
+  // Cada caja lleva 2 px de holgura por lado. En horizontal, dos números en el mismo renglón necesitan unos 6 px
+  // entre sus cifras para no leerse como uno: ceden los que quedan a menos de 2 px de caja a caja. En vertical son
+  // renglones distintos y basta con que no se pisen: ceden los que comparten más de 3 px
+  const crowdsOrigin = (box: AxisBox) =>
+    origin !== null && Math.min(box.x + box.w, origin.x + origin.w) - Math.max(box.x, origin.x) > -2 && Math.min(box.y + box.h, origin.y + origin.h) - Math.max(box.y, origin.y) > 3;
+
+  const yTicks = planeTicks(spec.yMin, spec.yMax, spec.yStep);
+  const everyY = labelEvery(yTicks.length);
+  return {
+    x: planeXTicks(spec, layout.w)
+      .filter(tick => tick.labeled && !(originShown && tick.value === 0))
+      .map(tick => ({ value: tick.value, text: tick.text, box: numberBox(tick.text, sx(tick.value), sy(axisX) + 14, "middle") }))
+      .filter(number => !crowdsOrigin(number.box)),
+    y: yTicks
+      .filter((y, index) => index % everyY === 0 && !(originShown && y === 0))
+      .map(y => ({ value: y, text: formatNumberEs(y), box: numberBox(formatNumberEs(y), sx(axisY) - 7, sy(y) + 3.5, "end") }))
+      .filter(number => !crowdsOrigin(number.box)),
+    origin,
+  };
+}
