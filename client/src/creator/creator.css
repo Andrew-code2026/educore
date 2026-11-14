@@ -2173,7 +2173,8 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 /* Rejilla de datos con encabezados de columna (los lados y ángulos de un triángulo, las medidas de un sólido) */
 .crt-form__datagrid { display: grid; gap: 6px 8px; align-items: center; }
 .crt-form__datagrid--triangle { grid-template-columns: auto 76px minmax(84px, 1fr) 40px; }
-.crt-form__datagrid--solid { grid-template-columns: auto 84px 24px 72px; }
+.crt-form__datagrid--solid { grid-template-columns: minmax(0, 1fr) 76px 22px 64px; }
+.crt-form__datagrid--solid .crt-form__datagrid-name { white-space: normal; }
 .crt .crt-form__datagrid > .crt-input { width: 100%; min-width: 0; padding-inline: 8px; }
 .crt-form__datagrid-name { font-size: 13px; line-height: 1.25; white-space: nowrap; }
 /* Un elemento de lista con una segunda fila de opciones (dominio de una función, datos de una cónica) */
