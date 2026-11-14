@@ -210,6 +210,9 @@ const FIGURE_RATIO: Partial<Record<BlockInput["type"], number>> = {
 /** Bloques que son sobre todo texto: los que se alargan cuando la columna se angosta. */
 const TEXT_TYPES: ReadonlySet<string> = new Set(["paragraph", "heading", "callout", "exercise", "solution"]);
 
+/** Alto de una fila de tabla con una fracción (\dfrac): más que el de una fila de números. */
+const FRACTION_ROW_PX = 50;
+
 /** Alto aproximado en papel de un bloque dibujado a este ancho, en píxeles. */
 export function estimateHeight(block: BlockInput, width: number): number {
   const caption = "caption" in block && block.caption ? LINE_PX : 0;
@@ -237,11 +240,11 @@ export function estimateHeight(block: BlockInput, width: number): number {
       // Encabezado de dos renglones, una fila por valor o clase, la de totales y la línea de las medidas
       const view = frequencyTableView(block);
       const rows = view ? view.rows.length + (view.totals ? 1 : 0) : CREATOR_LIMITS.statTableRowsMax;
-      return 52 + rows * 34 + (view?.note ? LINE_PX : 0) + (block.measures.length > 0 ? LINE_PX : 0) + caption;
+      const row = view?.columns.some(column => column.format === "fraction") ? FRACTION_ROW_PX : 34;
+      return 52 + rows * row + (view?.note ? LINE_PX : 0) + (block.measures.length > 0 ? LINE_PX : 0) + caption;
     }
     case "contingency_table": {
-      // Una fracción (\dfrac) hace la fila más alta que un número
-      const row = block.display === "fraction" ? 50 : 34;
+      const row = block.display === "fraction" ? FRACTION_ROW_PX : 34;
       return (block.columnVariable ? 2 : 1) * 34 + (block.rows.length + (block.totals ? 1 : 0)) * row + caption;
     }
     case "graph": {

@@ -1,5 +1,6 @@
 import type { BlockInput } from "./creator";
 import { areaModelProduct, computeAreaModel, monomialText, polynomialText } from "./creatorAlgebra";
+import { sameNumber } from "./creatorClasses";
 import { niceStep, tickValues } from "./creatorFigures";
 import { describeGraph } from "./creatorGraphFacts";
 import { formatNumber, formatNumberEs } from "./creatorMath";
@@ -115,28 +116,8 @@ export const trendLineLatex = (line: TrendLine): string => trendLineParts(line, 
 
 /* ── Histograma ── */
 
-const sameNumber = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
-
-/**
- * Cuántos datos caen en cada clase. Las clases son intervalos [from, to): un dato que coincide
- * con un límite cuenta en la clase que empieza ahí. La última clase incluye también su límite
- * superior, para que el dato más alto no se quede por fuera.
- */
-export function histogramCounts(data: number[], classes: Array<{ from: number; to: number }>): { counts: number[]; outside: number[] } {
-  const counts = classes.map(() => 0);
-  const outside: number[] = [];
-  const last = classes.length - 1;
-  for (const value of data) {
-    const index = classes.findIndex((item, at) => {
-      const aboveFrom = value > item.from || sameNumber(value, item.from);
-      const belowTo = at === last ? value < item.to || sameNumber(value, item.to) : value < item.to && !sameNumber(value, item.to);
-      return aboveFrom && belowTo;
-    });
-    if (index === -1) outside.push(value);
-    else counts[index]++;
-  }
-  return { counts, outside };
-}
+// El conteo por clases y su construcción están en creatorClasses.ts, que comparte la tabla de frecuencias
+export { buildHistogramClasses, histogramCounts } from "./creatorClasses";
 
 /** Problemas de forma de las clases: límites invertidos, huecos o solapes, y anchos distintos. */
 export function histogramClassIssues(classes: Array<{ from: number; to: number }>): string[] {
@@ -163,10 +144,6 @@ export function histogramClassIssues(classes: Array<{ from: number; to: number }
   return issues;
 }
 
-/** Clases contiguas del mismo ancho a partir del límite inferior: lo que arma el formulario del docente. */
-export function buildHistogramClasses(start: number, width: number, frequencies: number[]): Array<{ from: number; to: number; frequency: number }> {
-  return frequencies.map((frequency, index) => ({ from: clean(start + index * width), to: clean(start + (index + 1) * width), frequency }));
-}
 
 /* ── Ejes ── */
 

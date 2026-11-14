@@ -3,7 +3,7 @@ import { gcd } from "./creatorDiagrams";
 import { roundPercents } from "./creatorFigures";
 import { formatNumber } from "./creatorMath";
 import { figureNumber, formatTableNumber, isExactNumber } from "./creatorPlane";
-import { buildHistogramClasses, histogramCounts } from "./creatorStats";
+import { buildHistogramClasses, histogramCounts } from "./creatorClasses";
 
 /**
  * Tablas estadísticas del Creador de recursos (la tabla de frecuencias y la de contingencia) y las
@@ -13,9 +13,8 @@ import { buildHistogramClasses, histogramCounts } from "./creatorStats";
  * aquí y nunca del texto del modelo. La vista, el formulario, el validador y lo que se le devuelve a
  * la IA usan las mismas funciones, así que la clave de respuestas dice lo mismo que la hoja.
  *
- * creatorStats.ts importa este módulo para describeComputed y este importa de allí el conteo por
- * clases. Las funciones de un lado solo se llaman dentro de funciones del otro, nunca al cargar el
- * módulo, así que ese ciclo no tiene efecto.
+ * creatorStats.ts importa este módulo para describeComputed; el conteo por clases que comparten los dos
+ * está en creatorClasses.ts, de modo que este no importa creatorStats.ts.
  */
 
 type FrequencyTableSpec = Extract<BlockInput, { type: "frequency_table" }>;
