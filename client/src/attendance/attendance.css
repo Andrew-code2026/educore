@@ -275,7 +275,8 @@ html.dark[data-accent="indigo"] {
   --chrona-cyan: oklch(0.79 0.11 205);
   --chrona-cyan-strong: oklch(0.56 0.14 213);
   --chrona-ink-on-state: oklch(0.99 0.004 250);
-  --roster-head: oklch(0.979 0.008 235 / 0.94);
+  /* Opaco: la cabecera fija del roster no usa backdrop-filter (se repintaba en cada frame de scroll). */
+  --roster-head: oklch(0.979 0.008 235);
   --roster-zebra: oklch(0.45 0.025 235 / 0.018);
   --roster-hover: oklch(0.74 0.095 205 / 0.075);
   --chrona-control-bg: oklch(1 0 0 / 0.52);
@@ -287,7 +288,7 @@ html.dark[data-accent="indigo"] {
   --chrona-cyan: oklch(0.82 0.12 199);
   --chrona-cyan-strong: oklch(0.82 0.12 199);
   --chrona-ink-on-state: oklch(0.18 0.018 254);
-  --roster-head: oklch(0.2 0.028 254 / 0.96);
+  --roster-head: oklch(0.2 0.028 254);
   --roster-zebra: oklch(0.96 0.015 250 / 0.018);
   --roster-hover: oklch(0.76 0.11 199 / 0.08);
   --chrona-control-bg: oklch(0.28 0.025 254 / 0.68);
@@ -836,8 +837,6 @@ html:not(.dark) .att-progress {
   letter-spacing: 0.09em;
   text-transform: uppercase;
   box-shadow: inset 0 -1px 0 var(--hairline-strong);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 .roster-heading:first-child { justify-content: center; padding: 0; }
 .roster-student-head { padding-left: 52px; }
