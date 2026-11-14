@@ -217,6 +217,10 @@ export function EduCoreSidebar({
   const displayName = role === "teacher" ? (user?.name || "Juan Diego Loaiza") : role === "admin" ? (user?.name || "Valentina Ríos") : user?.name || ROLE_LABELS[role];
   const displaySub = role === "admin" ? ROLE_LABELS.admin : schoolName;
 
+  // Orden de cada fila del menú para la cascada de entrada al desplegar (ver .edc-fade en shell.css).
+  let row = 0;
+  const rowStyle = () => ({ "--edc-i": row++ }) as React.CSSProperties;
+
   return (
     <aside className="edc-side edc-chrome" aria-label="Barra lateral" data-collapsed={sidebarCollapsed}>
       <div className="edc-side__brand">
@@ -281,7 +285,7 @@ export function EduCoreSidebar({
           return (
             <div key={group.key} role="group" aria-labelledby={headId} className="edc-nav-group">
               <div className="edc-nav-group__head">
-                <span id={headId} className="edc-nav-group__label edc-fade">{group.label}</span>
+                <span id={headId} className="edc-nav-group__label edc-fade" style={rowStyle()}>{group.label}</span>
                 <span aria-hidden="true" className="edc-nav-group__rule" />
               </div>
               {group.items.map(item => {
@@ -292,6 +296,7 @@ export function EduCoreSidebar({
                     key={item.id}
                     type="button"
                     className="edc-nav-item"
+                    style={rowStyle()}
                     onClick={() => {
                       hideTip(true);
                       setSection(item.id);

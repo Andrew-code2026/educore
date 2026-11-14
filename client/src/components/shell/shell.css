@@ -440,35 +440,62 @@
      se veía y obligaba a repintarlo en cada frame del plegado. */
 }
 
-/* Coreografía de plegado: el contenido se desvanece antes de que el riel se estreche. */
+/*
+ * Coreografía de plegado.
+ * - Al desplegar (entrada) los textos esperan a que el riel esté casi abierto, para no verse
+ *   recortados mientras crece; luego aparecen con opacidad + un desliz corto, en cascada de
+ *   arriba abajo (--edc-i lo pone cada fila en el JSX). Curva de desaceleración: llegan suaves.
+ * - Al plegar (salida) desaparecen todos a la vez y rápido, antes de que el riel se estreche.
+ *   Las salidas son más cortas que las entradas.
+ * Solo se animan opacity y transform (compositor).
+ */
 .edc-side {
   --fade-op: 1;
   --fade-tf: translateX(0);
-  --fade-tr: opacity .22s ease .1s, transform .3s var(--edc-ease) .06s;
+  --fade-op-dur: 240ms;
+  --fade-tf-dur: 380ms;
+  --fade-ease: cubic-bezier(.16, 1, .3, 1);
+  --fade-delay: 120ms;
+  --fade-step: 14ms;
   --rule-op: 0;
   --rule-tr: opacity .08s ease;
   --reveal-vis: visible;
-  --reveal-tr: opacity .22s ease .1s, visibility 0s, background-color .15s, color .15s, transform .1s;
+  --reveal-tr: opacity var(--fade-op-dur) var(--fade-ease) var(--fade-delay), visibility 0s, background-color .15s, color .15s, transform .1s;
   --rail-vis: hidden;
   --item-shift: 8px;
 }
 
 .edc-side[data-collapsed="true"] {
   --fade-op: 0;
-  --fade-tf: translateX(-4px);
-  --fade-tr: opacity .1s ease, transform .12s ease;
+  --fade-tf: translateX(-6px);
+  --fade-op-dur: 90ms;
+  --fade-tf-dur: 120ms;
+  --fade-ease: cubic-bezier(.4, 0, 1, 1);
+  --fade-delay: 0ms;
+  --fade-step: 0ms;
   --rule-op: 1;
   --rule-tr: opacity .2s ease .14s;
   --reveal-vis: hidden;
-  --reveal-tr: opacity .1s ease, visibility 0s linear .1s, background-color .15s, color .15s, transform .1s;
+  --reveal-tr: opacity 90ms ease, visibility 0s linear 90ms, background-color .15s, color .15s, transform .1s;
   --rail-vis: visible;
   --item-shift: 0px;
+}
+
+/*
+ * El retardo se calcula en cada elemento (no dentro de una custom property del riel) para que
+ * var(--edc-i) se resuelva con el índice de su fila. La cascada se corta a las 10 filas.
+ */
+.edc-fade,
+.edc-nav-item__badge {
+  --fade-wait: calc(var(--fade-delay) + min(var(--edc-i, 0), 10) * var(--fade-step));
 }
 
 .edc-fade {
   opacity: var(--fade-op);
   transform: var(--fade-tf);
-  transition: var(--fade-tr);
+  transition:
+    opacity var(--fade-op-dur) var(--fade-ease) var(--fade-wait),
+    transform var(--fade-tf-dur) var(--fade-ease) var(--fade-wait);
 }
 
 .edc-side__brand {
@@ -752,7 +779,7 @@
   background: var(--edc-nav-badge-bg);
   color: var(--edc-nav-badge-fg);
   opacity: var(--fade-op);
-  transition: var(--fade-tr), background-color .2s ease, color .2s ease;
+  transition: opacity var(--fade-op-dur) var(--fade-ease) var(--fade-wait), background-color .2s ease, color .2s ease;
 }
 
 .edc-nav-item[aria-current="page"] {
