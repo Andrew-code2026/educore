@@ -36,8 +36,12 @@ export const NOTABLE_LABELS_MAX = 12;
 const SAMPLES = 600;
 
 interface Search {
+  /** Tramo de x donde un punto cuenta: el plano recortado por el dominio. */
   lo: number;
   hi: number;
+  /** Tramo que se muestrea: un poco más allá de cada borde del plano por donde la función sigue. */
+  from: number;
+  to: number;
   xScale: number;
   yScale: number;
   pi: boolean;
@@ -54,10 +58,18 @@ function searchRange(spec: GraphSpec, indexes: number[]): Search | null {
     if (fn.to !== undefined) hi = Math.min(hi, fn.to);
   }
   if (!(lo < hi)) return null;
-  return { lo, hi, xScale: Math.max(1, Math.abs(lo), Math.abs(hi)), yScale: Math.max(1, spec.yMax - spec.yMin), pi: spec.xUnit === "pi" };
+  // Donde el tramo termina en el borde del plano y no en el del dominio, la función sigue: se mira un poco
+  // más allá para reconocer el máximo o la raíz que cae justo en el borde (el de cos x en 0 y en 2π)
+  const margin = 0.02 * (spec.xMax - spec.xMin);
+  const from = lo === spec.xMin ? lo - margin : lo;
+  const to = hi === spec.xMax ? hi + margin : hi;
+  return { lo, hi, from, to, xScale: Math.max(1, Math.abs(lo), Math.abs(hi)), yScale: Math.max(1, spec.yMax - spec.yMin), pi: spec.xUnit === "pi" };
 }
 
-const grid = ({ lo, hi }: Search): number[] => Array.from({ length: SAMPLES + 1 }, (_, i) => (i === SAMPLES ? hi : lo + ((hi - lo) * i) / SAMPLES));
+const grid = ({ from, to }: Search): number[] => Array.from({ length: SAMPLES + 1 }, (_, i) => (i === SAMPLES ? to : from + ((to - from) * i) / SAMPLES));
+
+/** ¿El punto hallado cae en el tramo donde cuenta? Lo que se vio más allá del borde del plano no se marca. */
+const within = (search: Search, x: number): boolean => x >= search.lo - 1e-9 * search.xScale && x <= search.hi + 1e-9 * search.xScale;
 
 /**
  * Números «redondos» pegados a x: con cuatro o seis decimales y, en un plano en múltiplos de π,
@@ -155,15 +167,16 @@ function zerosOf(g: CompiledExpression, search: Search): { zeros: number[]; flat
       if (Math.abs(g(touch)) <= 1e-9 * search.yScale) add(snap(touch));
     }
   }
-  return { zeros: zeros.sort((a, b) => a - b), flat: exact > SAMPLES / 2 };
+  return { zeros: zeros.filter(x => within(search, x)).sort((a, b) => a - b), flat: exact > SAMPLES / 2 };
 }
 
 /* ── Máximos y mínimos ── */
 
 /**
- * Máximos y mínimos locales de f dentro del tramo, sin contar sus extremos. Sirve igual para un
- * vértice liso (una parábola) que para una esquina (|x|); un tramo constante no tiene extremos,
- * y un salto tampoco se toma por uno.
+ * Máximos y mínimos locales de f dentro del tramo. Sirve igual para un vértice liso (una parábola)
+ * que para una esquina (|x|); un tramo constante no tiene extremos, y un salto tampoco se toma por
+ * uno. El borde de un dominio no cuenta; el del plano sí, cuando la función sigue más allá y de
+ * verdad tiene ahí un máximo o un mínimo.
  */
 function extremaOf(f: CompiledExpression, search: Search): NotablePoint[] {
   const xs = grid(search);
@@ -188,7 +201,7 @@ function extremaOf(f: CompiledExpression, search: Search): NotablePoint[] {
       // A los dos lados la curva sigue pegada al punto: si no, es el borde de un salto
       const delta = 1e-7 * search.xScale;
       const continuous = [x - delta, x + delta].every(near => Math.abs(f(near) - y) <= 1e-4 * search.yScale);
-      if (Number.isFinite(y) && continuous) found.push({ x, y: tidy(y), role: sign === 1 ? "maximum" : "minimum" });
+      if (Number.isFinite(y) && continuous && within(search, x)) found.push({ x, y: tidy(y), role: sign === 1 ? "maximum" : "minimum" });
       i = j;
     }
   }

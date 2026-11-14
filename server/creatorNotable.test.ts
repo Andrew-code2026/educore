@@ -123,6 +123,32 @@ describe("máximos y mínimos", () => {
   });
 });
 
+describe("puntos justo en el borde del plano", () => {
+  it("marca el máximo que cae en el borde cuando la función sigue más allá", () => {
+    const period = spec({ xMin: 0, xMax: 6.2832, yMin: -3, yMax: 3, xStep: 1.5708, xUnit: "pi", functions: fns("2cos(x)"), notable: [{ fn: 0, kind: "extrema" }] });
+    expect(describeNotable(period, period.notable![0])).toBe('Extremos de "2cos(x)": máximo en (0, 2), mínimo en (π, -2) y máximo en (2π, 2).');
+    // El vértice de una parábola en el borde izquierdo
+    expect(found({ functions: fns("x^2"), xMin: 0, xMax: 4, yMin: -1, yMax: 9 }, { fn: 0, kind: "extrema" })).toEqual([[0, 0]]);
+  });
+
+  it("el borde de un dominio no es un extremo, ni el borde del plano de una función que solo sube", () => {
+    expect(found({ functions: [{ expr: "x^2", from: 0 }] }, { fn: 0, kind: "extrema" })).toEqual([]);
+    expect(found({ functions: [{ expr: "-x^2 + 4", from: -2, to: 0 }] }, { fn: 0, kind: "extrema" })).toEqual([]);
+    expect(found({ functions: fns("2x + 1"), xMin: 0, xMax: 4 }, { fn: 0, kind: "extrema" })).toEqual([]);
+    expect(found({ functions: fns("sqrt(x)"), xMin: 0, xMax: 6 }, { fn: 0, kind: "extrema" })).toEqual([]);
+  });
+
+  it("halla la raíz que cae en el borde y no marca la que queda fuera", () => {
+    expect(found({ functions: fns("x^2 - 4"), xMin: -2, xMax: 2, yMin: -5, yMax: 5 }, { fn: 0, kind: "roots" })).toEqual([
+      [-2, 0],
+      [2, 0],
+    ]);
+    // La raíz está en x = 5, a 0,05 del borde: se ve al muestrear más allá, pero no pertenece al plano
+    expect(found({ functions: fns("x - 5"), xMin: -4, xMax: 4.95 }, { fn: 0, kind: "roots" })).toEqual([]);
+    expect(issuesOf({ functions: fns("x - 5"), xMin: -4, xMax: 4.95, notable: [{ fn: 0, kind: "roots" }] })[0]).toContain("no tiene raíces entre x = -4 y x = 4.95");
+  });
+});
+
 describe("cortes entre dos funciones", () => {
   it("halla los cortes de una recta con una parábola", () => {
     expect(found({ functions: fns("x^2 - 2", "x") }, { fn: 0, kind: "intersections", with: 1 })).toEqual([

@@ -328,7 +328,14 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
           .map(([x, y]) => [sx(x), sy(y)] as const),
       ),
       // Los lados de las figuras y el eje de una reflexión
-      ...figureShapes.flatMap(item => item.shape.sides.flatMap(side => Array.from({ length: 13 }, (_, i) => [sx(side.from.x + ((side.to.x - side.from.x) * i) / 12), sy(side.from.y + ((side.to.y - side.from.y) * i) / 12)] as const))),
+      ...figureShapes.flatMap(item =>
+        item.shape.sides.flatMap(side => {
+          const [x1, y1, x2, y2] = [sx(side.from.x), sy(side.from.y), sx(side.to.x), sy(side.to.y)];
+          // Una muestra cada 5 px: un rótulo de 20 px de alto no cabe entre dos y siempre cuenta el lado que pisa
+          const steps = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / 5));
+          return Array.from({ length: steps + 1 }, (_, i) => [x1 + ((x2 - x1) * i) / steps, y1 + ((y2 - y1) * i) / steps] as const);
+        }),
+      ),
       ...figures.flatMap(figure => figure.guideSamples.map(([x, y]) => [sx(x), sy(y)] as const)),
       ...bounds.flatMap(bound => Array.from({ length: 33 }, (_, i) => [sx(bound.from[0] + ((bound.to[0] - bound.from[0]) * i) / 32), sy(bound.from[1] + ((bound.to[1] - bound.from[1]) * i) / 32)] as const)),
       // Las rectas verticales también son trazo que una etiqueta no debería tapar
@@ -346,9 +353,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       return total + Math.min(24, onCurve * 3);
     };
 
-    const place = (latex: string, tone: string, candidates: Array<{ x: number; y: number }>, labelW = estimateWidth(latex), labelH = LABEL_H) => {
+    // Con el eje y dentro del plano, el margen izquierdo solo lleva la flecha del eje x (y el nombre del eje y, si lo hay):
+    // los rótulos que escribe el sistema pueden entrar en él, como todos entran en el derecho
+    const looseLeft = spec.xMin < 0 ? (layout.yName ? 20 : 2) : plot.x - 4;
+    const place = (latex: string, tone: string, candidates: Array<{ x: number; y: number }>, labelW = estimateWidth(latex), labelH = LABEL_H, loose = false) => {
       const fits = (box: Box) =>
-        box.x >= plot.x - 4 && box.x + box.w <= plot.x + plot.w + PAD.right - 2 && box.y >= plot.y - 8 && box.y + box.h <= plot.y + plot.h + 8;
+        box.x >= (loose ? looseLeft : plot.x - 4) && box.x + box.w <= plot.x + plot.w + PAD.right - 2 && box.y >= plot.y - 8 && box.y + box.h <= plot.y + plot.h + 8;
       const boxes = candidates.map(candidate => ({ x: candidate.x, y: candidate.y, w: labelW, h: labelH }));
       const fitting = boxes.filter(fits);
       const pool = fitting.length > 0 ? fitting : boxes;
@@ -378,6 +388,16 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       { x: px - labelW - 12, y: py - LABEL_H / 2 },
     ];
 
+    /**
+     * Cuánto hay que apartar del trazo el centro de un rótulo, a lo largo de la normal (nx, ny), para que su
+     * caja quede entera a un lado y a 6 px: lo que la caja mide en esa dirección, que en un trazo inclinado
+     * es parte de su ancho y parte de su alto.
+     */
+    const beside = (nx: number, ny: number, labelW: number) => 6 + (Math.abs(nx) * labelW) / 2 + (Math.abs(ny) * LABEL_H) / 2;
+
+    /** Rótulos que escribe el sistema: medidos signo a signo y con el margen izquierdo a su alcance. */
+    const placeComputed = (latex: string, tone: string, candidates: Array<{ x: number; y: number }>, labelW = measureLabel(latex)) => place(latex, tone, candidates, labelW, LABEL_H, true);
+
     /** Lo mismo con cuatro sitios más, algo apartados: para puntos calculados que pueden salir muy juntos. */
     const aroundFar = (px: number, py: number, labelW: number) => [
       ...around(px, py, labelW),
@@ -403,11 +423,11 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
         if (!label) continue;
         const labelW = measureLabel(label);
         const away = (candidate: { x: number; y: number }) => Math.hypot(candidate.x + labelW / 2 - cx, candidate.y + LABEL_H / 2 - cy);
-        place(label, tone, around(sx(vertex.x), sy(vertex.y), labelW).sort((a, b) => away(b) - away(a)), labelW);
+        placeComputed(label, tone, around(sx(vertex.x), sy(vertex.y), labelW).sort((a, b) => away(b) - away(a)), labelW);
       }
       if (item.show.midpoint && item.shape.midpoint) {
         const label = midpointLabel(item.shape.midpoint, pi);
-        place(label, tone, around(sx(item.shape.midpoint[0]), sy(item.shape.midpoint[1]), measureLabel(label)), measureLabel(label));
+        placeComputed(label, tone, around(sx(item.shape.midpoint[0]), sy(item.shape.midpoint[1]), measureLabel(label)));
       }
     }
 
@@ -424,22 +444,21 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
         let nx = -(y2 - y1) / length;
         let ny = (x2 - x1) / length;
         if (((x1 + x2) / 2 - cx) * nx + ((y1 + y2) / 2 - cy) * ny < 0) [nx, ny] = [-nx, -ny];
-        // Junto al punto medio; si ahí estorba (el rótulo del punto medio, otro vértice), a un tercio del lado
-        const at = (t: number, distance: number) => ({
-          x: x1 + (x2 - x1) * t + nx * (distance + (Math.abs(nx) * labelW) / 2) - labelW / 2,
-          y: y1 + (y2 - y1) * t + ny * (distance + (Math.abs(ny) * LABEL_H) / 2) - LABEL_H / 2,
-        });
-        place(label, `crt-plane__label--${item.tone}`, [0.5, 0.32, 0.68].flatMap(t => [at(t, 6), at(t, -6)]), labelW);
+        // Junto al punto medio; si ahí estorba (el rótulo del punto medio, otro vértice), a un tercio del lado.
+        // `side` es 1 hacia fuera de la figura y -1 hacia dentro: la caja queda entera de ese lado, a 6 px del trazo
+        const reach = beside(nx, ny, labelW);
+        const at = (t: number, side: 1 | -1) => ({ x: x1 + (x2 - x1) * t + side * nx * reach - labelW / 2, y: y1 + (y2 - y1) * t + side * ny * reach - LABEL_H / 2 });
+        placeComputed(label, `crt-plane__label--${item.tone}`, [0.5, 0.32, 0.68].flatMap(t => [at(t, 1), at(t, -1)]), labelW);
       }
     }
 
     for (const vertex of corners) {
       const label = planePointLatex(spec, vertex.x, vertex.y);
-      place(label, "crt-plane__label--line", aroundFar(sx(vertex.x), sy(vertex.y), measureLabel(label)), measureLabel(label));
+      placeComputed(label, "crt-plane__label--line", aroundFar(sx(vertex.x), sy(vertex.y), measureLabel(label)));
     }
 
     for (const point of notable) {
-      if (point.label) place(point.label, `crt-plane__label--${point.tone}`, aroundFar(sx(point.x), sy(point.y), measureLabel(point.label)), measureLabel(point.label));
+      if (point.label) placeComputed(point.label, `crt-plane__label--${point.tone}`, aroundFar(sx(point.x), sy(point.y), measureLabel(point.label)));
     }
 
     // La medida del radio va a media altura del segmento, a un lado u otro sin pisarlo
@@ -516,12 +535,10 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       const candidates = [0.5, 0.28, 0.72, 0.14, 0.86].flatMap(t => {
         const px = x1 + (x2 - x1) * t;
         const py = y1 + (y2 - y1) * t;
-        return [1, -1].map(side => ({
-          x: px + side * nx * (6 + (Math.abs(nx) * labelW) / 2) - labelW / 2,
-          y: py + side * ny * (6 + (Math.abs(ny) * LABEL_H) / 2) - LABEL_H / 2,
-        }));
+        const reach = beside(nx, ny, labelW);
+        return [1, -1].map(side => ({ x: px + side * nx * reach - labelW / 2, y: py + side * ny * reach - LABEL_H / 2 }));
       });
-      place(bound.label, `crt-plane__label--${bound.tone}`, candidates, labelW);
+      placeComputed(bound.label, `crt-plane__label--${bound.tone}`, candidates, labelW);
     }
 
     for (const line of verticals) {
