@@ -46,6 +46,8 @@ export const CREATOR_LIMITS = {
   planeVerticesMax: 8,
   /** Inecuaciones de un plano: las restricciones de un problema de programación lineal con sus dos de no negatividad. */
   inequalitiesMax: 6,
+  /** Caracteres del nombre de un eje del plano; el validador comprueba además que quepa a lo largo de su eje. */
+  axisNameMax: 40,
   /** Marcas por eje: más que esto deja la cuadrícula ilegible al imprimir. */
   ticksMax: 40,
   /** Datos crudos de un histograma o de una caja y bigotes: hasta cinco cursos de 40 estudiantes. */
@@ -281,8 +283,8 @@ export const graphInequalitySchema = z.object({
   label: z.boolean().optional().describe("true escribe la inecuación junto a su frontera."),
 });
 
-/** Nombre de un eje del plano: texto plano, corto para que quepa a lo largo del eje (AXIS_NAME_MAX en creatorPlaneAxes.ts). */
-const planeAxisName = z.string().trim().min(1).max(40);
+/** Nombre de un eje del plano: texto plano y corto, para que quepa a lo largo del eje. */
+const planeAxisName = z.string().trim().min(1).max(CREATOR_LIMITS.axisNameMax);
 
 export const graphSpecSchema = z.object({
   xMin: z.number(),

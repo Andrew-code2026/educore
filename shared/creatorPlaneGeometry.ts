@@ -16,7 +16,6 @@ export type FigureKind = GraphFigure["kind"];
 export type FigureShow = NonNullable<GraphFigure["show"]>[number];
 export type TransformKind = GraphTransform["kind"];
 export type Mirror = Extract<GraphTransform, { kind: "reflection" }>["over"];
-export type { Pair };
 
 export const FIGURE_KIND_LABELS: Record<FigureKind, string> = {
   points: "Puntos sueltos",

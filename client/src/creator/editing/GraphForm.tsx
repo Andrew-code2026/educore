@@ -6,7 +6,6 @@ import { RIEMANN_SAMPLE_LABELS, type RiemannSample } from "@shared/creatorCalcul
 import { CONIC_LABELS, CONIC_SHOW_LABELS, CONIC_SHOWS, conicEquation, type ConicKind, type ConicShow } from "@shared/creatorConics";
 import { NOTABLE_KIND_LABELS, describeNotable, type NotableKind } from "@shared/creatorNotable";
 import type { EndStyle } from "@shared/creatorPlane";
-import { AXIS_NAME_MAX } from "@shared/creatorPlaneAxes";
 import { FIGURE_KIND_LABELS, FIGURE_SHOW_LABELS, FIGURE_SHOWS, MIRROR_LABELS, TRANSFORM_LABELS, describeFigure, type FigureKind, type FigureShow, type Mirror, type TransformKind } from "@shared/creatorPlaneGeometry";
 import { INEQUALITY_OP_LABELS, REGION_SHADE_LABELS, describeInequalities, type InequalityOp, type RegionShade } from "@shared/creatorRegions";
 import { Formula } from "../blocks/Formula";
@@ -317,7 +316,7 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
           ] as const
         ).map(([key, label, placeholder]) => (
           <Field key={key} label={label}>
-            <input className="crt-input" aria-label={label} maxLength={AXIS_NAME_MAX} placeholder={placeholder} value={spec[key] ?? ""} onChange={event => setSpec({ [key]: event.target.value || undefined })} />
+            <input className="crt-input" aria-label={label} maxLength={CREATOR_LIMITS.axisNameMax} placeholder={placeholder} value={spec[key] ?? ""} onChange={event => setSpec({ [key]: event.target.value || undefined })} />
           </Field>
         ))}
       </div>

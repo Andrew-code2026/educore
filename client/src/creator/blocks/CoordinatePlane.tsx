@@ -115,7 +115,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     const ySpan = spec.yMax - spec.yMin;
 
     // Los márgenes dependen del plano: el nombre de un eje añade su franja
-    const { w, h, width, height, pad: PAD } = layout;
+    const { w, h, pad: PAD } = layout;
     const sx = (x: number) => PAD.left + ((x - spec.xMin) / xSpan) * w;
     const sy = (y: number) => PAD.top + ((spec.yMax - y) / ySpan) * h;
 

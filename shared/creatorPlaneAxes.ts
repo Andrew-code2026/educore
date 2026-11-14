@@ -14,8 +14,6 @@ export const PLANE_PAD = { left: 30, right: 24, top: 22, bottom: 28 } as const;
 const MAX_W = 320;
 const MAX_H = 320;
 
-/** Caracteres que admite el nombre de un eje. */
-export const AXIS_NAME_MAX = 40;
 /** Franja que se añade fuera de la cuadrícula para el nombre de un eje. */
 const NAME_BAND = 16;
 /** Ancho medio de un carácter del nombre de un eje, a su tamaño de letra (11,5 px). */
