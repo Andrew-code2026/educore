@@ -3,13 +3,15 @@ import { add, approxText, exactText, exactValue, multiply, rational, recognize, 
 import { formatNumber } from "./creatorMath";
 import { exactDecimals, formatDecimalEs } from "./creatorPlane";
 import { boxAt, boxesOverlap, NUMBER_LABEL, plainToLatex, segmentTouchesBox, unitLatex, type Box, type Point } from "./creatorFigureLabels";
+import { FIGURE_SCALE_MIN } from "./creatorFigureSize";
 
 /**
  * Sólidos del Creador de recursos: cubo, prismas, cilindro, cono, pirámide de base cuadrada y esfera.
  * Aquí se calculan su volumen y su área (exactos, con π y raíces cuando hace falta) y se decide el
  * dibujo: los poliedros en perspectiva caballera con las aristas ocultas punteadas, los cuerpos
- * redondos de frente con sus bases como elipses. El dibujo, el validador y lo que se le devuelve a la
- * IA salen de las mismas funciones.
+ * redondos de frente con sus bases como elipses. El cubo, los prismas y el cilindro tienen además su
+ * desarrollo plano (red), junto al sólido o solo, con las líneas de doblez punteadas. El dibujo, el
+ * validador y lo que se le devuelve a la IA salen de las mismas funciones.
  */
 
 export const SOLID_KINDS = ["cube", "rectangular_prism", "triangular_prism", "cylinder", "cone", "square_pyramid", "sphere"] as const;
@@ -29,6 +31,20 @@ export const SOLID_NAMES: Record<SolidKind, string> = {
   sphere: "esfera",
 };
 
+/** Los sólidos que tienen desarrollo plano. */
+export const NET_KINDS: readonly SolidKind[] = ["cube", "rectangular_prism", "triangular_prism", "cylinder"];
+export type NetMode = "beside" | "only";
+
+/** Cómo se dibuja el desarrollo plano del sólido, o undefined si no lleva. */
+export const netOf = (solid: Solid): NetMode | undefined => ("net" in solid ? solid.net : undefined);
+
+/** «cubo», «cubo y su desarrollo plano», «desarrollo plano del cubo»: como se nombra en el resumen. */
+export function solidTitle(solid: Solid): string {
+  const net = netOf(solid);
+  const name = SOLID_NAMES[solid.kind];
+  return net === "beside" ? `${name} y su desarrollo plano` : net === "only" ? `desarrollo plano del ${name}` : name;
+}
+
 /* ── Medidas ── */
 
 /** Una medida del sólido: su nombre, el campo que la guarda, su rótulo y si es un dato o la calcula el sistema. */
@@ -38,6 +54,29 @@ export interface SolidMeasure {
   value: number;
   label: string | undefined;
   derived: boolean;
+  /** Su valor exacto, cuando no basta con reconocer el número: el largo del desarrollo del cilindro, 2πr. */
+  exact?: Exact | null;
+  /** El rótulo en LaTeX, cuando lo arma el sistema («2\pi r»). */
+  labelLatex?: string;
+}
+
+/**
+ * El largo del rectángulo del desarrollo del cilindro, 2πr. Su rótulo sigue al del radio: con el
+ * valor del radio, el valor exacto (6π); con una letra, 2πr; con otro rótulo o sin escribir, nada,
+ * porque el largo delataría el radio que el estudiante debe hallar.
+ */
+function circumferenceMeasure(solid: Extract<Solid, { kind: "cylinder" }>): SolidMeasure {
+  const radius = solid.radiusLabel;
+  const letter = radius !== undefined && /^\p{L}$/u.test(radius) ? radius : null;
+  return {
+    key: "circumference",
+    name: "largo del rectángulo (la longitud de la circunferencia de la base)",
+    value: 2 * Math.PI * solid.radius,
+    label: radius === undefined ? undefined : letter ? `2π${letter}` : "",
+    derived: true,
+    exact: times(fraction(2, 1), PI, num(solid.radius)),
+    ...(letter ? { labelLatex: `2\\pi ${plainToLatex(letter)}` } : {}),
+  };
 }
 
 /** Las medidas que se rotulan en cada sólido, en el orden en que se nombran. */
@@ -51,7 +90,7 @@ export function solidMeasures(solid: Solid): SolidMeasure[] {
     case "triangular_prism":
       return [given("base", "base del triángulo", solid.base, solid.baseLabel), given("triangleHeight", "altura del triángulo", solid.triangleHeight, solid.triangleHeightLabel), given("length", "largo del prisma", solid.length, solid.lengthLabel)];
     case "cylinder":
-      return [given("radius", "radio", solid.radius, solid.radiusLabel), given("height", "altura", solid.height, solid.heightLabel)];
+      return [given("radius", "radio", solid.radius, solid.radiusLabel), given("height", "altura", solid.height, solid.heightLabel), ...(solid.net ? [circumferenceMeasure(solid)] : [])];
     case "cone":
       return [
         given("radius", "radio", solid.radius, solid.radiusLabel),
@@ -221,6 +260,10 @@ export type SolidStroke =
   | { kind: "curve"; points: Point[]; closed: boolean; hidden: boolean; fill?: number; thin?: boolean };
 
 export interface SolidDrawing {
+  /** El sólido del bloque al que pertenece: el sólido y su desarrollo llevan el mismo color. */
+  solid: number;
+  /** El desarrollo plano: ahí las líneas punteadas son las de doblez. */
+  net: boolean;
   strokes: SolidStroke[];
   /** Cuadritos del ángulo recto entre la altura y la base. */
   rightMarks: Point[][];
@@ -237,6 +280,10 @@ export interface SolidLayout {
 
 /** Lado mayor del dibujo del sólido más grande, en píxeles. */
 const EXTENT = 170;
+/** Lado mayor del desarrollo plano: algo más que el sólido, porque tiene más caras que rotular. */
+const NET_EXTENT = 200;
+/** Separación entre filas, cuando cada sólido va en la suya con su desarrollo. */
+const ROW_GAP = 28;
 /** Perspectiva caballera: el fondo se dibuja a la mitad, inclinado 35°. */
 const DEPTH = 0.5;
 const DEPTH_ANGLE = (35 * Math.PI) / 180;
@@ -472,11 +519,159 @@ function drawSolid(solid: Solid, k: number): Placed {
   return placed;
 }
 
+/* ── Desarrollo plano ── */
+
+/** Sombra de cada cara del desarrollo: las caras opuestas del sólido, que son iguales, llevan la misma. */
+const SHADE = { front: 1, side: 0.72, base: 0.45 } as const;
+
+/**
+ * Los lados del triángulo del prisma que salen del extremo izquierdo y del derecho de su base: son los
+ * anchos de los rectángulos vecinos al de la base. En el rectángulo, el vértice está sobre el extremo
+ * izquierdo, así que el de la izquierda es el cateto.
+ */
+const netSides = triangleSides;
+
+/** Dimensiones del desarrollo plano, en las unidades del sólido, para elegir la escala. */
+function netExtentOf(solid: Solid): { w: number; h: number; min: number } {
+  switch (solid.kind) {
+    case "cube":
+      return { w: 4 * solid.edge, h: 3 * solid.edge, min: solid.edge };
+    case "rectangular_prism":
+      return { w: 2 * (solid.length + solid.width), h: solid.height + 2 * solid.width, min: Math.min(solid.length, solid.width, solid.height) };
+    case "triangular_prism": {
+      const [left, right] = netSides(solid);
+      return { w: left + solid.base + right, h: solid.length + 2 * solid.triangleHeight, min: Math.min(solid.base, solid.triangleHeight, solid.length, left, right) };
+    }
+    case "cylinder":
+      return { w: 2 * Math.PI * solid.radius, h: solid.height + 4 * solid.radius, min: Math.min(2 * solid.radius, solid.height) };
+    default:
+      // El esquema solo deja pedir desarrollo a los cuatro de arriba
+      return extentOf(solid);
+  }
+}
+
+/**
+ * Los trazos de un desarrollo hecho de polígonos: cada cara rellena, las aristas que comparten dos
+ * caras punteadas y finas (por ahí se dobla) y el contorno continuo.
+ */
+function netStrokes(faces: Array<{ points: Point[]; shade: number }>): SolidStroke[] {
+  const key = (p: Point) => `${p.x.toFixed(3)},${p.y.toFixed(3)}`;
+  const edges = new Map<string, { from: Point; to: Point; faces: number }>();
+  for (const face of faces) {
+    face.points.forEach((from, i) => {
+      const to = face.points[(i + 1) % face.points.length];
+      const id = [key(from), key(to)].sort().join("|");
+      const edge = edges.get(id) ?? { from, to, faces: 0 };
+      edge.faces += 1;
+      edges.set(id, edge);
+    });
+  }
+  const lines = [...edges.values()].map(edge => ({ kind: "line" as const, from: edge.from, to: edge.to, hidden: edge.faces > 1, ...(edge.faces > 1 ? { thin: true } : {}) }));
+  return [...faces.map(face => ({ kind: "face" as const, ...face })), ...lines.filter(line => line.hidden), ...lines.filter(line => !line.hidden)];
+}
+
+/**
+ * El desarrollo plano a escala k, con y hacia abajo. El cubo y el prisma rectangular, en cruz: las
+ * cuatro caras laterales en fila y las bases arriba y abajo de la segunda. El prisma triangular, sus
+ * tres rectángulos en fila con los triángulos arriba y abajo del de la base. El cilindro, el
+ * rectángulo de largo 2πr con los dos círculos tocándolo en un extremo.
+ */
+function drawNet(solid: Solid, k: number): Placed {
+  const placed: Placed = { strokes: [], rightMarks: [], dots: [], labels: [] };
+  const label = (key: string, leaderFrom: Point, ...options: LabelOption[]) => placed.labels.push({ key, options, leaderFrom });
+  const at = (x: number, y: number): Point => ({ x: x * k, y: -y * k });
+  const rect = (x0: number, y0: number, x1: number, y1: number) => [at(x0, y0), at(x1, y0), at(x1, y1), at(x0, y1)];
+  /** Una arista del contorno con el rótulo hacia afuera. */
+  const edge = (from: Point, to: Point, toward: Point): LabelOption => ({ at: mid(from, to), toward });
+  switch (solid.kind) {
+    case "cube":
+    case "rectangular_prism": {
+      const [l, w, h] = solid.kind === "cube" ? [solid.edge, solid.edge, solid.edge] : [solid.length, solid.width, solid.height];
+      placed.strokes = netStrokes([
+        { points: rect(0, 0, w, h), shade: SHADE.side },
+        { points: rect(w, 0, w + l, h), shade: SHADE.front },
+        { points: rect(w + l, 0, 2 * w + l, h), shade: SHADE.side },
+        { points: rect(2 * w + l, 0, 2 * (w + l), h), shade: SHADE.front },
+        { points: rect(w, h, w + l, h + w), shade: SHADE.base },
+        { points: rect(w, -w, w + l, 0), shade: SHADE.base },
+      ]);
+      const height = edge(at(0, 0), at(0, h), LEFT);
+      const heightRight = edge(at(2 * (w + l), 0), at(2 * (w + l), h), RIGHT);
+      const width = edge(at(0, 0), at(w, 0), DOWN);
+      if (solid.kind === "cube") label("edge", width.at, width, height);
+      else {
+        label("height", height.at, height, heightRight);
+        label("width", width.at, width, edge(at(w + l, 0), at(2 * w + l, 0), DOWN), edge(at(w, h), at(w, h + w), LEFT));
+        const length = edge(at(w, -w), at(w + l, -w), DOWN);
+        label("length", length.at, length, edge(at(w, h + w), at(w + l, h + w), UP));
+      }
+      break;
+    }
+    case "triangular_prism": {
+      const { base: b, triangleHeight: t, length: L } = solid;
+      const [left, right] = netSides(solid);
+      const [x0, x1] = [left, left + b];
+      const apex = x0 + (solid.triangle === "right" ? 0 : b / 2);
+      placed.strokes = netStrokes([
+        { points: rect(0, 0, x0, L), shade: SHADE.side },
+        { points: rect(x0, 0, x1, L), shade: SHADE.front },
+        { points: rect(x1, 0, x1 + right, L), shade: SHADE.side },
+        { points: [at(x0, L), at(x1, L), at(apex, L + t)], shade: SHADE.base },
+        { points: [at(x0, 0), at(x1, 0), at(apex, -t)], shade: SHADE.base },
+      ]);
+      const length = edge(at(0, 0), at(0, L), LEFT);
+      label("length", length.at, length, edge(at(x1 + right, 0), at(x1 + right, L), RIGHT));
+      // La base del triángulo es una línea de doblez: su rótulo va dentro del rectángulo de la base, junto
+      // a ella; si no cabe, la guía sale de un poco más adentro, para no correr sobre la línea
+      const base = mid(at(x0, L), at(x1, L));
+      label("base", { x: base.x, y: base.y + 6 }, { at: base, toward: DOWN }, { at: mid(at(x0, 0), at(x1, 0)), toward: UP });
+      if (solid.triangle === "right") {
+        // El cateto es contorno: el rótulo, por fuera; el ángulo recto, en la esquina de la base
+        placed.rightMarks.push(rightMark(at(x0, L)));
+        const leg = edge(at(x0, L), at(x0, L + t), LEFT);
+        label("triangleHeight", leg.at, leg);
+      } else {
+        // La altura, punteada del vértice a la base del triángulo de arriba, con su ángulo recto
+        const foot = at(apex, L);
+        placed.strokes.push({ kind: "line", from: at(apex, L + t), to: foot, hidden: true, thin: true });
+        placed.rightMarks.push(rightMark(foot));
+        const middle = mid(at(apex, L + t), foot);
+        label("triangleHeight", middle, { at: { x: middle.x - 3, y: middle.y }, toward: LEFT }, { at: { x: middle.x + 3, y: middle.y }, toward: RIGHT });
+      }
+      break;
+    }
+    case "cylinder": {
+      const { radius: r, height: h } = solid;
+      const long = 2 * Math.PI * r;
+      placed.strokes = netStrokes([{ points: rect(0, 0, long, h), shade: SHADE.front }]);
+      for (const cy of [h + r, -r]) {
+        const c = at(r, cy);
+        placed.strokes.push({ kind: "curve", points: ellipseArc(c.x, c.y, r * k, r * k, 0, 2 * Math.PI, 72), closed: true, hidden: false, fill: SHADE.base });
+      }
+      // El radio, en el círculo de arriba
+      const center = at(r, h + r);
+      placed.strokes.push({ kind: "line", from: center, to: { x: center.x + r * k, y: center.y }, hidden: false, thin: true });
+      placed.dots.push(center);
+      const radius = { x: center.x + (r * k) / 2, y: center.y };
+      label("radius", radius, { at: { x: radius.x, y: center.y - 2 }, toward: UP }, { at: { x: center.x + r * k + 2, y: center.y }, toward: { x: 1, y: -0.35 } });
+      const height = edge(at(0, 0), at(0, h), LEFT);
+      label("height", height.at, height, edge(at(long, 0), at(long, h), RIGHT));
+      // El largo, por fuera del rectángulo al lado de los círculos; si no cabe, por dentro
+      const bottom = edge(at(0, 0), at(long, 0), DOWN);
+      label("circumference", bottom.at, bottom, edge(at(0, h), at(long, h), UP), { at: mid(at(0, h), at(long, h)), toward: DOWN });
+      break;
+    }
+    default:
+      return drawSolid(solid, k);
+  }
+  return placed;
+}
+
 /** El texto de una medida en la figura: su rótulo, su valor con la unidad, o nada. */
 function measureLabel(measure: SolidMeasure, unit: string, showValues: boolean): { latex: string; plain: string } | null {
-  if (measure.label !== undefined) return measure.label === "" ? null : { latex: plainToLatex(measure.label), plain: measure.label };
+  if (measure.label !== undefined) return measure.label === "" ? null : { latex: measure.labelLatex ?? plainToLatex(measure.label), plain: measure.label };
   if (!showValues) return null;
-  const exact = measure.derived ? recognize(measure.value) : rational(measure.value);
+  const exact = measure.exact !== undefined ? measure.exact : measure.derived ? recognize(measure.value) : rational(measure.value);
   const unitText = unit ? unitLatex(unit) : "";
   const unitPlain = unit ? ` ${unit}` : "";
   if (exact) return { latex: `${exactText(exact, { format: "latex" })}${unitText}`, plain: `${exactText(exact)}${unitPlain}` };
@@ -493,25 +688,36 @@ function segmentsOf(stroke: SolidStroke): Array<[Point, Point]> {
 
 /**
  * Dónde va cada trazo y cada rótulo de los sólidos del bloque, en píxeles del diseño. Cada sólido va
- * en su sitio, lado a lado y apoyados en la misma línea; con toScale, todos a la misma escala. Cada
- * rótulo toma el primero de sus sitios que no pisa ningún trazo ni otro rótulo; si ninguno sirve, va
- * al costado del sólido con una línea guía.
+ * en su sitio, lado a lado y apoyados en la misma línea; con toScale, todos a la misma escala (y los
+ * desarrollos, a la misma entre ellos). Si alguno lleva su desarrollo al lado, cada sólido va en su
+ * fila con el suyo, centrados en ella. Cada rótulo toma el primero de sus sitios que no pisa ningún
+ * trazo ni otro rótulo; si ninguno sirve, va al costado del dibujo con una línea guía.
  */
 export function solidLayout(spec: SolidSpec): SolidLayout {
   const issues: string[] = [];
-  const extents = spec.solids.map(extentOf);
   const many = spec.solids.length > 1;
-  const name = (index: number) => (many ? `el sólido ${index + 1} (${SOLID_NAMES[spec.solids[index].kind]})` : `el ${SOLID_NAMES[spec.solids[index].kind]}`);
-  const fit = (e: { w: number; h: number }) => EXTENT / Math.max(e.w, e.h);
-  const shared = Math.min(...extents.map(fit));
-  const groups = spec.solids.map((solid, index) => {
-    const k = spec.toScale ? shared : fit(extents[index]);
-    const drawn = drawSolid(solid, k);
-    if (extents[index].min * k < MIN_FEATURE) {
+  const solidName = (index: number) => (many ? `el sólido ${index + 1} (${SOLID_NAMES[spec.solids[index].kind]})` : `el ${SOLID_NAMES[spec.solids[index].kind]}`);
+  // Cada sólido da uno o dos dibujos: el sólido (salvo con net "only") y su desarrollo
+  const pieces = spec.solids.flatMap((solid, index) => {
+    const net = netOf(solid);
+    return [
+      ...(net === "only" ? [] : [{ solid: index, net: false, extent: extentOf(solid) }]),
+      ...(net ? [{ solid: index, net: true, extent: netExtentOf(solid) }] : []),
+    ];
+  });
+  const name = (piece: { solid: number; net: boolean }) => (piece.net ? solidName(piece.solid).replace(/^el /, "el desarrollo plano del ") : solidName(piece.solid));
+  const fit = (piece: (typeof pieces)[number]) => (piece.net ? NET_EXTENT : EXTENT) / Math.max(piece.extent.w, piece.extent.h);
+  const shared = (net: boolean) => Math.min(...pieces.filter(piece => piece.net === net).map(fit));
+  const groups = pieces.map(piece => {
+    const solid = spec.solids[piece.solid];
+    const k = spec.toScale ? shared(piece.net) : fit(piece);
+    const drawn = piece.net ? drawNet(solid, k) : drawSolid(solid, k);
+    const extent = piece.extent;
+    if (extent.min * k < MIN_FEATURE) {
       issues.push(
-        spec.toScale && Math.max(extents[index].w, extents[index].h) * k < EXTENT * 0.4
-          ? `${name(index)} queda muy pequeño junto a los demás, porque van a la misma escala; quita toScale o ponlos en bloques separados.`
-          : `${name(index)} es demasiado alargado para dibujarlo legible: sus medidas son muy desiguales.`,
+        spec.toScale && Math.max(extent.w, extent.h) * k < (piece.net ? NET_EXTENT : EXTENT) * 0.4
+          ? `${name(piece)} queda muy pequeño junto a los demás, porque van a la misma escala; quita toScale o ponlos en bloques separados.`
+          : `${name(piece)} es demasiado alargado para dibujarlo legible: sus medidas son muy desiguales.`,
       );
     }
     const segments = drawn.strokes.flatMap(segmentsOf);
@@ -537,7 +743,7 @@ export function solidLayout(spec: SolidSpec): SolidLayout {
         labels.push({ ...text, ...spot, box: boxAt(spot, size) });
         continue;
       }
-      // Al costado del sólido, a la altura de la medida, con una guía hasta ella
+      // Al costado del dibujo, a la altura de la medida, con una guía hasta ella
       const from = anchor.leaderFrom;
       const sides = [
         { x: shape.maxX + 14 + size.w / 2, y: from.y },
@@ -545,7 +751,7 @@ export function solidLayout(spec: SolidSpec): SolidLayout {
       ].sort((a, b) => Math.abs(a.x - from.x) - Math.abs(b.x - from.x));
       const aside = sides.find(center => !labels.some(other => boxesOverlap(boxAt(center, size), other.box, 2)));
       if (!aside) {
-        issues.push(`en ${name(index)}, el rótulo «${text.plain}» no cabe sin montarse sobre otro; acórtalo o usa una letra.`);
+        issues.push(`en ${name(piece)}, el rótulo «${text.plain}» no cabe sin montarse sobre otro; acórtalo o usa una letra.`);
         continue;
       }
       const box = boxAt(aside, size);
@@ -553,26 +759,37 @@ export function solidLayout(spec: SolidSpec): SolidLayout {
     }
     const xs = [...points.map(p => p.x), ...labels.flatMap(label => [label.box.x, label.box.x + label.box.w])];
     const ys = [...points.map(p => p.y), ...labels.flatMap(label => [label.box.y, label.box.y + label.box.h])];
-    return { drawn, labels, minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+    return { ...piece, drawn, labels, minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
   });
 
-  // Lado a lado, apoyados en la línea y = 0
-  const top = Math.max(...groups.map(group => -group.minY)) + PAD;
-  const bottom = Math.max(...groups.map(group => group.maxY));
+  // Una fila con todos o, si algún desarrollo va junto a su sólido, una fila por sólido
+  const beside = spec.solids.some(solid => netOf(solid) === "beside");
+  const rows = beside ? spec.solids.map((_, index) => groups.filter(group => group.solid === index)) : [groups];
+  const rowWidth = (row: typeof groups) => row.reduce((sum, group) => sum + group.maxX - group.minX, 0) + GAP * (row.length - 1);
+  const inner = Math.max(...rows.map(rowWidth));
   const drawings: SolidDrawing[] = [];
   const labels: SolidLabel[] = [];
-  let cursor = PAD;
-  for (const group of groups) {
-    const dx = cursor - group.minX;
-    const move = (p: Point): Point => ({ x: p.x + dx, y: p.y + top });
-    const moveStroke = (stroke: SolidStroke): SolidStroke => (stroke.kind === "line" ? { ...stroke, from: move(stroke.from), to: move(stroke.to) } : { ...stroke, points: stroke.points.map(move) });
-    drawings.push({ strokes: group.drawn.strokes.map(moveStroke), rightMarks: group.drawn.rightMarks.map(mark => mark.map(move)), dots: group.drawn.dots.map(move) });
-    for (const label of group.labels) {
-      labels.push({ ...label, ...move(label), box: { ...label.box, x: label.box.x + dx, y: label.box.y + top }, ...(label.leader ? { leader: [move(label.leader[0]), move(label.leader[1])] as [Point, Point] } : {}) });
+  let rowTop = PAD;
+  for (const row of rows) {
+    // Los sólidos solos se apoyan en la misma línea; junto a un desarrollo, que es más alto, se centran
+    const centered = row.some(group => group.net);
+    const above = Math.max(...row.map(group => -group.minY));
+    const height = centered ? Math.max(...row.map(group => group.maxY - group.minY)) : above + Math.max(...row.map(group => group.maxY));
+    let cursor = PAD + (inner - rowWidth(row)) / 2;
+    for (const group of row) {
+      const dx = cursor - group.minX;
+      const dy = centered ? rowTop + (height - (group.maxY - group.minY)) / 2 - group.minY : rowTop + above;
+      const move = (p: Point): Point => ({ x: p.x + dx, y: p.y + dy });
+      const moveStroke = (stroke: SolidStroke): SolidStroke => (stroke.kind === "line" ? { ...stroke, from: move(stroke.from), to: move(stroke.to) } : { ...stroke, points: stroke.points.map(move) });
+      drawings.push({ solid: group.solid, net: group.net, strokes: group.drawn.strokes.map(moveStroke), rightMarks: group.drawn.rightMarks.map(mark => mark.map(move)), dots: group.drawn.dots.map(move) });
+      for (const label of group.labels) {
+        labels.push({ ...label, ...move(label), box: { ...label.box, x: label.box.x + dx, y: label.box.y + dy }, ...(label.leader ? { leader: [move(label.leader[0]), move(label.leader[1])] as [Point, Point] } : {}) });
+      }
+      cursor += group.maxX - group.minX + GAP;
     }
-    cursor = dx + group.maxX + GAP;
+    rowTop += height + ROW_GAP;
   }
-  return { width: Math.round(cursor - GAP + PAD), height: Math.round(top + bottom + PAD), drawings, labels, issues };
+  return { width: Math.round(inner + 2 * PAD), height: Math.round(rowTop - ROW_GAP + PAD), drawings, labels, issues };
 }
 
 /** Un trazo de puntos como `d` de SVG. */
@@ -580,7 +797,11 @@ export const pointsPath = (points: Point[], closed = false) => `${points.map((p,
 
 /* ── Validación y lo que ve la IA ── */
 
-export function solidIssues(spec: SolidSpec, compile: (latex: string) => string | null): string[] {
+/**
+ * Lo que impide dibujar el bloque. `sheetWidth` es el ancho útil de la hoja: la figura se puede
+ * reducir hasta FIGURE_SCALE_MIN de su diseño antes de que sus rótulos dejen de leerse en papel.
+ */
+export function solidIssues(spec: SolidSpec, compile: (latex: string) => string | null, sheetWidth: number): string[] {
   const issues: string[] = [];
   const many = spec.solids.length > 1;
   spec.solids.forEach((solid, index) => {
@@ -589,7 +810,7 @@ export function solidIssues(spec: SolidSpec, compile: (latex: string) => string 
       if (!measure.derived && exactDecimals(measure.value, 4) === null) issues.push(`en ${where}, la medida ${measure.name} (${formatNumber(measure.value, 6)}) tiene más de 4 decimales y no se puede escribir completa en la figura.`);
       if (measure.label && NUMBER_LABEL.test(measure.label)) issues.push(`en ${where}, el rótulo de ${measure.name} («${measure.label}») es una medida: quítalo y el sistema escribe el valor.`);
       if (measure.label) {
-        const error = compile(plainToLatex(measure.label));
+        const error = compile(measure.labelLatex ?? plainToLatex(measure.label));
         if (error) issues.push(`en ${where}, el rótulo «${measure.label}» no se puede escribir (${error}).`);
       }
     }
@@ -597,7 +818,47 @@ export function solidIssues(spec: SolidSpec, compile: (latex: string) => string 
     if (solid.kind === "square_pyramid" && solid.slantLabel !== undefined && !solid.slant) issues.push(`en ${where}, hay rótulo para la apotema (slantLabel) pero no se dibuja: pon slant en true.`);
   });
   if (issues.length > 0) return issues;
-  return solidLayout(spec).issues;
+  const layout = solidLayout(spec);
+  if (layout.width * FIGURE_SCALE_MIN > sheetWidth) {
+    const nets = spec.solids.some(solid => netOf(solid));
+    issues.push(`${nets ? "los sólidos y sus desarrollos" : "los sólidos"} no caben a lo ancho de la hoja sin que sus medidas dejen de leerse: pon algunos en otro bloque.`);
+  }
+  return [...layout.issues, ...issues];
+}
+
+/** Una longitud como se lee: «5», «√61/2 ≈ 3,91», «6π ≈ 18,85». */
+function lengthText(value: number, exact: Exact | null = recognize(value)): string {
+  if (!exact) return `≈ ${approxText(value)}`;
+  return exact.pi || exact.r > 1 ? `${exactText(exact)} ≈ ${approxText(value)}` : exactText(exact);
+}
+
+/** Las caras del desarrollo plano con sus medidas, para que la IA sepa qué se dibujó. */
+function netDescription(solid: Solid, unit: string): string | null {
+  const net = netOf(solid);
+  if (!net) return null;
+  const n = (value: number) => formatDecimalEs(value, 4);
+  const faces = (() => {
+    switch (solid.kind) {
+      case "cube":
+        return `6 cuadrados de ${n(solid.edge)}${unit} de lado`;
+      case "rectangular_prism": {
+        const { length: l, width: w, height: h } = solid;
+        return `6 rectángulos, 2 de ${n(l)} × ${n(w)}${unit}, 2 de ${n(l)} × ${n(h)}${unit} y 2 de ${n(w)} × ${n(h)}${unit}`;
+      }
+      case "triangular_prism": {
+        const [left, right] = netSides(solid);
+        const widths = [n(solid.base), lengthText(left), lengthText(right)].map(width => `${width}${unit}`);
+        return `2 triángulos de base ${n(solid.base)}${unit} y altura ${n(solid.triangleHeight)}${unit}, y 3 rectángulos de ${n(solid.length)}${unit} de largo y ${widths.slice(0, 2).join(", ")} y ${widths[2]} de ancho`;
+      }
+      case "cylinder": {
+        const long = circumferenceMeasure(solid);
+        return `un rectángulo de ${lengthText(long.value, long.exact ?? null)}${unit} (la longitud de la circunferencia de la base) por ${n(solid.height)}${unit} y 2 círculos de ${n(solid.radius)}${unit} de radio`;
+      }
+      default:
+        return null;
+    }
+  })();
+  return faces && `desarrollo plano${net === "only" ? " (dibujado sin el sólido)" : ""}: ${faces}`;
 }
 
 export const solidPlainTexts = (spec: SolidSpec): string[] => [spec.unit ?? "", ...spec.solids.flatMap(solid => solidMeasures(solid).map(measure => measure.label ?? ""))].filter(Boolean);
@@ -621,6 +882,7 @@ export function describeSolids(spec: SolidSpec): string {
       ...(facts.lateral ? [`área lateral ${quantityText(facts.lateral)}${unit ? `${unit}²` : ""}`] : []),
       `área ${solid.kind === "sphere" ? "de la superficie" : "total"} ${quantityText(facts.total)}${unit ? `${unit}²` : ""}`,
       ...(facts.elements ? [`${facts.elements.faces} caras, ${facts.elements.edges} aristas y ${facts.elements.vertices} vértices`] : []),
+      ...[netDescription(solid, unit)].filter(text => text !== null),
     ];
     return `${many ? `${index + 1}) ` : ""}${SOLID_NAMES[solid.kind][0].toUpperCase()}${SOLID_NAMES[solid.kind].slice(1)} (${given}): ${items.join("; ")}.`;
   });

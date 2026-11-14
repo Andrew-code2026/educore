@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { BLOCK_TYPE_LABELS, blockInputSchema, blockPreview, emptyDoc, type BlockInput } from "@shared/creator";
-import { minBlockWidth } from "@shared/creatorContainers";
-import { quantityText, solidFacts, solidLayout, type Solid, type SolidSpec } from "@shared/creatorSolids";
+import { estimateHeight, minBlockWidth, SHEET_WIDTH_PX } from "@shared/creatorContainers";
+import { segmentTouchesBox, type Point } from "@shared/creatorFigureLabels";
+import { quantityText, solidFacts, solidIssues, solidLayout, type Solid, type SolidDrawing, type SolidSpec, type SolidStroke } from "@shared/creatorSolids";
 import { describeComputed } from "@shared/creatorStats";
 import { validateBlock, validateBlockOrder } from "@shared/creatorValidate";
 import { CREATOR_SYSTEM_PROMPT } from "./creatorAgent";
@@ -136,6 +137,166 @@ describe("validación y dibujo", () => {
   });
 });
 
+describe("desarrollo plano", () => {
+  type Face = Extract<SolidStroke, { kind: "face" }>;
+  /** El desarrollo de un sólido solo, sin el dibujo en perspectiva. */
+  const net = (solid: Record<string, unknown>, extra: Record<string, unknown> = {}) => solidLayout(block([{ ...solid, net: "only" }], extra));
+  const faces = (drawing: SolidDrawing) => drawing.strokes.filter((stroke): stroke is Face => stroke.kind === "face");
+  const bbox = (points: Point[]) => {
+    const xs = points.map(p => p.x);
+    const ys = points.map(p => p.y);
+    return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+  };
+  const shoelace = (points: Point[]) => Math.abs(points.reduce((sum, p, i) => sum + p.x * points[(i + 1) % points.length].y - points[(i + 1) % points.length].x * p.y, 0)) / 2;
+  const lines = (drawing: SolidDrawing, fold: boolean) => drawing.strokes.filter(stroke => stroke.kind === "line" && stroke.hidden === fold);
+
+  it("el cubo es una cruz de seis cuadrados iguales, con las cinco líneas de doblez punteadas", () => {
+    const layout = net({ kind: "cube", edge: 4 });
+    expect(layout.issues).toEqual([]);
+    expect(layout.drawings).toHaveLength(1);
+    const [drawing] = layout.drawings;
+    expect(drawing.net).toBe(true);
+    const squares = faces(drawing).map(face => bbox(face.points));
+    expect(squares).toHaveLength(6);
+    const side = squares[0].w;
+    for (const square of squares) {
+      expect(square.w).toBeCloseTo(side, 6);
+      expect(square.h).toBeCloseTo(side, 6);
+    }
+    // Cuatro en fila y dos en la misma columna, arriba y abajo de la segunda
+    const row = squares.filter(square => Math.abs(square.y - squares[0].y) < 1e-6).sort((a, b) => a.x - b.x);
+    expect(row).toHaveLength(4);
+    row.forEach((square, i) => expect(square.x - row[0].x).toBeCloseTo(i * side, 6));
+    const arms = squares.filter(square => !row.includes(square));
+    expect(arms.map(arm => arm.x - row[0].x)).toEqual([expect.closeTo(side, 6), expect.closeTo(side, 6)]);
+    expect(arms.map(arm => Math.round((arm.y - row[0].y) / side)).sort()).toEqual([-1, 1]);
+    expect(lines(drawing, true)).toHaveLength(5);
+    expect(lines(drawing, false)).toHaveLength(14);
+    expect(layout.labels.map(label => label.plain)).toEqual(["4 cm"]);
+  });
+
+  it("el prisma rectangular es una cruz con sus tres medidas y su área es el área total", () => {
+    const solid = { kind: "rectangular_prism", length: 8, width: 3, height: 5 };
+    const layout = net(solid);
+    expect(layout.issues).toEqual([]);
+    const rects = faces(layout.drawings[0]).map(face => bbox(face.points));
+    expect(rects).toHaveLength(6);
+    // La escala sale de la cara de 8 × 5, la segunda de la fila
+    const k = rects[1].w / 8;
+    const sizes = rects.map(rect => [rect.w / k, rect.h / k].map(value => Math.round(value * 1e6) / 1e6).sort((a, b) => a - b).join("×")).sort();
+    expect(sizes).toEqual(["3×5", "3×5", "3×8", "3×8", "5×8", "5×8"]);
+    expect(layout.labels.map(label => label.plain).sort()).toEqual(["3 cm", "5 cm", "8 cm"]);
+    const area = faces(layout.drawings[0]).reduce((sum, face) => sum + shoelace(face.points), 0) / k ** 2;
+    expect(area).toBeCloseTo(facts(solid).total.value, 6);
+  });
+
+  it("el prisma triangular tiene dos triángulos y tres rectángulos del ancho de los lados del triángulo", () => {
+    for (const [solid, widths] of [
+      [{ kind: "triangular_prism", base: 6, triangleHeight: 4, length: 10 }, [5, 6, 5]],
+      [{ kind: "triangular_prism", base: 3, triangleHeight: 4, length: 9, triangle: "right" }, [4, 3, 5]],
+    ] as const) {
+      const layout = net(solid);
+      expect(layout.issues, JSON.stringify(solid)).toEqual([]);
+      const all = faces(layout.drawings[0]);
+      expect(all.filter(face => face.points.length === 3)).toHaveLength(2);
+      const rects = all.filter(face => face.points.length === 4).map(face => bbox(face.points));
+      expect(rects).toHaveLength(3);
+      const k = rects[0].h / solid.length;
+      expect(rects.map(rect => rect.w / k)).toEqual(widths.map(width => expect.closeTo(width, 6)));
+      expect(all.reduce((sum, face) => sum + shoelace(face.points), 0) / k ** 2).toBeCloseTo(facts(solid).total.value, 6);
+      expect(layout.labels.map(label => label.plain).sort()).toEqual([`${solid.base} cm`, `${solid.length} cm`, `${solid.triangleHeight} cm`].sort());
+    }
+  });
+
+  it("el cilindro es un rectángulo de largo 2πr, rotulado exacto, con dos círculos", () => {
+    const solid = { kind: "cylinder", radius: 3, height: 5 };
+    const layout = net(solid);
+    expect(layout.issues).toEqual([]);
+    const [drawing] = layout.drawings;
+    const [rect] = faces(drawing).map(face => bbox(face.points));
+    const k = rect.h / 5;
+    expect(rect.w / k).toBeCloseTo(6 * Math.PI, 9);
+    const circles = drawing.strokes.filter(stroke => stroke.kind === "curve" && stroke.closed).map(stroke => bbox((stroke as Extract<SolidStroke, { kind: "curve" }>).points));
+    expect(circles).toHaveLength(2);
+    for (const circle of circles) expect(circle.w / 2 / k).toBeCloseTo(3, 6);
+    expect(rect.w * rect.h / k ** 2 + 2 * Math.PI * 9).toBeCloseTo(facts(solid).total.value, 9);
+    const long = layout.labels.find(label => label.plain.includes("π"))!;
+    expect(long.plain).toBe("6π cm");
+    expect(long.latex).toBe("6\\pi\\text{ cm}");
+    expect(layout.labels.map(label => label.plain).sort()).toEqual(["3 cm", "5 cm", "6π cm"]);
+    expect(net({ kind: "cylinder", radius: 2.5, height: 4 }).labels.map(label => label.plain)).toContain("5π cm");
+  });
+
+  it("el largo del cilindro sigue al rótulo del radio", () => {
+    const lettered = net({ kind: "cylinder", radius: 3, height: 5, radiusLabel: "r" }).labels;
+    expect(lettered.find(label => label.plain === "2πr")?.latex).toBe("2\\pi r");
+    // Sin el radio, el largo lo delataría
+    expect(net({ kind: "cylinder", radius: 3, height: 5, radiusLabel: "" }).labels.map(label => label.plain)).toEqual(["5 cm"]);
+    expect(net({ kind: "cylinder", radius: 3, height: 5, radiusLabel: "?" }).labels.map(label => label.plain).sort()).toEqual(["5 cm", "?"]);
+    expect(net({ kind: "cylinder", radius: 3, height: 5 }, { showValues: false }).labels).toEqual([]);
+    // El largo no es una medida del formulario ni de los datos
+    expect(validateBlock(block([{ kind: "cylinder", radius: 3, height: 5, radiusLabel: "r", net: "beside" }]))).toEqual([]);
+  });
+
+  it("junto al sólido, cada sólido va en su fila con su desarrollo y del mismo color", () => {
+    const layout = solidLayout(block([{ kind: "cube", edge: 4, net: "beside" }, { kind: "cone", radius: 3, height: 4 }, { kind: "cylinder", radius: 3, height: 5, net: "beside" }]));
+    expect(layout.issues).toEqual([]);
+    expect(layout.drawings.map(drawing => [drawing.solid, drawing.net])).toEqual([[0, false], [0, true], [1, false], [2, false], [2, true]]);
+    const rowOf = (index: number) => layout.drawings.filter(drawing => drawing.solid === index).map(drawing => bbox(drawing.strokes.flatMap(stroke => (stroke.kind === "line" ? [stroke.from, stroke.to] : stroke.points))));
+    const [cube, cone, cylinder] = [rowOf(0), rowOf(1), rowOf(2)];
+    // El desarrollo va a la derecha de su sólido, y cada fila debajo de la anterior
+    expect(cube[1].x).toBeGreaterThan(cube[0].x + cube[0].w);
+    expect(cone[0].y).toBeGreaterThan(Math.max(...cube.map(box => box.y + box.h)));
+    expect(cylinder[0].y).toBeGreaterThan(cone[0].y + cone[0].h);
+    // Sin ningún desarrollo al lado, todos en una fila, como antes
+    const only = solidLayout(block([{ kind: "cube", edge: 4, net: "only" }, { kind: "cylinder", radius: 3, height: 5 }]));
+    expect(only.drawings.map(drawing => [drawing.solid, drawing.net])).toEqual([[0, true], [1, false]]);
+    expect(only.height).toBeLessThan(layout.height / 2);
+  });
+
+  it("ningún rótulo de los desarrollos se monta sobre otro ni sobre un trazo, y todos quedan dentro de la figura", () => {
+    const solids = [
+      [{ kind: "cube", edge: 4, net: "beside", edgeLabel: "a" }, { kind: "rectangular_prism", length: 8, width: 3, height: 5, net: "beside" }, { kind: "triangular_prism", base: 6, triangleHeight: 4, length: 10, net: "beside" }],
+      [{ kind: "triangular_prism", base: 3, triangleHeight: 4, length: 9, triangle: "right", net: "only" }, { kind: "cylinder", radius: 3, height: 5, net: "only" }, { kind: "cylinder", radius: 1.5, height: 8, net: "only", heightLabel: "h" }],
+    ];
+    for (const set of solids) {
+      const layout = solidLayout(block(set));
+      expect(layout.issues).toEqual([]);
+      const segments = layout.drawings.flatMap(drawing => drawing.strokes.flatMap(stroke => {
+        const points = stroke.kind === "line" ? [stroke.from, stroke.to] : stroke.points;
+        const closed = stroke.kind === "face" || (stroke.kind === "curve" && stroke.closed);
+        return points.flatMap((p, i) => (i + 1 < points.length ? [[p, points[i + 1]]] : closed ? [[p, points[0]]] : [])) as Array<[Point, Point]>;
+      }));
+      layout.labels.forEach((label, i) => {
+        for (const other of layout.labels.slice(i + 1)) expect(overlapping(label.box, other.box), `${label.plain} / ${other.plain}`).toBe(false);
+        expect(segments.some(([p, q]) => segmentTouchesBox(p, q, label.box)), label.plain).toBe(false);
+        expect(label.box.x).toBeGreaterThanOrEqual(0);
+        expect(label.box.x + label.box.w).toBeLessThanOrEqual(layout.width);
+        expect(label.box.y).toBeGreaterThanOrEqual(0);
+        expect(label.box.y + label.box.h).toBeLessThanOrEqual(layout.height);
+      });
+    }
+  });
+
+  it("rechaza lo que no cabe: un desarrollo alargado o una figura más ancha que la hoja", () => {
+    // El cilindro chato se dibuja; su desarrollo sería una tira
+    expect(validateBlock(block([{ kind: "cylinder", radius: 5, height: 1.5 }]))).toEqual([]);
+    expect(validateBlock(block([{ kind: "cylinder", radius: 5, height: 1.5, net: "beside" }])).join(" ")).toContain("el desarrollo plano del cilindro es demasiado alargado");
+    const three = block([{ kind: "cube", edge: 4, net: "only" }, { kind: "rectangular_prism", length: 8, width: 3, height: 5, net: "only" }, { kind: "cylinder", radius: 3, height: 5, net: "only" }]);
+    expect(solidIssues(three, () => null, SHEET_WIDTH_PX)).toEqual([]);
+    expect(solidIssues(three, () => null, 400).join(" ")).toContain("no caben a lo ancho de la hoja");
+    // El desarrollo solo lo tienen el cubo, los prismas y el cilindro
+    expect(blockInputSchema.safeParse({ type: "solid", solids: [{ kind: "cylinder", radius: 3, height: 5, net: true }] }).success).toBe(false);
+  });
+
+  it("tiene nombre, y en la hoja ocupa el alto de sus filas", () => {
+    expect(blockPreview(block([{ kind: "cube", edge: 4, net: "beside" }, { kind: "cylinder", radius: 3, height: 5, net: "only" }]))).toBe("Sólidos: cubo y su desarrollo plano, desarrollo plano del cilindro");
+    const rows = block([{ kind: "cube", edge: 4, net: "beside" }, { kind: "cylinder", radius: 3, height: 5, net: "beside" }]);
+    const flat = block([{ kind: "cube", edge: 4 }, { kind: "cylinder", radius: 3, height: 5 }]);
+    expect(estimateHeight(rows, 695)).toBeGreaterThan(1.5 * estimateHeight(flat, 695));
+  });
+});
+
 describe("lo que ve la IA", () => {
   it("devuelve medidas, volumen, áreas y elementos de cada sólido", () => {
     const text = describeComputed(block([{ kind: "cylinder", radius: 3, height: 5 }, { kind: "square_pyramid", base: 6, height: 4 }]))!;
@@ -145,6 +306,14 @@ describe("lo que ve la IA", () => {
     expect(describeComputed(block([{ kind: "sphere", radius: 3 }]))).toContain("área de la superficie = 36π ≈ 113,1 cm²");
   });
 
+  it("describe las caras del desarrollo plano junto al área total", () => {
+    const text = describeComputed(block([{ kind: "cube", edge: 4, net: "beside" }, { kind: "triangular_prism", base: 5, triangleHeight: 3, length: 8, net: "only" }, { kind: "cylinder", radius: 3, height: 5, net: "beside" }]))!;
+    expect(text).toContain("área total = 96 cm²; 6 caras, 12 aristas y 8 vértices; desarrollo plano: 6 cuadrados de 4 cm de lado.");
+    expect(text).toContain("desarrollo plano (dibujado sin el sólido): 2 triángulos de base 5 cm y altura 3 cm, y 3 rectángulos de 8 cm de largo y 5 cm, √61/2 ≈ 3,91 cm y √61/2 ≈ 3,91 cm de ancho.");
+    expect(text).toContain("área total = 48π ≈ 150,8 cm²; desarrollo plano: un rectángulo de 6π ≈ 18,85 cm (la longitud de la circunferencia de la base) por 5 cm y 2 círculos de 3 cm de radio.");
+    expect(describeComputed(block([{ kind: "rectangular_prism", length: 8, width: 3, height: 5, net: "beside" }]))).toContain("6 rectángulos, 2 de 8 × 3 cm, 2 de 8 × 5 cm y 2 de 3 × 5 cm");
+  });
+
   it("la herramienta acepta el bloque y explica el error", () => {
     const outcome = executeCreatorTool(emptyDoc(), "write_section", { title: "Taller", role: "student", blocks: [{ type: "solid", solids: [{ kind: "cone", radius: 3, height: 4, slant: true }], unit: "cm" }] });
     expect(outcome.isError, outcome.result).toBe(false);
@@ -152,10 +321,16 @@ describe("lo que ve la IA", () => {
     const wrong = executeCreatorTool(emptyDoc(), "write_section", { title: "Taller", role: "student", blocks: [{ type: "solid", solids: [{ kind: "cube", edge: 2, edgeLabel: "2 cm" }] }] });
     expect(wrong.isError).toBe(true);
     expect(wrong.result).toContain("es una medida");
+    const withNet = executeCreatorTool(emptyDoc(), "write_section", { title: "Taller", role: "student", blocks: [{ type: "solid", solids: [{ kind: "cylinder", radius: 3, height: 5, net: "beside" }], unit: "cm" }] });
+    expect(withNet.isError, withNet.result).toBe(false);
+    expect(withNet.result).toContain("desarrollo plano: un rectángulo de 6π");
   });
 
   it("está en el esquema de la herramienta y en las instrucciones", () => {
-    expect(JSON.stringify(CREATOR_TOOLS.find(tool => tool.name === "write_section")!.input_schema)).toContain('"solid"');
+    const schema = JSON.stringify(CREATOR_TOOLS.find(tool => tool.name === "write_section")!.input_schema);
+    expect(schema).toContain('"solid"');
+    expect(schema).toContain('"beside"');
     expect(CREATOR_SYSTEM_PROMPT).toContain("solid:");
+    expect(CREATOR_SYSTEM_PROMPT).toContain("desarrollo plano");
   });
 });

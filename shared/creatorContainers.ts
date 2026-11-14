@@ -215,7 +215,6 @@ const FIGURE_RATIO: Partial<Record<BlockInput["type"], number>> = {
   shapes: 0.6,
   triangle: 0.8,
   unit_circle: 0.9,
-  solid: 0.75,
   balance: 0.55,
 };
 
@@ -262,6 +261,11 @@ export function estimateHeight(block: BlockInput, width: number): number {
     case "graph": {
       const ratio = Math.min(1.4, Math.max(0.5, (block.spec.yMax - block.spec.yMin) / (block.spec.xMax - block.spec.xMin)));
       return Math.min(width, 374 * 0.86) * ratio + caption;
+    }
+    case "solid": {
+      // Con su desarrollo al lado, cada sólido va en su fila: la proporción sale del dibujo
+      const layout = solidLayout(block);
+      return (Math.min(width, layout.width * 0.86) * layout.height) / layout.width + caption;
     }
     default: {
       // Las figuras se dibujan en papel a un 86 % de su ancho de diseño, o al ancho de la celda si es menor

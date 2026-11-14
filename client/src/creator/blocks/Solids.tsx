@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
 import type { BlockInput } from "@shared/creator";
-import { pointsPath, SOLID_NAMES, solidLayout } from "@shared/creatorSolids";
+import { pointsPath, solidLayout, solidTitle } from "@shared/creatorSolids";
 import { FigureFrame, figureColor, type FigureLabel } from "./FigureFrame";
 
 type SolidSpec = Extract<BlockInput, { type: "solid" }>;
@@ -12,18 +12,20 @@ const width = (stroke: { thin?: boolean; hidden: boolean }) => (stroke.thin ? 1.
 /**
  * Sólidos (shared/creatorSolids.ts): los poliedros en perspectiva caballera con las caras que se ven
  * rellenas y las aristas ocultas punteadas; el cilindro, el cono y la esfera de frente, con sus bases
- * como elipses. Aquí solo se dibuja lo que la disposición ya decidió.
+ * como elipses. En el desarrollo plano, las líneas punteadas son las de doblez. Aquí solo se dibuja lo
+ * que la disposición ya decidió.
  */
 export const Solids = memo(function Solids({ spec }: { spec: SolidSpec }) {
   const layout = useMemo(() => solidLayout(spec), [spec]);
   const labels: FigureLabel[] = layout.labels.map(label => ({ x: label.x, y: label.y, latex: label.latex }));
   const shown = layout.labels.map(label => label.plain);
-  const description = `${spec.solids.length > 1 ? "Sólidos" : "Sólido"}: ${spec.solids.map(solid => SOLID_NAMES[solid.kind]).join(", ")}${shown.length > 0 ? `; medidas: ${shown.join(", ")}` : ""}.`;
+  const description = `${spec.solids.length > 1 ? "Sólidos" : "Sólido"}: ${spec.solids.map(solidTitle).join(", ")}${shown.length > 0 ? `; medidas: ${shown.join(", ")}` : ""}.`;
 
   return (
     <FigureFrame width={layout.width} height={layout.height} description={description} labels={labels}>
       {layout.drawings.map((drawing, index) => {
-        const color = figureColor(index);
+        // El sólido y su desarrollo, del mismo color
+        const color = figureColor(drawing.solid);
         return (
           <g key={index} strokeLinejoin="round" strokeLinecap="round">
             {drawing.strokes.map((stroke, i) => {

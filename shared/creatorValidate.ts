@@ -365,7 +365,7 @@ export function validateBlock(block: BlockInput): string[] {
       issues.push(...unitCircleIssues(block, checkLatex).map(issue => `Círculo unitario: ${issue}`));
       break;
     case "solid":
-      issues.push(...solidIssues(block, checkLatex).map(issue => `Sólidos: ${issue}`));
+      issues.push(...solidIssues(block, checkLatex, SHEET_WIDTH_PX).map(issue => `Sólidos: ${issue}`));
       break;
     case "balance":
       for (const [name, side] of [["izquierdo", block.left], ["derecho", block.right]] as const) {

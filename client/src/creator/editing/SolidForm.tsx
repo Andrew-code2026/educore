@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { OptionSelect, type SelectOption } from "@/components/option-select";
 import type { BlockInput } from "@shared/creator";
-import { describeSolids, SOLID_KINDS, SOLID_LABEL_MAX, SOLID_NAMES, solidMeasures, type Solid, type SolidKind } from "@shared/creatorSolids";
+import { describeSolids, NET_KINDS, netOf, SOLID_KINDS, SOLID_LABEL_MAX, SOLID_NAMES, solidMeasures, type NetMode, type Solid, type SolidKind } from "@shared/creatorSolids";
 import { AddButton, RemoveButton, useListVersion } from "./FigureForms";
 import { CaptionField, Check, Field, NumberInput, type FormProps } from "./fields";
 
@@ -26,6 +26,12 @@ const KIND_OPTIONS: readonly SelectOption<SolidKind>[] = SOLID_KINDS.map(kind =>
 const TRIANGLE_OPTIONS: readonly SelectOption<"isosceles" | "right">[] = [
   { value: "isosceles", label: "Isósceles" },
   { value: "right", label: "Rectángulo" },
+];
+
+const NET_OPTIONS: readonly SelectOption<NetMode | "none">[] = [
+  { value: "none", label: "No" },
+  { value: "beside", label: "Junto al sólido" },
+  { value: "only", label: "Solo el desarrollo" },
 ];
 
 function SolidFields({ solid, index, onChange }: { solid: Solid; index: number; onChange: (next: Solid) => void }) {
@@ -65,11 +71,18 @@ function SolidFields({ solid, index, onChange }: { solid: Solid; index: number; 
           )}
         </div>
       )}
-      {solid.kind === "triangular_prism" && (
+      {(solid.kind === "triangular_prism" || NET_KINDS.includes(solid.kind)) && (
         <div className="crt-form__row">
-          <Field label="Triángulo">
-            <OptionSelect className="crt-input" value={solid.triangle} onValueChange={triangle => onChange({ ...solid, triangle })} options={TRIANGLE_OPTIONS} />
-          </Field>
+          {solid.kind === "triangular_prism" && (
+            <Field label="Triángulo">
+              <OptionSelect className="crt-input" value={solid.triangle} onValueChange={triangle => onChange({ ...solid, triangle })} options={TRIANGLE_OPTIONS} />
+            </Field>
+          )}
+          {NET_KINDS.includes(solid.kind) && (
+            <Field label="Desarrollo plano">
+              <OptionSelect className="crt-input" value={netOf(solid) ?? "none"} onValueChange={net => set("net", net === "none" ? undefined : net)} options={NET_OPTIONS} />
+            </Field>
+          )}
         </div>
       )}
     </>
@@ -128,7 +141,10 @@ export function SolidForm({ draft, onChange }: FormProps<"solid">) {
         )}
       </div>
       <p className="crt-form__hint">{facts}</p>
-      <p className="crt-form__hint">Un rótulo (h, x, ?) reemplaza a la medida en la figura; escribe uno para la medida que el estudiante debe hallar. El volumen y el área los calcula el sistema.</p>
+      <p className="crt-form__hint">
+        Un rótulo (h, x, ?) reemplaza a la medida en la figura; escribe uno para la medida que el estudiante debe hallar. El volumen y el área los calcula el sistema.
+        {draft.solids.some(solid => solid.kind === "cylinder" && netOf(solid)) && " En el desarrollo del cilindro, el largo del rectángulo sigue al radio: 6π con el valor, 2πr con una letra, y nada si el radio no se escribe."}
+      </p>
       <CaptionField value={draft.caption} onChange={caption => onChange({ ...draft, caption })} />
     </>
   );
