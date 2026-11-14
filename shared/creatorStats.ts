@@ -1,8 +1,10 @@
 import type { BlockInput } from "./creator";
 import { areaModelProduct, computeAreaModel, monomialText, polynomialText } from "./creatorAlgebra";
+import { sameNumber } from "./creatorClasses";
 import { niceStep, tickValues } from "./creatorFigures";
 import { describeGraph } from "./creatorGraphFacts";
 import { formatNumber, formatNumberEs } from "./creatorMath";
+import { classLabel, dataMeasures, describeContingencyTable, describeFrequencyTable, groupedEstimates, groupedFacts, measuresFacts } from "./creatorStatTables";
 
 /**
  * Estadística de las figuras del Creador de recursos: resumen de cinco números, conteo por
@@ -114,28 +116,8 @@ export const trendLineLatex = (line: TrendLine): string => trendLineParts(line, 
 
 /* ── Histograma ── */
 
-const sameNumber = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
-
-/**
- * Cuántos datos caen en cada clase. Las clases son intervalos [from, to): un dato que coincide
- * con un límite cuenta en la clase que empieza ahí. La última clase incluye también su límite
- * superior, para que el dato más alto no se quede por fuera.
- */
-export function histogramCounts(data: number[], classes: Array<{ from: number; to: number }>): { counts: number[]; outside: number[] } {
-  const counts = classes.map(() => 0);
-  const outside: number[] = [];
-  const last = classes.length - 1;
-  for (const value of data) {
-    const index = classes.findIndex((item, at) => {
-      const aboveFrom = value > item.from || sameNumber(value, item.from);
-      const belowTo = at === last ? value < item.to || sameNumber(value, item.to) : value < item.to && !sameNumber(value, item.to);
-      return aboveFrom && belowTo;
-    });
-    if (index === -1) outside.push(value);
-    else counts[index]++;
-  }
-  return { counts, outside };
-}
+// El conteo por clases y su construcción están en creatorClasses.ts, que comparte la tabla de frecuencias
+export { buildHistogramClasses, histogramCounts } from "./creatorClasses";
 
 /** Problemas de forma de las clases: límites invertidos, huecos o solapes, y anchos distintos. */
 export function histogramClassIssues(classes: Array<{ from: number; to: number }>): string[] {
@@ -162,10 +144,6 @@ export function histogramClassIssues(classes: Array<{ from: number; to: number }
   return issues;
 }
 
-/** Clases contiguas del mismo ancho a partir del límite inferior: lo que arma el formulario del docente. */
-export function buildHistogramClasses(start: number, width: number, frequencies: number[]): Array<{ from: number; to: number; frequency: number }> {
-  return frequencies.map((frequency, index) => ({ from: clean(start + index * width), to: clean(start + (index + 1) * width), frequency }));
-}
 
 /* ── Ejes ── */
 
@@ -286,7 +264,9 @@ export function describeComputed(block: BlockInput): string | null {
         const summary = fiveNumberSummary(series.data);
         if (!summary) return null;
         const name = series.label ? `«${series.label}»: ` : "";
-        return `${name}mínimo ${formatNumberEs(summary.min)} · Q1 ${formatNumberEs(summary.q1)} · mediana ${formatNumberEs(summary.median)} · Q3 ${formatNumberEs(summary.q3)} · máximo ${formatNumberEs(summary.max)}`;
+        // La media, la moda y la dispersión no se dibujan, pero la clave las pide a menudo junto al resumen
+        const measures = dataMeasures(series.data);
+        return `${name}mínimo ${formatNumberEs(summary.min)} · Q1 ${formatNumberEs(summary.q1)} · mediana ${formatNumberEs(summary.median)} · Q3 ${formatNumberEs(summary.q3)} · máximo ${formatNumberEs(summary.max)}${measures ? ` · ${measuresFacts(measures, ["median"])}` : ""}`;
       });
       const known = parts.filter(Boolean);
       return known.length > 0 ? `Caja y bigotes${block.title ? ` «${block.title}»` : ""}: ${known.join("; ")}.` : null;
@@ -296,9 +276,19 @@ export function describeComputed(block: BlockInput): string | null {
       const line = linearRegression(block.points);
       return line ? `Dispersión${block.title ? ` «${block.title}»` : ""}: recta de tendencia ${trendLineText(line)} (r = ${formatNumberEs(line.r)}).` : null;
     }
+    case "frequency_table":
+      return describeFrequencyTable(block);
+    case "contingency_table":
+      return describeContingencyTable(block);
     case "histogram": {
       const total = block.classes.reduce((sum, item) => sum + item.frequency, 0);
-      return `Histograma${block.title ? ` «${block.title}»` : ""}: ${total} datos en ${block.classes.length} clases.`;
+      const parts = [`Histograma${block.title ? ` «${block.title}»` : ""}: ${total} datos en ${block.classes.length} clases.`];
+      // Con los datos crudos, sus medidas exactas; con o sin ellos, lo que se estima desde las clases
+      const measures = block.data && block.data.length > 0 ? dataMeasures(block.data) : null;
+      if (measures) parts.push(`Medidas de los datos: ${measuresFacts(measures)}.`);
+      const estimates = groupedEstimates(block.classes.map(item => ({ from: item.from, to: item.to, count: item.frequency })));
+      if (estimates) parts.push(groupedFacts(estimates, block.classes.map((item, index) => classLabel(item.from, item.to, index === block.classes.length - 1))));
+      return parts.join(" ");
     }
     case "graph":
       return describeGraph(block.spec);

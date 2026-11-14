@@ -70,7 +70,8 @@ describe("catálogo de bloques", () => {
 
   it("encuentra por sinónimos, por la descripción y por la familia", () => {
     expect(flat("torta")).toEqual(["pie_chart"]);
-    expect(flat("probabilidad")).toEqual(["tree_diagram"]);
+    expect(flat("probabilidad")).toEqual(["contingency_table", "tree_diagram"]);
+    expect(flat("frecuencias")).toEqual(expect.arrayContaining(["frequency_table", "histogram"]));
     expect(flat("cuartiles")).toEqual(["box_plot"]);
     expect(flat("ecuacion")).toEqual(expect.arrayContaining(["math", "balance"]));
     expect(flat("geometria")).toEqual(["shapes", "angle", "clock"]);

@@ -59,6 +59,8 @@ const AGREEMENT: Record<BlockType, Agreement> = {
   box_plot: "m",
   line_chart: "f",
   scatter_plot: "m",
+  frequency_table: "f",
+  contingency_table: "f",
   angle: "mp",
   venn: "m",
   tree_diagram: "m",
