@@ -38,7 +38,7 @@ const ChevronDown = () => (
   </svg>
 );
 
-export function EduCoreHeader({
+function EduCoreHeaderImpl({
   role,
   onRoleChange,
   notificationCount = 0,
@@ -195,3 +195,6 @@ export function EduCoreHeader({
     </header>
   );
 }
+
+// Memo: el marco se re-renderiza al plegar el riel; la cabecera no depende de eso.
+export const EduCoreHeader = React.memo(EduCoreHeaderImpl);
