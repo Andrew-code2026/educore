@@ -6,6 +6,10 @@
 
 .edc-shell {
   --edc-ease: cubic-bezier(.2, 0, 0, 1);
+  /* Riel lateral: única fuente de verdad (useRailTransition lee estos mismos valores). */
+  --edc-rail-w: 256px;
+  --edc-rail-w-collapsed: 76px;
+  --edc-rail-dur: 280ms;
   --edc-page: #DFE6ED;
   --edc-frame-bg: rgba(255, 255, 255, .55);
   --edc-frame-border: rgba(255, 255, 255, .9);
@@ -129,18 +133,18 @@
   margin: 0;
   padding: 10px;
   display: grid;
-  grid-template-columns: 256px minmax(0, 1fr);
+  grid-template-columns: var(--edc-rail-w) minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
   background: transparent;
   border: none;
   border-radius: 0;
   box-shadow: none;
-  transition: grid-template-columns .32s var(--edc-ease);
+  transition: grid-template-columns var(--edc-rail-dur) var(--edc-ease);
 }
 
 .edc-frame[data-collapsed="true"] {
-  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-columns: var(--edc-rail-w-collapsed) minmax(0, 1fr);
 }
 
 .edc-frame[data-focus="true"] {
@@ -432,8 +436,8 @@
   border: 1px solid var(--edc-side-border);
   border-radius: 24px;
   box-shadow: var(--edc-side-shadow);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  /* Sin backdrop-filter: detrás solo está el color plano de --edc-page, así que el desenfoque no
+     se veía y obligaba a repintarlo en cada frame del plegado. */
 }
 
 /* Coreografía de plegado: el contenido se desvanece antes de que el riel se estreche. */
@@ -446,7 +450,7 @@
   --reveal-vis: visible;
   --reveal-tr: opacity .22s ease .1s, visibility 0s, background-color .15s, color .15s, transform .1s;
   --rail-vis: hidden;
-  --item-pad: 24px;
+  --item-shift: 8px;
 }
 
 .edc-side[data-collapsed="true"] {
@@ -458,7 +462,7 @@
   --reveal-vis: hidden;
   --reveal-tr: opacity .1s ease, visibility 0s linear .1s, background-color .15s, color .15s, transform .1s;
   --rail-vis: visible;
-  --item-pad: 16px;
+  --item-shift: 0px;
 }
 
 .edc-fade {
@@ -595,6 +599,7 @@
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(17, 27, 36, .15) transparent;
+  contain: content;
 }
 
 .edc-side[data-collapsed="true"] .edc-nav-list {
@@ -667,7 +672,8 @@
   align-items: center;
   gap: 12px;
   height: 40px;
-  padding: 0 10px 0 var(--item-pad);
+  /* Padding fijo: el desplazamiento entre riel y menú lo hace transform (compositor), no el layout. */
+  padding: 0 10px 0 16px;
   border: none;
   border-radius: 12px;
   overflow: hidden;
@@ -679,7 +685,7 @@
   font-weight: 500;
   text-align: left;
   cursor: pointer;
-  transition: color .2s ease, background-color .15s ease, padding-left .32s var(--edc-ease);
+  transition: color .2s ease, background-color .15s ease;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -699,7 +705,8 @@
   width: 18px;
   height: 18px;
   color: var(--edc-nav-icon);
-  transition: color .2s ease;
+  transform: translateX(var(--item-shift));
+  transition: color .2s ease, transform var(--edc-rail-dur) var(--edc-ease);
 }
 
 .edc-nav-item__icon svg {
@@ -723,6 +730,10 @@
 
 .edc-nav-item__label {
   flex: none;
+}
+
+.edc-nav-item__label.edc-fade {
+  transform: translateX(var(--item-shift)) var(--fade-tf);
 }
 
 .edc-nav-item__badge {
@@ -885,8 +896,6 @@
   background: var(--edc-main-bg);
   border: 1px solid var(--edc-main-border);
   box-shadow: 0 1px 2px rgba(24, 53, 90, .04), 0 16px 40px -24px rgba(16, 60, 113, .18);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   padding: 24px 28px 28px;
 }
 
@@ -1042,6 +1051,18 @@
   border-radius: 50%;
   background: var(--edc-blue);
   box-shadow: 0 0 0 2px var(--edc-nav-ring);
+}
+
+/* ── Movimiento reducido ───────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .edc-frame,
+  .edc-side,
+  .edc-side *,
+  .edc-tip {
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────── */

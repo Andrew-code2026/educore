@@ -8,3 +8,4 @@ export * from "./EduCoreHeader";
 export * from "./EduCoreMobileNav";
 export * from "./EduCoreShell";
 export { default } from "./EduCoreShell";
+export { useSidebarCollapsed, toggleSidebar, setSidebarCollapsed, getSidebarCollapsed } from "./sidebarStore";
