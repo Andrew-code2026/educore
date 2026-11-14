@@ -4,7 +4,10 @@ import { CONIC_LABELS } from "./creatorConics";
 import { VENN_REGIONS } from "./creatorDiagrams";
 import { FIGURE_NOTE_TEXT_MAX, FIGURE_NOTES_MAX } from "./creatorFigureNotes";
 import { FIGURE_SIZES } from "./creatorFigureSize";
-import { MATH_EXPR_MAX } from "./creatorMath";
+import { formatNumberEs, MATH_EXPR_MAX } from "./creatorMath";
+import { SOLID_LABEL_MAX, SOLID_NAMES } from "./creatorSolids";
+import { TRIANGLE_LABEL_MAX, TRIANGLE_SHOW } from "./creatorTriangle";
+import { UNIT_CIRCLE_LABEL_MAX, UNIT_CIRCLE_SETS } from "./creatorUnitCircle";
 
 /**
  * Creador de recursos: modelo del documento que genera la IA y edita el docente.
@@ -930,6 +933,131 @@ const shapesBlock = z.object({
   toScale: z.boolean().default(true).describe("true dibuja todas las figuras con la misma escala, para poder compararlas."),
 });
 
+/* ── Triángulo resuelto: los lados y ángulos que faltan los calcula el sistema (creatorTriangle.ts) ── */
+
+const triangleShow = z
+  .enum(TRIANGLE_SHOW)
+  .meta({ id: "triangle_show", description: 'Qué se escribe: "value" la medida (dada o calculada), "label" el rótulo, "both" los dos (x = 10 cm), "none" nada. Sin él, la medida si es un dato y el rótulo si lo hay.' })
+  .optional();
+const triangleLabel = z.string().trim().max(TRIANGLE_LABEL_MAX).optional();
+// Una sola definición para los tres lados y otra para los tres ángulos: el esquema de la herramienta no las repite
+const triangleSide = z
+  .object({ length: z.number().positive().max(100_000).optional(), show: triangleShow, label: triangleLabel })
+  .meta({ id: "triangle_side" })
+  .optional();
+const triangleAngle = z
+  .object({ degrees: z.number().gt(0).lt(180).optional(), show: triangleShow, label: triangleLabel })
+  .meta({ id: "triangle_angle" })
+  .optional();
+
+const triangleSchema = z.object({
+  vertices: z.array(z.string().trim().max(3)).length(3).default(["A", "B", "C"]).describe("Nombres de los vértices en orden, en texto plano. Cadena vacía para no escribir uno."),
+  sides: z
+    .object({ a: triangleSide, b: triangleSide, c: triangleSide })
+    .default({})
+    .describe('a es el lado opuesto al primer vértice, b al segundo y c al tercero. length es el dato: omítelo si el sistema debe calcularlo. label, en texto plano: "x", "h", "?".'),
+  angles: z
+    .object({ A: triangleAngle, B: triangleAngle, C: triangleAngle })
+    .default({})
+    .describe('El ángulo en cada vértice. degrees es el dato, en grados: omítelo si el sistema debe calcularlo. label, en texto plano: "θ", "α", "?".'),
+});
+
+const triangleBlock = z.object({
+  type: z.literal("triangle"),
+  caption,
+  size: figureSize,
+  notes: figureNotes,
+  triangles: z
+    .array(triangleSchema)
+    .min(1)
+    .max(2)
+    .describe("Uno o dos triángulos. Cada uno con tres datos que lo determinen y al menos un lado: tres lados, dos lados y el ángulo entre ellos, un lado y dos ángulos, o los dos catetos con el ángulo recto. Dos triángulos van lado a lado y a la misma escala, para semejanza."),
+  unit: z.string().trim().max(6).optional().describe('Unidad de las longitudes en texto plano, p. ej. "cm". Se escribe junto a cada medida.'),
+  markRight: z.boolean().default(true).describe("Marca con un cuadrito el ángulo recto cuando lo hay. false si el estudiante debe descubrir que el triángulo es rectángulo."),
+});
+
+/** Círculo unitario: las coordenadas exactas de los ángulos notables las escribe el sistema (creatorUnitCircle.ts). */
+const unitCircleBlock = z.object({
+  type: z.literal("unit_circle"),
+  caption,
+  size: figureSize,
+  notes: figureNotes,
+  unit: z.enum(["degrees", "radians"]).default("degrees").describe("Cómo se escriben los ángulos: 150° o 5π/6."),
+  angles: z
+    .enum(UNIT_CIRCLE_SETS)
+    .default("all")
+    .describe('Ángulos marcados: "all" los 16 notables (múltiplos de 30° y de 45°), "first_quadrant" de 0° a 90°, "axes" solo 0°, 90°, 180° y 270°.'),
+  showAngles: z.boolean().default(true).describe("Escribe la medida de cada ángulo marcado."),
+  showCoordinates: z.boolean().default(true).describe("Escribe junto a cada punto sus coordenadas exactas (cos, sen). false para que el estudiante las complete."),
+  highlight: z
+    .object({
+      degrees: z.number().min(-360).max(360).describe("Ángulo notable en grados (múltiplo de 30° o de 45°), también con unit radians. Negativo gira en sentido horario."),
+      label: z.string().trim().max(UNIT_CIRCLE_LABEL_MAX).optional().describe('Nombre en texto plano, p. ej. "θ". Sin él se escribe la medida.'),
+      triangle: z.boolean().optional().describe("Triángulo de referencia, con el ángulo de referencia y el ángulo recto. Sin él, se dibuja si el ángulo no está sobre un eje; false para no dibujarlo."),
+      values: z.boolean().default(true).describe("Escribe las coordenadas del punto y la medida del ángulo de referencia. false para que el estudiante las halle."),
+    })
+    .optional()
+    .describe("Un ángulo resaltado: su lado terminal, el arco de giro y, si se pide, su triángulo de referencia."),
+});
+
+/* ── Sólidos: volumen y área los calcula el sistema (creatorSolids.ts) ── */
+
+const solidLength = z.number().positive().max(100_000);
+const solidLabel = z
+  .string()
+  .trim()
+  .max(SOLID_LABEL_MAX)
+  // Una sola definición para los dieciséis rótulos: el esquema de la herramienta no repite la descripción
+  .meta({ id: "solid_label", description: 'Rótulo en texto plano en lugar de la medida: "x", "h", "?". Cadena vacía para no escribir esa medida. Sin él se escribe la medida.' })
+  .optional();
+const solidSlant = z.boolean().default(false);
+
+const solidSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("cube"), edge: solidLength, edgeLabel: solidLabel }),
+  z.object({ kind: z.literal("rectangular_prism"), length: solidLength, width: solidLength, height: solidLength, lengthLabel: solidLabel, widthLabel: solidLabel, heightLabel: solidLabel }),
+  z.object({
+    kind: z.literal("triangular_prism"),
+    base: solidLength.describe("Base del triángulo de las caras paralelas."),
+    triangleHeight: solidLength.describe("Altura de ese triángulo."),
+    length: solidLength.describe("Largo del prisma: la distancia entre los dos triángulos."),
+    triangle: z.enum(["isosceles", "right"]).default("isosceles").describe('"right" si el triángulo es rectángulo (base y altura son sus catetos).'),
+    baseLabel: solidLabel,
+    triangleHeightLabel: solidLabel,
+    lengthLabel: solidLabel,
+  }),
+  z.object({ kind: z.literal("cylinder"), radius: solidLength, height: solidLength, radiusLabel: solidLabel, heightLabel: solidLabel }),
+  z.object({
+    kind: z.literal("cone"),
+    radius: solidLength,
+    height: solidLength,
+    slant: solidSlant.describe("Dibuja y rotula la generatriz, que calcula el sistema."),
+    radiusLabel: solidLabel,
+    heightLabel: solidLabel,
+    slantLabel: solidLabel,
+  }),
+  z.object({
+    kind: z.literal("square_pyramid"),
+    base: solidLength.describe("Arista de la base cuadrada."),
+    height: solidLength,
+    slant: solidSlant.describe("Dibuja y rotula la apotema de la pirámide (la altura de una cara), que calcula el sistema."),
+    baseLabel: solidLabel,
+    heightLabel: solidLabel,
+    slantLabel: solidLabel,
+  }),
+  z.object({ kind: z.literal("sphere"), radius: solidLength, radiusLabel: solidLabel }),
+]);
+
+const solidBlock = z.object({
+  type: z.literal("solid"),
+  caption,
+  size: figureSize,
+  notes: figureNotes,
+  solids: z.array(solidSchema).min(1).max(3).describe("De uno a tres sólidos lado a lado, con sus medidas reales."),
+  unit: z.string().trim().max(6).optional().describe('Unidad de las medidas en texto plano, p. ej. "cm".'),
+  showValues: z.boolean().default(true).describe("false dibuja los sólidos sin medidas (salvo los rótulos que pongas), para reconocerlos o rotularlos."),
+  toScale: z.boolean().default(false).describe("true dibuja todos a la misma escala, para comparar tamaños."),
+});
+
 const balanceSide = z.object({
   variables: z.number().int().min(0).max(6).default(0).describe("Cuántas incógnitas hay en este platillo."),
   units: z.number().int().min(0).max(15).default(0).describe("Cuántas unidades (fichas de valor 1) hay en este platillo."),
@@ -1006,6 +1134,9 @@ export const innerBlockInputSchema = z.discriminatedUnion("type", [
   baseTenBlock,
   areaModelBlock,
   shapesBlock,
+  triangleBlock,
+  unitCircleBlock,
+  solidBlock,
   balanceBlock,
   solutionBlock,
 ]);
@@ -1065,6 +1196,9 @@ export const blockInputSchema = z.discriminatedUnion("type", [
   baseTenBlock,
   areaModelBlock,
   shapesBlock,
+  triangleBlock,
+  unitCircleBlock,
+  solidBlock,
   balanceBlock,
   solutionBlock,
   pageBreakBlock,
@@ -1103,6 +1237,9 @@ export const innerBlockSchema = z.discriminatedUnion("type", [
   baseTenBlock.extend({ id }),
   areaModelBlock.extend({ id }),
   shapesBlock.extend({ id }),
+  triangleBlock.extend({ id }),
+  unitCircleBlock.extend({ id }),
+  solidBlock.extend({ id }),
   balanceBlock.extend({ id }),
   solutionBlock.extend({ id }),
 ]);
@@ -1137,6 +1274,9 @@ export const blockSchema = z.discriminatedUnion("type", [
   baseTenBlock.extend({ id }),
   areaModelBlock.extend({ id }),
   shapesBlock.extend({ id }),
+  triangleBlock.extend({ id }),
+  unitCircleBlock.extend({ id }),
+  solidBlock.extend({ id }),
   balanceBlock.extend({ id }),
   solutionBlock.extend({ id }),
   pageBreakBlock.extend({ id }),
@@ -1212,6 +1352,9 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   base_ten: "Bloques de base 10",
   area_model: "Modelo de área",
   shapes: "Figuras geométricas",
+  triangle: "Triángulo",
+  unit_circle: "Círculo unitario",
+  solid: "Sólidos",
   balance: "Balanza",
   solution: "Solución",
   page_break: "Salto de página",
@@ -1382,6 +1525,14 @@ export const SHAPE_KIND_LABELS: Record<ShapeFigure["kind"], string> = {
   circle: "Círculo",
   polygon: "Polígono",
 };
+
+/** Los datos de un triángulo en pocas palabras: «ABC con a = 3, b = 4, C = 90°». */
+function triangleData(triangle: z.infer<typeof triangleSchema>): string {
+  const sides = (["a", "b", "c"] as const).flatMap(key => (triangle.sides[key]?.length !== undefined ? [`${key} = ${formatNumberEs(triangle.sides[key].length, 4)}`] : []));
+  const angles = (["A", "B", "C"] as const).flatMap(key => (triangle.angles[key]?.degrees !== undefined ? [`${key} = ${formatNumberEs(triangle.angles[key].degrees)}°`] : []));
+  const name = triangle.vertices.every(Boolean) ? `${triangle.vertices.join("")} ` : "";
+  return `${name}con ${[...sides, ...angles].join(", ")}`;
+}
 
 export const emptyDoc = (title = ""): ResourceDoc => ({ title, sections: [] });
 
@@ -1729,6 +1880,12 @@ export function blockPreview(block: BlockInput): string {
     }
     case "shapes":
       return block.caption || `Figuras: ${block.figures.map(figure => SHAPE_KIND_LABELS[figure.kind]).join(", ")}`;
+    case "triangle":
+      return block.caption || `${block.triangles.length > 1 ? "Triángulos" : "Triángulo"} ${block.triangles.map(triangle => triangleData(triangle)).join(" y ")}`;
+    case "solid":
+      return block.caption || `Sólidos: ${block.solids.map(solid => SOLID_NAMES[solid.kind]).join(", ")}`;
+    case "unit_circle":
+      return block.caption || `Círculo unitario${block.highlight ? ` con ${block.highlight.degrees}° resaltado` : ""}${block.showCoordinates ? "" : ", sin coordenadas"}`;
     case "balance":
       return block.caption || `Balanza con la incógnita ${block.variable}`;
     case "solution":

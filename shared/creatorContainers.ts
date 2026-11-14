@@ -1,4 +1,7 @@
 import { axisNameBands } from "./creatorPlaneAxes";
+import { solidLayout } from "./creatorSolids";
+import { triangleLayout } from "./creatorTriangle";
+import { unitCircleLayout } from "./creatorUnitCircle";
 import { BLOCK_TYPE_LABELS, blockCells, blockPreview, CREATOR_LIMITS, findMath, INNER_BLOCK_TYPES, isContainer, plainText, type BlockInput, type ContainerInput } from "./creator";
 import { contingencyTableView, contingencyTableWidth, frequencyTableView, frequencyTableWidth } from "./creatorStatTables";
 
@@ -94,6 +97,12 @@ export function minBlockWidth(block: BlockInput): number {
       return fromDesign(Math.max(220, 90 + 108 * block.columns.length));
     case "shapes":
       return fromDesign(Math.min(520, 70 + 150 * block.figures.length));
+    case "triangle":
+      return fromDesign(triangleLayout(block)?.width ?? 330);
+    case "unit_circle":
+      return fromDesign(unitCircleLayout(block).width);
+    case "solid":
+      return fromDesign(solidLayout(block).width);
     default:
       // Lo que no va dentro de un contenedor pide la hoja entera
       return SHEET_WIDTH_PX;
@@ -204,6 +213,9 @@ const FIGURE_RATIO: Partial<Record<BlockInput["type"], number>> = {
   base_ten: 0.7,
   area_model: 0.8,
   shapes: 0.6,
+  triangle: 0.8,
+  unit_circle: 0.9,
+  solid: 0.75,
   balance: 0.55,
 };
 

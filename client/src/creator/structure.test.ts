@@ -58,7 +58,7 @@ describe("catálogo de bloques", () => {
   it("no distingue tildes ni mayúsculas", () => {
     expect(fold("Gráfica ÁNGULOS")).toBe("grafica angulos");
     expect(flat("grafica")[0]).toBe("graph");
-    expect(flat("ÁNGU")).toEqual(["angle"]);
+    expect(flat("ÁNGU")).toEqual(["angle", "triangle", "unit_circle"]);
   });
 
   it("pone primero lo que empieza como el nombre y agrupa por familias", () => {
@@ -74,7 +74,7 @@ describe("catálogo de bloques", () => {
     expect(flat("frecuencias")).toEqual(expect.arrayContaining(["frequency_table", "histogram"]));
     expect(flat("cuartiles")).toEqual(["box_plot"]);
     expect(flat("ecuacion")).toEqual(expect.arrayContaining(["math", "balance"]));
-    expect(flat("geometria")).toEqual(["shapes", "angle", "clock"]);
+    expect(flat("geometria")).toEqual(["shapes", "triangle", "unit_circle", "solid", "angle", "clock"]);
     expect(matchScore("pie_chart", "torta")).toBe(2);
     expect(matchScore("clock", "geometria", "Geometría y medida")).toBe(3);
   });

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ComponentType } from "react"
 import { Command } from "cmdk";
 import {
   Blend,
+  Box,
   Boxes,
   ChartCandlestick,
   ChartColumn,
@@ -22,6 +23,7 @@ import {
   Network,
   PencilLine,
   Pilcrow,
+  Radius,
   RectangleHorizontal,
   Scale,
   Search,
@@ -31,6 +33,7 @@ import {
   Smile,
   Table,
   Table2,
+  Triangle,
   TableProperties,
   Grid3x3,
   TriangleRight,
@@ -62,6 +65,9 @@ const ICONS: Record<BlockType, ComponentType<{ "aria-hidden"?: boolean }>> = {
   tree_diagram: Network,
   venn: Blend,
   shapes: Shapes,
+  triangle: Triangle,
+  unit_circle: Radius,
+  solid: Box,
   angle: TriangleRight,
   clock: Clock,
   number_line: MoveHorizontal,

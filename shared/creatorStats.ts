@@ -3,6 +3,9 @@ import { areaModelProduct, computeAreaModel, monomialText, polynomialText } from
 import { sameNumber } from "./creatorClasses";
 import { niceStep, tickValues } from "./creatorFigures";
 import { describeGraph } from "./creatorGraphFacts";
+import { describeSolids } from "./creatorSolids";
+import { describeTriangles } from "./creatorTriangle";
+import { describeUnitCircle } from "./creatorUnitCircle";
 import { formatNumber, formatNumberEs } from "./creatorMath";
 import { classLabel, dataMeasures, describeContingencyTable, describeFrequencyTable, groupedEstimates, groupedFacts, measuresFacts } from "./creatorStatTables";
 
@@ -298,6 +301,12 @@ export function describeComputed(block: BlockInput): string | null {
       const cells = model.cells.map(row => row.map(cell => monomialText(cell)).join(", ")).join(" | ");
       return `Modelo de área: ${areaModelProduct(model)} = ${polynomialText(model.total)}; celdas por filas: ${cells}.`;
     }
+    case "triangle":
+      return describeTriangles(block);
+    case "unit_circle":
+      return describeUnitCircle(block);
+    case "solid":
+      return describeSolids(block);
     default:
       return null;
   }
