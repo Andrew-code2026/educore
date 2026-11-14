@@ -4,6 +4,8 @@ import { ShellContextProvider, useShellContext } from "./ShellContext";
 import { EduCoreSidebar } from "./EduCoreSidebar";
 import { EduCoreHeader } from "./EduCoreHeader";
 import { EduCoreMobileNav } from "./EduCoreMobileNav";
+import { useSidebarCollapsed } from "./sidebarStore";
+import { useRailTransition } from "./useRailTransition";
 import "./shell.css";
 
 function ShellInner({
@@ -18,7 +20,10 @@ function ShellInner({
   onLogout,
   notificationCount = 0,
 }: EduCoreShellProps) {
-  const { sidebarCollapsed, navGuard, isFocusMode } = useShellContext();
+  const { navGuard, isFocusMode } = useShellContext();
+  const sidebarCollapsed = useSidebarCollapsed();
+  const frameRef = React.useRef<HTMLDivElement>(null);
+  useRailTransition(frameRef, sidebarCollapsed);
 
   const handleSetSection = React.useCallback(
     (nextSection: Section) => {
@@ -80,7 +85,7 @@ function ShellInner({
       }
     >
       {/* Marco: riel lateral a la izquierda, topbar y panel principal a la derecha */}
-      <div className="edc-frame" data-collapsed={sidebarCollapsed} data-focus={isFocusMode}>
+      <div ref={frameRef} className="edc-frame" data-collapsed={sidebarCollapsed} data-focus={isFocusMode}>
         <EduCoreHeader
           role={role}
           section={section}

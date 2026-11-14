@@ -5,9 +5,6 @@ import { ALL_NAV_ITEMS } from "./navigation";
 interface ShellContextType {
   moduleContext: ModuleContext | null;
   setModuleContext: (ctx: ModuleContext | null) => void;
-  sidebarCollapsed: boolean;
-  setSidebarCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
-  toggleSidebar: () => void;
   mobileOpen: boolean;
   setMobileOpen: React.Dispatch<React.SetStateAction<boolean>>;
   mobileMoreOpen: boolean;
@@ -22,8 +19,6 @@ interface ShellContextType {
 }
 
 const ShellContext = createContext<ShellContextType | undefined>(undefined);
-
-const COLLAPSED_STORAGE_KEY = "educore-sidebar-collapsed";
 
 /**
  * Portales de estudiante y acudiente. Como en el portal docente: la barra superior nombra el
@@ -52,13 +47,6 @@ export function ShellContextProvider({
   schoolName,
 }: ShellProviderProps) {
   const [explicitContext, setExplicitContext] = useState<ModuleContext | null>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(COLLAPSED_STORAGE_KEY) === "true";
-    } catch {
-      return false;
-    }
-  });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
@@ -72,25 +60,12 @@ export function ShellContextProvider({
     []
   );
 
-  // Persistir colapso del sidebar en localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(COLLAPSED_STORAGE_KEY, String(sidebarCollapsed));
-    } catch {
-      // Ignorar fallos de storage
-    }
-  }, [sidebarCollapsed]);
-
   // Limpiar contexto explícito, foco y guardián al cambiar de sección
   useEffect(() => {
     setExplicitContext(null);
     setNavGuard(null);
     setIsFocusMode(false);
   }, [section, role, setNavGuard]);
-
-  const toggleSidebar = React.useCallback(() => {
-    setSidebarCollapsed(prev => !prev);
-  }, []);
 
   // Setter seguro con comparación para evitar re-render loops
   const setModuleContext = React.useCallback((ctx: ModuleContext | null) => {
@@ -236,9 +211,6 @@ export function ShellContextProvider({
     () => ({
       moduleContext: resolvedContext,
       setModuleContext,
-      sidebarCollapsed,
-      setSidebarCollapsed,
-      toggleSidebar,
       mobileOpen,
       setMobileOpen,
       mobileMoreOpen,
@@ -254,8 +226,6 @@ export function ShellContextProvider({
     [
       resolvedContext,
       setModuleContext,
-      sidebarCollapsed,
-      toggleSidebar,
       mobileOpen,
       mobileMoreOpen,
       section,

@@ -27,7 +27,7 @@ interface EduCoreMobileNavProps {
   notificationCount?: number;
 }
 
-export function EduCoreMobileNav({
+function EduCoreMobileNavImpl({
   role,
   section,
   setSection,
@@ -258,3 +258,6 @@ export function EduCoreMobileNav({
     </>
   );
 }
+
+// Memo: el marco se re-renderiza al plegar el riel; la navegación móvil no depende de eso.
+export const EduCoreMobileNav = React.memo(EduCoreMobileNavImpl);
