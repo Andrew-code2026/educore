@@ -3,6 +3,7 @@ import { areaModelProduct, computeAreaModel, monomialText, polynomialText } from
 import { niceStep, tickValues } from "./creatorFigures";
 import { describeGraph } from "./creatorGraphFacts";
 import { describeTriangles } from "./creatorTriangle";
+import { describeUnitCircle } from "./creatorUnitCircle";
 import { formatNumber, formatNumberEs } from "./creatorMath";
 
 /**
@@ -311,6 +312,8 @@ export function describeComputed(block: BlockInput): string | null {
     }
     case "triangle":
       return describeTriangles(block);
+    case "unit_circle":
+      return describeUnitCircle(block);
     default:
       return null;
   }

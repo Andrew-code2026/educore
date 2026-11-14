@@ -6,6 +6,7 @@ import { FIGURE_NOTE_TEXT_MAX, FIGURE_NOTES_MAX } from "./creatorFigureNotes";
 import { FIGURE_SIZES } from "./creatorFigureSize";
 import { formatNumberEs, MATH_EXPR_MAX } from "./creatorMath";
 import { TRIANGLE_LABEL_MAX, TRIANGLE_SHOW } from "./creatorTriangle";
+import { UNIT_CIRCLE_LABEL_MAX, UNIT_CIRCLE_SETS } from "./creatorUnitCircle";
 
 /**
  * Creador de recursos: modelo del documento que genera la IA y edita el docente.
@@ -882,6 +883,30 @@ const triangleBlock = z.object({
   markRight: z.boolean().default(true).describe("Marca con un cuadrito el ángulo recto cuando lo hay. false si el estudiante debe descubrir que el triángulo es rectángulo."),
 });
 
+/** Círculo unitario: las coordenadas exactas de los ángulos notables las escribe el sistema (creatorUnitCircle.ts). */
+const unitCircleBlock = z.object({
+  type: z.literal("unit_circle"),
+  caption,
+  size: figureSize,
+  notes: figureNotes,
+  unit: z.enum(["degrees", "radians"]).default("degrees").describe("Cómo se escriben los ángulos: 150° o 5π/6."),
+  angles: z
+    .enum(UNIT_CIRCLE_SETS)
+    .default("all")
+    .describe('Ángulos marcados: "all" los 16 notables (múltiplos de 30° y de 45°), "first_quadrant" de 0° a 90°, "axes" solo 0°, 90°, 180° y 270°.'),
+  showAngles: z.boolean().default(true).describe("Escribe la medida de cada ángulo marcado."),
+  showCoordinates: z.boolean().default(true).describe("Escribe junto a cada punto sus coordenadas exactas (cos, sen). false para que el estudiante las complete."),
+  highlight: z
+    .object({
+      degrees: z.number().min(-360).max(360).describe("Ángulo notable en grados (múltiplo de 30° o de 45°), también con unit radians. Negativo gira en sentido horario."),
+      label: z.string().trim().max(UNIT_CIRCLE_LABEL_MAX).optional().describe('Nombre en texto plano, p. ej. "θ". Sin él se escribe la medida.'),
+      triangle: z.boolean().default(true).describe("Dibuja el triángulo de referencia, con el ángulo de referencia y el ángulo recto."),
+      values: z.boolean().default(true).describe("Escribe las coordenadas del punto y la medida del ángulo de referencia. false para que el estudiante las halle."),
+    })
+    .optional()
+    .describe("Un ángulo resaltado: su lado terminal, el arco de giro y, si se pide, su triángulo de referencia."),
+});
+
 const balanceSide = z.object({
   variables: z.number().int().min(0).max(6).default(0).describe("Cuántas incógnitas hay en este platillo."),
   units: z.number().int().min(0).max(15).default(0).describe("Cuántas unidades (fichas de valor 1) hay en este platillo."),
@@ -957,6 +982,7 @@ export const innerBlockInputSchema = z.discriminatedUnion("type", [
   areaModelBlock,
   shapesBlock,
   triangleBlock,
+  unitCircleBlock,
   balanceBlock,
   solutionBlock,
 ]);
@@ -1015,6 +1041,7 @@ export const blockInputSchema = z.discriminatedUnion("type", [
   areaModelBlock,
   shapesBlock,
   triangleBlock,
+  unitCircleBlock,
   balanceBlock,
   solutionBlock,
   pageBreakBlock,
@@ -1052,6 +1079,7 @@ export const innerBlockSchema = z.discriminatedUnion("type", [
   areaModelBlock.extend({ id }),
   shapesBlock.extend({ id }),
   triangleBlock.extend({ id }),
+  unitCircleBlock.extend({ id }),
   balanceBlock.extend({ id }),
   solutionBlock.extend({ id }),
 ]);
@@ -1085,6 +1113,7 @@ export const blockSchema = z.discriminatedUnion("type", [
   areaModelBlock.extend({ id }),
   shapesBlock.extend({ id }),
   triangleBlock.extend({ id }),
+  unitCircleBlock.extend({ id }),
   balanceBlock.extend({ id }),
   solutionBlock.extend({ id }),
   pageBreakBlock.extend({ id }),
@@ -1159,6 +1188,7 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   area_model: "Modelo de área",
   shapes: "Figuras geométricas",
   triangle: "Triángulo",
+  unit_circle: "Círculo unitario",
   balance: "Balanza",
   solution: "Solución",
   page_break: "Salto de página",
@@ -1682,6 +1712,8 @@ export function blockPreview(block: BlockInput): string {
       return block.caption || `Figuras: ${block.figures.map(figure => SHAPE_KIND_LABELS[figure.kind]).join(", ")}`;
     case "triangle":
       return block.caption || `${block.triangles.length > 1 ? "Triángulos" : "Triángulo"} ${block.triangles.map(triangle => triangleData(triangle)).join(" y ")}`;
+    case "unit_circle":
+      return block.caption || `Círculo unitario${block.highlight ? ` con ${block.highlight.degrees}° resaltado` : ""}${block.showCoordinates ? "" : ", sin coordenadas"}`;
     case "balance":
       return block.caption || `Balanza con la incógnita ${block.variable}`;
     case "solution":

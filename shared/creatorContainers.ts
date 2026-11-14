@@ -1,5 +1,6 @@
 import { axisNameBands } from "./creatorPlaneAxes";
 import { triangleLayout } from "./creatorTriangle";
+import { unitCircleLayout } from "./creatorUnitCircle";
 import { BLOCK_TYPE_LABELS, blockCells, blockPreview, CREATOR_LIMITS, findMath, INNER_BLOCK_TYPES, isContainer, plainText, type BlockInput, type ContainerInput } from "./creator";
 
 /**
@@ -87,6 +88,8 @@ export function minBlockWidth(block: BlockInput): number {
       return fromDesign(Math.min(520, 70 + 150 * block.figures.length));
     case "triangle":
       return fromDesign(triangleLayout(block)?.width ?? 330);
+    case "unit_circle":
+      return fromDesign(unitCircleLayout(block).width);
     default:
       // Lo que no va dentro de un contenedor pide la hoja entera
       return SHEET_WIDTH_PX;
@@ -198,6 +201,7 @@ const FIGURE_RATIO: Partial<Record<BlockInput["type"], number>> = {
   area_model: 0.8,
   shapes: 0.6,
   triangle: 0.8,
+  unit_circle: 0.9,
   balance: 0.55,
 };
 
