@@ -1,6 +1,7 @@
 import type { GraphSpec } from "./creator";
+import { gcd } from "./creatorDiagrams";
 import { formatNumber, formatNumberEs } from "./creatorMath";
-import { figureNumber, figureNumberLatex, hasEqualUnits, isExactNumber } from "./creatorPlane";
+import { figureNumber, figureNumberLatex, hasEqualUnits, isExactNumber, tidy } from "./creatorPlane";
 
 /**
  * Ejes del plano cartesiano: cuánto mide la cuadrícula, qué márgenes la rodean y dónde va el
@@ -40,9 +41,17 @@ export function plotSize(xSpan: number, ySpan: number): { w: number; h: number }
   return ratio > 1 ? { w: 240, h: MAX_H } : { w: MAX_W, h: 200 };
 }
 
-/** Múltiplos de `step` dentro de [min, max], contados con enteros para no acumular error. */
+/**
+ * Marcas que se llegan a calcular en un eje. El validador rechaza más de `CREATOR_LIMITS.ticksMax`;
+ * este tope, muy por encima, solo evita recorrer millones de marcas con un paso diminuto (un 0,001
+ * a medio teclear, un rango desmedido) antes de que ese aviso llegue.
+ */
+const TICKS_LIMIT = 400;
+
+/** Múltiplos de `step` dentro de [min, max], contados con enteros para no acumular error. Sin marcas si el paso no sirve o serían demasiadas. */
 export function planeTicks(min: number, max: number, step: number): number[] {
   const values: number[] = [];
+  if (!(step > 0) || !((max - min) / step <= TICKS_LIMIT)) return values;
   const first = Math.ceil(min / step - 1e-9);
   const last = Math.floor(max / step + 1e-9);
   for (let k = first; k <= last; k++) values.push(Number((k * step).toFixed(10)));
@@ -65,13 +74,6 @@ const PI_EDGE = 0.01;
 export interface PiFraction {
   n: number;
   d: number;
-}
-
-function gcd(a: number, b: number): number {
-  let x = Math.abs(a);
-  let y = Math.abs(b);
-  while (y !== 0) [x, y] = [y, x % y];
-  return x || 1;
 }
 
 /**
@@ -127,11 +129,12 @@ export function planeXTicks(spec: GraphSpec, w: number): PlaneTick[] {
     return values.map((value, index) => ({ value, text: formatNumberEs(value), labeled: index % every === 0 }));
   }
   const size = (step.n / step.d) * Math.PI;
+  if (!((spec.xMax - spec.xMin) / size <= TICKS_LIMIT)) return [];
   const first = Math.ceil(spec.xMin / size - PI_EDGE);
   const last = Math.floor(spec.xMax / size + PI_EDGE);
   const marks: Array<{ k: number; text: string }> = [];
   for (let k = first; k <= last; k++) {
-    const divisor = gcd(k * step.n, step.d);
+    const divisor = gcd(k * step.n, step.d) || 1;
     marks.push({ k, text: piText({ n: (k * step.n) / divisor, d: step.d / divisor }) });
   }
   const spacing = (w * size) / (spec.xMax - spec.xMin);
@@ -202,7 +205,13 @@ export function planeLayout(spec: GraphSpec): PlaneLayout | null {
   };
 }
 
-/** Problemas de los nombres de los ejes: que quepan a lo largo de su lado de la figura. */
+/** Ancho que los nombres de los ejes añaden a la figura (cero si no los lleva). */
+export function axisNameBands(spec: GraphSpec): number {
+  const layout = planeLayout(spec);
+  return layout ? Math.round(layout.pad.left - PLANE_PAD.left) : 0;
+}
+
+/** Problemas de los ejes: que sus nombres quepan a lo largo de su lado de la figura y que un eje en múltiplos de π tenga un paso que lo sea. */
 export function planeAxisIssues(spec: GraphSpec): string[] {
   const layout = planeLayout(spec);
   if (!layout) return [];
@@ -220,7 +229,7 @@ export function planeAxisIssues(spec: GraphSpec): string[] {
       issues.push(
         `Gráfica: con el eje x en múltiplos de π (xUnit "pi"), el paso (xStep) debe ser una fracción sencilla de π escrita con cuatro decimales: 0.2618 (π/12), 0.5236 (π/6), 0.7854 (π/4), 1.0472 (π/3), 1.5708 (π/2), 3.1416 (π) o un múltiplo de ellos. Ahora vale ${formatNumber(spec.xStep, 4)}.`,
       );
-    } else if (!planeXTicks(spec, layout.w).some(tick => tick.value !== 0)) {
+    } else if ((spec.xMax - spec.xMin) / spec.xStep <= TICKS_LIMIT && !planeXTicks(spec, layout.w).some(tick => tick.value !== 0)) {
       issues.push(`Gráfica: el eje x va en múltiplos de π, pero en este rango no cabe ninguna marca: el paso es ${piText(step)}. Amplía xMin/xMax o reduce xStep.`);
     }
   }
@@ -229,27 +238,55 @@ export function planeAxisIssues(spec: GraphSpec): string[] {
 
 /* ── Coordenadas de un punto calculado ── */
 
-/** La abscisa como múltiplo de π si el plano va en múltiplos de π y lo es; null si se escribe como número. */
-const piAbscissa = (spec: GraphSpec, x: number): PiFraction | null => (spec.xUnit === "pi" ? piFraction(x) : null);
+/** ¿El plano escribe las abscisas en múltiplos de π? */
+export const usesPi = (spec: GraphSpec): boolean => spec.xUnit === "pi";
+
+export interface PointParts {
+  /** «(2, -1)», con punto y coma si alguna coordenada lleva coma decimal; la abscisa con π si corresponde: «(π/2, 1)». */
+  text: string;
+  /** Lo mismo en LaTeX, para un rótulo de la figura. */
+  latex: string;
+  /** Las dos coordenadas se pueden escribir enteras; si no, quien lo use antepone «≈». */
+  exact: boolean;
+}
 
 /**
- * Un punto que calculó el sistema, como se lee en la figura y en la clave: «(2, -1)», con punto y
- * coma si alguna coordenada lleva coma decimal, «≈» delante si alguna va redondeada, y la abscisa
- * en múltiplos de π cuando el eje los usa: «(π/2, 1)».
+ * Las coordenadas de un punto que calculó el sistema, como se leen en la figura y en la clave. Con
+ * `pi`, una abscisa que es un múltiplo de π de los ángulos notables se escribe con π y cuenta como exacta.
  */
-export function planePointText(spec: GraphSpec, x: number, y: number): string {
-  const fraction = piAbscissa(spec, x);
+export function pointParts(x: number, y: number, pi = false): PointParts {
+  const fraction = pi ? piFraction(x) : null;
   const xs = fraction ? piText(fraction) : figureNumber(x);
   const ys = figureNumber(y);
-  const exact = (fraction !== null || isExactNumber(x)) && isExactNumber(y);
-  return `${exact ? "" : "≈ "}(${xs}${xs.includes(",") || ys.includes(",") ? ";" : ","} ${ys})`;
+  const separator = xs.includes(",") || ys.includes(",") ? ";" : ",";
+  return {
+    text: `(${xs}${separator} ${ys})`,
+    latex: `(${fraction ? piLatex(fraction) : figureNumberLatex(x)}${separator}\\, ${figureNumberLatex(y)})`,
+    exact: (fraction !== null || isExactNumber(x)) && isExactNumber(y),
+  };
+}
+
+/** Un punto calculado, en texto, con «≈» delante si alguna coordenada va redondeada. */
+export function planePointText(spec: GraphSpec, x: number, y: number): string {
+  const parts = pointParts(x, y, usesPi(spec));
+  return `${parts.exact ? "" : "≈ "}${parts.text}`;
 }
 
 /** Lo mismo en LaTeX, para el rótulo del punto en la figura. */
 export function planePointLatex(spec: GraphSpec, x: number, y: number): string {
-  const fraction = piAbscissa(spec, x);
-  const xs = fraction ? piLatex(fraction) : figureNumberLatex(x);
-  const ys = figureNumberLatex(y);
-  const exact = (fraction !== null || isExactNumber(x)) && isExactNumber(y);
-  return `${exact ? "" : "\\approx "}(${xs}${xs.includes("{,}") || ys.includes("{,}") ? ";" : ","}\\, ${ys})`;
+  const parts = pointParts(x, y, usesPi(spec));
+  return `${parts.exact ? "" : "\\approx "}${parts.latex}`;
 }
+
+/* ── Ayudantes comunes de los cálculos del plano ── */
+
+export type Pair = [number, number];
+
+/** Quita el ruido de una suma o un producto (0,1 + 0,2) y el signo de un cero negativo. */
+export const cleanNumber = (value: number): number => tidy(Number(value.toPrecision(12))) + 0;
+
+/** Un punto en los avisos del validador: con punto decimal y hasta cuatro decimales. */
+export const point4 = (x: number, y: number): string => `(${formatNumber(x, 4)}, ${formatNumber(y, 4)})`;
+
+/** Una lista en una frase: «a, b y c». */
+export const listEs = (items: string[]): string => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`);

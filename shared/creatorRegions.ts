@@ -1,7 +1,6 @@
 import type { GraphInequality, GraphSpec } from "./creator";
-import { formatNumber } from "./creatorMath";
-import { figureNumber, figureNumberLatex, insidePlane, isExactNumber, tidy } from "./creatorPlane";
-import { planePointText } from "./creatorPlaneAxes";
+import { figureNumber, figureNumberLatex, insidePlane, isExactNumber } from "./creatorPlane";
+import { cleanNumber as clean, listEs as list, planePointText, point4, type Pair } from "./creatorPlaneAxes";
 
 /**
  * Regiones de inecuaciones lineales con dos variables: el semiplano de cada a·x + b·y ≤ c, con
@@ -12,7 +11,6 @@ import { planePointText } from "./creatorPlaneAxes";
 
 export type InequalityOp = GraphInequality["op"];
 export type RegionShade = NonNullable<GraphSpec["inequalityShade"]>;
-export type Pair = [number, number];
 
 export const REGION_SHADE_LABELS: Record<RegionShade, string> = {
   common: "La región común",
@@ -30,8 +28,6 @@ function normal(inequality: GraphInequality): { a: number; b: number; c: number 
   const flip = inequality.op === ">" || inequality.op === ">=" ? -1 : 1;
   return { a: flip * inequality.a, b: flip * inequality.b, c: flip * inequality.c };
 }
-
-const clean = (value: number): number => tidy(Number(value.toPrecision(12))) + 0;
 
 /* ── Regiones ── */
 
@@ -185,8 +181,6 @@ function satisfies(inequality: GraphInequality, x: number, y: number): boolean |
 
 /* ── Comprobaciones para el validador ── */
 
-const point4 = (x: number, y: number) => `(${formatNumber(x, 4)}, ${formatNumber(y, 4)})`;
-
 /** Problemas de las inecuaciones de un plano: fronteras que no se ven, regiones vacías y vértices fuera del plano. */
 export function planeInequalityIssues(spec: GraphSpec): string[] {
   const inequalities = spec.inequalities ?? [];
@@ -228,8 +222,6 @@ export function planeInequalityIssues(spec: GraphSpec): string[] {
 }
 
 /* ── Lo que el sistema calculó, para devolvérselo a la IA ── */
-
-const list = (items: string[]) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`);
 
 /** Una línea con las fronteras, la región común y sus vértices, escritos como salen en la figura. */
 export function describeInequalities(spec: GraphSpec): string | null {

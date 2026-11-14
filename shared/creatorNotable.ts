@@ -2,7 +2,7 @@ import type { GraphNotable, GraphSpec } from "./creator";
 import { planeFunction } from "./creatorCalculus";
 import { formatNumber, type CompiledExpression } from "./creatorMath";
 import { insidePlane, tidy } from "./creatorPlane";
-import { planePointLatex, planePointText } from "./creatorPlaneAxes";
+import { listEs as list, planePointLatex, planePointText, point4 } from "./creatorPlaneAxes";
 
 /**
  * Puntos notables del plano cartesiano: las raíces de una función, su corte con el eje y, sus
@@ -261,7 +261,6 @@ export function shownNotablePoints(spec: GraphSpec): ShownNotable[] {
 /* ── Comprobaciones para el validador ── */
 
 const ROLE_NAMES: Record<NotableRole, string> = { root: "la raíz", yIntercept: "el corte con el eje y", maximum: "el máximo", minimum: "el mínimo", intersection: "el corte" };
-const point4 = (x: number, y: number) => `(${formatNumber(x, 4)}, ${formatNumber(y, 4)})`;
 
 function notableIssues(spec: GraphSpec, item: GraphNotable): string[] {
   const fail = (text: string) => [`Gráfica: ${text}`];
@@ -323,8 +322,6 @@ export function planeNotableIssues(spec: GraphSpec): string[] {
 }
 
 /* ── Lo que el sistema calculó, para devolvérselo a la IA ── */
-
-const list = (items: string[]) => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`);
 
 /** Una línea con los puntos que halló el sistema, escritos como salen en la figura. */
 export function describeNotable(spec: GraphSpec, item: GraphNotable): string | null {

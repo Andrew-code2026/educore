@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { blockInputSchema, graphSpecSchema, type BlockInput, type GraphSpec } from "@shared/creator";
-import { PLANE_PAD, axisNameWidth, piFraction, piLatex, piStep, piText, planeAxisIssues, planeLayout, planeTicks, planeXTicks, plotSize } from "@shared/creatorPlaneAxes";
+import { PLANE_PAD, axisNameBands, axisNameWidth, piFraction, piLatex, piStep, piText, planeAxisIssues, planeLayout, planeTicks, planeXTicks, plotSize } from "@shared/creatorPlaneAxes";
+import { minBlockWidth } from "@shared/creatorContainers";
 import { validateBlock } from "@shared/creatorValidate";
 
 const block = (input: unknown): BlockInput => blockInputSchema.parse(input);
@@ -191,5 +192,42 @@ describe("eje x en múltiplos de π", () => {
     const issues = issuesOf({ ...TRIG, xMin: -1, xMax: 1, xStep: 3.1416 });
     expect(issues).toHaveLength(1);
     expect(issues[0]).toContain("no cabe ninguna marca");
+  });
+});
+
+describe("un paso diminuto o un rango desmedido no cuelgan el cálculo", () => {
+  it("no se calculan marcas cuando serían demasiadas o el paso no sirve", () => {
+    expect(planeTicks(0, 1_000_000, 0.001)).toEqual([]);
+    expect(planeTicks(0, 10, 0)).toEqual([]);
+    expect(planeTicks(0, 10, Number.NaN)).toEqual([]);
+    // El caso normal, y uno muy por encima de lo que el validador admite, siguen saliendo
+    expect(planeTicks(0, 10, 1)).toHaveLength(11);
+    expect(planeTicks(0, 100, 0.5)).toHaveLength(201);
+  });
+
+  it("el validador responde con su aviso en vez de recorrer millones de marcas", () => {
+    const started = Date.now();
+    const money = issuesOf({ xMin: 0, xMax: 10, yMin: 0, yMax: 1_000_000, yStep: 0.001, yLabel: "Costo ($)" });
+    expect(money).toContain("Gráfica: demasiadas divisiones en y; aumenta yStep.");
+    const trig = issuesOf({ xMin: 0, xMax: 1e9, yMin: -2, yMax: 2, xStep: 1.5708, xUnit: "pi" });
+    expect(trig).toEqual(["Gráfica: demasiadas divisiones en x; aumenta xStep."]);
+    expect(planeXTicks(spec({ xMin: 0, xMax: 1e9, xStep: 1.5708, xUnit: "pi" }), 320)).toEqual([]);
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+});
+
+describe("el plano dentro de una columna", () => {
+  const graph = (extra: Record<string, unknown>) => block({ type: "graph", spec: { ...PLANE, ...extra } });
+
+  it("sin nombres de eje pide el ancho de siempre", () => {
+    expect(axisNameBands(spec())).toBe(0);
+    expect(minBlockWidth(graph({}))).toBe(270);
+    expect(minBlockWidth(graph({ xLabel: "Tiempo (h)" }))).toBe(270);
+  });
+
+  it("el nombre del eje y suma su franja al ancho mínimo", () => {
+    expect(minBlockWidth(graph({ yLabel: "Costo ($)" }))).toBe(286);
+    // Con el eje y en el borde y números de seis caracteres, también el sitio de los números
+    expect(minBlockWidth(graph({ xMin: 0, xMax: 10, yMin: 0, yMax: 20000, yStep: 5000, yLabel: "Costo ($)" }))).toBe(270 + 6 * 6 + 13 + 16 - 30);
   });
 });

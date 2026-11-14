@@ -2,7 +2,8 @@ import type { GraphFigure, GraphSpec, GraphTransform } from "./creator";
 import { lineEquationLatex, measureText } from "./creatorCalculus";
 import { pointText } from "./creatorConics";
 import { formatNumber } from "./creatorMath";
-import { figureNumber, figureNumberLatex, hasEqualUnits, insidePlane, isExactNumber, PLANE_EQUAL_UNITS, tidy } from "./creatorPlane";
+import { figureNumber, figureNumberLatex, hasEqualUnits, insidePlane, isExactNumber, PLANE_EQUAL_UNITS } from "./creatorPlane";
+import { cleanNumber as clean, point4, pointParts, type Pair } from "./creatorPlaneAxes";
 
 /**
  * Geometría en el plano cartesiano: puntos con nombre, segmentos y polígonos, con sus longitudes
@@ -15,7 +16,7 @@ export type FigureKind = GraphFigure["kind"];
 export type FigureShow = NonNullable<GraphFigure["show"]>[number];
 export type TransformKind = GraphTransform["kind"];
 export type Mirror = Extract<GraphTransform, { kind: "reflection" }>["over"];
-export type Pair = [number, number];
+export type { Pair };
 
 export const FIGURE_KIND_LABELS: Record<FigureKind, string> = {
   points: "Puntos sueltos",
@@ -49,9 +50,6 @@ export const MIRROR_LABELS: Record<Mirror, string> = {
   vertical: "Respecto a una recta vertical",
   line: "Respecto a una recta y = mx + b",
 };
-
-/** Quita el ruido de una suma o un producto y el signo de un cero negativo. */
-const clean = (value: number): number => tidy(Number(value.toPrecision(12))) + 0;
 
 /* ── Transformaciones ── */
 
@@ -180,28 +178,24 @@ export function planeFigure(figure: GraphFigure): PlaneFigureView {
 
 const shows = (figure: GraphFigure, item: FigureShow) => (figure.show ?? []).includes(item);
 
-/** Coordenadas de un punto en LaTeX, con ≈ si alguna va redondeada. */
-function coordinatesLatex(x: number, y: number): { text: string; exact: boolean } {
-  const xs = figureNumberLatex(x);
-  const ys = figureNumberLatex(y);
-  return { text: `(${xs}${xs.includes("{,}") || ys.includes("{,}") ? ";" : ","}\\, ${ys})`, exact: isExactNumber(x) && isExactNumber(y) };
-}
-
-/** Rótulo de un vértice: su nombre, sus coordenadas o las dos cosas («A(2, 1)»); null si no lleva nada. */
-export function vertexLabel(vertex: PlaneVertex, withCoordinates: boolean): string | null {
+/**
+ * Rótulo de un vértice: su nombre, sus coordenadas o las dos cosas («A(2, 1)»); null si no lleva nada.
+ * `pi` escribe la abscisa en múltiplos de π, como el resto del plano cuando su eje los usa.
+ */
+export function vertexLabel(vertex: PlaneVertex, withCoordinates: boolean, pi = false): string | null {
   if (!withCoordinates) return vertex.name;
-  const { text, exact } = coordinatesLatex(vertex.x, vertex.y);
-  if (!vertex.name) return `${exact ? "" : "\\approx "}${text}`;
-  return `${vertex.name}${exact ? "" : " \\approx "}${text}`;
+  const { latex, exact } = pointParts(vertex.x, vertex.y, pi);
+  if (!vertex.name) return `${exact ? "" : "\\approx "}${latex}`;
+  return `${vertex.name}${exact ? "" : " \\approx "}${latex}`;
 }
 
 /** Rótulo de un lado: su longitud, exacta o con ≈. */
 export const sideLabel = (side: PlaneSide): string => (isExactNumber(side.length) ? figureNumberLatex(side.length) : `\\approx ${figureNumberLatex(side.length)}`);
 
 /** Rótulo del punto medio de un segmento: «M(2,5; 4)». */
-export function midpointLabel([x, y]: Pair): string {
-  const { text, exact } = coordinatesLatex(x, y);
-  return `M${exact ? "" : " \\approx "}${text}`;
+export function midpointLabel([x, y]: Pair, pi = false): string {
+  const { latex, exact } = pointParts(x, y, pi);
+  return `M${exact ? "" : " \\approx "}${latex}`;
 }
 
 /** Lo que una figura pide escribir (show), ya resuelto para el dibujo. */
@@ -209,7 +203,6 @@ export const figureShows = (figure: GraphFigure) => ({ coordinates: shows(figure
 
 /* ── Comprobaciones para el validador ── */
 
-const point4 = (x: number, y: number) => `(${formatNumber(x, 4)}, ${formatNumber(y, 4)})`;
 const plain = (name: string | null) => (name ? name.replace(/[_{}]/g, "") : "");
 
 const POLYGON_NAMES: Record<number, string> = { 3: "Triángulo", 4: "Cuadrilátero", 5: "Pentágono", 6: "Hexágono" };
@@ -314,7 +307,10 @@ export function planeFigureIssues(spec: GraphSpec): string[] {
 
 /* ── Lo que el sistema calculó, para devolvérselo a la IA ── */
 
-const namedPoint = (vertex: PlaneVertex) => `${plain(vertex.name)}${isExactNumber(vertex.x) && isExactNumber(vertex.y) ? "" : vertex.name ? " ≈ " : "≈ "}${pointText(vertex.x, vertex.y)}`;
+function namedPoint(vertex: PlaneVertex, pi: boolean): string {
+  const { text, exact } = pointParts(vertex.x, vertex.y, pi);
+  return `${plain(vertex.name)}${exact ? "" : vertex.name ? " ≈ " : "≈ "}${text}`;
+}
 
 /** Una longitud como va en la clave: exacta, como raíz (√20 ≈ 4,47) o aproximada. */
 function lengthText(side: PlaneSide): string {
@@ -324,11 +320,14 @@ function lengthText(side: PlaneSide): string {
 
 const sideName = (side: PlaneSide, fallback: string) => (side.from.name && side.to.name ? `${plain(side.from.name)}${plain(side.to.name)}` : fallback);
 
-function describeShape(shape: PlaneShape): string {
-  const parts = [shape.vertices.map(namedPoint).join(", ")];
+function describeShape(shape: PlaneShape, pi: boolean): string {
+  const parts = [shape.vertices.map(vertex => namedPoint(vertex, pi)).join(", ")];
   if (shape.kind === "segment" && shape.sides.length === 1) {
     parts.push(`longitud ${lengthText(shape.sides[0])}`);
-    if (shape.midpoint) parts.push(`punto medio ${isExactNumber(shape.midpoint[0]) && isExactNumber(shape.midpoint[1]) ? "" : "≈ "}${pointText(shape.midpoint[0], shape.midpoint[1])}`);
+    if (shape.midpoint) {
+      const middle = pointParts(shape.midpoint[0], shape.midpoint[1], pi);
+      parts.push(`punto medio ${middle.exact ? "" : "≈ "}${middle.text}`);
+    }
   }
   if (shape.kind === "polygon" && shape.sides.length > 0) {
     parts.push(`lados ${shape.sides.map((side, index) => `${sideName(side, `lado ${index + 1}`)} ${lengthText(side)}`).join(", ")}`);
@@ -355,10 +354,10 @@ export function transformText(transform: GraphTransform): string {
   }
 }
 
-/** Una línea con la figura y su imagen, escritas como salen en el plano. */
-export function describeFigure(figure: GraphFigure): string {
+/** Una línea con la figura y su imagen, escritas como salen en el plano (con `pi`, las abscisas en múltiplos de π). */
+export function describeFigure(figure: GraphFigure, pi = false): string {
   const view = planeFigure(figure);
-  const original = describeShape(view.original);
+  const original = describeShape(view.original, pi);
   if (!figure.transform || !view.image) return original;
-  return `${original} Su imagen por la ${transformText(figure.transform)}: ${describeShape(view.image)}`;
+  return `${original} Su imagen por la ${transformText(figure.transform)}: ${describeShape(view.image, pi)}`;
 }

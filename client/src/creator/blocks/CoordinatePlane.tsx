@@ -5,7 +5,7 @@ import { areaLabel, areaShape, lineLabel, secantLine, tangentLine, type PlaneLin
 import { CONIC_LABELS, conicCurves, conicEquation, shownConicElements, type ConicLine } from "@shared/creatorConics";
 import { describeNotable, shownNotablePoints } from "@shared/creatorNotable";
 import { functionColors, insidePlane, sampleFunction, type CurveMark } from "@shared/creatorPlane";
-import { labelEvery, planeLayout, planePointLatex, planeTicks, planeXTicks } from "@shared/creatorPlaneAxes";
+import { labelEvery, planeLayout, planePointLatex, planeTicks, planeXTicks, usesPi } from "@shared/creatorPlaneAxes";
 import { describeFigure, figureShows, midpointLabel, mirrorLine, planeFigure, sideLabel, transformCenter, vertexLabel } from "@shared/creatorPlaneGeometry";
 import { boundarySegment, commonRegion, describeInequalities, halfPlaneRegion, inequalityLatex, isStrict, regionVertices } from "@shared/creatorRegions";
 import { TEXT_HALO } from "./FigureFrame";
@@ -94,7 +94,7 @@ function describe(spec: GraphSpec): string {
   const axes = [spec.xLabel && `eje x: ${spec.xLabel}`, spec.yLabel && `eje y: ${spec.yLabel}`].filter(Boolean).join(", ");
   const unit = spec.xUnit === "pi" ? "Eje x en múltiplos de π" : "";
   const notable = (spec.notable ?? []).map(item => describeNotable(spec, item)).filter(Boolean).join(" ");
-  const figures = (spec.figures ?? []).map(describeFigure).join(" ").replace(/\$/g, "");
+  const figures = (spec.figures ?? []).map(figure => describeFigure(figure, usesPi(spec))).join(" ").replace(/\$/g, "");
   const regions = describeInequalities(spec) ?? "";
   return (
     [base, axes && `Ejes con nombre, ${axes}`, unit, notable.replace(/\.$/, ""), figures.replace(/\.$/, ""), regions.replace(/\.$/, ""), lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, tangents && `Recta tangente en ${tangents}`, secants && `Recta secante entre ${secants}`, points && `Puntos marcados: ${points}`]
@@ -205,6 +205,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       };
     });
 
+    const pi = usesPi(spec);
     // Figuras geométricas: la original y, si se transforma, su imagen en el color siguiente
     const figureBase = spec.functions.length + (spec.conics ?? []).length;
     const figures = (spec.figures ?? []).map((figure, index) => {
@@ -249,13 +250,9 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
           }
         } else if (center) {
           if (transform.kind === "rotation") guides.push(ray(center, first), ray(center, moved));
-          else {
-            original.vertices.forEach((vertex, at) => {
-              const other = image.vertices[at];
-              const far = Math.hypot(vertex.x - center[0], vertex.y - center[1]) >= Math.hypot(other.x - center[0], other.y - center[1]) ? vertex : other;
-              guides.push(ray(center, [far.x, far.y]));
-            });
-          }
+          // En una homotecia cada vértice, su imagen y el centro están alineados: la recta va de uno a otro pasando por
+          // el centro, que con razón negativa queda en medio
+          else original.vertices.forEach((vertex, at) => guides.push(ray(center, [vertex.x, vertex.y]), ray(center, [image.vertices[at].x, image.vertices[at].y])));
         }
       }
       return { index, shapes, guides, guideSamples, arrow, center: center && inPlane(center[0], center[1]) ? center : null, show: figureShows(figure) };
@@ -402,14 +399,14 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       const tone = `crt-plane__label--${item.tone}`;
       const [cx, cy] = item.center;
       for (const vertex of item.shape.vertices) {
-        const label = vertexLabel(vertex, item.show.coordinates);
+        const label = vertexLabel(vertex, item.show.coordinates, pi);
         if (!label) continue;
         const labelW = measureLabel(label);
         const away = (candidate: { x: number; y: number }) => Math.hypot(candidate.x + labelW / 2 - cx, candidate.y + LABEL_H / 2 - cy);
         place(label, tone, around(sx(vertex.x), sy(vertex.y), labelW).sort((a, b) => away(b) - away(a)), labelW);
       }
       if (item.show.midpoint && item.shape.midpoint) {
-        const label = midpointLabel(item.shape.midpoint);
+        const label = midpointLabel(item.shape.midpoint, pi);
         place(label, tone, around(sx(item.shape.midpoint[0]), sy(item.shape.midpoint[1]), measureLabel(label)), measureLabel(label));
       }
     }
@@ -599,12 +596,13 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       .flatMap(curve => curve.marks.map((mark, index) => ({ ...mark, tone: curve.tone, key: `${curve.index}-${index}` })))
       .sort((a, b) => Number(a.filled) - Number(b.filled));
 
-    return { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, notable, figures, figureShapes, bounds, regionPath, corners, labels, toneOf };
+    // La descripción para lectores de pantalla repite cálculos de arriba: se hace una vez por plano, no en cada render
+    return { description: describe(spec), layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, notable, figures, figureShapes, bounds, regionPath, corners, labels, toneOf };
   }, [spec]);
 
   if (!view) return <div className="crt-plane crt-plane--invalid">Rango de la gráfica no válido.</div>;
 
-  const { layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, notable, figures, figureShapes, bounds, regionPath, corners, labels, toneOf } = view;
+  const { description, layout, sx, sy, xTicks, yTicks, axisX, axisY, everyY, curves, marks, verticals, conics, areas, lines, notable, figures, figureShapes, bounds, regionPath, corners, labels, toneOf } = view;
   const { w, h, width, height, pad: PAD } = layout;
   const axisXpx = sy(axisX);
   const axisYpx = sx(axisY);
@@ -616,7 +614,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
   const bottom = PAD.top + h + 10;
   // En múltiplos de π las raíces de seno y coseno caen justo en las marcas: sus rótulos van encima de
   // las curvas, con halo, para que se lean. Con números, el eje se dibuja como siempre, debajo.
-  const piAxis = spec.xUnit === "pi";
+  const piAxis = usesPi(spec);
   const xNumbers = xTicks.map(tick =>
     (originInside && tick.value === 0) || !tick.labeled ? null : (
       <text key={`lx${tick.value}`} x={sx(tick.value)} y={axisXpx + 14} textAnchor="middle" style={piAxis ? TEXT_HALO : undefined}>
@@ -627,7 +625,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
 
   return (
     <div className="crt-plane" data-notes={noted ? "" : undefined} style={{ "--plane-w": `${width}px`, "--plane-wn": width, "--plane-hn": height, aspectRatio: `${width} / ${height}` } as CSSProperties}>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={describe(spec)}>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={description}>
         <defs>
           <clipPath id={clipId}>
             <rect x={PAD.left} y={PAD.top} width={w} height={h} />

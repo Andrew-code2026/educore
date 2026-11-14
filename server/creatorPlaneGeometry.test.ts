@@ -237,3 +237,20 @@ describe("validación de la geometría del plano", () => {
     expect(graphFigureSchema.safeParse({ kind: "polygon", vertices: [] }).success).toBe(false);
   });
 });
+
+describe("figuras en un plano en múltiplos de π", () => {
+  const onAxis = { kind: "points", vertices: [{ x: Math.PI, y: 0, name: "P" }, { x: 1, y: 2, name: "Q" }] };
+
+  it("las abscisas que son múltiplos de π se escriben con π, como los puntos notables del mismo plano", () => {
+    expect(vertexLabel({ x: Math.PI / 2, y: 1, name: "A" }, true, true)).toBe("A(\\frac{\\pi}{2},\\, 1)");
+    expect(vertexLabel({ x: Math.PI / 2, y: 1, name: "A" }, true)).toBe("A \\approx (1{,}57;\\, 1)");
+    expect(midpointLabel([Math.PI, 0.5], true)).toBe("M(\\pi;\\, 0{,}5)");
+    expect(describeFigure(figure(onAxis), true)).toBe("Puntos: P(π, 0), Q(1, 2).");
+    expect(describeFigure(figure(onAxis))).toBe("Puntos: P ≈ (3,14; 0), Q(1, 2).");
+  });
+
+  it("describeGraph usa la unidad del eje del plano", () => {
+    const spec = graphSpecSchema.parse({ xMin: -6.2832, xMax: 6.2832, yMin: -2, yMax: 2, xStep: 1.5708, xUnit: "pi", figures: [onAxis] });
+    expect(describeGraph(spec)).toBe("Gráfica: Puntos: P(π, 0), Q(1, 2).");
+  });
+});

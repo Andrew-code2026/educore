@@ -136,6 +136,12 @@ const FIGURE_KIND_OPTIONS: readonly SelectOption<FigureKind>[] = (Object.keys(FI
 const TRANSFORM_OPTIONS: readonly SelectOption<TransformKind | "">[] = [{ value: "", label: "Ninguna" }, ...(Object.keys(TRANSFORM_LABELS) as TransformKind[]).map(kind => ({ value: kind, label: TRANSFORM_LABELS[kind] }))];
 const MIRROR_OPTIONS: readonly SelectOption<Mirror>[] = (Object.keys(MIRROR_LABELS) as Mirror[]).map(over => ({ value: over, label: MIRROR_LABELS[over] }));
 
+/**
+ * Un múltiplo de π como lo teclea el docente: 0,33 es un tercio y 0,17 un sexto. Lo que queda a una
+ * centésima de un doceavo se toma por él, para que π/3 no se guarde como 0,33π.
+ */
+const piMultiple = (typed: number): number => (Math.abs(typed * 12 - Math.round(typed * 12)) <= 0.12 ? Math.round(typed * 12) / 12 : typed);
+
 /** Vértices que necesita cada figura como mínimo. */
 const FIGURE_MIN_VERTICES: Record<FigureKind, number> = { points: 1, segment: 2, polygon: 3 };
 
@@ -297,7 +303,7 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
           const name = inPi ? `${label} (× π)` : label;
           return (
             <Field key={`${key}-${inPi}`} label={name}>
-              <NumberInput label={name} value={inPi ? Number((spec[key] / Math.PI).toFixed(4)) : spec[key]} onChange={value => setSpec({ [key]: inPi ? value * Math.PI : value })} />
+              <NumberInput label={name} value={inPi ? Number((spec[key] / Math.PI).toFixed(4)) : spec[key]} onChange={value => setSpec({ [key]: inPi ? piMultiple(value) * Math.PI : value })} />
             </Field>
           );
         })}
@@ -666,7 +672,7 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
               </Field>
               {figure.transform && <TransformFields transform={figure.transform} index={index} onChange={transform => setFigure(index, { ...figure, transform })} />}
             </div>
-            <p className="crt-form__hint">{describeFigure(figure).replace(/\$/g, "")}</p>
+            <p className="crt-form__hint">{describeFigure(figure, piAxis).replace(/\$/g, "")}</p>
           </div>
         );
       })}
