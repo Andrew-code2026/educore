@@ -1898,11 +1898,15 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 
 /* Tablas estadísticas (StatTables.tsx): el aspecto de .crt-table con encabezados más pequeños, para que
    siete columnas quepan en carta. Su ancho lo estima statTableWidth (creatorStatTables.ts) con estas medidas */
+/* Las palabras no se parten (la hoja usa overflow-wrap: anywhere): el validador rechaza la tabla que no cabe */
+.crt-table--stat :is(th, td) { overflow-wrap: normal; }
 .crt-table--stat thead th { padding: 6px 8px; font-size: 12.5px; line-height: 1.25; }
 .crt-stat-table__title { display: block; }
 .crt-stat-table__symbol { display: block; margin-top: 2px; font-family: "KaTeX_Main", "Times New Roman", serif; font-size: 14px; font-weight: 400; white-space: nowrap; }
 .crt-stat-table__symbol sub { font-size: .72em; }
 .crt-table--stat .crt-stat-table__nowrap { white-space: nowrap; }
+/* Una fracción \dfrac al tamaño normal de KaTeX (1,21 em) dobla la altura de la fila; así queda a la par de los números */
+.crt-table--stat td .katex { font-size: 1.08em; }
 .crt-table--stat tfoot td, .crt-table--stat .crt-stat-table__total { font-weight: 600; }
 /* Una columna acumulada no tiene total: su celda de la fila de totales va sombreada, no en blanco para escribir */
 .crt-table--stat .crt-stat-table__none { background: #F5F6F8; }

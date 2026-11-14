@@ -104,6 +104,10 @@ describe("medidas de tendencia central y de dispersión", () => {
     expect(measureText(1.5)).toBe("1,5");
     expect(measureText(10 / 3)).toBe("≈ 3,33");
     expect(measureText(1234.5)).toBe("1.234,5");
+    // Redondeado, siempre con dos decimales: 5/51 no sale «≈ 0,1»
+    expect(measureText(5 / 51)).toBe("≈ 0,10");
+    expect(measureText(-10 / 3)).toBe("≈ -3,33");
+    expect(measureText(100000 / 7)).toBe("≈ 14.285,71");
     expect(joinEs(["2"])).toBe("2");
     expect(joinEs(["2", "4"])).toBe("2 y 4");
     expect(joinEs(["1", "3", "5"])).toBe("1, 3 y 5");
@@ -159,9 +163,9 @@ describe("frecuencia relativa", () => {
 describe("tabla de frecuencias", () => {
   it("cuenta datos sueltos: un valor por fila, de menor a mayor", () => {
     const view = frequencyTableView(frequency({ data: [2, 0, 1, 1, 2, 2, 3, 1, 0, 2], relative: ["fraction", "decimal", "percent"], cumulative: true }))!;
-    expect(view.columns.map(column => column.title)).toEqual(["Frecuencia absoluta", "Frecuencia relativa", "Frecuencia relativa", "Porcentaje", "Frecuencia acumulada"]);
+    expect(view.columns.map(column => column.title)).toEqual(["Frecuencia absoluta", "Frecuencia relativa (fracción)", "Frecuencia relativa (decimal)", "Porcentaje", "Frecuencia acumulada"]);
     expect(view.rows.map(row => row.label)).toEqual(["0", "1", "2", "3"]);
-    expect(view.rows[1].cells).toEqual([{ text: "3" }, { text: "3/10", latex: "\\frac{3}{10}" }, { text: "0,30" }, { text: "30 %" }, { text: "5" }]);
+    expect(view.rows[1].cells).toEqual([{ text: "3" }, { text: "3/10", latex: "\\dfrac{3}{10}" }, { text: "0,30" }, { text: "30 %" }, { text: "5" }]);
     expect(view.totals!.map(cell => cell.text)).toEqual(["10", "1", "1", "100 %", ""]);
     expect(view.note).toBeNull();
   });
@@ -273,7 +277,7 @@ describe("tabla de contingencia", () => {
     expect(view.totals!.total.text).toBe("100 %");
     expect(view.note).toContain("100 %");
     const fractions = contingencyTableView(contingency({ display: "fraction" }))!;
-    expect(fractions.rows[0].cells[0]).toMatchObject({ text: "12/51", latex: "\\frac{12}{51}" });
+    expect(fractions.rows[0].cells[0]).toMatchObject({ text: "12/51", latex: "\\dfrac{12}{51}" });
   });
 
   it("deja en blanco las celdas pedidas por su fila y su columna, totales incluidos", () => {

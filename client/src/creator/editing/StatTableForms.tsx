@@ -353,7 +353,8 @@ export function ContingencyTableForm({ draft, onChange }: FormProps<"contingency
   const columnNames = [...draft.columns, ...(draft.totals ? ["Total"] : [])];
   const isBlank = (row: string, column: string) => draft.blank.some(cell => sameCell(cell, { row, column }));
   const setBlank = (row: string, column: string, on: boolean) => onChange({ ...draft, blank: on ? [...draft.blank, { row, column }] : draft.blank.filter(cell => !sameCell(cell, { row, column })) });
-  const grid = { gridTemplateColumns: `minmax(96px, 1.3fr) repeat(${columnCount}, minmax(64px, 1fr)) 36px` };
+  // Los rótulos de las columnas ganan ancho frente a los de las filas: en el panel angosto se cortaban primero
+  const grid = { gridTemplateColumns: `minmax(72px, 0.9fr) repeat(${columnCount}, minmax(56px, 1fr)) 36px` };
 
   return (
     <>

@@ -131,8 +131,15 @@ export function measuresOf(distribution: readonly ValueCount[]): Measures | null
 /** Medidas de unos datos crudos, en cualquier orden. */
 export const dataMeasures = (data: readonly number[]): Measures | null => measuresOf(distributionOf(data));
 
-/** Una medida como la lee el estudiante: exacta si se escribe con hasta cuatro decimales; si no, con dos y el signo ≈. */
-export const measureText = (value: number): string => (isExactNumber(value) ? figureNumber(value) : `≈ ${figureNumber(value)}`);
+/** Un número con `decimals` decimales fijos, coma decimal y punto de miles: 0.098 con 2 → "0,10". */
+function fixedEs(value: number, decimals: number): string {
+  const [whole, fraction] = Math.abs(value).toFixed(decimals).split(".");
+  const sign = value < 0 && Number(value.toFixed(decimals)) !== 0 ? "-" : "";
+  return `${sign}${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}${fraction ? `,${fraction}` : ""}`;
+}
+
+/** Una medida como la lee el estudiante: exacta si se escribe con hasta cuatro decimales; si no, con dos fijos y el signo ≈ (≈ 0,10, no ≈ 0,1). */
+export const measureText = (value: number): string => (isExactNumber(value) ? figureNumber(value) : `≈ ${fixedEs(value, 2)}`);
 
 const modesText = (modes: readonly number[]) => (modes.length === 0 ? "no hay" : joinEs(modes.map(value => formatTableNumber(value))));
 
@@ -207,7 +214,8 @@ export interface CellText {
 
 /** Una frecuencia relativa (o una acumulada) en el formato pedido, a partir de su conteo y de sus unidades. */
 export function shareCell(format: RelativeFormat, count: number, total: number, units: number, shares: RelativeShares): CellText {
-  if (format === "fraction") return { text: `${count}/${total}`, latex: `\\frac{${count}}{${total}}` };
+  // \dfrac: en una tabla, la fracción de texto (\frac) sale más pequeña que los números de al lado
+  if (format === "fraction") return { text: `${count}/${total}`, latex: `\\dfrac{${count}}{${total}}` };
   if (format === "decimal") return { text: unitsText(units, shares.percentDecimals + 2) };
   return { text: `${unitsText(units, shares.percentDecimals)} %` };
 }
@@ -219,7 +227,7 @@ export const shareTotal = (format: RelativeFormat): CellText => ({ text: format 
 export function roundingNote(formats: readonly RelativeFormat[]): string | null {
   const decimal = formats.includes("decimal");
   const percent = formats.includes("percent");
-  if (decimal && percent) return "Frecuencias relativas redondeadas a centésimas (al entero en %) y ajustadas para que sumen 1 (100 %).";
+  if (decimal && percent) return "Frecuencias relativas redondeadas y ajustadas para que sumen 1 (100 %).";
   if (decimal) return "Frecuencias relativas redondeadas a centésimas y ajustadas para que sumen 1.";
   if (percent) return "Porcentajes redondeados al entero y ajustados para que sumen 100 %.";
   return null;
@@ -227,10 +235,13 @@ export function roundingNote(formats: readonly RelativeFormat[]): string | null 
 
 /* ── Ancho de una tabla en la hoja ── */
 
-/** Medidas de las tablas de creator.css: letra de 14 px, relleno de 12 px a cada lado y 52 px de ancho mínimo. */
+/**
+ * Medidas de las tablas de creator.css (letra Outfit de 14 px, relleno de 12 px a cada lado), algo holgadas:
+ * medidas en Chrome, las tablas de prueba resultaron entre un 10 % y un 30 % más angostas que lo estimado.
+ */
 const TABLE_CHAR_PX = 8;
 const TABLE_CELL_PAD_PX = 26;
-const TABLE_CELL_MIN_PX = 52 + TABLE_CELL_PAD_PX;
+const TABLE_CELL_MIN_PX = 64;
 /** Las tablas estadísticas escriben sus encabezados más pequeños (12,5 px) y con menos relleno (creator.css). */
 const TABLE_HEAD_CHAR_PX = 7.4;
 const TABLE_HEAD_PAD_PX = 18;
@@ -490,12 +501,11 @@ export function frequencyTableView(spec: FrequencyTableSpec): FrequencyView | nu
   const columns: FrequencyColumn[] = [];
   if (spec.classMark && model.grouped) columns.push({ key: "classMark", title: "Marca de clase", symbol: "x", suffix: "", blank: blank.has("classMark") });
   columns.push({ key: "absolute", title: "Frecuencia absoluta", symbol: "f", suffix: "", blank: blank.has("absolute") });
+  // Con fracción y decimal a la vez, cada encabezado dice cuál es: en blanco, el estudiante no lo vería
+  const both = formats.includes("fraction") && formats.includes("decimal");
   for (const format of formats) {
-    columns.push(
-      format === "percent"
-        ? { key: "relative", title: "Porcentaje", symbol: "h", suffix: " %", format, blank: blank.has("relative") }
-        : { key: "relative", title: "Frecuencia relativa", symbol: "h", suffix: "", format, blank: blank.has("relative") },
-    );
+    const title = format === "percent" ? "Porcentaje" : both ? `Frecuencia relativa (${format === "fraction" ? "fracción" : "decimal"})` : "Frecuencia relativa";
+    columns.push({ key: "relative", title, symbol: "h", suffix: format === "percent" ? " %" : "", format, blank: blank.has("relative") });
   }
   if (spec.cumulative) columns.push({ key: "cumulative", title: "Frecuencia acumulada", symbol: "F", suffix: "", blank: blank.has("cumulative") });
   if (spec.cumulativeRelative) {
@@ -779,7 +789,7 @@ export function probabilityText(part: number, whole: number): string {
   const value = part / whole;
   const divisor = gcd(part, whole);
   const simplified = divisor > 1 && part !== 0 && part !== whole ? ` = ${part / divisor}/${whole / divisor}` : "";
-  const decimal = isExactNumber(value) ? ` = ${figureNumber(value)}` : ` ≈ ${figureNumber(value)}`;
+  const decimal = isExactNumber(value) ? ` = ${figureNumber(value)}` : ` ${measureText(value)}`;
   return `${part}/${whole}${simplified}${decimal}`;
 }
 
