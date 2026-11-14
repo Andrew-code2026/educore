@@ -5,7 +5,7 @@ import { VENN_REGIONS } from "./creatorDiagrams";
 import { FIGURE_NOTE_TEXT_MAX, FIGURE_NOTES_MAX } from "./creatorFigureNotes";
 import { FIGURE_SIZES } from "./creatorFigureSize";
 import { formatNumberEs, MATH_EXPR_MAX } from "./creatorMath";
-import { SOLID_LABEL_MAX, SOLID_NAMES } from "./creatorSolids";
+import { SOLID_LABEL_MAX, solidTitle } from "./creatorSolids";
 import { TRIANGLE_LABEL_MAX, TRIANGLE_SHOW } from "./creatorTriangle";
 import { UNIT_CIRCLE_LABEL_MAX, UNIT_CIRCLE_SETS } from "./creatorUnitCircle";
 
@@ -1011,11 +1011,17 @@ const solidLabel = z
   .meta({ id: "solid_label", description: 'Rótulo en texto plano en lugar de la medida: "x", "h", "?". Cadena vacía para no escribir esa medida. Sin él se escribe la medida.' })
   .optional();
 const solidSlant = z.boolean().default(false);
+/** Desarrollo plano: lo tienen el cubo, los prismas y el cilindro. */
+const solidNet = z
+  .enum(["beside", "only"])
+  .meta({ id: "solid_net", description: 'Desarrollo plano con sus medidas: "beside" lo dibuja junto al sólido; "only" dibuja solo el desarrollo (para reconocer o armar el sólido). Sin él, solo el sólido.' })
+  .optional();
 
+// Estrictos: un campo que no es de ese sólido (net en un cono, slant en un cilindro) se rechaza en vez de perderse
 const solidSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("cube"), edge: solidLength, edgeLabel: solidLabel }),
-  z.object({ kind: z.literal("rectangular_prism"), length: solidLength, width: solidLength, height: solidLength, lengthLabel: solidLabel, widthLabel: solidLabel, heightLabel: solidLabel }),
-  z.object({
+  z.strictObject({ kind: z.literal("cube"), edge: solidLength, edgeLabel: solidLabel, net: solidNet }),
+  z.strictObject({ kind: z.literal("rectangular_prism"), length: solidLength, width: solidLength, height: solidLength, lengthLabel: solidLabel, widthLabel: solidLabel, heightLabel: solidLabel, net: solidNet }),
+  z.strictObject({
     kind: z.literal("triangular_prism"),
     base: solidLength.describe("Base del triángulo de las caras paralelas."),
     triangleHeight: solidLength.describe("Altura de ese triángulo."),
@@ -1024,9 +1030,10 @@ const solidSchema = z.discriminatedUnion("kind", [
     baseLabel: solidLabel,
     triangleHeightLabel: solidLabel,
     lengthLabel: solidLabel,
+    net: solidNet,
   }),
-  z.object({ kind: z.literal("cylinder"), radius: solidLength, height: solidLength, radiusLabel: solidLabel, heightLabel: solidLabel }),
-  z.object({
+  z.strictObject({ kind: z.literal("cylinder"), radius: solidLength, height: solidLength, radiusLabel: solidLabel, heightLabel: solidLabel, net: solidNet }),
+  z.strictObject({
     kind: z.literal("cone"),
     radius: solidLength,
     height: solidLength,
@@ -1035,7 +1042,7 @@ const solidSchema = z.discriminatedUnion("kind", [
     heightLabel: solidLabel,
     slantLabel: solidLabel,
   }),
-  z.object({
+  z.strictObject({
     kind: z.literal("square_pyramid"),
     base: solidLength.describe("Arista de la base cuadrada."),
     height: solidLength,
@@ -1044,7 +1051,7 @@ const solidSchema = z.discriminatedUnion("kind", [
     heightLabel: solidLabel,
     slantLabel: solidLabel,
   }),
-  z.object({ kind: z.literal("sphere"), radius: solidLength, radiusLabel: solidLabel }),
+  z.strictObject({ kind: z.literal("sphere"), radius: solidLength, radiusLabel: solidLabel }),
 ]);
 
 const solidBlock = z.object({
@@ -1883,7 +1890,7 @@ export function blockPreview(block: BlockInput): string {
     case "triangle":
       return block.caption || `${block.triangles.length > 1 ? "Triángulos" : "Triángulo"} ${block.triangles.map(triangle => triangleData(triangle)).join(" y ")}`;
     case "solid":
-      return block.caption || `Sólidos: ${block.solids.map(solid => SOLID_NAMES[solid.kind]).join(", ")}`;
+      return block.caption || `Sólidos: ${block.solids.map(solidTitle).join(", ")}`;
     case "unit_circle":
       return block.caption || `Círculo unitario${block.highlight ? ` con ${block.highlight.degrees}° resaltado` : ""}${block.showCoordinates ? "" : ", sin coordenadas"}`;
     case "balance":
