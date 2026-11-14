@@ -8,6 +8,7 @@ import { functionColors, insidePlane, sampleFunction, type CurveMark } from "@sh
 import { labelEvery, planeLayout, planePointLatex, planeTicks, planeXTicks } from "@shared/creatorPlaneAxes";
 import { describeFigure, figureShows, midpointLabel, mirrorLine, planeFigure, sideLabel, transformCenter, vertexLabel } from "@shared/creatorPlaneGeometry";
 import { boundarySegment, commonRegion, describeInequalities, halfPlaneRegion, inequalityLatex, isStrict, regionVertices } from "@shared/creatorRegions";
+import { TEXT_HALO } from "./FigureFrame";
 import { FigureNotes, useHasNotes } from "./FigureNotes";
 import { Formula } from "./Formula";
 
@@ -44,6 +45,40 @@ const FRACTION = /\\d?frac\{((?:[^{}]|\{[^{}]*\})*)\}\{((?:[^{}]|\{[^{}]*\})*)\}
 
 /** Ancho de una fórmula con fracciones: cada fracción ocupa lo que su parte más larga, no la suma de las dos. */
 const estimateFractionWidth = (latex: string) => estimateWidth(latex.replace(FRACTION, (_, top: string, bottom: string) => (top.length >= bottom.length ? top : bottom)));
+
+const LABEL_TOKEN = /\\d?frac\{((?:[^{}]|\{[^{}]*\})*)\}\{((?:[^{}]|\{[^{}]*\})*)\}|\\[a-zA-Z]+|\\,|\{,\}|_\{[^{}]*\}|[^\s{}]/g;
+
+/**
+ * Ancho de un rótulo que escribe el sistema (coordenadas, longitudes, inecuaciones), sumando lo que mide
+ * cada signo a su tamaño de letra. Es más ajustado que `estimateWidth`: estos rótulos son muchos y cortos,
+ * y con el ancho de sobra no cabrían donde sí caben.
+ */
+function measureLabel(latex: string): number {
+  const inner = (text: string): number => {
+    let width = 0;
+    let previous = "(";
+    for (const match of text.matchAll(LABEL_TOKEN)) {
+      const token = match[0];
+      if (match[1] !== undefined) width += 0.72 * Math.max(inner(match[1]), inner(match[2])) + 3;
+      else if (token === "\\approx" || token === "\\le" || token === "\\ge" || token === "=" || token === "<" || token === ">") width += 16.5;
+      else if (token === "+") width += 15;
+      // Un menos tras un paréntesis, una coma o un signo es el de un número negativo: no lleva espacios
+      else if (token === "-") width += /^[(,;]$|^\{,\}$|^\\(approx|le|ge|,)$|^[=<>]$/.test(previous) ? 9.7 : 15;
+      else if (token === "\\pi") width += 7.1;
+      else if (token === "\\,") width += 2;
+      else if (token === "{,}") width += 3.5;
+      else if (token === "," || token === ";") width += 5.5;
+      else if (token === "(" || token === ")") width += 4.9;
+      else if (token === "'") width += 3.5;
+      else if (token.startsWith("_{")) width += 4.5;
+      else if (/^\d$/.test(token)) width += 6.25;
+      else width += 7.2;
+      previous = token;
+    }
+    return width;
+  };
+  return Math.ceil(inner(latex)) + 10;
+}
 
 const overlaps = (a: Box, b: Box) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
@@ -346,6 +381,15 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       { x: px - labelW - 12, y: py - LABEL_H / 2 },
     ];
 
+    /** Lo mismo con cuatro sitios más, algo apartados: para puntos calculados que pueden salir muy juntos. */
+    const aroundFar = (px: number, py: number, labelW: number) => [
+      ...around(px, py, labelW),
+      { x: px - labelW / 2, y: py - 2 * LABEL_H - 8 },
+      { x: px - labelW / 2, y: py + LABEL_H + 12 },
+      { x: px + 8, y: py - 2 * LABEL_H - 4 },
+      { x: px - labelW - 8, y: py + LABEL_H + 8 },
+    ];
+
     for (const point of spec.points) {
       if (!point.label) continue;
       // La etiqueta de un hueco lleva el color de su curva, como el círculo
@@ -360,13 +404,13 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       for (const vertex of item.shape.vertices) {
         const label = vertexLabel(vertex, item.show.coordinates);
         if (!label) continue;
-        const labelW = estimateWidth(label);
+        const labelW = measureLabel(label);
         const away = (candidate: { x: number; y: number }) => Math.hypot(candidate.x + labelW / 2 - cx, candidate.y + LABEL_H / 2 - cy);
         place(label, tone, around(sx(vertex.x), sy(vertex.y), labelW).sort((a, b) => away(b) - away(a)), labelW);
       }
       if (item.show.midpoint && item.shape.midpoint) {
         const label = midpointLabel(item.shape.midpoint);
-        place(label, tone, around(sx(item.shape.midpoint[0]), sy(item.shape.midpoint[1]), estimateWidth(label)));
+        place(label, tone, around(sx(item.shape.midpoint[0]), sy(item.shape.midpoint[1]), measureLabel(label)), measureLabel(label));
       }
     }
 
@@ -376,27 +420,29 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       const [cx, cy] = item.center;
       for (const side of item.shape.sides) {
         const label = sideLabel(side);
-        const labelW = estimateWidth(label);
+        const labelW = measureLabel(label);
         const [x1, y1, x2, y2] = [sx(side.from.x), sy(side.from.y), sx(side.to.x), sy(side.to.y)];
-        const mx = (x1 + x2) / 2;
-        const my = (y1 + y2) / 2;
         const length = Math.hypot(x2 - x1, y2 - y1) || 1;
         // Perpendicular al lado, apuntando lejos del centro de la figura
         let nx = -(y2 - y1) / length;
         let ny = (x2 - x1) / length;
-        if ((mx - cx) * nx + (my - cy) * ny < 0) [nx, ny] = [-nx, -ny];
-        const at = (distance: number) => ({ x: mx + nx * (distance + (Math.abs(nx) * labelW) / 2) - labelW / 2, y: my + ny * (distance + (Math.abs(ny) * LABEL_H) / 2) - LABEL_H / 2 });
-        place(label, `crt-plane__label--${item.tone}`, [at(6), at(-6), at(16), at(-16)], labelW);
+        if (((x1 + x2) / 2 - cx) * nx + ((y1 + y2) / 2 - cy) * ny < 0) [nx, ny] = [-nx, -ny];
+        // Junto al punto medio; si ahí estorba (el rótulo del punto medio, otro vértice), a un tercio del lado
+        const at = (t: number, distance: number) => ({
+          x: x1 + (x2 - x1) * t + nx * (distance + (Math.abs(nx) * labelW) / 2) - labelW / 2,
+          y: y1 + (y2 - y1) * t + ny * (distance + (Math.abs(ny) * LABEL_H) / 2) - LABEL_H / 2,
+        });
+        place(label, `crt-plane__label--${item.tone}`, [0.5, 0.32, 0.68].flatMap(t => [at(t, 6), at(t, -6)]), labelW);
       }
     }
 
     for (const vertex of corners) {
       const label = planePointLatex(spec, vertex.x, vertex.y);
-      place(label, "crt-plane__label--line", around(sx(vertex.x), sy(vertex.y), estimateWidth(label)));
+      place(label, "crt-plane__label--line", aroundFar(sx(vertex.x), sy(vertex.y), measureLabel(label)), measureLabel(label));
     }
 
     for (const point of notable) {
-      if (point.label) place(point.label, `crt-plane__label--${point.tone}`, around(sx(point.x), sy(point.y), estimateFractionWidth(point.label)), estimateFractionWidth(point.label));
+      if (point.label) place(point.label, `crt-plane__label--${point.tone}`, aroundFar(sx(point.x), sy(point.y), measureLabel(point.label)), measureLabel(point.label));
     }
 
     // La medida del radio va a media altura del segmento, a un lado u otro sin pisarlo
@@ -465,7 +511,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     // La inecuación va pegada a su frontera, a un lado u otro y en el tramo donde menos estorbe
     for (const bound of bounds) {
       if (!bound.label) continue;
-      const labelW = estimateWidth(bound.label);
+      const labelW = measureLabel(bound.label);
       const [x1, y1, x2, y2] = [sx(bound.from[0]), sy(bound.from[1]), sx(bound.to[0]), sy(bound.to[1])];
       const length = Math.hypot(x2 - x1, y2 - y1) || 1;
       const nx = -(y2 - y1) / length;
@@ -568,6 +614,16 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
   const right = PAD.left + w + 10;
   const top = PAD.top - 10;
   const bottom = PAD.top + h + 10;
+  // En múltiplos de π las raíces de seno y coseno caen justo en las marcas: sus rótulos van encima de
+  // las curvas, con halo, para que se lean. Con números, el eje se dibuja como siempre, debajo.
+  const piAxis = spec.xUnit === "pi";
+  const xNumbers = xTicks.map(tick =>
+    (originInside && tick.value === 0) || !tick.labeled ? null : (
+      <text key={`lx${tick.value}`} x={sx(tick.value)} y={axisXpx + 14} textAnchor="middle" style={piAxis ? TEXT_HALO : undefined}>
+        {tick.text}
+      </text>
+    ),
+  );
 
   return (
     <div className="crt-plane" data-notes={noted ? "" : undefined} style={{ "--plane-w": `${width}px`, "--plane-wn": width, "--plane-hn": height, aspectRatio: `${width} / ${height}` } as CSSProperties}>
@@ -604,13 +660,7 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
         </g>
 
         <g className="crt-plane__ticks">
-          {xTicks.map(tick =>
-            (originInside && tick.value === 0) || !tick.labeled ? null : (
-              <text key={`lx${tick.value}`} x={sx(tick.value)} y={axisXpx + 14} textAnchor="middle">
-                {tick.text}
-              </text>
-            ),
-          )}
+          {!piAxis && xNumbers}
           {yTicks.map((y, index) =>
             (originInside && y === 0) || index % everyY !== 0 ? null : (
               <text key={`ly${y}`} x={axisYpx - 7} y={sy(y) + 3.5} textAnchor="end">
@@ -708,6 +758,8 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
             </g>
           ))}
         </g>
+
+        {piAxis && <g className="crt-plane__ticks">{xNumbers}</g>}
 
         <g className="crt-plane__marks">
           {marks.map(mark => (

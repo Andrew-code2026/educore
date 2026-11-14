@@ -685,7 +685,7 @@ export function GraphForm({ draft, onChange }: FormProps<"graph">) {
       {inequalities.map((inequality, index) => {
         const setInequality = (patch: Partial<GraphInequality>) => setInequalities(inequalities.map((current, i) => (i === index ? { ...current, ...patch } : current)));
         return (
-          <div key={`${listVersion}-i${index}`} className="crt-form__item">
+          <div key={`${listVersion}-i${index}`} className="crt-form__item crt-form__ineq">
             <NumberInput label={`Coeficiente de x de la inecuación ${index + 1}`} value={inequality.a} onChange={a => setInequality({ a })} />
             <span className="crt-form__sign">x +</span>
             <NumberInput label={`Coeficiente de y de la inecuación ${index + 1}`} value={inequality.b} onChange={b => setInequality({ b })} />

@@ -2156,6 +2156,10 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-form__end { margin-left: auto; display: inline-flex; align-items: center; height: 36px; }
 /* Letras y signos entre los campos de una inecuación: «2 x + 3 y ≤ 12» */
 .crt-form__sign { display: inline-flex; align-items: center; height: 36px; flex: none; font-size: 13.5px; white-space: nowrap; }
+/* Una inecuación en un renglón: campos de ancho fijo, que en un panel angosto pasan abajo en vez de encogerse */
+.crt-form__ineq { flex-wrap: wrap; align-items: center; row-gap: 4px; }
+.crt .crt-form__ineq .crt-input--num { width: 62px; flex: none; }
+.crt .crt-form__ineq .crt-input--tiny { width: 66px; text-align: left; }
 .crt-form__index { flex: none; width: 22px; padding-top: 8px; font-weight: 600; color: var(--sheet-muted); text-align: right; }
 .crt-form__group { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--sheet-hair); background: #FAFBFD; }
 .crt-form__legend { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--sheet-muted); }

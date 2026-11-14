@@ -123,14 +123,35 @@ export function regionVertices(spec: GraphSpec): RegionVertex[] {
   if (vertices.length < 3) return vertices.sort((u, v) => u.x - v.x || u.y - v.y);
   const cx = vertices.reduce((sum, vertex) => sum + vertex.x, 0) / vertices.length;
   const cy = vertices.reduce((sum, vertex) => sum + vertex.y, 0) / vertices.length;
-  return vertices.sort((u, v) => Math.atan2(u.y - cy, u.x - cx) - Math.atan2(v.y - cy, v.x - cx));
+  const around = [...vertices].sort((u, v) => Math.atan2(u.y - cy, u.x - cx) - Math.atan2(v.y - cy, v.x - cx));
+
+  // Una región no acotada es una cadena abierta: sus vértices se dan de un extremo al otro, en el orden
+  // en que se recorre su borde, no girando alrededor de su centro
+  const { outline, reach } = wholeRegion(spec);
+  const far = (index: number) => Math.abs(outline[index][0]) >= reach / 10 || Math.abs(outline[index][1]) >= reach / 10;
+  const lastFar = outline.findIndex((_, index) => far(index) && !far((index + 1) % outline.length));
+  if (lastFar === -1) return around;
+  const scale = Math.max(1, Math.abs(spec.xMin), Math.abs(spec.xMax), Math.abs(spec.yMin), Math.abs(spec.yMax));
+  const position = (vertex: RegionVertex) => {
+    const index = outline.findIndex(([x, y]) => Math.abs(x - vertex.x) <= 1e-6 * scale && Math.abs(y - vertex.y) <= 1e-6 * scale);
+    return index === -1 ? -1 : (index - lastFar - 1 + outline.length) % outline.length;
+  };
+  const placed = vertices.map(vertex => ({ vertex, at: position(vertex) }));
+  if (placed.some(item => item.at === -1)) return around;
+  return placed.sort((u, v) => u.at - v.at).map(item => item.vertex);
 }
 
-/** ¿La región común es acotada? Se recorta un cuadrado enorme: si la región llega hasta él, sigue sin fin. */
-export function regionBounded(spec: GraphSpec): boolean {
+/** La región común sin el recorte del plano: se recorta un cuadrado enorme, que una región no acotada alcanza. */
+function wholeRegion(spec: GraphSpec): { outline: Pair[]; reach: number } {
   const reach = 1e7 * Math.max(1, Math.abs(spec.xMin), Math.abs(spec.xMax), Math.abs(spec.yMin), Math.abs(spec.yMax));
-  const region = (spec.inequalities ?? []).reduce((polygon, inequality) => (polygon.length === 0 ? polygon : clip(polygon, normal(inequality))), rectangle(-reach, reach, -reach, reach));
-  return region.every(([x, y]) => Math.abs(x) < reach / 10 && Math.abs(y) < reach / 10);
+  const outline = (spec.inequalities ?? []).reduce((polygon, inequality) => (polygon.length === 0 ? polygon : clip(polygon, normal(inequality))), rectangle(-reach, reach, -reach, reach));
+  return { outline, reach };
+}
+
+/** ¿La región común es acotada? Si llega hasta el cuadrado enorme, sigue sin fin. */
+export function regionBounded(spec: GraphSpec): boolean {
+  const { outline, reach } = wholeRegion(spec);
+  return outline.every(([x, y]) => Math.abs(x) < reach / 10 && Math.abs(y) < reach / 10);
 }
 
 /* ── Escritura ── */

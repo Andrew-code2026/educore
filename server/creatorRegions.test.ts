@@ -109,6 +109,15 @@ describe("región factible", () => {
       [4, 0],
     ]);
     expect(describeInequalities(plane)).toContain("región común no acotada; vértices (0, 4) y (4, 0)");
+    // Con más vértices, salen de un extremo de la cadena al otro, no girando alrededor de su centro
+    const chain = spec({ inequalities: [ge(1, 1, 4), ge(1, 3, 6), ge(1, 0, 0), ge(0, 1, 0)] });
+    expect(regionBounded(chain)).toBe(false);
+    const order = pairs(regionVertices(chain));
+    expect([order, [...order].reverse()]).toContainEqual([
+      [0, 4],
+      [3, 1],
+      [6, 0],
+    ]);
   });
 
   it("un vértice sobre una frontera punteada no pertenece a la región", () => {
