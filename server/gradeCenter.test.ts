@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { assessmentGrades, assessments } from "../drizzle/schema";
 import { appRouter } from "./routers";
 import { createGradeCenterAssessment, ensureGradeCenterSeeded, getGradeCenterContext, saveGradeCenterGrades, type GradeCenterActor } from "./gradeCenterDb";
 import { getDb, getDemoIdentityContext } from "./db";
+import { DEMO_ACTIVITIES } from "./demoSeed";
 
 type Demo = Awaited<ReturnType<typeof getDemoIdentityContext>>;
 const schoolId = 1;
@@ -279,13 +280,11 @@ describe("EduCore Grade Center", () => {
           expect(updated?.title).toBe("Evaluación 5.3-E Modificada");
           expect(updated?.weight).toBe(20);
         } finally {
-          // Restore original title & weight
-          await caller(teacher!.user).gradeCenter.updateAssessment({
-            role: "teacher",
-            id: assessment.id,
-            title: originalTitle,
-            weight: Number(originalWeight) || 20,
-          });
+          // Se restaura directo en la base: por el procedimiento, la validación de peso puede
+          // rechazar la restauración y la evaluación sembrada queda renombrada. El sembrador la
+          // busca por título, así que la crearía otra vez y el periodo pasaría del 100 %.
+          const db = await getDb();
+          await db!.update(assessments).set({ title: originalTitle, weight: originalWeight }).where(eq(assessments.id, assessment.id));
         }
       });
 
@@ -299,6 +298,28 @@ describe("EduCore Grade Center", () => {
             weight: 5,
           })
         ).rejects.toThrow(/no puede superar el 100%/);
+      });
+
+      it("does not seed a renamed demo assessment again when the period would exceed 100%", async () => {
+        const selected = seededContext!.selected!;
+        const demoTitles = new Set(DEMO_ACTIVITIES.filter(activity => activity.course === "11-2").map(activity => activity.title));
+        const seeded = seededContext!.assessments.find(row => demoTitles.has(row.title));
+        expect(seeded).toBeDefined();
+        const db = await getDb();
+        const slot = and(eq(assessments.courseId, selected.course.id), eq(assessments.subjectId, selected.subject.id), eq(assessments.academicPeriodId, selected.period.id), eq(assessments.title, seeded!.title), ne(assessments.status, "DELETED"));
+        try {
+          await db!.update(assessments).set({ title: `Renombrada por la prueba ${Date.now()}` }).where(eq(assessments.id, seeded!.id));
+          await ensureGradeCenterSeeded(schoolId);
+          expect(await db!.select({ id: assessments.id }).from(assessments).where(slot)).toHaveLength(0);
+        } finally {
+          // Si el sembrador creó una copia, se borra para no dejar el periodo por encima del 100 %
+          const copies = await db!.select({ id: assessments.id }).from(assessments).where(slot);
+          for (const copy of copies) {
+            await db!.delete(assessmentGrades).where(eq(assessmentGrades.assessmentId, copy.id));
+            await db!.delete(assessments).where(eq(assessments.id, copy.id));
+          }
+          await db!.update(assessments).set({ title: seeded!.title }).where(eq(assessments.id, seeded!.id));
+        }
       });
 
       it("exposes weightTotal, remainingWeight, and weightStatus in context stats", async () => {

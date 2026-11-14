@@ -81,8 +81,13 @@ export async function ensureGradeCenterSeeded(schoolId: number) {
     const link = (await db.select({ id: courseSubjects.id }).from(courseSubjects).where(and(eq(courseSubjects.schoolId, schoolId), eq(courseSubjects.courseId, course.id), eq(courseSubjects.subjectId, subject.id), eq(courseSubjects.status, "ACTIVE"))).limit(1))[0];
     const assignment = (await db.select({ teacherUserId: teacherAssignments.teacherUserId }).from(teacherAssignments).where(and(eq(teacherAssignments.schoolId, schoolId), eq(teacherAssignments.courseId, course.id), eq(teacherAssignments.subjectId, subject.id), eq(teacherAssignments.status, "ACTIVE"))).limit(1))[0];
     if (!link || !assignment) continue;
-    const existing = await db.select({ id: assessments.id }).from(assessments).where(and(eq(assessments.schoolId, schoolId), eq(assessments.courseId, course.id), eq(assessments.subjectId, subject.id), eq(assessments.academicPeriodId, period.id), eq(assessments.title, activity.title))).limit(1);
+    const slot = and(eq(assessments.schoolId, schoolId), eq(assessments.courseId, course.id), eq(assessments.subjectId, subject.id), eq(assessments.academicPeriodId, period.id));
+    const existing = await db.select({ id: assessments.id }).from(assessments).where(and(slot, eq(assessments.title, activity.title))).limit(1);
     if (existing.length) continue;
+    // Si la evaluación sembrada fue renombrada, sembrarla otra vez la duplicaría y el periodo
+    // pasaría del 100 %: con eso ya no se puede crear ninguna evaluación en el curso.
+    const active = await db.select({ weight: assessments.weight }).from(assessments).where(and(slot, ne(assessments.status, "DELETED")));
+    if (active.reduce((sum, row) => sum + Number(row.weight), 0) + activity.weight > 100) continue;
     if (!scaleEnsured) {
       await ensureGradeScale(schoolId);
       scaleEnsured = true;
