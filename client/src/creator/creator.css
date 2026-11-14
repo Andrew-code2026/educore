@@ -2150,6 +2150,11 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-form__row--ranges .crt-input--num { width: 78px; }
 .crt-form__item { display: flex; align-items: flex-start; gap: 8px; }
 .crt-form__item > .crt-rte, .crt-form__item > .crt-input:not(.crt-input--num):not(.crt-input--tiny) { flex: 1; min-width: 0; }
+/* Rejilla de datos con encabezados de columna (los lados y ángulos de un triángulo, las medidas de un sólido) */
+.crt-form__datagrid { display: grid; gap: 6px 8px; align-items: center; }
+.crt-form__datagrid--triangle { grid-template-columns: auto 76px minmax(84px, 1fr) 40px; }
+.crt .crt-form__datagrid > .crt-input { width: 100%; min-width: 0; padding-inline: 8px; }
+.crt-form__datagrid-name { font-size: 13px; line-height: 1.25; white-space: nowrap; }
 /* Un elemento de lista con una segunda fila de opciones (dominio de una función, datos de una cónica) */
 .crt-form__stack { display: flex; flex-direction: column; gap: 6px; }
 .crt-form__row--sub { padding-left: 12px; border-left: 2px solid var(--sheet-hair); }
@@ -2622,9 +2627,9 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
   .crt-print :is(.crt-block--graph, .crt-block--number_line, .crt-block--fraction_model, .crt-block--bar_chart, .crt-block--pie_chart, .crt-block--shapes, .crt-block--balance):has(+ .crt-block--exercise) { break-after: avoid; }
 
   /* Figuras estadísticas y de aula: las mismas tres reglas de las demás figuras (no se parten ni se separan de su ejercicio) */
-  .crt-print :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten, .crt-block--area_model) { break-inside: avoid; }
-  .crt-print :is(.crt-block--exercise, .crt-block--paragraph):has(+ :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten, .crt-block--area_model)) { break-after: avoid; }
-  .crt-print :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten, .crt-block--area_model):has(+ .crt-block--exercise) { break-after: avoid; }
+  .crt-print :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten, .crt-block--area_model, .crt-block--triangle) { break-inside: avoid; }
+  .crt-print :is(.crt-block--exercise, .crt-block--paragraph):has(+ :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten, .crt-block--area_model, .crt-block--triangle)) { break-after: avoid; }
+  .crt-print :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten, .crt-block--area_model, .crt-block--triangle):has(+ .crt-block--exercise) { break-after: avoid; }
 
   /* En papel las gráficas van algo más pequeñas: caben más cosas por hoja sin perder legibilidad */
   .crt-print .crt-plane { width: calc(var(--plane-w) * .8); }

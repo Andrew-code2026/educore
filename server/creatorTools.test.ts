@@ -217,7 +217,7 @@ describe("la IA con columnas y tarjetas", () => {
     expect(Object.keys(schema.$defs)).toContain("exercise");
     expect(Object.keys(schema.$defs).some(key => key.startsWith("__schema"))).toBe(false);
     // Escrito una sola vez: no crece por llevar los bloques también dentro de las celdas
-    expect(JSON.stringify(schema).length).toBeLessThan(50_000);
+    expect(JSON.stringify(schema).length).toBeLessThan(55_000);
     expect(JSON.stringify(schema).match(/"const":"exercise"/g)).toHaveLength(1);
   });
 

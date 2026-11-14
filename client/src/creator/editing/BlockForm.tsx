@@ -15,6 +15,7 @@ import { GraphForm } from "./GraphForm";
 import { notesIssue } from "./noteDraft";
 import { RichTextEditor } from "./RichTextEditor";
 import { BoxPlotForm, HistogramForm, LineChartForm, ScatterPlotForm, STAT_TEMPLATES } from "./StatForms";
+import { TRIANGLE_TEMPLATE, TriangleForm } from "./TriangleForm";
 
 /** Contenido inicial de un bloque nuevo, listo para que el docente lo complete. */
 export const BLOCK_TEMPLATES: Record<BlockType, BlockInput> = {
@@ -62,6 +63,7 @@ export const BLOCK_TEMPLATES: Record<BlockType, BlockInput> = {
   ...CLASSROOM_TEMPLATES,
   area_model: AREA_MODEL_TEMPLATE,
   shapes: { type: "shapes", figures: [{ kind: "rectangle", width: 5, height: 3, widthLabel: "5 cm", heightLabel: "3 cm" }], toScale: true },
+  triangle: TRIANGLE_TEMPLATE,
   balance: { type: "balance", variable: "x", left: { variables: 2, units: 1, weights: [] }, right: { variables: 0, units: 7, weights: [] } },
   solution: { type: "solution", label: "Ejercicio", steps: ["Escribe aquí el primer paso."] },
   header_fields: { type: "header_fields", fields: ["Nombre", "Fecha", "Grado"] },
@@ -417,6 +419,8 @@ export function BlockForm({ draft, onChange, actions }: { draft: BlockInput; onC
       return <AreaModelForm draft={draft} onChange={onChange} />;
     case "shapes":
       return <ShapesForm draft={draft} onChange={onChange} />;
+    case "triangle":
+      return <TriangleForm draft={draft} onChange={onChange} />;
     case "balance":
       return <BalanceForm draft={draft} onChange={onChange} />;
     case "solution":

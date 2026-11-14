@@ -31,6 +31,7 @@ import {
   Smile,
   Table,
   Table2,
+  Triangle,
   TriangleRight,
   UserRound,
 } from "lucide-react";
@@ -58,6 +59,7 @@ const ICONS: Record<BlockType, ComponentType<{ "aria-hidden"?: boolean }>> = {
   tree_diagram: Network,
   venn: Blend,
   shapes: Shapes,
+  triangle: Triangle,
   angle: TriangleRight,
   clock: Clock,
   number_line: MoveHorizontal,

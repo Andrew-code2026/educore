@@ -68,6 +68,7 @@ const AGREEMENT: Record<BlockType, Agreement> = {
   base_ten: "mp",
   area_model: "m",
   shapes: "fp",
+  triangle: "m",
   balance: "f",
   solution: "f",
   page_break: "m",

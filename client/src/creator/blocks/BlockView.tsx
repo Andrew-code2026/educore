@@ -15,6 +15,7 @@ import { NumberLine } from "./NumberLine";
 import { RichText } from "./RichText";
 import { Balance, Shapes } from "./Shapes";
 import { BoxPlot, Histogram, LineChart, ScatterPlot } from "./StatCharts";
+import { Triangle } from "./Triangle";
 
 /**
  * Una figura centrada con su pie. Con un tamaño elegido, la figura se amplía o se reduce entera desde su
@@ -383,6 +384,12 @@ export const BlockView = memo(function BlockView({ block }: { block: Block }) {
       return (
         <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <Shapes spec={block} />
+        </Figure>
+      );
+    case "triangle":
+      return (
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
+          <Triangle spec={block} />
         </Figure>
       );
     case "balance":

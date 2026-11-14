@@ -2,6 +2,7 @@ import type { BlockInput } from "./creator";
 import { areaModelProduct, computeAreaModel, monomialText, polynomialText } from "./creatorAlgebra";
 import { niceStep, tickValues } from "./creatorFigures";
 import { describeGraph } from "./creatorGraphFacts";
+import { describeTriangles } from "./creatorTriangle";
 import { formatNumber, formatNumberEs } from "./creatorMath";
 
 /**
@@ -308,6 +309,8 @@ export function describeComputed(block: BlockInput): string | null {
       const cells = model.cells.map(row => row.map(cell => monomialText(cell)).join(", ")).join(" | ");
       return `Modelo de área: ${areaModelProduct(model)} = ${polynomialText(model.total)}; celdas por filas: ${cells}.`;
     }
+    case "triangle":
+      return describeTriangles(block);
     default:
       return null;
   }
