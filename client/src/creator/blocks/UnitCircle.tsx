@@ -20,7 +20,7 @@ export const UnitCircle = memo(function UnitCircle({ spec }: { spec: UnitCircleS
   const accent = figureColor(0);
   const turn = figureColor(1);
 
-  const shown = spec.highlight ? ` con el ángulo ${angleText(spec.highlight.degrees, spec.unit)} resaltado${spec.highlight.triangle ? " y su triángulo de referencia" : ""}` : "";
+  const shown = spec.highlight ? ` con el ángulo ${angleText(spec.highlight.degrees, spec.unit)} resaltado${highlight?.foot ? " y su triángulo de referencia" : ""}` : "";
   const description = `Círculo unitario${shown}; ${spec.showAngles ? "con los ángulos" : "sin los ángulos"} y ${spec.showCoordinates ? "con las coordenadas" : "sin las coordenadas"} de los puntos marcados.`;
 
   return (
@@ -46,8 +46,8 @@ export const UnitCircle = memo(function UnitCircle({ spec }: { spec: UnitCircleS
           {highlight.right && <path d={highlight.right} className="crt-figure__mark" />}
           {highlight.reference && <path d={highlight.reference} fill="none" stroke={INK} strokeWidth={1.2} />}
           <line x1={0} y1={0} x2={highlight.point.x - c.x} y2={highlight.point.y - c.y} stroke={accent.stroke} strokeWidth={2.4} strokeLinecap="round" />
-          <path d={highlight.rotation} fill="none" stroke={turn.stroke} strokeWidth={1.5} />
-          <path d={highlight.arrow} fill={turn.stroke} />
+          {highlight.rotation && <path d={highlight.rotation} fill="none" stroke={turn.stroke} strokeWidth={1.5} />}
+          {highlight.arrow && <path d={highlight.arrow} fill={turn.stroke} />}
         </g>
       )}
       {layout.points.map(point => (

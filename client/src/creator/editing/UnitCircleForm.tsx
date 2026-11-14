@@ -19,7 +19,7 @@ const SET_OPTIONS: readonly SelectOption<UnitCircleSet>[] = [
   { value: "axes", label: "Solo los ejes" },
 ];
 
-const NEW_HIGHLIGHT = { degrees: 150, label: "θ", triangle: true, values: true };
+const NEW_HIGHLIGHT = { degrees: 150, label: "θ", values: true };
 
 export function UnitCircleForm({ draft, onChange }: FormProps<"unit_circle">) {
   const highlight = draft.highlight;
@@ -55,7 +55,7 @@ export function UnitCircleForm({ draft, onChange }: FormProps<"unit_circle">) {
               </Field>
             </div>
             <div className="crt-form__row">
-              <Check label="Triángulo de referencia" checked={highlight.triangle} onChange={triangle => setHighlight({ triangle })} />
+              <Check label="Triángulo de referencia" checked={highlight.triangle !== false} onChange={triangle => setHighlight({ triangle: triangle ? undefined : false })} />
               <Check label="Escribir sus valores" checked={highlight.values} onChange={values => setHighlight({ values })} />
             </div>
             <p className="crt-form__hint">{facts ?? "Usa un ángulo notable: múltiplo de 30° o de 45°, entre -360° y 360°."}</p>

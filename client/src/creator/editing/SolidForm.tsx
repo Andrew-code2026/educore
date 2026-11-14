@@ -36,15 +36,19 @@ function SolidFields({ solid, index, onChange }: { solid: Solid; index: number; 
       <div className="crt-form__datagrid crt-form__datagrid--solid">
         <span />
         <span className="crt-field__label">Medida</span>
+        <span className="crt-field__label">Ver</span>
         <span className="crt-field__label">Rótulo</span>
         {measures.map(measure => (
           <Fragment key={measure.key}>
             <span className="crt-form__datagrid-name">{measure.name[0].toUpperCase() + measure.name.slice(1)}</span>
             <NumberInput label={`${measure.name} del sólido ${index + 1}`} value={measure.value} onChange={value => set(measure.key, value)} />
+            {/* Un rótulo vacío deja esa medida sin escribir en la figura */}
+            <input type="checkbox" aria-label={`Escribir ${measure.name} del sólido ${index + 1}`} checked={measure.label !== ""} onChange={event => set(`${measure.key}Label`, event.target.checked ? undefined : "")} />
             <input
               className="crt-input"
               aria-label={`Rótulo de ${measure.name} del sólido ${index + 1}`}
               maxLength={SOLID_LABEL_MAX}
+              disabled={measure.label === ""}
               value={measure.label ?? ""}
               onChange={event => set(`${measure.key}Label`, event.target.value || undefined)}
             />

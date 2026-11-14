@@ -82,6 +82,9 @@ describe("resolver un triángulo", () => {
 
   it("comprueba los datos de más", () => {
     expect(solve({ sides: { a: { length: 3 }, b: { length: 4 }, c: { length: 5 } }, angles: { C: { degrees: 90 }, A: { degrees: 36.87 } } }).ok).toBe(true);
+    // Ángulos redondeados a una cifra, como en una clave, coinciden; lo que se dibuja sale del cálculo
+    const rounded = solved({ sides: { a: { length: 3 }, b: { length: 4 }, c: { length: 5 } }, angles: { A: { degrees: 36.9 }, B: { degrees: 53.1 }, C: { degrees: 90 } } });
+    expect(rounded.angles[0]).toBeCloseTo(36.8699, 3);
     const wrong = solve({ sides: { a: { length: 3 }, b: { length: 4 }, c: { length: 6 } }, angles: { C: { degrees: 90 } } });
     expect(!wrong.ok && wrong.issues[0]).toContain("el ángulo C mide 117.28° con los demás datos, no 90°");
     const sum = solve({ sides: { a: { length: 3 } }, angles: { A: { degrees: 50 }, B: { degrees: 60 }, C: { degrees: 80 } } });

@@ -26,9 +26,12 @@ export const ANGLE_KEYS = ["A", "B", "C"] as const;
 
 /** Decimales de un ángulo dado o calculado para escribirse exacto. */
 const ANGLE_DECIMALS = 2;
-/** Diferencia admitida entre un dato de más y el valor que sale de los demás. */
-const ANGLE_TOLERANCE = 0.006;
-const sideTolerance = (value: number) => Math.max(0.006, value * 1e-4);
+/**
+ * Diferencia admitida entre un dato de más y el valor que sale de los demás: lo que deja redondear a una
+ * cifra decimal (36,9° por 36,87°; 4,4 por √19). Lo que se dibuja y se escribe sale siempre del cálculo.
+ */
+const ANGLE_TOLERANCE = 0.051;
+const sideTolerance = (value: number) => Math.max(0.051, value * 1e-3);
 
 const toRad = (degrees: number) => (degrees * Math.PI) / 180;
 const toDeg = (radians: number) => (radians * 180) / Math.PI;
@@ -80,7 +83,7 @@ export function solveTriangle(data: TriangleData): TriangleSolution {
 
   const knownAngles = angles.filter((value): value is number => value !== null);
   const angleSum = knownAngles.reduce((sum, value) => sum + value, 0);
-  if (angleCount === 3 && Math.abs(angleSum - 180) > ANGLE_TOLERANCE) return fail(`los tres ángulos suman ${formatNumber(angleSum, 2)}° y deben sumar 180°.`);
+  if (angleCount === 3 && Math.abs(angleSum - 180) > 3 * ANGLE_TOLERANCE) return fail(`los tres ángulos suman ${formatNumber(angleSum, 2)}° y deben sumar 180°.`);
   if (angleCount === 2 && angleSum >= 180) return fail(`los ángulos dados suman ${formatNumber(angleSum, 2)}° y deben sumar menos de 180°.`);
 
   let solved: { sides: [number, number, number]; angles: [number, number, number] } | null = null;
@@ -114,7 +117,9 @@ export function solveTriangle(data: TriangleData): TriangleSolution {
   if (!solved && angleCount >= 2) {
     const a = [...angles] as Array<number | null>;
     const missing = a.findIndex(value => value === null);
+    // El tercer ángulo sale de la suma; si también se dio, se compara al final con los datos de más
     if (missing !== -1) a[missing] = 180 - angleSum;
+    else a[2] = 180 - (a[0] as number) - (a[1] as number);
     const full = a as [number, number, number];
     const known = sides.findIndex(value => value !== null);
     const ratio = (sides[known] as number) / Math.sin(toRad(full[known]));
@@ -195,7 +200,7 @@ export function plainToLatex(text: string): string {
 }
 
 /** Una unidad dentro de \text{…}: sin signos que LaTeX lea como comandos. */
-const unitLatex = (unit: string) => `\\text{ ${unit.replace(/[#%&$_{}~^\\]/g, char => TEXT_ESCAPES[char])}}`;
+export const unitLatex = (unit: string) => `\\text{ ${unit.replace(/[#%&$_{}~^\\]/g, char => TEXT_ESCAPES[char])}}`;
 
 interface Measure {
   latex: string;
@@ -318,6 +323,35 @@ const support = (n: Point, size: { w: number; h: number }) => (Math.abs(n.x) * s
 const boxAt = (center: Point, size: { w: number; h: number }): Box => ({ x: center.x - size.w / 2, y: center.y - size.h / 2, w: size.w, h: size.h });
 
 export const boxesOverlap = (a: Box, b: Box, gap = CLEARANCE) => a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
+
+/** ¿El segmento de p a q pasa por la caja, o a menos de `margin` de ella? (Liang–Barsky) */
+export function segmentTouchesBox(p: Point, q: Point, box: Box, margin = 1): boolean {
+  const dx = q.x - p.x;
+  const dy = q.y - p.y;
+  let t0 = 0;
+  let t1 = 1;
+  const edges: Array<[number, number]> = [
+    [-dx, p.x - (box.x - margin)],
+    [dx, box.x + box.w + margin - p.x],
+    [-dy, p.y - (box.y - margin)],
+    [dy, box.y + box.h + margin - p.y],
+  ];
+  for (const [step, room] of edges) {
+    if (step === 0) {
+      if (room < 0) return false;
+      continue;
+    }
+    const t = room / step;
+    if (step < 0) {
+      if (t > t1) return false;
+      t0 = Math.max(t0, t);
+    } else {
+      if (t < t0) return false;
+      t1 = Math.min(t1, t);
+    }
+  }
+  return true;
+}
 
 /** Distancia de un punto a una caja (0 si está dentro). */
 const pointBoxDistance = (p: Point, box: Box) => Math.hypot(Math.max(box.x - p.x, 0, p.x - box.x - box.w), Math.max(box.y - p.y, 0, p.y - box.y - box.h));
@@ -550,7 +584,7 @@ export function markPath(mark: TriangleMark): string {
 /* ── Validación ── */
 
 /** Un rótulo que es solo un número con unidad: la medida la escribe el sistema, no el rótulo. */
-const NUMBER_LABEL = /^[≈~]?\s*-?\d+(?:[.,]\d+)?\s*(?:°|(?:mm|cm|dm|m|km|u)[²³23]?)?$/;
+export const NUMBER_LABEL = /^[≈~]?\s*-?\d+(?:[.,]\d+)?\s*(?:°|(?:mm|cm|dm|m|km|u)[²³23]?)?$/;
 
 /** Problemas de un bloque de triángulos, redactados para quien deba corregirlos. */
 export function triangleIssues(spec: TriangleSpec, compile: (latex: string) => string | null): string[] {

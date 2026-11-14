@@ -1,7 +1,7 @@
 import type { BlockInput } from "./creator";
 import { divide, exactText, type Exact } from "./creatorExact";
 import { formatNumber } from "./creatorMath";
-import { plainToLatex } from "./creatorTriangle";
+import { plainToLatex, segmentTouchesBox } from "./creatorTriangle";
 
 /**
  * Círculo unitario del Creador de recursos: los ángulos notables (múltiplos de 30° y de 45°) con sus
@@ -164,17 +164,6 @@ function coordinatesSize(degrees: number): { w: number; h: number } {
   return { w: 22 + part(cos) + part(sin) + 6, h: stacked ? 27 : 18 };
 }
 
-/** ¿El segmento de p a q pasa por la caja? */
-function segmentTouchesBox(p: Point, q: Point, box: Box): boolean {
-  const steps = Math.max(2, Math.ceil(Math.hypot(q.x - p.x, q.y - p.y) / 2));
-  for (let i = 0; i <= steps; i++) {
-    const x = p.x + ((q.x - p.x) * i) / steps;
-    const y = p.y + ((q.y - p.y) * i) / steps;
-    if (x >= box.x - 1 && x <= box.x + box.w + 1 && y >= box.y - 1 && y <= box.y + box.h + 1) return true;
-  }
-  return false;
-}
-
 /** Un arco de radio r de `from` a `to` grados (positivo en sentido antihorario), en coordenadas con el centro en 0. */
 function arcPath(r: number, from: number, to: number): string {
   const start = at(from, r);
@@ -238,7 +227,8 @@ export function unitCircleLayout(spec: UnitCircleSpec): UnitCircleLayout {
   const segments: Array<[Point, Point]> = [[{ x: -AXIS_REACH, y: 0 }, { x: AXIS_REACH, y: 0 }], [{ x: 0, y: -AXIS_REACH }, { x: 0, y: AXIS_REACH }]];
   if (highlight && target !== null) {
     const point = at(target, R);
-    const foot = highlight.triangle && quadrant(target) !== 0 ? { x: point.x, y: 0 } : null;
+    // Sin decir nada, el triángulo va cuando existe: un ángulo sobre un eje no lo tiene
+    const foot = highlight.triangle !== false && quadrant(target) !== 0 ? { x: point.x, y: 0 } : null;
     const end = at(highlight.degrees, ROTATION_R);
     const direction = highlight.degrees >= 0 ? 1 : -1;
     // La flecha sigue la tangente del arco en su extremo
@@ -253,7 +243,9 @@ export function unitCircleLayout(spec: UnitCircleSpec): UnitCircleLayout {
     const reference = foot && Math.abs(highlight.degrees) >= 90 ? arcPath(REFERENCE_R, axis, towards) : null;
     const s = 9;
     const right = foot ? `M${fmt(foot.x - Math.sign(foot.x) * s)} 0 L${fmt(foot.x - Math.sign(foot.x) * s)} ${fmt(Math.sign(point.y) * s)} L${fmt(foot.x)} ${fmt(Math.sign(point.y) * s)}` : null;
-    drawn = { point, foot, rotation: arcPath(ROTATION_R, 0, highlight.degrees), arrow, reference, right };
+    // Un giro de 0° no tiene arco ni flecha
+    const turns = highlight.degrees !== 0;
+    drawn = { point, foot, rotation: turns ? arcPath(ROTATION_R, 0, highlight.degrees) : "", arrow: turns ? arrow : "", reference, right };
     segments.push([{ x: 0, y: 0 }, point]);
     if (foot) segments.push([foot, point]);
 
@@ -389,7 +381,7 @@ export function unitCircleIssues(spec: UnitCircleSpec, compile: (latex: string) 
   const highlight = spec.highlight;
   if (highlight) {
     if (!isNotableAngle(highlight.degrees)) return [`el ángulo resaltado (${formatNumber(highlight.degrees, 4)}°) no es notable: usa un múltiplo de 30° o de 45°, cuyo seno y coseno se escriben exactos.`];
-    if (highlight.triangle && quadrant(highlight.degrees) === 0) return [`el ángulo ${highlight.degrees}° está sobre un eje y no tiene triángulo de referencia; pon triangle en false.`];
+    if (highlight.triangle === true && quadrant(highlight.degrees) === 0) return [`el ángulo ${highlight.degrees}° está sobre un eje y no tiene triángulo de referencia; quita triangle.`];
     if (highlight.label) {
       const error = compile(plainToLatex(highlight.label));
       if (error) return [`el rótulo «${highlight.label}» no se puede escribir (${error}).`];

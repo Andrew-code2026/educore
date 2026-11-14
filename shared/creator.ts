@@ -901,7 +901,7 @@ const unitCircleBlock = z.object({
     .object({
       degrees: z.number().min(-360).max(360).describe("Ángulo notable en grados (múltiplo de 30° o de 45°), también con unit radians. Negativo gira en sentido horario."),
       label: z.string().trim().max(UNIT_CIRCLE_LABEL_MAX).optional().describe('Nombre en texto plano, p. ej. "θ". Sin él se escribe la medida.'),
-      triangle: z.boolean().default(true).describe("Dibuja el triángulo de referencia, con el ángulo de referencia y el ángulo recto."),
+      triangle: z.boolean().optional().describe("Triángulo de referencia, con el ángulo de referencia y el ángulo recto. Sin él, se dibuja si el ángulo no está sobre un eje; false para no dibujarlo."),
       values: z.boolean().default(true).describe("Escribe las coordenadas del punto y la medida del ángulo de referencia. false para que el estudiante las halle."),
     })
     .optional()

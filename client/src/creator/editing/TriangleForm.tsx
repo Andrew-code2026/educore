@@ -40,8 +40,7 @@ const vertexName = (data: TriangleData, i: number) => data.vertices[i] || ANGLE_
 const sideName = (data: TriangleData, i: number) => `${vertexName(data, (i + 1) % 3)}${vertexName(data, (i + 2) % 3)}`;
 
 /** Lo que el sistema calcula con los datos escritos, o por qué no puede. */
-function solvedHint(data: TriangleData, unit: string | undefined): string {
-  const solution = solveTriangle(data);
+function solvedHint(solution: ReturnType<typeof solveTriangle>, data: TriangleData, unit: string | undefined): string {
   if (!solution.ok) return solution.issues[0].replace(/^./, char => char.toUpperCase());
   const { sides, angles, given } = solution.triangle;
   const parts = [
@@ -93,7 +92,7 @@ function TriangleFields({ data, index, unit, onChange }: { data: TriangleData; i
         {SIDE_KEYS.map((key, i) => row("side", key, i, `Lado ${sideName(data, i)}`))}
         {ANGLE_KEYS.map((key, i) => row("angle", key, i, `Ángulo ${vertexName(data, i)}`))}
       </div>
-      <p className="crt-form__hint">{solvedHint(data, unit)}</p>
+      <p className="crt-form__hint">{solvedHint(solution, data, unit)}</p>
     </>
   );
 }

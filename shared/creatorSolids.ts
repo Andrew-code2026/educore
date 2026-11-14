@@ -2,7 +2,7 @@ import type { BlockInput } from "./creator";
 import { add, approxText, exactText, exactValue, multiply, rational, recognize, sqrtOf, type Exact } from "./creatorExact";
 import { formatNumber } from "./creatorMath";
 import { exactDecimals, formatDecimalEs } from "./creatorPlane";
-import { plainToLatex } from "./creatorTriangle";
+import { NUMBER_LABEL, plainToLatex, segmentTouchesBox, unitLatex } from "./creatorTriangle";
 
 /**
  * Sólidos del Creador de recursos: cubo, prismas, cilindro, cono, pirámide de base cuadrada y esfera.
@@ -491,10 +491,10 @@ function measureLabel(measure: SolidMeasure, unit: string, showValues: boolean):
   if (measure.label !== undefined) return measure.label === "" ? null : { latex: plainToLatex(measure.label), plain: measure.label };
   if (!showValues) return null;
   const exact = measure.derived ? recognize(measure.value) : rational(measure.value);
-  const unitLatex = unit ? `\\text{ ${unit.replace(/[#%&$_{}~^\\]/g, "")}}` : "";
+  const unitText = unit ? unitLatex(unit) : "";
   const unitPlain = unit ? ` ${unit}` : "";
-  if (exact) return { latex: `${exactText(exact, { format: "latex" })}${unitLatex}`, plain: `${exactText(exact)}${unitPlain}` };
-  return { latex: `\\approx ${approxText(measure.value, "latex")}${unitLatex}`, plain: `≈ ${approxText(measure.value)}${unitPlain}` };
+  if (exact) return { latex: `${exactText(exact, { format: "latex" })}${unitText}`, plain: `${exactText(exact)}${unitPlain}` };
+  return { latex: `\\approx ${approxText(measure.value, "latex")}${unitText}`, plain: `≈ ${approxText(measure.value)}${unitPlain}` };
 }
 
 /** Los tramos rectos de un trazo, para saber si un rótulo lo pisa. */
@@ -503,17 +503,6 @@ function segmentsOf(stroke: SolidStroke): Array<[Point, Point]> {
   const points = stroke.points;
   const closed = stroke.kind === "face" || stroke.closed;
   return points.flatMap((point, i) => (i + 1 < points.length ? [[point, points[i + 1]] as [Point, Point]] : closed ? [[point, points[0]] as [Point, Point]] : []));
-}
-
-/** ¿El tramo de p a q pasa por la caja? */
-function segmentTouchesBox(p: Point, q: Point, box: Box): boolean {
-  const steps = Math.max(1, Math.ceil(Math.hypot(q.x - p.x, q.y - p.y) / 2));
-  for (let i = 0; i <= steps; i++) {
-    const x = p.x + ((q.x - p.x) * i) / steps;
-    const y = p.y + ((q.y - p.y) * i) / steps;
-    if (x > box.x - 1 && x < box.x + box.w + 1 && y > box.y - 1 && y < box.y + box.h + 1) return true;
-  }
-  return false;
 }
 
 /**
@@ -604,9 +593,6 @@ export function solidLayout(spec: SolidSpec): SolidLayout {
 export const pointsPath = (points: Point[], closed = false) => `${points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" ")}${closed ? " Z" : ""}`;
 
 /* ── Validación y lo que ve la IA ── */
-
-/** Un rótulo que es solo un número con unidad: la medida la escribe el sistema, no el rótulo. */
-const NUMBER_LABEL = /^[≈~]?\s*-?\d+(?:[.,]\d+)?\s*(?:mm|cm|dm|m|km|u)?[²³23]?$/;
 
 export function solidIssues(spec: SolidSpec, compile: (latex: string) => string | null): string[] {
   const issues: string[] = [];

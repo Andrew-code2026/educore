@@ -56,6 +56,8 @@ describe("validación y dibujo", () => {
       { angles: "axes", highlight: { degrees: -45 } },
       { angles: "axes", highlight: { degrees: 300, values: false } },
       { angles: "axes", highlight: { degrees: 90, triangle: false } },
+      { angles: "axes", highlight: { degrees: 90 } },
+      { highlight: { degrees: 0, label: "θ" } },
       { highlight: { degrees: 360, triangle: false } },
     ]) {
       expect(validateBlock(circle(input)), JSON.stringify(input)).toEqual([]);
@@ -64,7 +66,7 @@ describe("validación y dibujo", () => {
 
   it("rechaza ángulos que no son notables, triángulos imposibles y rótulos con LaTeX", () => {
     expect(validateBlock(circle({ highlight: { degrees: 20 } }))[0]).toContain("no es notable");
-    expect(validateBlock(circle({ highlight: { degrees: 180 } }))[0]).toContain("no tiene triángulo de referencia");
+    expect(validateBlock(circle({ highlight: { degrees: 180, triangle: true } }))[0]).toContain("no tiene triángulo de referencia");
     expect(validateBlock(circle({ highlight: { degrees: 30, label: "$x$" } })).join(" ")).toContain("texto plano");
     expect(blockInputSchema.safeParse({ type: "unit_circle", highlight: { degrees: 400 } }).success).toBe(false);
   });
@@ -113,6 +115,22 @@ describe("validación y dibujo", () => {
     expect(blockPreview(circle({ highlight: { degrees: 150 } }))).toBe("Círculo unitario con 150° resaltado");
     const exercise = blockInputSchema.parse({ type: "exercise", label: "Ejercicio 1", md: "Completa las coordenadas en la figura." }) as BlockInput;
     expect(validateBlockOrder([{ title: "Guía", blocks: [exercise, circle({ showCoordinates: false })] }])).toHaveLength(1);
+  });
+});
+
+describe("lo que encontró la revisión", () => {
+  it("un ángulo sobre un eje se resalta sin pedir que se quite el triángulo", () => {
+    const layout = unitCircleLayout(circle({ highlight: { degrees: 270 } }));
+    expect(layout.issues).toEqual([]);
+    expect(layout.highlight?.foot).toBeNull();
+    // Fuera de los ejes, sin decir nada, el triángulo va
+    expect(unitCircleLayout(circle({ highlight: { degrees: 135 } })).highlight?.foot).not.toBeNull();
+  });
+
+  it("un giro de 0° no dibuja arco ni flecha", () => {
+    const layout = unitCircleLayout(circle({ highlight: { degrees: 0 } }));
+    expect(layout.highlight?.rotation).toBe("");
+    expect(layout.highlight?.arrow).toBe("");
   });
 });
 
