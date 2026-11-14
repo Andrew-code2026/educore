@@ -39,6 +39,15 @@ export const CREATOR_LIMITS = {
   riemannMax: 40,
   tangentsMax: 3,
   secantsMax: 3,
+  /** Peticiones de puntos notables de un plano: raíces, corte con y y extremos de dos funciones, y sus cortes. */
+  notableMax: 8,
+  /** Figuras geométricas de un plano (cada una con su imagen, si se transforma) y vértices de cada una. */
+  planeFiguresMax: 4,
+  planeVerticesMax: 8,
+  /** Inecuaciones de un plano: las restricciones de un problema de programación lineal con sus dos de no negatividad. */
+  inequalitiesMax: 6,
+  /** Caracteres del nombre de un eje del plano; el validador comprueba además que quepa a lo largo de su eje. */
+  axisNameMax: 40,
   /** Marcas por eje: más que esto deja la cuadrícula ilegible al imprimir. */
   ticksMax: 40,
   /** Datos crudos de un histograma o de una caja y bigotes: hasta cinco cursos de 40 estudiantes. */
@@ -212,6 +221,71 @@ export const graphSecantSchema = z.object({
   show: lineShow.optional().describe(lineShowHelp),
 });
 
+export const graphNotableSchema = z.object({
+  fn: functionIndex.describe("Índice (desde 0) de la función cuyos puntos notables se marcan."),
+  kind: z
+    .enum(["roots", "yIntercept", "extrema", "intersections"])
+    .describe('Qué halla y marca el sistema: "roots" las raíces (cortes con el eje x), "yIntercept" el corte con el eje y, "extrema" los máximos y mínimos (el vértice de una parábola) e "intersections" los cortes con otra función (with).'),
+  with: functionIndex.optional().describe('Solo con "intersections": índice de la otra función.'),
+  labels: z.boolean().optional().describe("false marca los puntos sin escribir sus coordenadas, para que el estudiante las halle. Por defecto se escriben."),
+});
+
+/** Nombre de un vértice: una letra, con un dígito o hasta dos primas si hacen falta (A, B, P1, A'). Texto plano; el sistema lo compone. */
+const vertexName = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z]\d?'{0,2}$/);
+
+/** Una transformación del plano; la imagen de la figura la calcula y la dibuja el sistema (creatorPlaneGeometry.ts). */
+export const graphTransformSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("translation"), dx: z.number().describe("Desplazamiento en x del vector de traslación."), dy: z.number().describe("Desplazamiento en y.") }),
+  z.object({
+    kind: z.literal("reflection"),
+    over: z.enum(["x", "y", "vertical", "line"]).describe('Eje de la reflexión: "x" el eje x, "y" el eje y, "vertical" la recta x = at, "line" la recta y = slope·x + intercept.'),
+    at: z.number().optional().describe('Solo con over "vertical": la recta es x = at.'),
+    slope: z.number().optional().describe('Solo con over "line": pendiente de la recta. Para y = x es 1; para una horizontal y = c es 0.'),
+    intercept: z.number().optional().describe('Solo con over "line": corte de la recta con el eje y.'),
+  }),
+  z.object({
+    kind: z.literal("rotation"),
+    cx: z.number().describe("Coordenada x del centro de rotación."),
+    cy: z.number().describe("Coordenada y del centro de rotación."),
+    angle: z.number().min(-360).max(360).describe("Ángulo en grados: positivo en sentido antihorario, negativo en sentido horario."),
+  }),
+  z.object({
+    kind: z.literal("dilation"),
+    cx: z.number().describe("Coordenada x del centro de la homotecia."),
+    cy: z.number().describe("Coordenada y del centro de la homotecia."),
+    factor: z.number().describe("Razón de la homotecia: mayor que 1 amplía, entre 0 y 1 reduce, negativa pasa la figura al otro lado del centro."),
+  }),
+]);
+
+export const graphFigureSchema = z.object({
+  kind: z.enum(["points", "segment", "polygon"]).describe('"points" puntos sueltos, "segment" un segmento (dos vértices) o "polygon" un polígono cerrado (tres o más, en orden).'),
+  vertices: z
+    .array(z.object({ x: z.number(), y: z.number(), name: vertexName.optional().describe('Nombre del punto en texto plano: "A", "B", "P1". Su imagen por la transformación se llama A\'.') }))
+    .min(1)
+    .max(CREATOR_LIMITS.planeVerticesMax),
+  show: z
+    .array(z.enum(["coordinates", "lengths", "midpoint"]))
+    .max(3)
+    .optional()
+    .describe('Lo que el sistema calcula y escribe en la figura: "coordinates" las coordenadas de cada vértice junto a su nombre, "lengths" la longitud de cada lado (la distancia entre los extremos de un segmento) y "midpoint" el punto medio de un segmento.'),
+  transform: graphTransformSchema.optional().describe("Transformación que se aplica a la figura: el sistema calcula la imagen y la dibuja junto a la original, con los nombres primados (A', B', C')."),
+});
+
+/** Una inecuación lineal con dos variables, a·x + b·y (op) c; su semiplano y su frontera los dibuja el sistema (creatorRegions.ts). */
+export const graphInequalitySchema = z.object({
+  a: z.number().describe("Coeficiente de x."),
+  b: z.number().describe("Coeficiente de y."),
+  op: z.enum(["<", "<=", ">", ">="]).describe('Signo: "<=" y ">=" llevan frontera continua (la recta pertenece a la solución); "<" y ">", punteada.'),
+  c: z.number().describe("Término independiente: la inecuación es a·x + b·y (op) c. Así, x ≥ 0 es { a: 1, b: 0, op: \">=\", c: 0 } y 2x + 3y ≤ 12 es { a: 2, b: 3, op: \"<=\", c: 12 }."),
+  label: z.boolean().optional().describe("true escribe la inecuación junto a su frontera."),
+});
+
+/** Nombre de un eje del plano: texto plano y corto, para que quepa a lo largo del eje. */
+const planeAxisName = z.string().trim().min(1).max(CREATOR_LIMITS.axisNameMax);
+
 export const graphSpecSchema = z.object({
   xMin: z.number(),
   xMax: z.number(),
@@ -242,6 +316,32 @@ export const graphSpecSchema = z.object({
     .describe("Regiones sombreadas bajo una curva o entre dos curvas, para integrales y áreas. El valor lo calcula el sistema."),
   tangents: z.array(graphTangentSchema).max(CREATOR_LIMITS.tangentsMax).optional().describe("Rectas tangentes a una función en un punto, para la derivada."),
   secants: z.array(graphSecantSchema).max(CREATOR_LIMITS.secantsMax).optional().describe("Rectas secantes por dos puntos de una función, para la razón de cambio promedio."),
+  notable: z
+    .array(graphNotableSchema)
+    .max(CREATOR_LIMITS.notableMax)
+    .optional()
+    .describe("Puntos notables que el sistema calcula y marca con sus coordenadas: raíces, corte con el eje y, máximos y mínimos, y cortes entre dos funciones. Úsalos en vez de escribir esos puntos en points."),
+  figures: z
+    .array(graphFigureSchema)
+    .max(CREATOR_LIMITS.planeFiguresMax)
+    .optional()
+    .describe("Geometría en el plano: puntos con nombre, segmentos y polígonos por sus vértices, con sus longitudes y su punto medio calculados, y su imagen por una traslación, reflexión, rotación u homotecia."),
+  inequalities: z
+    .array(graphInequalitySchema)
+    .max(CREATOR_LIMITS.inequalitiesMax)
+    .optional()
+    .describe("Inecuaciones lineales con dos variables: el sistema dibuja la frontera de cada una (continua o punteada) y sombrea la región común, la región factible de un problema de programación lineal."),
+  inequalityShade: z
+    .enum(["common", "each", "none"])
+    .optional()
+    .describe('Qué se sombrea: "common" la región que cumple todas las inecuaciones (por defecto), "each" el semiplano de cada una con su color, o "none" solo las fronteras, para que el estudiante sombree.'),
+  inequalityVertices: z.boolean().optional().describe("true marca los vértices de la región común con sus coordenadas, calculadas por el sistema."),
+  xLabel: planeAxisName.optional().describe('Nombre del eje x con su unidad, en texto plano, para problemas de contexto: "Tiempo (h)". Se escribe bajo el plano. Si se omite, el eje se llama x.'),
+  yLabel: planeAxisName.optional().describe('Nombre del eje y con su unidad, en texto plano: "Costo ($)". Se escribe a la izquierda del plano, de abajo arriba. Si se omite, el eje se llama y.'),
+  xUnit: z
+    .enum(["pi"])
+    .optional()
+    .describe('"pi" rotula el eje x en múltiplos de π (π/2, π, 3π/2…), para seno, coseno y tangente. xMin, xMax y xStep se siguen dando en radianes con cuatro decimales, y xStep debe ser una fracción sencilla de π: 1.5708 (π/2), 0.7854 (π/4), 0.5236 (π/6), 3.1416 (π).'),
 });
 
 const headerFieldsBlock = z.object({
@@ -966,6 +1066,10 @@ export type GraphConic = z.infer<typeof graphConicSchema>;
 export type GraphArea = z.infer<typeof graphAreaSchema>;
 export type GraphTangent = z.infer<typeof graphTangentSchema>;
 export type GraphSecant = z.infer<typeof graphSecantSchema>;
+export type GraphNotable = z.infer<typeof graphNotableSchema>;
+export type GraphFigure = z.infer<typeof graphFigureSchema>;
+export type GraphInequality = z.infer<typeof graphInequalitySchema>;
+export type GraphTransform = z.infer<typeof graphTransformSchema>;
 export type BlockInput = z.infer<typeof blockInputSchema>;
 export type Block = z.infer<typeof blockSchema>;
 export type BlockType = Block["type"];
@@ -1159,8 +1263,16 @@ export type CreatorEvent =
   | { type: "doc"; doc: ResourceDoc }
   | { type: "done"; ok: boolean; error?: string };
 
-/** Lo que hay en un plano, en pocas palabras: las funciones y los nombres de las cónicas. */
-const graphContents = (spec: GraphSpec): string => [...spec.functions.map(fn => fn.expr), ...(spec.conics ?? []).map(conic => CONIC_LABELS[conic.kind])].join(", ");
+const PLANE_FIGURE_NAMES = { points: "Puntos", segment: "Segmento", polygon: "Polígono" } as const;
+
+/** Lo que hay en un plano, en pocas palabras: las funciones y los nombres de las cónicas, de las figuras y de las regiones. */
+const graphContents = (spec: GraphSpec): string =>
+  [
+    ...spec.functions.map(fn => fn.expr),
+    ...(spec.conics ?? []).map(conic => CONIC_LABELS[conic.kind]),
+    ...(spec.figures ?? []).map(figure => PLANE_FIGURE_NAMES[figure.kind]),
+    ...((spec.inequalities ?? []).length > 0 ? ["Región de inecuaciones"] : []),
+  ].join(", ");
 
 export const SHAPE_KIND_LABELS: Record<ShapeFigure["kind"], string> = {
   rectangle: "Rectángulo",

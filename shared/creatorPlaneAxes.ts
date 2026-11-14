@@ -1,0 +1,353 @@
+import type { GraphSpec } from "./creator";
+import { gcd } from "./creatorDiagrams";
+import { formatNumber, formatNumberEs } from "./creatorMath";
+import { figureNumber, figureNumberLatex, hasEqualUnits, isExactNumber, tidy } from "./creatorPlane";
+
+/**
+ * Ejes del plano cartesiano: cuánto mide la cuadrícula, qué márgenes la rodean y dónde va el
+ * nombre de cada eje. Es cálculo sin dibujo: lo usan el componente y el validador, de modo que
+ * un nombre que no cabe se rechaza antes de dibujar nada.
+ */
+
+/** Márgenes alrededor de la cuadrícula: caben las flechas de los ejes y los números. */
+export const PLANE_PAD = { left: 30, right: 24, top: 22, bottom: 28 } as const;
+const MAX_W = 320;
+const MAX_H = 320;
+
+/** Franja que se añade fuera de la cuadrícula para el nombre de un eje. */
+const NAME_BAND = 16;
+/** Ancho medio de un carácter del nombre de un eje, a su tamaño de letra (11,5 px). */
+const NAME_CHAR_W = 6.2;
+/** Ancho de un dígito de los números de los ejes (10,5 px). */
+const NUMBER_CHAR_W = 6;
+
+/**
+ * Tamaño de la cuadrícula. Con rangos parecidos se usan unidades iguales en ambos ejes
+ * (una recta de pendiente 1 se ve a 45°); si son muy distintos, cada eje toma su escala.
+ */
+export function plotSize(xSpan: number, ySpan: number): { w: number; h: number } {
+  const ratio = ySpan / xSpan;
+  if (hasEqualUnits(xSpan, ySpan)) {
+    let w = MAX_W;
+    let h = w * ratio;
+    if (h > MAX_H) {
+      h = MAX_H;
+      w = h / ratio;
+    }
+    return { w, h };
+  }
+  return ratio > 1 ? { w: 240, h: MAX_H } : { w: MAX_W, h: 200 };
+}
+
+/**
+ * Marcas que se llegan a calcular en un eje. El validador rechaza más de `CREATOR_LIMITS.ticksMax`;
+ * este tope, muy por encima, solo evita recorrer millones de marcas con un paso diminuto (un 0,001
+ * a medio teclear, un rango desmedido) antes de que ese aviso llegue.
+ */
+const TICKS_LIMIT = 400;
+
+/** Múltiplos de `step` dentro de [min, max], contados con enteros para no acumular error. Sin marcas si el paso no sirve o serían demasiadas. */
+export function planeTicks(min: number, max: number, step: number): number[] {
+  const values: number[] = [];
+  if (!(step > 0) || !((max - min) / step <= TICKS_LIMIT)) return values;
+  const first = Math.ceil(min / step - 1e-9);
+  const last = Math.floor(max / step + 1e-9);
+  for (let k = first; k <= last; k++) values.push(Number((k * step).toFixed(10)));
+  return values;
+}
+
+/** De cada cuántas marcas se escribe el número, para que no pasen de catorce por eje. */
+export const labelEvery = (count: number): number => Math.max(1, Math.ceil(count / 14));
+
+/* ── Eje x en múltiplos de π ── */
+
+/** Denominadores con que se escribe un múltiplo de π: los de los ángulos notables. */
+const PI_DENOMINATORS = [1, 2, 3, 4, 6, 12] as const;
+/** Error relativo con que se reconoce un paso escrito con cuatro decimales: 1,5708 es π/2; 1,5 no. */
+const PI_WRITTEN_TOLERANCE = 1e-3;
+/** Una marca que cae a menos de una centésima de paso fuera del rango (6,28 por 2π) se dibuja en el borde. */
+const PI_EDGE = 0.01;
+
+/** Un múltiplo de π como fracción irreducible: n/d · π. */
+export interface PiFraction {
+  n: number;
+  d: number;
+}
+
+/**
+ * El número como fracción de π con un denominador de los ángulos notables (π/6, π/4, π/3, π/2…),
+ * o null si no lo es. `tolerance` es el error relativo admitido: casi nada para un valor que
+ * calculó el sistema, y el de cuatro decimales para uno escrito a mano.
+ */
+export function piFraction(value: number, tolerance = 1e-9): PiFraction | null {
+  if (!Number.isFinite(value)) return null;
+  if (value === 0) return { n: 0, d: 1 };
+  for (const d of PI_DENOMINATORS) {
+    const n = Math.round((value / Math.PI) * d);
+    if (n !== 0 && Math.abs(value - (n / d) * Math.PI) <= tolerance * Math.abs(value)) return { n, d };
+  }
+  return null;
+}
+
+/** Un múltiplo de π como se escribe en el eje: «π/2», «-3π/2», «2π», «0». */
+export function piText({ n, d }: PiFraction): string {
+  if (n === 0) return "0";
+  const top = `${n < 0 ? "-" : ""}${Math.abs(n) === 1 ? "" : Math.abs(n)}π`;
+  return d === 1 ? top : `${top}/${d}`;
+}
+
+/** Lo mismo en LaTeX, para los rótulos de la figura: «\frac{\pi}{2}», «-\frac{3\pi}{2}». */
+export function piLatex({ n, d }: PiFraction): string {
+  if (n === 0) return "0";
+  const top = `${Math.abs(n) === 1 ? "" : Math.abs(n)}\\pi`;
+  return `${n < 0 ? "-" : ""}${d === 1 ? top : `\\frac{${top}}{${d}}`}`;
+}
+
+/** El paso del eje x como fracción de π cuando el plano lo pide (xUnit "pi"); null si no lo pide o el paso no lo es. */
+export const piStep = (spec: GraphSpec): PiFraction | null => (spec.xUnit === "pi" ? piFraction(spec.xStep, PI_WRITTEN_TOLERANCE) : null);
+
+export interface PlaneTick {
+  value: number;
+  /** El número de la marca como se escribe en el eje. */
+  text: string;
+  /** Si la marca lleva su número: cuando hay muchas, se escribe una de cada tantas. */
+  labeled: boolean;
+}
+
+/**
+ * Marcas del eje x de un plano cuya cuadrícula mide `w` píxeles de ancho. En múltiplos de π van en
+ * los múltiplos exactos del paso (no en los del número redondeado que se escribió) y se rotulan
+ * π/2, π, 3π/2…; cuando los rótulos no caben, se escribe uno de cada tantos contando desde el cero.
+ */
+export function planeXTicks(spec: GraphSpec, w: number): PlaneTick[] {
+  const step = piStep(spec);
+  if (!step) {
+    const values = planeTicks(spec.xMin, spec.xMax, spec.xStep);
+    const every = labelEvery(values.length);
+    return values.map((value, index) => ({ value, text: formatNumberEs(value), labeled: index % every === 0 }));
+  }
+  const size = (step.n / step.d) * Math.PI;
+  if (!((spec.xMax - spec.xMin) / size <= TICKS_LIMIT)) return [];
+  const first = Math.ceil(spec.xMin / size - PI_EDGE);
+  const last = Math.floor(spec.xMax / size + PI_EDGE);
+  const marks: Array<{ k: number; text: string }> = [];
+  for (let k = first; k <= last; k++) {
+    const divisor = gcd(k * step.n, step.d) || 1;
+    marks.push({ k, text: piText({ n: (k * step.n) / divisor, d: step.d / divisor }) });
+  }
+  const spacing = (w * size) / (spec.xMax - spec.xMin);
+  // Se prueba a escribir todas, luego una de cada dos…: sirve el primer salto en que los rótulos caben
+  // y, si se salta alguna, quedan los que se esperan en el tablero (los múltiplos de π/2 o de π)
+  const fits = (every: number) => {
+    const shown = marks.filter(mark => mark.k % every === 0);
+    const widest = Math.max(0, ...shown.map(mark => mark.text.length)) * NUMBER_CHAR_W + 6;
+    const round = every === 1 || (2 * every * step.n) % step.d === 0;
+    return round && shown.length <= 14 && widest <= every * spacing;
+  };
+  let every = 1;
+  while (!fits(every) && every < marks.length) every++;
+  return marks.map(({ k, text }) => ({ value: Math.min(Math.max(k * size, spec.xMin), spec.xMax), text, labeled: k % every === 0 }));
+}
+
+export interface PlaneLayout {
+  /** Ancho y alto de la cuadrícula. */
+  w: number;
+  h: number;
+  pad: { left: number; right: number; top: number; bottom: number };
+  /** Ancho y alto de la figura entera, con márgenes. */
+  width: number;
+  height: number;
+  /** Centro del nombre del eje x (se escribe horizontal, bajo el plano), o null si no lleva. */
+  xName: { x: number; y: number } | null;
+  /** Centro del nombre del eje y (se escribe de abajo arriba, a la izquierda), o null si no lleva. */
+  yName: { x: number; y: number } | null;
+}
+
+/** Ancho aproximado, en píxeles de la figura, del nombre de un eje. */
+export const axisNameWidth = (name: string): number => name.length * NAME_CHAR_W;
+
+/**
+ * Medidas del plano. Sin nombres de eje son las de siempre; cada nombre añade una franja
+ * fuera de la cuadrícula (abajo el de x, a la izquierda el de y), más allá de las flechas y
+ * de los números, así que no pisa nada de lo que hay dentro.
+ */
+export function planeLayout(spec: GraphSpec): PlaneLayout | null {
+  const xSpan = spec.xMax - spec.xMin;
+  const ySpan = spec.yMax - spec.yMin;
+  if (!(xSpan > 0) || !(ySpan > 0)) return null;
+  const { w, h } = plotSize(xSpan, ySpan);
+  const pad: PlaneLayout["pad"] = { ...PLANE_PAD };
+
+  if (spec.xLabel) pad.bottom += NAME_BAND;
+  if (spec.yLabel) {
+    // Con el eje y en el borde izquierdo, sus números quedan fuera de la cuadrícula: el nombre va más allá de ellos
+    if (spec.xMin >= 0 && spec.yStep > 0) {
+      const yTicks = planeTicks(spec.yMin, spec.yMax, spec.yStep);
+      const every = labelEvery(yTicks.length);
+      const longest = Math.max(0, ...yTicks.filter((_, index) => index % every === 0).map(y => formatNumberEs(y).length));
+      pad.left = Math.max(pad.left, longest * NUMBER_CHAR_W + 13);
+    }
+    pad.left += NAME_BAND;
+  }
+
+  const width = pad.left + w + pad.right;
+  const height = pad.top + h + pad.bottom;
+  return {
+    w,
+    h,
+    pad,
+    width,
+    height,
+    xName: spec.xLabel ? { x: pad.left + w / 2, y: height - 5 } : null,
+    yName: spec.yLabel ? { x: 12, y: pad.top + h / 2 } : null,
+  };
+}
+
+/** Ancho que los nombres de los ejes añaden a la figura (cero si no los lleva). */
+export function axisNameBands(spec: GraphSpec): number {
+  const layout = planeLayout(spec);
+  return layout ? Math.round(layout.pad.left - PLANE_PAD.left) : 0;
+}
+
+/** Problemas de los ejes: que sus nombres quepan a lo largo de su lado de la figura y que un eje en múltiplos de π tenga un paso que lo sea. */
+export function planeAxisIssues(spec: GraphSpec): string[] {
+  const layout = planeLayout(spec);
+  if (!layout) return [];
+  const issues: string[] = [];
+  const check = (name: string | undefined, axis: "x" | "y", room: number, side: string) => {
+    if (!name || axisNameWidth(name) <= room) return;
+    issues.push(`Gráfica: el nombre del eje ${axis} («${name}») no cabe ${side} del plano, que admite unos ${Math.floor(room / NAME_CHAR_W)} caracteres con este rango. Acórtalo: la unidad puede ir abreviada, "Tiempo (h)".`);
+  };
+  check(spec.xLabel, "x", layout.width - 8, "a lo ancho");
+  check(spec.yLabel, "y", layout.height - 8, "a lo alto");
+
+  if (spec.xUnit === "pi") {
+    const step = piStep(spec);
+    if (!step) {
+      issues.push(
+        `Gráfica: con el eje x en múltiplos de π (xUnit "pi"), el paso (xStep) debe ser una fracción sencilla de π escrita con cuatro decimales: 0.2618 (π/12), 0.5236 (π/6), 0.7854 (π/4), 1.0472 (π/3), 1.5708 (π/2), 3.1416 (π) o un múltiplo de ellos. Ahora vale ${formatNumber(spec.xStep, 4)}.`,
+      );
+    } else if ((spec.xMax - spec.xMin) / spec.xStep <= TICKS_LIMIT && !planeXTicks(spec, layout.w).some(tick => tick.value !== 0)) {
+      issues.push(`Gráfica: el eje x va en múltiplos de π, pero en este rango no cabe ninguna marca: el paso es ${piText(step)}. Amplía xMin/xMax o reduce xStep.`);
+    }
+  }
+  return issues;
+}
+
+/* ── Coordenadas de un punto calculado ── */
+
+/** ¿El plano escribe las abscisas en múltiplos de π? */
+export const usesPi = (spec: GraphSpec): boolean => spec.xUnit === "pi";
+
+export interface PointParts {
+  /** «(2, -1)», con punto y coma si alguna coordenada lleva coma decimal; la abscisa con π si corresponde: «(π/2, 1)». */
+  text: string;
+  /** Lo mismo en LaTeX, para un rótulo de la figura. */
+  latex: string;
+  /** Las dos coordenadas se pueden escribir enteras; si no, quien lo use antepone «≈». */
+  exact: boolean;
+}
+
+/**
+ * Las coordenadas de un punto que calculó el sistema, como se leen en la figura y en la clave. Con
+ * `pi`, una abscisa que es un múltiplo de π de los ángulos notables se escribe con π y cuenta como exacta.
+ */
+export function pointParts(x: number, y: number, pi = false): PointParts {
+  const fraction = pi ? piFraction(x) : null;
+  const xs = fraction ? piText(fraction) : figureNumber(x);
+  const ys = figureNumber(y);
+  const separator = xs.includes(",") || ys.includes(",") ? ";" : ",";
+  return {
+    text: `(${xs}${separator} ${ys})`,
+    latex: `(${fraction ? piLatex(fraction) : figureNumberLatex(x)}${separator}\\, ${figureNumberLatex(y)})`,
+    exact: (fraction !== null || isExactNumber(x)) && isExactNumber(y),
+  };
+}
+
+/** Un punto calculado, en texto, con «≈» delante si alguna coordenada va redondeada. */
+export function planePointText(spec: GraphSpec, x: number, y: number): string {
+  const parts = pointParts(x, y, usesPi(spec));
+  return `${parts.exact ? "" : "≈ "}${parts.text}`;
+}
+
+/** Lo mismo en LaTeX, para el rótulo del punto en la figura. */
+export function planePointLatex(spec: GraphSpec, x: number, y: number): string {
+  const parts = pointParts(x, y, usesPi(spec));
+  return `${parts.exact ? "" : "\\approx "}${parts.latex}`;
+}
+
+/* ── Ayudantes comunes de los cálculos del plano ── */
+
+export type Pair = [number, number];
+
+/** Quita el ruido de una suma o un producto (0,1 + 0,2) y el signo de un cero negativo. */
+export const cleanNumber = (value: number): number => tidy(Number(value.toPrecision(12))) + 0;
+
+/** Un punto en los avisos del validador: con punto decimal y hasta cuatro decimales. */
+export const point4 = (x: number, y: number): string => `(${formatNumber(x, 4)}, ${formatNumber(y, 4)})`;
+
+/** Una lista en una frase: «a, b y c». */
+export const listEs = (items: string[]): string => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`);
+
+/* ── Números de los ejes ── */
+
+export interface AxisBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface AxisNumber {
+  value: number;
+  text: string;
+  /** Sitio que ocupa el número en la figura. */
+  box: AxisBox;
+}
+
+export interface AxisNumbers {
+  x: AxisNumber[];
+  y: AxisNumber[];
+  /** El cero del cruce de los ejes, cuando el origen está a la vista: se escribe una sola vez, abajo a la izquierda. */
+  origin: AxisBox | null;
+}
+
+/** Caja de un número de eje: centrado bajo su marca (eje x) o terminado junto a ella (eje y). */
+const numberBox = (text: string, anchorX: number, baseline: number, anchor: "middle" | "end"): AxisBox => {
+  const w = text.length * NUMBER_CHAR_W + 4;
+  return { x: anchor === "middle" ? anchorX - w / 2 : anchorX - w, y: baseline - 10, w, h: 13 };
+};
+
+/**
+ * Los números que se escriben en cada eje. Con las marcas muy juntas, el número vecino al origen
+ * (el -1) cae sobre el cero del cruce y los dos se leen como uno solo («-10»): ese vecino no se
+ * escribe. Su marca sigue en el eje.
+ */
+export function planeAxisNumbers(spec: GraphSpec, layout: PlaneLayout): AxisNumbers {
+  const sx = (x: number) => layout.pad.left + ((x - spec.xMin) / (spec.xMax - spec.xMin)) * layout.w;
+  const sy = (y: number) => layout.pad.top + ((spec.yMax - y) / (spec.yMax - spec.yMin)) * layout.h;
+  // Si el cero no está en el rango, el eje se dibuja en el borde más cercano
+  const axisX = Math.min(Math.max(0, spec.yMin), spec.yMax);
+  const axisY = Math.min(Math.max(0, spec.xMin), spec.xMax);
+  const originShown = axisX === 0 && axisY === 0;
+  const origin = originShown ? numberBox("0", sx(axisY) - 7, sy(axisX) + 14, "end") : null;
+  // Cada caja lleva 2 px de holgura por lado. En horizontal, dos números en el mismo renglón necesitan unos 6 px
+  // entre sus cifras para no leerse como uno: ceden los que quedan a menos de 2 px de caja a caja. En vertical son
+  // renglones distintos y basta con que no se pisen: ceden los que comparten más de 3 px
+  const crowdsOrigin = (box: AxisBox) =>
+    origin !== null && Math.min(box.x + box.w, origin.x + origin.w) - Math.max(box.x, origin.x) > -2 && Math.min(box.y + box.h, origin.y + origin.h) - Math.max(box.y, origin.y) > 3;
+
+  const yTicks = planeTicks(spec.yMin, spec.yMax, spec.yStep);
+  const everyY = labelEvery(yTicks.length);
+  return {
+    x: planeXTicks(spec, layout.w)
+      .filter(tick => tick.labeled && !(originShown && tick.value === 0))
+      .map(tick => ({ value: tick.value, text: tick.text, box: numberBox(tick.text, sx(tick.value), sy(axisX) + 14, "middle") }))
+      .filter(number => !crowdsOrigin(number.box)),
+    y: yTicks
+      .filter((y, index) => index % everyY === 0 && !(originShown && y === 0))
+      .map(y => ({ value: y, text: formatNumberEs(y), box: numberBox(formatNumberEs(y), sx(axisY) - 7, sy(y) + 3.5, "end") }))
+      .filter(number => !crowdsOrigin(number.box)),
+    origin,
+  };
+}

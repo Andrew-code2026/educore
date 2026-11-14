@@ -1,3 +1,4 @@
+import { axisNameBands } from "./creatorPlaneAxes";
 import { BLOCK_TYPE_LABELS, blockCells, blockPreview, CREATOR_LIMITS, findMath, INNER_BLOCK_TYPES, isContainer, plainText, type BlockInput, type ContainerInput } from "./creator";
 
 /**
@@ -51,8 +52,9 @@ export function minBlockWidth(block: BlockInput): number {
     case "value_table":
       return 16 + 52 * (block.xs.length + 1);
     case "graph":
-      // El plano mide hasta 360 px y sus rótulos son de tamaño fijo: no se reduce tanto como un dibujo
-      return 270;
+      // El plano mide hasta 360 px y sus rótulos son de tamaño fijo: no se reduce tanto como un dibujo.
+      // Las franjas de los nombres de los ejes se suman: no deben salir de la escala de la cuadrícula
+      return 270 + axisNameBands(block.spec);
     case "number_line":
       return fromDesign(560);
     case "bar_chart":

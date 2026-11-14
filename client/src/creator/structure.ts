@@ -43,7 +43,11 @@ export const BLOCK_INFO: Partial<Record<BlockType, { hint: string; keywords: str
   solution: { hint: "Procedimiento paso a paso y respuesta final", keywords: "respuesta clave procedimiento pasos" },
   table: { hint: "Filas y columnas libres", keywords: "filas columnas cuadro datos" },
   value_table: { hint: "Valores de x y y calculados de una expresión", keywords: "funcion tabular" },
-  graph: { hint: "Plano cartesiano con funciones, cónicas y puntos", keywords: "funcion plano cartesiano ejes curva recta parabola coordenadas conica circunferencia elipse hiperbola tangente secante derivada integral limite trozos asintota" },
+  graph: {
+    hint: "Plano cartesiano con funciones, cónicas, figuras e inecuaciones",
+    keywords:
+      "funcion plano cartesiano ejes curva recta parabola coordenadas conica circunferencia elipse hiperbola tangente secante derivada integral limite trozos asintota raices vertice interceptos seno coseno trigonometrica pi segmento poligono triangulo distancia punto medio transformacion traslacion reflexion rotacion homotecia inecuacion semiplano region factible programacion lineal",
+  },
   bar_chart: { hint: "Barras para comparar categorías", keywords: "frecuencia categorias" },
   pie_chart: { hint: "Partes de un total, en porcentajes", keywords: "torta pastel sectores porcentaje" },
   line_chart: { hint: "Cómo cambia un dato con el tiempo", keywords: "tendencia tiempo evolucion serie" },

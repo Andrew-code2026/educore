@@ -1,16 +1,17 @@
 import { memo, useId, useMemo, type CSSProperties } from "react";
 import type { GraphSpec } from "@shared/creator";
-import { formatNumber, formatNumberEs, tryCompile } from "@shared/creatorMath";
+import { formatNumber, tryCompile } from "@shared/creatorMath";
 import { areaLabel, areaShape, lineLabel, secantLine, tangentLine, type PlaneLine } from "@shared/creatorCalculus";
 import { CONIC_LABELS, conicCurves, conicEquation, shownConicElements, type ConicLine } from "@shared/creatorConics";
-import { functionColors, hasEqualUnits, insidePlane, sampleFunction, type CurveMark } from "@shared/creatorPlane";
+import { describeNotable, shownNotablePoints } from "@shared/creatorNotable";
+import { functionColors, insidePlane, sampleFunction, type CurveMark } from "@shared/creatorPlane";
+import { planeAxisNumbers, planeLayout, planePointLatex, planeTicks, planeXTicks, usesPi } from "@shared/creatorPlaneAxes";
+import { describeFigure, figureShows, midpointLabel, mirrorLine, planeFigure, sideLabel, transformCenter, vertexLabel } from "@shared/creatorPlaneGeometry";
+import { boundarySegment, commonRegion, describeInequalities, halfPlaneRegion, inequalityLatex, isStrict, regionVertices } from "@shared/creatorRegions";
+import { TEXT_HALO } from "./FigureFrame";
 import { FigureNotes, useHasNotes } from "./FigureNotes";
 import { Formula } from "./Formula";
 
-/** Márgenes alrededor de la cuadrícula: caben las flechas de los ejes y los números. */
-const PAD = { left: 30, right: 24, top: 22, bottom: 28 };
-const MAX_W = 320;
-const MAX_H = 320;
 const LABEL_H = 20;
 /** Alto de una etiqueta con fracciones a tamaño de texto (la ecuación de una elipse o una hipérbola). */
 const TALL_LABEL_H = 32;
@@ -18,6 +19,9 @@ const TONES = ["a", "b", "c", "d"] as const;
 /** Radio de los puntos marcados y de los círculos de extremos y saltos. */
 const POINT_R = 4.2;
 const MARK_R = 3.6;
+
+/** Una recta que cruza el plano: vertical (x = `vertical`) o y = slope·x + intercept. */
+type AuxLine = Pick<ConicLine, "vertical" | "slope" | "intercept">;
 
 interface Box {
   x: number;
@@ -31,33 +35,6 @@ interface PlacedLabel extends Box {
   tone: string;
 }
 
-/**
- * Tamaño de la cuadrícula. Con rangos parecidos se usan unidades iguales en ambos ejes
- * (una recta de pendiente 1 se ve a 45°); si son muy distintos, cada eje toma su escala.
- */
-function plotSize(xSpan: number, ySpan: number): { w: number; h: number } {
-  const ratio = ySpan / xSpan;
-  if (hasEqualUnits(xSpan, ySpan)) {
-    let w = MAX_W;
-    let h = w * ratio;
-    if (h > MAX_H) {
-      h = MAX_H;
-      w = h / ratio;
-    }
-    return { w, h };
-  }
-  return ratio > 1 ? { w: 240, h: MAX_H } : { w: MAX_W, h: 200 };
-}
-
-/** Múltiplos de `step` dentro de [min, max], contados con enteros para no acumular error. */
-function ticks(min: number, max: number, step: number): number[] {
-  const values: number[] = [];
-  const first = Math.ceil(min / step - 1e-9);
-  const last = Math.floor(max / step + 1e-9);
-  for (let k = first; k <= last; k++) values.push(Number((k * step).toFixed(10)));
-  return values;
-}
-
 /** Ancho aproximado de una etiqueta LaTeX en pantalla, para ubicarla sin medir el DOM. */
 function estimateWidth(latex: string): number {
   const plain = latex.replace(/\\[a-zA-Z]+/g, "x").replace(/[{}\\^_]/g, "");
@@ -68,6 +45,40 @@ const FRACTION = /\\d?frac\{((?:[^{}]|\{[^{}]*\})*)\}\{((?:[^{}]|\{[^{}]*\})*)\}
 
 /** Ancho de una fórmula con fracciones: cada fracción ocupa lo que su parte más larga, no la suma de las dos. */
 const estimateFractionWidth = (latex: string) => estimateWidth(latex.replace(FRACTION, (_, top: string, bottom: string) => (top.length >= bottom.length ? top : bottom)));
+
+const LABEL_TOKEN = /\\d?frac\{((?:[^{}]|\{[^{}]*\})*)\}\{((?:[^{}]|\{[^{}]*\})*)\}|\\[a-zA-Z]+|\\,|\{,\}|_\{[^{}]*\}|[^\s{}]/g;
+
+/**
+ * Ancho de un rótulo que escribe el sistema (coordenadas, longitudes, inecuaciones), sumando lo que mide
+ * cada signo a su tamaño de letra. Es más ajustado que `estimateWidth`: estos rótulos son muchos y cortos,
+ * y con el ancho de sobra no cabrían donde sí caben.
+ */
+function measureLabel(latex: string): number {
+  const inner = (text: string): number => {
+    let width = 0;
+    let previous = "(";
+    for (const match of text.matchAll(LABEL_TOKEN)) {
+      const token = match[0];
+      if (match[1] !== undefined) width += 0.72 * Math.max(inner(match[1]), inner(match[2])) + 3;
+      else if (token === "\\approx" || token === "\\le" || token === "\\ge" || token === "=" || token === "<" || token === ">") width += 16.5;
+      else if (token === "+") width += 15;
+      // Un menos tras un paréntesis, una coma o un signo es el de un número negativo: no lleva espacios
+      else if (token === "-") width += /^[(,;]$|^\{,\}$|^\\(approx|le|ge|,)$|^[=<>]$/.test(previous) ? 9.7 : 15;
+      else if (token === "\\pi") width += 7.1;
+      else if (token === "\\,") width += 2;
+      else if (token === "{,}") width += 3.5;
+      else if (token === "," || token === ";") width += 5.5;
+      else if (token === "(" || token === ")") width += 4.9;
+      else if (token === "'") width += 3.5;
+      else if (token.startsWith("_{")) width += 4.5;
+      else if (/^\d$/.test(token)) width += 6.25;
+      else width += 7.2;
+      previous = token;
+    }
+    return width;
+  };
+  return Math.ceil(inner(latex)) + 10;
+}
 
 const overlaps = (a: Box, b: Box) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
@@ -80,8 +91,13 @@ function describe(spec: GraphSpec): string {
   const shaded = (spec.areas ?? []).map(area => `de x = ${formatNumber(area.from)} a x = ${formatNumber(area.to)}`).join("; ");
   const tangents = (spec.tangents ?? []).map(tangent => `x = ${formatNumber(tangent.x)}`).join(", ");
   const secants = (spec.secants ?? []).map(secant => `x = ${formatNumber(secant.x1)} y x = ${formatNumber(secant.x2)}`).join("; ");
+  const axes = [spec.xLabel && `eje x: ${spec.xLabel}`, spec.yLabel && `eje y: ${spec.yLabel}`].filter(Boolean).join(", ");
+  const unit = spec.xUnit === "pi" ? "Eje x en múltiplos de π" : "";
+  const notable = (spec.notable ?? []).map(item => describeNotable(spec, item)).filter(Boolean).join(" ");
+  const figures = (spec.figures ?? []).map(figure => describeFigure(figure, usesPi(spec))).join(" ").replace(/\$/g, "");
+  const regions = describeInequalities(spec) ?? "";
   return (
-    [base, lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, tangents && `Recta tangente en ${tangents}`, secants && `Recta secante entre ${secants}`, points && `Puntos marcados: ${points}`]
+    [base, axes && `Ejes con nombre, ${axes}`, unit, notable.replace(/\.$/, ""), figures.replace(/\.$/, ""), regions.replace(/\.$/, ""), lines && `Rectas verticales: ${lines}`, shaded && `Región sombreada ${shaded}`, tangents && `Recta tangente en ${tangents}`, secants && `Recta secante entre ${secants}`, points && `Puntos marcados: ${points}`]
       .filter(Boolean)
       .join(". ") + "."
   );
@@ -93,23 +109,21 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
   const noted = useHasNotes();
 
   const view = useMemo(() => {
+    const layout = planeLayout(spec);
+    if (!layout) return null;
     const xSpan = spec.xMax - spec.xMin;
     const ySpan = spec.yMax - spec.yMin;
-    if (!(xSpan > 0) || !(ySpan > 0)) return null;
 
-    const { w, h } = plotSize(xSpan, ySpan);
-    const width = PAD.left + w + PAD.right;
-    const height = PAD.top + h + PAD.bottom;
+    // Los márgenes dependen del plano: el nombre de un eje añade su franja
+    const { w, h, pad: PAD } = layout;
     const sx = (x: number) => PAD.left + ((x - spec.xMin) / xSpan) * w;
     const sy = (y: number) => PAD.top + ((spec.yMax - y) / ySpan) * h;
 
-    const xTicks = ticks(spec.xMin, spec.xMax, spec.xStep);
-    const yTicks = ticks(spec.yMin, spec.yMax, spec.yStep);
+    const xTicks = planeXTicks(spec, w);
+    const yTicks = planeTicks(spec.yMin, spec.yMax, spec.yStep);
     // Si el cero no está en el rango, el eje se dibuja en el borde más cercano
     const axisX = Math.min(Math.max(0, spec.yMin), spec.yMax);
     const axisY = Math.min(Math.max(0, spec.xMin), spec.xMax);
-    const everyX = Math.max(1, Math.ceil(xTicks.length / 14));
-    const everyY = Math.max(1, Math.ceil(yTicks.length / 14));
 
     const inPlane = (x: number, y: number) => insidePlane(spec, x, y);
     const pathOf = (points: Array<[number, number]>) => points.map(([x, y], i) => `${i === 0 ? "M" : "L"}${sx(x).toFixed(2)} ${sy(y).toFixed(2)}`).join(" ");
@@ -161,13 +175,13 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
     ];
 
     // Las cónicas siguen la paleta después de las funciones
-    const lineY = (line: ConicLine, x: number) => line.slope! * x + line.intercept!;
+    const lineY = (line: AuxLine, x: number) => line.slope! * x + line.intercept!;
     /** Puntos de una recta auxiliar dentro del plano: trazo que una etiqueta no debería tapar. */
-    const lineSamples = (line: ConicLine): Array<[number, number]> =>
+    const lineSamples = (line: AuxLine): Array<[number, number]> =>
       Array.from({ length: 33 }, (_, i): [number, number] =>
         line.vertical !== undefined ? [line.vertical, spec.yMin + (ySpan * i) / 32] : [spec.xMin + (xSpan * i) / 32, lineY(line, spec.xMin + (xSpan * i) / 32)],
       ).filter(([x, y]) => inPlane(x, y));
-    const linePath = (line: ConicLine) =>
+    const linePath = (line: AuxLine) =>
       line.vertical !== undefined
         ? `M${sx(line.vertical).toFixed(2)} ${PAD.top} V${PAD.top + h}`
         : `M${PAD.left} ${sy(line.slope! * spec.xMin + line.intercept!).toFixed(2)} L${PAD.left + w} ${sy(line.slope! * spec.xMax + line.intercept!).toFixed(2)}`;
@@ -190,6 +204,87 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       };
     });
 
+    const pi = usesPi(spec);
+    // Figuras geométricas: la original y, si se transforma, su imagen en el color siguiente
+    const figureBase = spec.functions.length + (spec.conics ?? []).length;
+    const figures = (spec.figures ?? []).map((figure, index) => {
+      const { original, image } = planeFigure(figure);
+      const shapes = [original, ...(image ? [image] : [])].map((shape, order) => {
+        const pixels = shape.vertices.map(vertex => [sx(vertex.x), sy(vertex.y)] as const);
+        return {
+          shape,
+          tone: TONES[(figureBase + 2 * index + order) % TONES.length],
+          d: shape.kind === "points" ? null : `${pathOf(shape.vertices.map(vertex => [vertex.x, vertex.y]))}${shape.kind === "polygon" ? " Z" : ""}`,
+          // Centro de la figura en pantalla: los rótulos se alejan de él
+          center: [pixels.reduce((sum, [x]) => sum + x, 0) / pixels.length, pixels.reduce((sum, [, y]) => sum + y, 0) / pixels.length] as const,
+        };
+      });
+      // Trazos de ayuda: el vector de una traslación, el eje de una reflexión, los radios de una rotación y los rayos de una homotecia
+      const guides: string[] = [];
+      const guideSamples: Array<[number, number]> = [];
+      let arrow: { d: string; head: string } | null = null;
+      const transform = figure.transform;
+      const center = transform && image ? transformCenter(transform) : null;
+      const ray = (from: readonly [number, number], to: readonly [number, number]) => `M${sx(from[0]).toFixed(2)} ${sy(from[1]).toFixed(2)} L${sx(to[0]).toFixed(2)} ${sy(to[1]).toFixed(2)}`;
+      if (transform && image) {
+        const first = [original.vertices[0].x, original.vertices[0].y] as const;
+        const moved = [image.vertices[0].x, image.vertices[0].y] as const;
+        if (transform.kind === "translation") {
+          const [x1, y1, x2, y2] = [sx(first[0]), sy(first[1]), sx(moved[0]), sy(moved[1])];
+          const length = Math.hypot(x2 - x1, y2 - y1) || 1;
+          const ux = (x2 - x1) / length;
+          const uy = (y2 - y1) / length;
+          // La punta queda a un paso del punto imagen, para no taparlo
+          const tip = [x2 - ux * 5, y2 - uy * 5];
+          arrow = {
+            d: `M${x1.toFixed(2)} ${y1.toFixed(2)} L${(tip[0] - ux * 7).toFixed(2)} ${(tip[1] - uy * 7).toFixed(2)}`,
+            head: `M${tip[0].toFixed(2)} ${tip[1].toFixed(2)} L${(tip[0] - ux * 8 - uy * 3.5).toFixed(2)} ${(tip[1] - uy * 8 + ux * 3.5).toFixed(2)} L${(tip[0] - ux * 8 + uy * 3.5).toFixed(2)} ${(tip[1] - uy * 8 - ux * 3.5).toFixed(2)} Z`,
+          };
+        } else if (transform.kind === "reflection") {
+          const line = mirrorLine(transform);
+          // Los ejes ya están dibujados: solo se traza una recta distinta de ellos
+          if (line && (transform.over === "line" || transform.over === "vertical")) {
+            guides.push(linePath(line));
+            guideSamples.push(...lineSamples(line));
+          }
+        } else if (center) {
+          if (transform.kind === "rotation") guides.push(ray(center, first), ray(center, moved));
+          // En una homotecia cada vértice, su imagen y el centro están alineados: la recta va de uno a otro pasando por
+          // el centro, que con razón negativa queda en medio
+          else original.vertices.forEach((vertex, at) => guides.push(ray(center, [vertex.x, vertex.y]), ray(center, [image.vertices[at].x, image.vertices[at].y])));
+        }
+      }
+      return { index, shapes, guides, guideSamples, arrow, center: center && inPlane(center[0], center[1]) ? center : null, show: figureShows(figure) };
+    });
+    const figureShapes = figures.flatMap(figure => figure.shapes.map(item => ({ ...item, show: figure.show })));
+
+    // Inecuaciones: la frontera de cada una, lo que se sombrea y los vértices de la región común
+    const boundBase = figureBase + 2 * figures.length;
+    const shade = spec.inequalityShade ?? "common";
+    const closed = (polygon: Array<[number, number]>) => (polygon.length >= 3 ? `${pathOf(polygon)} Z` : null);
+    const bounds = (spec.inequalities ?? []).flatMap((inequality, index) => {
+      const segment = boundarySegment(spec, inequality);
+      if (!segment) return [];
+      const [from, to] = segment;
+      return [
+        {
+          index,
+          tone: TONES[(boundBase + index) % TONES.length],
+          dashed: isStrict(inequality.op),
+          d: pathOf([from, to]),
+          from,
+          to,
+          region: shade === "each" ? closed(halfPlaneRegion(spec, inequality)) : null,
+          label: inequality.label ? inequalityLatex(inequality) : null,
+        },
+      ];
+    });
+    const regionPath = shade === "common" ? closed(commonRegion(spec)) : null;
+    const corners = spec.inequalityVertices ? regionVertices(spec).filter(vertex => inPlane(vertex.x, vertex.y)) : [];
+
+    // Puntos notables que halló el sistema: raíces, cortes y extremos, con el color de su función
+    const notable = shownNotablePoints(spec).map(point => ({ ...point, tone: toneOf(point.fn) }));
+
     // Las etiquetas se ubican por prioridad: primero los puntos, luego las curvas
     const plot: Box = { x: PAD.left, y: PAD.top, w, h };
     const occupied: Box[] = [
@@ -197,20 +292,19 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       ...curves.flatMap(curve => curve.marks.map(mark => ({ x: sx(mark.x) - 5, y: sy(mark.y) - 5, w: 10, h: 10 }))),
       ...conics.flatMap(conic => conic.points.map(point => ({ x: sx(point.x) - 5, y: sy(point.y) - 5, w: 10, h: 10 }))),
       ...lines.flatMap(item => item.points.map(([x, y]) => ({ x: sx(x) - 5, y: sy(y) - 5, w: 10, h: 10 }))),
+      ...notable.map(point => ({ x: sx(point.x) - 5, y: sy(point.y) - 5, w: 10, h: 10 })),
+      ...figureShapes.flatMap(item => [
+        ...item.shape.vertices.map(vertex => ({ x: sx(vertex.x) - 5, y: sy(vertex.y) - 5, w: 10, h: 10 })),
+        ...(item.show.midpoint && item.shape.midpoint ? [{ x: sx(item.shape.midpoint[0]) - 5, y: sy(item.shape.midpoint[1]) - 5, w: 10, h: 10 }] : []),
+      ]),
+      ...figures.flatMap(figure => (figure.center ? [{ x: sx(figure.center[0]) - 5, y: sy(figure.center[1]) - 5, w: 10, h: 10 }] : [])),
+      ...corners.map(vertex => ({ x: sx(vertex.x) - 5, y: sy(vertex.y) - 5, w: 10, h: 10 })),
     ];
     const labels: PlacedLabel[] = [];
 
     // Lo que una etiqueta no debería tapar: los números de los ejes, los ejes y las curvas
-    const originShown = axisX === 0 && axisY === 0;
-    const numberBox = (text: string, anchorX: number, baseline: number, anchor: "middle" | "end"): Box => {
-      const boxW = text.length * 6 + 4;
-      return { x: anchor === "middle" ? anchorX - boxW / 2 : anchorX - boxW, y: baseline - 10, w: boxW, h: 13 };
-    };
-    const numberBoxes: Box[] = [
-      ...xTicks.filter((x, index) => index % everyX === 0 && !(originShown && x === 0)).map(x => numberBox(formatNumberEs(x), sx(x), sy(axisX) + 14, "middle")),
-      ...yTicks.filter((y, index) => index % everyY === 0 && !(originShown && y === 0)).map(y => numberBox(formatNumberEs(y), sx(axisY) - 7, sy(y) + 3.5, "end")),
-      ...(originShown ? [numberBox("0", sx(axisY) - 7, sy(axisX) + 14, "end")] : []),
-    ];
+    const numbers = planeAxisNumbers(spec, layout);
+    const numberBoxes: Box[] = [...numbers.x.map(number => number.box), ...numbers.y.map(number => number.box), ...(numbers.origin ? [numbers.origin] : [])];
     const axisBoxes: Box[] = [
       { x: PAD.left, y: sy(axisX) - 2, w, h: 4 },
       { x: sx(axisY) - 2, y: PAD.top, w: 4, h },
@@ -224,6 +318,17 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
           .filter(([x, y]) => inPlane(x, y))
           .map(([x, y]) => [sx(x), sy(y)] as const),
       ),
+      // Los lados de las figuras y el eje de una reflexión
+      ...figureShapes.flatMap(item =>
+        item.shape.sides.flatMap(side => {
+          const [x1, y1, x2, y2] = [sx(side.from.x), sy(side.from.y), sx(side.to.x), sy(side.to.y)];
+          // Una muestra cada 5 px: un rótulo de 20 px de alto no cabe entre dos y siempre cuenta el lado que pisa
+          const steps = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / 5));
+          return Array.from({ length: steps + 1 }, (_, i) => [x1 + ((x2 - x1) * i) / steps, y1 + ((y2 - y1) * i) / steps] as const);
+        }),
+      ),
+      ...figures.flatMap(figure => figure.guideSamples.map(([x, y]) => [sx(x), sy(y)] as const)),
+      ...bounds.flatMap(bound => Array.from({ length: 33 }, (_, i) => [sx(bound.from[0] + ((bound.to[0] - bound.from[0]) * i) / 32), sy(bound.from[1] + ((bound.to[1] - bound.from[1]) * i) / 32)] as const)),
       // Las rectas verticales también son trazo que una etiqueta no debería tapar
       ...verticals.flatMap(line => Array.from({ length: 25 }, (_, i) => [sx(line.x), PAD.top + (h * i) / 24] as const)),
     ];
@@ -239,9 +344,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       return total + Math.min(24, onCurve * 3);
     };
 
-    const place = (latex: string, tone: string, candidates: Array<{ x: number; y: number }>, labelW = estimateWidth(latex), labelH = LABEL_H) => {
+    // Con el eje y dentro del plano, el margen izquierdo solo lleva la flecha del eje x (y el nombre del eje y, si lo hay):
+    // los rótulos que escribe el sistema pueden entrar en él, como todos entran en el derecho
+    const looseLeft = spec.xMin < 0 ? (layout.yName ? 20 : 2) : plot.x - 4;
+    const place = (latex: string, tone: string, candidates: Array<{ x: number; y: number }>, labelW = estimateWidth(latex), labelH = LABEL_H, loose = false) => {
       const fits = (box: Box) =>
-        box.x >= plot.x - 4 && box.x + box.w <= plot.x + plot.w + PAD.right - 2 && box.y >= plot.y - 8 && box.y + box.h <= plot.y + plot.h + 8;
+        box.x >= (loose ? looseLeft : plot.x - 4) && box.x + box.w <= plot.x + plot.w + PAD.right - 2 && box.y >= plot.y - 8 && box.y + box.h <= plot.y + plot.h + 8;
       const boxes = candidates.map(candidate => ({ x: candidate.x, y: candidate.y, w: labelW, h: labelH }));
       const fitting = boxes.filter(fits);
       const pool = fitting.length > 0 ? fitting : boxes;
@@ -271,11 +379,77 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       { x: px - labelW - 12, y: py - LABEL_H / 2 },
     ];
 
+    /**
+     * Cuánto hay que apartar del trazo el centro de un rótulo, a lo largo de la normal (nx, ny), para que su
+     * caja quede entera a un lado y a 6 px: lo que la caja mide en esa dirección, que en un trazo inclinado
+     * es parte de su ancho y parte de su alto.
+     */
+    const beside = (nx: number, ny: number, labelW: number) => 6 + (Math.abs(nx) * labelW) / 2 + (Math.abs(ny) * LABEL_H) / 2;
+
+    /** Rótulos que escribe el sistema: medidos signo a signo y con el margen izquierdo a su alcance. */
+    const placeComputed = (latex: string, tone: string, candidates: Array<{ x: number; y: number }>, labelW = measureLabel(latex)) => place(latex, tone, candidates, labelW, LABEL_H, true);
+
+    /** Lo mismo con cuatro sitios más, algo apartados: para puntos calculados que pueden salir muy juntos. */
+    const aroundFar = (px: number, py: number, labelW: number) => [
+      ...around(px, py, labelW),
+      { x: px - labelW / 2, y: py - 2 * LABEL_H - 8 },
+      { x: px - labelW / 2, y: py + LABEL_H + 12 },
+      { x: px + 8, y: py - 2 * LABEL_H - 4 },
+      { x: px - labelW - 8, y: py + LABEL_H + 8 },
+    ];
+
     for (const point of spec.points) {
       if (!point.label) continue;
       // La etiqueta de un hueco lleva el color de su curva, como el círculo
       const tone = point.open && point.on != null ? `crt-plane__label--${toneOf(point.on)}` : "crt-plane__label--point";
       place(point.label, tone, around(sx(point.x), sy(point.y), estimateWidth(point.label)));
+    }
+
+    // Los vértices de una figura se rotulan hacia fuera de ella: primero los sitios más lejos de su centro
+    for (const item of figureShapes) {
+      const tone = `crt-plane__label--${item.tone}`;
+      const [cx, cy] = item.center;
+      for (const vertex of item.shape.vertices) {
+        const label = vertexLabel(vertex, item.show.coordinates, pi);
+        if (!label) continue;
+        const labelW = measureLabel(label);
+        const away = (candidate: { x: number; y: number }) => Math.hypot(candidate.x + labelW / 2 - cx, candidate.y + LABEL_H / 2 - cy);
+        placeComputed(label, tone, around(sx(vertex.x), sy(vertex.y), labelW).sort((a, b) => away(b) - away(a)), labelW);
+      }
+      if (item.show.midpoint && item.shape.midpoint) {
+        const label = midpointLabel(item.shape.midpoint, pi);
+        placeComputed(label, tone, around(sx(item.shape.midpoint[0]), sy(item.shape.midpoint[1]), measureLabel(label)));
+      }
+    }
+
+    // La longitud de un lado va junto a su punto medio, del lado de fuera de la figura
+    for (const item of figureShapes) {
+      if (!item.show.lengths) continue;
+      const [cx, cy] = item.center;
+      for (const side of item.shape.sides) {
+        const label = sideLabel(side);
+        const labelW = measureLabel(label);
+        const [x1, y1, x2, y2] = [sx(side.from.x), sy(side.from.y), sx(side.to.x), sy(side.to.y)];
+        const length = Math.hypot(x2 - x1, y2 - y1) || 1;
+        // Perpendicular al lado, apuntando lejos del centro de la figura
+        let nx = -(y2 - y1) / length;
+        let ny = (x2 - x1) / length;
+        if (((x1 + x2) / 2 - cx) * nx + ((y1 + y2) / 2 - cy) * ny < 0) [nx, ny] = [-nx, -ny];
+        // Junto al punto medio; si ahí estorba (el rótulo del punto medio, otro vértice), a un tercio del lado.
+        // `side` es 1 hacia fuera de la figura y -1 hacia dentro: la caja queda entera de ese lado, a 6 px del trazo
+        const reach = beside(nx, ny, labelW);
+        const at = (t: number, side: 1 | -1) => ({ x: x1 + (x2 - x1) * t + side * nx * reach - labelW / 2, y: y1 + (y2 - y1) * t + side * ny * reach - LABEL_H / 2 });
+        placeComputed(label, `crt-plane__label--${item.tone}`, [0.5, 0.32, 0.68].flatMap(t => [at(t, 1), at(t, -1)]), labelW);
+      }
+    }
+
+    for (const vertex of corners) {
+      const label = planePointLatex(spec, vertex.x, vertex.y);
+      placeComputed(label, "crt-plane__label--line", aroundFar(sx(vertex.x), sy(vertex.y), measureLabel(label)));
+    }
+
+    for (const point of notable) {
+      if (point.label) placeComputed(point.label, `crt-plane__label--${point.tone}`, aroundFar(sx(point.x), sy(point.y), measureLabel(point.label)));
     }
 
     // La medida del radio va a media altura del segmento, a un lado u otro sin pisarlo
@@ -339,6 +513,23 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
             ];
       });
       if (candidates.length > 0) place(item.label, `crt-plane__label--${item.tone}`, candidates);
+    }
+
+    // La inecuación va pegada a su frontera, a un lado u otro y en el tramo donde menos estorbe
+    for (const bound of bounds) {
+      if (!bound.label) continue;
+      const labelW = measureLabel(bound.label);
+      const [x1, y1, x2, y2] = [sx(bound.from[0]), sy(bound.from[1]), sx(bound.to[0]), sy(bound.to[1])];
+      const length = Math.hypot(x2 - x1, y2 - y1) || 1;
+      const nx = -(y2 - y1) / length;
+      const ny = (x2 - x1) / length;
+      const candidates = [0.5, 0.28, 0.72, 0.14, 0.86].flatMap(t => {
+        const px = x1 + (x2 - x1) * t;
+        const py = y1 + (y2 - y1) * t;
+        const reach = beside(nx, ny, labelW);
+        return [1, -1].map(side => ({ x: px + side * nx * reach - labelW / 2, y: py + side * ny * reach - LABEL_H / 2 }));
+      });
+      placeComputed(bound.label, `crt-plane__label--${bound.tone}`, candidates, labelW);
     }
 
     for (const line of verticals) {
@@ -413,12 +604,14 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
       .flatMap(curve => curve.marks.map((mark, index) => ({ ...mark, tone: curve.tone, key: `${curve.index}-${index}` })))
       .sort((a, b) => Number(a.filled) - Number(b.filled));
 
-    return { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf };
+    // La descripción para lectores de pantalla repite cálculos de arriba: se hace una vez por plano, no en cada render
+    return { description: describe(spec), layout, sx, sy, xTicks, yTicks, numbers, axisX, axisY, curves, marks, verticals, conics, areas, lines, notable, figures, figureShapes, bounds, regionPath, corners, labels, toneOf };
   }, [spec]);
 
   if (!view) return <div className="crt-plane crt-plane--invalid">Rango de la gráfica no válido.</div>;
 
-  const { w, h, width, height, sx, sy, xTicks, yTicks, axisX, axisY, everyX, everyY, curves, marks, verticals, conics, areas, lines, labels, toneOf } = view;
+  const { description, layout, sx, sy, xTicks, yTicks, numbers, axisX, axisY, curves, marks, verticals, conics, areas, lines, notable, figures, figureShapes, bounds, regionPath, corners, labels, toneOf } = view;
+  const { w, h, width, height, pad: PAD } = layout;
   const axisXpx = sy(axisX);
   const axisYpx = sx(axisY);
   // Con el origen a la vista, el cero se escribe una sola vez junto al cruce de los ejes
@@ -427,10 +620,18 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
   const right = PAD.left + w + 10;
   const top = PAD.top - 10;
   const bottom = PAD.top + h + 10;
+  // En múltiplos de π las raíces de seno y coseno caen justo en las marcas: sus rótulos van encima de
+  // las curvas, con halo, para que se lean. Con números, el eje se dibuja como siempre, debajo.
+  const piAxis = usesPi(spec);
+  const xNumbers = numbers.x.map(number => (
+    <text key={`lx${number.value}`} x={sx(number.value)} y={axisXpx + 14} textAnchor="middle" style={piAxis ? TEXT_HALO : undefined}>
+      {number.text}
+    </text>
+  ));
 
   return (
     <div className="crt-plane" data-notes={noted ? "" : undefined} style={{ "--plane-w": `${width}px`, "--plane-wn": width, "--plane-hn": height, aspectRatio: `${width} / ${height}` } as CSSProperties}>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={describe(spec)}>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={description}>
         <defs>
           <clipPath id={clipId}>
             <rect x={PAD.left} y={PAD.top} width={w} height={h} />
@@ -438,8 +639,8 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
         </defs>
 
         <g className="crt-plane__grid">
-          {xTicks.map(x => (
-            <line key={`gx${x}`} x1={sx(x)} x2={sx(x)} y1={PAD.top} y2={PAD.top + h} />
+          {xTicks.map(tick => (
+            <line key={`gx${tick.value}`} x1={sx(tick.value)} x2={sx(tick.value)} y1={PAD.top} y2={PAD.top + h} />
           ))}
           {yTicks.map(y => (
             <line key={`gy${y}`} x1={PAD.left} x2={PAD.left + w} y1={sy(y)} y2={sy(y)} />
@@ -454,8 +655,8 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
           <path d={`M${left - 6} ${axisXpx} l7 -3.5 v7 z`} />
           <path d={`M${axisYpx} ${top - 6} l-3.5 7 h7 z`} />
           <path d={`M${axisYpx} ${bottom + 6} l-3.5 -7 h7 z`} />
-          {xTicks.map(x => (
-            <line key={`tx${x}`} x1={sx(x)} x2={sx(x)} y1={axisXpx - 3} y2={axisXpx + 3} />
+          {xTicks.map(tick => (
+            <line key={`tx${tick.value}`} x1={sx(tick.value)} x2={sx(tick.value)} y1={axisXpx - 3} y2={axisXpx + 3} />
           ))}
           {yTicks.map(y => (
             <line key={`ty${y}`} x1={axisYpx - 3} x2={axisYpx + 3} y1={sy(y)} y2={sy(y)} />
@@ -463,34 +664,44 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
         </g>
 
         <g className="crt-plane__ticks">
-          {xTicks.map((x, index) =>
-            (originInside && x === 0) || index % everyX !== 0 ? null : (
-              <text key={`lx${x}`} x={sx(x)} y={axisXpx + 14} textAnchor="middle">
-                {formatNumberEs(x)}
-              </text>
-            ),
-          )}
-          {yTicks.map((y, index) =>
-            (originInside && y === 0) || index % everyY !== 0 ? null : (
-              <text key={`ly${y}`} x={axisYpx - 7} y={sy(y) + 3.5} textAnchor="end">
-                {formatNumberEs(y)}
-              </text>
-            ),
-          )}
+          {!piAxis && xNumbers}
+          {numbers.y.map(number => (
+            <text key={`ly${number.value}`} x={axisYpx - 7} y={sy(number.value) + 3.5} textAnchor="end">
+              {number.text}
+            </text>
+          ))}
           {originInside && (
             <text x={axisYpx - 7} y={axisXpx + 14} textAnchor="end">
               0
             </text>
           )}
-          <text className="crt-plane__name" x={right + 2} y={axisXpx - 8} textAnchor="middle">
-            x
-          </text>
-          <text className="crt-plane__name" x={axisYpx + 12} y={top - 2} textAnchor="middle">
-            y
-          </text>
+          {/* Un eje con nombre lo lleva fuera de la cuadrícula, en su propia franja; sin nombre, la letra de siempre junto a la flecha */}
+          {layout.xName ? (
+            <text className="crt-plane__axis-name" x={layout.xName.x} y={layout.xName.y} textAnchor="middle">
+              {spec.xLabel}
+            </text>
+          ) : (
+            <text className="crt-plane__name" x={right + 2} y={axisXpx - 8} textAnchor="middle">
+              x
+            </text>
+          )}
+          {layout.yName ? (
+            <text className="crt-plane__axis-name" x={layout.yName.x} y={layout.yName.y} textAnchor="middle" transform={`rotate(-90 ${layout.yName.x} ${layout.yName.y})`}>
+              {spec.yLabel}
+            </text>
+          ) : (
+            <text className="crt-plane__name" x={axisYpx + 12} y={top - 2} textAnchor="middle">
+              y
+            </text>
+          )}
         </g>
 
         <g clipPath={`url(#${clipId})`}>
+          {regionPath && <path className="crt-plane__region" d={regionPath} />}
+          {bounds.map(bound => (bound.region ? <path key={`r${bound.index}`} className={`crt-plane__region crt-plane__tone--${bound.tone}`} d={bound.region} /> : null))}
+          {bounds.map(bound => (
+            <path key={`b${bound.index}`} className={`crt-plane__bound crt-plane__tone--${bound.tone}${bound.dashed ? " crt-plane__curve--dashed" : ""}`} d={bound.d} />
+          ))}
           {areas.map(area =>
             area.rectangles.length > 0 ? (
               area.rectangles.map((rectangle, index) => <rect key={`a${area.index}-${index}`} className={`crt-plane__area crt-plane__tone--${area.tone}`} {...rectangle} />)
@@ -514,7 +725,43 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
           {lines.map(item => (
             <path key={item.key} className={`crt-plane__line crt-plane__tone--${item.tone}${item.tone === "s" ? " crt-plane__line--secant" : ""}`} d={item.d} />
           ))}
+          {figures.map(figure => (
+            <g key={`f${figure.index}`}>
+              {figure.guides.map((d, index) => (
+                <path key={`g${index}`} className="crt-plane__guide" d={d} />
+              ))}
+              {figure.arrow && (
+                <>
+                  <path className="crt-plane__guide" d={figure.arrow.d} />
+                  <path className="crt-plane__guide-head" d={figure.arrow.head} />
+                </>
+              )}
+              {figure.shapes.map((item, index) =>
+                item.d ? <path key={`s${index}`} className={`crt-plane__shape crt-plane__tone--${item.tone}${item.shape.kind === "polygon" ? " crt-plane__shape--filled" : ""}`} d={item.d} /> : null,
+              )}
+            </g>
+          ))}
         </g>
+
+        <g className="crt-plane__marks">
+          {corners.map((vertex, index) => (
+            <circle key={`rv${index}`} className={`crt-plane__dot${vertex.open ? " crt-plane__dot--open" : ""}`} cx={sx(vertex.x)} cy={sy(vertex.y)} r={3.8} />
+          ))}
+        </g>
+
+        <g className="crt-plane__marks">
+          {figures.map(figure => (figure.center ? <circle key={`fc${figure.index}`} className="crt-plane__dot" cx={sx(figure.center[0])} cy={sy(figure.center[1])} r={3.4} /> : null))}
+          {figureShapes.map((item, index) => (
+            <g key={`fv${index}`} className={`crt-plane__tone--${item.tone}`}>
+              {item.shape.vertices.map((vertex, at) => (
+                <circle key={at} className="crt-plane__dot" cx={sx(vertex.x)} cy={sy(vertex.y)} r={3.6} />
+              ))}
+              {item.show.midpoint && item.shape.midpoint && <circle className="crt-plane__dot" cx={sx(item.shape.midpoint[0])} cy={sy(item.shape.midpoint[1])} r={3.2} />}
+            </g>
+          ))}
+        </g>
+
+        {piAxis && <g className="crt-plane__ticks">{xNumbers}</g>}
 
         <g className="crt-plane__marks">
           {marks.map(mark => (
@@ -528,6 +775,12 @@ export const CoordinatePlane = memo(function CoordinatePlane({ spec }: { spec: G
 
         <g className="crt-plane__marks">
           {lines.map(item => item.points.map(([x, y], index) => <circle key={`${item.key}-${index}`} className={`crt-plane__dot crt-plane__tone--${item.tone}`} cx={sx(x)} cy={sy(y)} r={3.6} />))}
+        </g>
+
+        <g className="crt-plane__marks">
+          {notable.map((point, index) => (
+            <circle key={index} className={`crt-plane__dot crt-plane__tone--${point.tone}`} cx={sx(point.x)} cy={sy(point.y)} r={3.8} />
+          ))}
         </g>
 
         <g className="crt-plane__points">

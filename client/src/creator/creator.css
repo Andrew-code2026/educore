@@ -1926,6 +1926,8 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-plane__axis path { fill: #111B24; }
 .crt-plane__ticks text { font-family: 'Outfit', system-ui, sans-serif; font-size: 10.5px; fill: #36404A; }
 .crt-plane__ticks .crt-plane__name { font-size: 13px; font-style: italic; fill: #111B24; }
+/* Nombre de un eje con su unidad («Tiempo (h)»): fuera de la cuadrícula, en su propia franja */
+.crt-plane__ticks .crt-plane__axis-name { font-size: 11.5px; font-weight: 500; fill: #111B24; }
 .crt-plane__curve { fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .crt-plane__curve--a { stroke: #1F5FE0; }
 .crt-plane__curve--b { stroke: #0F8A5F; }
@@ -1940,6 +1942,15 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-plane__aux { fill: none; stroke: var(--plane-tone, #3F4A56); stroke-width: 1.5; stroke-dasharray: 6 4; }
 .crt-plane__dot { fill: var(--plane-tone, #111B24); stroke: #FFFFFF; stroke-width: 1.2; }
 .crt-plane__radius { fill: none; stroke: var(--plane-tone, #3F4A56); stroke-width: 1.6; stroke-linecap: round; }
+/* Geometría en el plano: segmentos y polígonos, con relleno claro en los polígonos; trazos de ayuda de una transformación en gris punteado */
+.crt-plane__shape { fill: none; stroke: var(--plane-tone, #111B24); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.crt-plane__shape--filled { fill: var(--plane-tone, #1F5FE0); fill-opacity: .12; }
+.crt-plane__guide { fill: none; stroke: #3F4A56; stroke-width: 1.3; stroke-dasharray: 5 4; }
+.crt-plane__guide-head { fill: #3F4A56; }
+/* Inecuaciones: frontera de cada una y región sombreada (gris la común; con su color la de cada semiplano) */
+.crt-plane__bound { fill: none; stroke: var(--plane-tone, #111B24); stroke-width: 2; }
+.crt-plane__region { fill: var(--plane-tone, #3F4A56); fill-opacity: .16; stroke: none; }
+.crt-plane__dot--open { fill: #FFFFFF; stroke: #111B24; stroke-width: 1.6; }
 .crt-plane__points circle { fill: #D92D20; stroke: #FFFFFF; stroke-width: 1.5; }
 /* Círculos de extremos y saltos: rellenos si el punto pertenece a la curva, vacíos si no */
 .crt-plane__tone--a { --plane-tone: #1F5FE0; }
@@ -2143,6 +2154,12 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-form__stack { display: flex; flex-direction: column; gap: 6px; }
 .crt-form__row--sub { padding-left: 12px; border-left: 2px solid var(--sheet-hair); }
 .crt-form__end { margin-left: auto; display: inline-flex; align-items: center; height: 36px; }
+/* Letras y signos entre los campos de una inecuación: «2 x + 3 y ≤ 12» */
+.crt-form__sign { display: inline-flex; align-items: center; height: 36px; flex: none; font-size: 13.5px; white-space: nowrap; }
+/* Una inecuación en un renglón: campos de ancho fijo, que en un panel angosto pasan abajo en vez de encogerse */
+.crt-form__ineq { flex-wrap: wrap; align-items: center; row-gap: 4px; }
+.crt .crt-form__ineq .crt-input--num { width: 62px; flex: none; }
+.crt .crt-form__ineq .crt-input--tiny { width: 66px; text-align: left; }
 .crt-form__index { flex: none; width: 22px; padding-top: 8px; font-weight: 600; color: var(--sheet-muted); text-align: right; }
 .crt-form__group { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--sheet-hair); background: #FAFBFD; }
 .crt-form__legend { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--sheet-muted); }
