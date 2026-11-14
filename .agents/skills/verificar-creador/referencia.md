@@ -13,6 +13,14 @@ const ayudas = await import(pathToFileURL("<repo>/.agents/skills/verificar-cread
 
 Para varios pasos seguidos, abre un Chrome con `--remote-debugging-port=9222` en segundo plano y corre scripts cortos con `CHROME_DEBUG_URL=http://127.0.0.1:9222`: si uno falla, no pierdes lo anterior.
 
+## Servidor de prueba
+
+- Si varias personas o agentes trabajan en la misma máquina, arranca tu servidor en un puerto libre (`PORT=3077 pnpm dev`). Si el puerto está ocupado toma el siguiente sin avisar: lee el puerto en la salida (`Server running on …`).
+- Al terminar, comprueba que el puerto quedó libre. En Windows, detener el `pnpm dev` lanzado en segundo plano puede dejar vivos los procesos de `tsx`, y el puerto sigue respondiendo. En PowerShell, `netstat -ano | Select-String LISTENING | Select-String ':<puerto>\s'` da el PID; detén ese y sus padres (`cross-env`, `tsx watch`) de tu carpeta.
+- Nunca detengas procesos filtrando `node` por una línea de comandos genérica (por ejemplo `dist/index.js`): una vez cerró servidores de otras personas.
+- Vista previa de la app de escritorio de Claude Code: con el `.claude/launch.json` del repositorio (`pnpm dev`, que usa `tsx watch`) la vista previa se queda en «starting» sin salida. Quien la use puede cambiar en su copia local `runtimeArgs` a `["exec", "cross-env", "NODE_ENV=development", "tsx", "server/_core/index.ts"]`, sin subirlo. Ese modo no recarga solo: reinícialo tras cambiar `server/` o `shared/`.
+- Emulación táctil por CDP: `page.mouse.down` se cuelga; usa `page.touchscreen`.
+
 ## Datos del creador por API
 
 - Consultas: GET `/api/trpc/<proc>?input=` + `{"json":{…}}` codificado. Mutaciones: POST con `{"json":{…}}`. Respuesta: `{"result":{"data":{"json":…}}}`. El cliente de la app envía en lote (`{"0":{"json":{…}}}`): tenlo en cuenta al interceptar.

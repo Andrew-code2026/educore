@@ -5,12 +5,13 @@
 - Observación de uso normal entre el 11 y el 13 de noviembre de 2026: generar recursos y editarlos como lo haría un docente. Sin código fuente, sin source maps y sin extraer prompts. Estos productos cambian; lo de aquí es lo que se vio en esas fechas.
 - Se toman ideas, no material: nunca copies su código, HTML, SVG, textos, temas, ilustraciones ni marca.
 - Léelo antes de diseñar algo nuevo del creador, para no repetir el análisis.
+- Lo que se buscó de cada uno: de Diffit, la variedad de figuras matemáticas sin depender de IA de imagen y la hoja que se siente fluida; de Chalkie, el chat con cambios visibles, las imágenes, las plantillas y bloques con buen diseño; de MagicSchool, la composición de la portada. La meta es igualar la calidad de estos productos con criterio propio, no copiar a uno.
 
 ## Principios que salieron de la comparación
 
 - **Bloques tipados y figuras deterministas.** El documento es una lista de bloques con tipo y cada figura es una especificación que el navegador dibuja en SVG. No se usan diagramas escritos por el modelo ni imágenes de IA para matemáticas: en Chalkie, 5 de 6 gráficas de una lección de matemáticas eran SVG del modelo convertido a imagen, sin edición y con una etiqueta montada sobre una línea.
 - **Validar todo lo calculable.** En Diffit se vio LaTeX crudo en un recuadro, un diagrama circular cuyos porcentajes sumaban 101 % y una clave de respuestas sin las gráficas. EduCore compila cada fórmula, comprueba los puntos contra su curva, calcula las tablas y hace que los porcentajes sumen 100 (ver `shared/creatorValidate.ts`).
-- **Números a la colombiana** (punto de miles y coma decimal) en lo que ve el estudiante, con `formatNumberEs`. Chalkie usa punto decimal en recursos en español.
+- **Números a la colombiana** (punto de miles y coma decimal) en los números calculados que ve el estudiante, con `formatNumberEs`. Los avisos de validación para la IA siguen con `formatNumber` y las fórmulas quedan como las escribe el modelo. Chalkie usa punto decimal en recursos en español.
 - **Edición en sitio por bloque**, no un documento único tipo ProseMirror: conserva las operaciones por bloque, la validación y las versiones.
 - **Lo que ninguno hace y EduCore sí:** marcar en la hoja los bloques que cambió la IA, con revisión y deshacer por turno.
 - **Descartado:** lienzo libre de diapositivas con cajas en posición absoluta, figuras dibujadas en el servidor, formularios generados a partir del esquema (salen etiquetas técnicas y campos en JSON crudo) y paginación permanente en pantalla.
@@ -77,3 +78,13 @@ Decisiones del equipo sobre la portada: siempre se le pregunta a la IA si necesi
 4. **Diferenciación**: refuerzo y ampliación como versiones hermanas.
 5. **Alineación a DBA** bien hecha. Es la diferencia más clara: Diffit no tiene currículos colombianos y la de Chalkie no funciona para Colombia.
 6. Exportar a Word o Google Docs, y diapositivas, después.
+
+## Para repetir el análisis
+
+- **Sin observar todavía.** En Diffit: el editor de diapositivas y las exportaciones. En Chalkie: generar cuestionarios, unidades, cuadernos y pósteres; el modo Presentar; las exportaciones; el editor de temas de diapositivas; la versión de Ampliación; un recurso alineado de verdad a DBA o EBC; y las imágenes con origen o estilo distinto de «Auto».
+- **Método.** Uso normal en un Chrome aparte, manejado por CDP con scripts cortos de `playwright-core` (`chromium.connectOverCDP`).
+  - El progreso que llega por WebSocket no aparece en `page.on("response")`: se lee con una sesión CDP y `Network.webSocketFrameReceived`.
+  - Los tiempos por cuadro solo valen con la pestaña al frente y la ventana visible.
+  - Si un menú ignora los clics simulados, prueba con flechas e Intro.
+  - Si un clic parece no hacer nada, revisa si abrió otra pestaña.
+- **Proveedores de IA de un producto.** Los productos que se venden a colegios suelen publicar su lista de subencargados o su evaluación de impacto de protección de datos, y ahí nombran a sus proveedores de IA cuando el tráfico no los muestra.
