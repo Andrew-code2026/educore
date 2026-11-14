@@ -1,5 +1,6 @@
 import { axisNameBands } from "./creatorPlaneAxes";
 import { BLOCK_TYPE_LABELS, blockCells, blockPreview, CREATOR_LIMITS, findMath, INNER_BLOCK_TYPES, isContainer, plainText, type BlockInput, type ContainerInput } from "./creator";
+import { contingencyTableView, contingencyTableWidth, frequencyTableView, frequencyTableWidth } from "./creatorStatTables";
 
 /**
  * Qué cabe en una columna o en una tarjeta. Cada figura tiene un ancho de diseño; dentro de una
@@ -69,6 +70,15 @@ export function minBlockWidth(block: BlockInput): number {
     case "scatter_plot":
     case "balance":
       return fromDesign(460);
+    case "frequency_table": {
+      // Una tabla no se reduce como un dibujo: pide lo que miden sus columnas
+      const view = frequencyTableView(block);
+      return view ? frequencyTableWidth(view) : SHEET_WIDTH_PX;
+    }
+    case "contingency_table": {
+      const view = contingencyTableView(block);
+      return view ? contingencyTableWidth(view) : SHEET_WIDTH_PX;
+    }
     case "venn":
       return fromDesign(440);
     case "fraction_model":
@@ -223,6 +233,14 @@ export function estimateHeight(block: BlockInput, width: number): number {
       return (block.rows.length + 1) * 34 + caption;
     case "value_table":
       return 2 * 34 + caption;
+    case "frequency_table": {
+      // Encabezado de dos renglones, una fila por valor o clase, la de totales y la línea de las medidas
+      const view = frequencyTableView(block);
+      const rows = view ? view.rows.length + (view.totals ? 1 : 0) : CREATOR_LIMITS.statTableRowsMax;
+      return 52 + rows * 34 + (view?.note ? LINE_PX : 0) + (block.measures.length > 0 ? LINE_PX : 0) + caption;
+    }
+    case "contingency_table":
+      return (block.columnVariable ? 2 : 1) * 34 + (block.rows.length + (block.totals ? 1 : 0)) * 34 + caption;
     case "graph": {
       const ratio = Math.min(1.4, Math.max(0.5, (block.spec.yMax - block.spec.yMin) / (block.spec.xMax - block.spec.xMin)));
       return Math.min(width, 374 * 0.86) * ratio + caption;

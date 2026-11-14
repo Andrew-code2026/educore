@@ -18,7 +18,7 @@ export interface BlockFamily {
 export const BLOCK_FAMILIES: readonly BlockFamily[] = [
   { id: "text", label: "Texto", types: ["paragraph", "heading", "callout", "math"] },
   { id: "exercises", label: "Ejercicios y soluciones", types: ["exercise", "solution"] },
-  { id: "tables", label: "Tablas", types: ["table", "value_table"] },
+  { id: "tables", label: "Tablas", types: ["table", "value_table", "frequency_table", "contingency_table"] },
   {
     id: "charts",
     label: "Gráficas y estadística",
@@ -52,6 +52,8 @@ export const BLOCK_INFO: Partial<Record<BlockType, { hint: string; keywords: str
   pie_chart: { hint: "Partes de un total, en porcentajes", keywords: "torta pastel sectores porcentaje" },
   line_chart: { hint: "Cómo cambia un dato con el tiempo", keywords: "tendencia tiempo evolucion serie" },
   scatter_plot: { hint: "Pares de datos y su línea de tendencia", keywords: "correlacion puntos regresion tendencia" },
+  frequency_table: { hint: "Frecuencias, totales y medidas calculados de los datos", keywords: "frecuencia absoluta relativa acumulada porcentaje media mediana moda rango varianza desviacion clases agrupados" },
+  contingency_table: { hint: "Dos variables cruzadas con sus totales", keywords: "doble entrada probabilidad condicional independencia cruzada" },
   histogram: { hint: "Frecuencias de datos agrupados en intervalos", keywords: "frecuencia intervalos clases distribucion" },
   box_plot: { hint: "Mediana, cuartiles y extremos de unos datos", keywords: "bigotes cuartiles mediana" },
   pictogram: { hint: "Datos contados con íconos", keywords: "iconos dibujos conteo" },

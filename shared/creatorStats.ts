@@ -3,6 +3,7 @@ import { areaModelProduct, computeAreaModel, monomialText, polynomialText } from
 import { niceStep, tickValues } from "./creatorFigures";
 import { describeGraph } from "./creatorGraphFacts";
 import { formatNumber, formatNumberEs } from "./creatorMath";
+import { classLabel, dataMeasures, describeContingencyTable, describeFrequencyTable, groupedEstimates, groupedFacts, measuresFacts } from "./creatorStatTables";
 
 /**
  * Estadística de las figuras del Creador de recursos: resumen de cinco números, conteo por
@@ -286,7 +287,9 @@ export function describeComputed(block: BlockInput): string | null {
         const summary = fiveNumberSummary(series.data);
         if (!summary) return null;
         const name = series.label ? `«${series.label}»: ` : "";
-        return `${name}mínimo ${formatNumberEs(summary.min)} · Q1 ${formatNumberEs(summary.q1)} · mediana ${formatNumberEs(summary.median)} · Q3 ${formatNumberEs(summary.q3)} · máximo ${formatNumberEs(summary.max)}`;
+        // La media, la moda y la dispersión no se dibujan, pero la clave las pide a menudo junto al resumen
+        const measures = dataMeasures(series.data);
+        return `${name}mínimo ${formatNumberEs(summary.min)} · Q1 ${formatNumberEs(summary.q1)} · mediana ${formatNumberEs(summary.median)} · Q3 ${formatNumberEs(summary.q3)} · máximo ${formatNumberEs(summary.max)}${measures ? ` · ${measuresFacts(measures, ["median"])}` : ""}`;
       });
       const known = parts.filter(Boolean);
       return known.length > 0 ? `Caja y bigotes${block.title ? ` «${block.title}»` : ""}: ${known.join("; ")}.` : null;
@@ -296,9 +299,19 @@ export function describeComputed(block: BlockInput): string | null {
       const line = linearRegression(block.points);
       return line ? `Dispersión${block.title ? ` «${block.title}»` : ""}: recta de tendencia ${trendLineText(line)} (r = ${formatNumberEs(line.r)}).` : null;
     }
+    case "frequency_table":
+      return describeFrequencyTable(block);
+    case "contingency_table":
+      return describeContingencyTable(block);
     case "histogram": {
       const total = block.classes.reduce((sum, item) => sum + item.frequency, 0);
-      return `Histograma${block.title ? ` «${block.title}»` : ""}: ${total} datos en ${block.classes.length} clases.`;
+      const parts = [`Histograma${block.title ? ` «${block.title}»` : ""}: ${total} datos en ${block.classes.length} clases.`];
+      // Con los datos crudos, sus medidas exactas; con o sin ellos, lo que se estima desde las clases
+      const measures = block.data && block.data.length > 0 ? dataMeasures(block.data) : null;
+      if (measures) parts.push(`Medidas de los datos: ${measuresFacts(measures)}.`);
+      const estimates = groupedEstimates(block.classes.map(item => ({ from: item.from, to: item.to, count: item.frequency })));
+      if (estimates) parts.push(groupedFacts(estimates, block.classes.map((item, index) => classLabel(item.from, item.to, index === block.classes.length - 1))));
+      return parts.join(" ");
     }
     case "graph":
       return describeGraph(block.spec);

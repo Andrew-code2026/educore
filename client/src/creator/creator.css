@@ -1896,6 +1896,21 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-table th { background: #F1F4F8; font-weight: 600; }
 .crt-table figcaption, .crt-graph figcaption { font-size: 13px; color: var(--sheet-muted); text-align: center; }
 
+/* Tablas estadísticas (StatTables.tsx): el aspecto de .crt-table con encabezados más pequeños, para que
+   siete columnas quepan en carta. Su ancho lo estima statTableWidth (creatorStatTables.ts) con estas medidas */
+.crt-table--stat thead th { padding: 6px 8px; font-size: 12.5px; line-height: 1.25; }
+.crt-stat-table__title { display: block; }
+.crt-stat-table__symbol { display: block; margin-top: 2px; font-family: "KaTeX_Main", "Times New Roman", serif; font-size: 14px; font-weight: 400; white-space: nowrap; }
+.crt-stat-table__symbol sub { font-size: .72em; }
+.crt-table--stat .crt-stat-table__nowrap { white-space: nowrap; }
+.crt-table--stat tfoot td, .crt-table--stat .crt-stat-table__total { font-weight: 600; }
+/* Una columna acumulada no tiene total: su celda de la fila de totales va sombreada, no en blanco para escribir */
+.crt-table--stat .crt-stat-table__none { background: #F5F6F8; }
+.crt-stat-table__note { margin: 0; font-size: 12px; color: var(--sheet-muted); text-align: center; }
+.crt-stat-table__measures { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; margin: 2px 0 0; font-size: 14px; }
+.crt-stat-table__measures strong { font-weight: 600; }
+.crt-stat-table__line { display: inline-block; width: 72px; border-bottom: 1px solid var(--sheet-ink-2); vertical-align: -2px; }
+
 .crt-graph { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 
 .crt-solution__steps { margin: 6px 0 0; padding-left: 1.5em; list-style: decimal; display: flex; flex-direction: column; gap: 6px; }
@@ -2168,6 +2183,13 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
 .crt-form__grid { border-collapse: separate; border-spacing: 4px; }
 .crt-form__grid th, .crt-form__grid td { padding: 0; min-width: 96px; }
 .crt-form__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Rejilla de la tabla de contingencia en su formulario: rótulos, conteos y casillas de celdas en blanco */
+.crt-ctab-form { display: grid; gap: 6px 8px; align-items: center; }
+.crt-ctab-form__row { display: contents; }
+.crt .crt-ctab-form .crt-input { width: 100%; min-width: 0; }
+.crt-ctab-form__head { font-size: 12px; color: var(--sheet-muted); text-align: center; overflow-wrap: anywhere; }
+.crt-ctab-form__row > .crt-ctab-form__head:first-child { text-align: left; }
+.crt-ctab-form__check { display: flex; justify-content: center; }
 .crt-form__issues { margin: 0; padding: 10px 12px 10px 28px; border-radius: 10px; background: #FDEEF1; color: #B42343; font-size: 13px; line-height: 1.4; }
 
 .crt-doc .crt-field { display: flex; flex-direction: column; gap: 4px; flex: 0 1 auto; }
@@ -2625,6 +2647,12 @@ body.crt-is-dragging, body.crt-is-dragging * { cursor: grabbing !important; user
   .crt-print :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten, .crt-block--area_model) { break-inside: avoid; }
   .crt-print :is(.crt-block--exercise, .crt-block--paragraph):has(+ :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten, .crt-block--area_model)) { break-after: avoid; }
   .crt-print :is(.crt-block--histogram, .crt-block--box_plot, .crt-block--line_chart, .crt-block--scatter_plot, .crt-block--angle, .crt-block--venn, .crt-block--tree_diagram, .crt-block--bar_model, .crt-block--pictogram, .crt-block--clock, .crt-block--base_ten, .crt-block--area_model):has(+ .crt-block--exercise) { break-after: avoid; }
+  /* Tablas estadísticas: no se parten entre páginas ni se separan del ejercicio que las lee o las completa */
+  .crt-print :is(.crt-block--frequency_table, .crt-block--contingency_table) { break-inside: avoid; }
+  .crt-print :is(.crt-block--exercise, .crt-block--paragraph):has(+ :is(.crt-block--frequency_table, .crt-block--contingency_table)) { break-after: avoid; }
+  .crt-print :is(.crt-block--frequency_table, .crt-block--contingency_table):has(+ .crt-block--exercise) { break-after: avoid; }
+  /* En papel la tabla de frecuencias conserva sus casillas en blanco con altura para escribir a mano */
+  .crt-print .crt-table--stat td { height: 22pt; }
 
   /* En papel las gráficas van algo más pequeñas: caben más cosas por hoja sin perder legibilidad */
   .crt-print .crt-plane { width: calc(var(--plane-w) * .8); }

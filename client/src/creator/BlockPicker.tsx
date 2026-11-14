@@ -31,6 +31,8 @@ import {
   Smile,
   Table,
   Table2,
+  TableProperties,
+  Grid3x3,
   TriangleRight,
   UserRound,
 } from "lucide-react";
@@ -52,6 +54,8 @@ const ICONS: Record<BlockType, ComponentType<{ "aria-hidden"?: boolean }>> = {
   pie_chart: ChartPie,
   line_chart: ChartLine,
   scatter_plot: ChartScatter,
+  frequency_table: TableProperties,
+  contingency_table: Grid3x3,
   histogram: ChartColumnBig,
   box_plot: ChartCandlestick,
   pictogram: Smile,
