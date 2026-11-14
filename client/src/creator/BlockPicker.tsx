@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ComponentType } from "react"
 import { Command } from "cmdk";
 import {
   Blend,
+  Box,
   Boxes,
   ChartCandlestick,
   ChartColumn,
@@ -62,6 +63,7 @@ const ICONS: Record<BlockType, ComponentType<{ "aria-hidden"?: boolean }>> = {
   shapes: Shapes,
   triangle: Triangle,
   unit_circle: Radius,
+  solid: Box,
   angle: TriangleRight,
   clock: Clock,
   number_line: MoveHorizontal,

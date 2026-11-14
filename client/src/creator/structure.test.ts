@@ -73,7 +73,7 @@ describe("catálogo de bloques", () => {
     expect(flat("probabilidad")).toEqual(["tree_diagram"]);
     expect(flat("cuartiles")).toEqual(["box_plot"]);
     expect(flat("ecuacion")).toEqual(expect.arrayContaining(["math", "balance"]));
-    expect(flat("geometria")).toEqual(["shapes", "triangle", "unit_circle", "angle", "clock"]);
+    expect(flat("geometria")).toEqual(["shapes", "triangle", "unit_circle", "solid", "angle", "clock"]);
     expect(matchScore("pie_chart", "torta")).toBe(2);
     expect(matchScore("clock", "geometria", "Geometría y medida")).toBe(3);
   });

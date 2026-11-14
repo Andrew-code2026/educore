@@ -2,6 +2,7 @@ import type { BlockInput } from "./creator";
 import { areaModelProduct, computeAreaModel, monomialText, polynomialText } from "./creatorAlgebra";
 import { niceStep, tickValues } from "./creatorFigures";
 import { describeGraph } from "./creatorGraphFacts";
+import { describeSolids } from "./creatorSolids";
 import { describeTriangles } from "./creatorTriangle";
 import { describeUnitCircle } from "./creatorUnitCircle";
 import { formatNumber, formatNumberEs } from "./creatorMath";
@@ -314,6 +315,8 @@ export function describeComputed(block: BlockInput): string | null {
       return describeTriangles(block);
     case "unit_circle":
       return describeUnitCircle(block);
+    case "solid":
+      return describeSolids(block);
     default:
       return null;
   }
