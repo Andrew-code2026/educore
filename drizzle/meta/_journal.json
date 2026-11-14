@@ -50,6 +50,20 @@
       "when": 1788721163821,
       "tag": "0006_mixed_demogoblin",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1792085960673,
+      "tag": "0007_misty_piledriver",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1794626788443,
+      "tag": "0008_runtime_tables",
+      "breakpoints": true
     }
   ]
 }
