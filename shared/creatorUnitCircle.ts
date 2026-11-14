@@ -1,7 +1,7 @@
 import type { BlockInput } from "./creator";
 import { divide, exactText, type Exact } from "./creatorExact";
 import { formatNumber } from "./creatorMath";
-import { plainToLatex, segmentTouchesBox } from "./creatorTriangle";
+import { boxAt, boxesOverlap, plainToLatex, segmentTouchesBox, support, type Box, type Point } from "./creatorFigureLabels";
 
 /**
  * Círculo unitario del Creador de recursos: los ángulos notables (múltiplos de 30° y de 45°) con sus
@@ -27,7 +27,7 @@ export const unitCircleAngles = (set: UnitCircleSet) => SETS[set];
 export const isNotableAngle = (degrees: number) => Number.isInteger(degrees) && (degrees % 30 === 0 || degrees % 45 === 0);
 
 /** El mismo ángulo entre 0° y 360°. */
-export const normalizeAngle = (degrees: number) => ((degrees % 360) + 360) % 360;
+const normalizeAngle = (degrees: number) => ((degrees % 360) + 360) % 360;
 
 const fraction = (n: number, d: number, r = 1): Exact => ({ n, d, r, pi: false });
 /** Coseno del ángulo de referencia: 0°, 30°, 45°, 60° y 90°. */
@@ -88,18 +88,6 @@ export function coordinatesText(degrees: number, format: "plain" | "latex" = "pl
 
 /* ── Disposición ── */
 
-export interface Point {
-  x: number;
-  y: number;
-}
-
-interface Box {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
 export interface UnitCircleLabel {
   x: number;
   y: number;
@@ -145,9 +133,6 @@ const CLEARANCE = 3;
 
 const fmt = (value: number) => value.toFixed(2);
 const at = (degrees: number, radius: number): Point => ({ x: radius * Math.cos((degrees * Math.PI) / 180), y: -radius * Math.sin((degrees * Math.PI) / 180) });
-const overlap = (a: Box, b: Box, gap = CLEARANCE) => a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
-const boxAt = (center: Point, size: { w: number; h: number }): Box => ({ x: center.x - size.w / 2, y: center.y - size.h / 2, w: size.w, h: size.h });
-const support = (dx: number, dy: number, size: { w: number; h: number }) => (Math.abs(dx) * size.w) / 2 + (Math.abs(dy) * size.h) / 2;
 
 /** Tamaño de un rótulo de texto en línea ("150°", "5π/6"). */
 const textSize = (plain: string) => ({ w: [...plain].reduce((sum, char) => sum + (char === "°" ? 5 : CHAR_W), 0) + 6, h: 18 });
@@ -191,8 +176,8 @@ function insideWedge(from: number, to: number, size: { w: number; h: number }, c
   const inward1 = n1.x * u2.x + n1.y * u2.y > 0 ? n1 : { x: -n1.x, y: -n1.y };
   const n2 = { x: -u2.y, y: u2.x };
   const inward2 = n2.x * u1.x + n2.y * u1.y > 0 ? n2 : { x: -n2.x, y: -n2.y };
-  const d1 = support(inward1.x, inward1.y, size) + CLEARANCE;
-  const d2 = support(inward2.x, inward2.y, size) + CLEARANCE;
+  const d1 = support(inward1, size) + CLEARANCE;
+  const d2 = support(inward2, size) + CLEARANCE;
   let center = { x: (u1.x * d2 + u2.x * d1) / sin, y: (u1.y * d2 + u2.y * d1) / sin };
   const bisector = { x: (u1.x + u2.x) / Math.hypot(u1.x + u2.x, u1.y + u2.y), y: (u1.y + u2.y) / Math.hypot(u1.x + u2.x, u1.y + u2.y) };
   const nearest = (c: Point) => Math.hypot(Math.max(Math.abs(c.x) - size.w / 2, 0), Math.max(Math.abs(c.y) - size.h / 2, 0));
@@ -251,7 +236,7 @@ export function unitCircleLayout(spec: UnitCircleSpec): UnitCircleLayout {
 
     const free = (center: Point, size: { w: number; h: number }) => {
       const box = boxAt(center, size);
-      return !segments.some(([p, q]) => segmentTouchesBox(p, q, box)) && !labels.some(other => overlap(box, other.box)) && Math.hypot(center.x, center.y) + Math.max(size.w, size.h) / 2 < R - 4;
+      return !segments.some(([p, q]) => segmentTouchesBox(p, q, box)) && !labels.some(other => boxesOverlap(box, other.box)) && Math.hypot(center.x, center.y) + Math.max(size.w, size.h) / 2 < R - 4;
     };
 
     // El nombre del giro, dentro del ángulo que barre el arco; si no cabe, junto a la flecha
@@ -266,12 +251,12 @@ export function unitCircleLayout(spec: UnitCircleSpec): UnitCircleLayout {
       // Un giro de más de media vuelta: en algún punto del barrido, del medio hacia los extremos
       for (const share of [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74]) {
         const direction = highlight.degrees * share;
-        for (const reach of [12, 22, 34]) candidates.push(at(direction, ROTATION_R + reach + support(Math.cos((direction * Math.PI) / 180), Math.sin((direction * Math.PI) / 180), rotationSize)));
+        for (const reach of [12, 22, 34]) candidates.push(at(direction, ROTATION_R + reach + support({ x: Math.cos((direction * Math.PI) / 180), y: Math.sin((direction * Math.PI) / 180) }, rotationSize)));
       }
     }
     for (const beyond of [16, 26, 38]) {
       const direction = highlight.degrees + Math.sign(highlight.degrees || 1) * beyond;
-      candidates.push(at(direction, ROTATION_R + 6 + support(Math.cos((direction * Math.PI) / 180), Math.sin((direction * Math.PI) / 180), rotationSize)));
+      candidates.push(at(direction, ROTATION_R + 6 + support({ x: Math.cos((direction * Math.PI) / 180), y: Math.sin((direction * Math.PI) / 180) }, rotationSize)));
     }
     const rotationSpot = candidates.find(candidate => free(candidate, rotationSize));
     if (rotationSpot) labels.push({ ...rotation, ...rotationSpot, kind: "rotation", box: boxAt(rotationSpot, rotationSize) });
@@ -298,7 +283,7 @@ export function unitCircleLayout(spec: UnitCircleSpec): UnitCircleLayout {
       // Si lo resaltado tapa el sitio de siempre: un poco girado, o por fuera, pegado a su punto (las coordenadas se corren)
       const dx = Math.cos((degrees * Math.PI) / 180);
       const dy = -Math.sin((degrees * Math.PI) / 180);
-      const outside = { x: dx * (R + 7 + support(dx, dy, size)), y: dy * (R + 7 + support(dx, dy, size)) };
+      const outside = { x: dx * (R + 7 + support({ x: dx, y: dy }, size)), y: dy * (R + 7 + support({ x: dx, y: dy }, size)) };
       const options: Point[] =
         degrees % 180 === 0
           ? [{ x: base.x, y: -(size.h / 2 + 4) }, { x: base.x, y: size.h / 2 + 4 }]
@@ -306,7 +291,7 @@ export function unitCircleLayout(spec: UnitCircleSpec): UnitCircleLayout {
             ? [{ x: size.w / 2 + 5, y: base.y }, { x: -(size.w / 2 + 5), y: base.y }]
             : [base, at(degrees + 6, INNER), at(degrees - 6, INNER), outside];
       const clear = options.filter(option => !segments.some(([p, q]) => segmentTouchesBox(p, q, boxAt(option, size))));
-      const spot = clear.find(option => !labels.some(other => overlap(boxAt(option, size), other.box)));
+      const spot = clear.find(option => !labels.some(other => boxesOverlap(boxAt(option, size), other.box)));
       if (!spot) {
         issues.push(
           clear.length === 0
@@ -331,7 +316,7 @@ export function unitCircleLayout(spec: UnitCircleSpec): UnitCircleLayout {
         const direction = ((degrees + shift) * Math.PI) / 180;
         const dx = Math.cos(direction);
         const dy = -Math.sin(direction);
-        const reach = R + 9 + push + support(dx, dy, size);
+        const reach = R + 9 + push + support({ x: dx, y: dy }, size);
         options.push({ center: { x: dx * reach, y: dy * reach }, cost: push + Math.abs(shift) * 1.6 });
       }
     }
@@ -341,7 +326,7 @@ export function unitCircleLayout(spec: UnitCircleSpec): UnitCircleLayout {
     const size = coordinatesSize(degrees);
     const spot = candidatesFor(degrees, size).find(({ center }) => {
       const box = boxAt(center, size);
-      return !labels.some(other => overlap(box, other.box)) && !segments.slice(0, 2).some(([p, q]) => segmentTouchesBox(p, q, box));
+      return !labels.some(other => boxesOverlap(box, other.box)) && !segments.slice(0, 2).some(([p, q]) => segmentTouchesBox(p, q, box));
     })?.center;
     if (!spot) {
       issues.push(`las coordenadas de ${angleText(degrees, spec.unit)} no caben sin montarse sobre otras.`);
@@ -354,7 +339,7 @@ export function unitCircleLayout(spec: UnitCircleSpec): UnitCircleLayout {
   for (const [text, spot] of [["x", { x: AXIS_REACH + 2, y: 12 }], ["y", { x: 12, y: -AXIS_REACH - 2 }]] as const) {
     const size = textSize(text);
     const box = boxAt(spot, size);
-    if (!labels.some(other => overlap(box, other.box, 0))) labels.push({ latex: text, plain: text, ...spot, kind: "axis", box });
+    if (!labels.some(other => boxesOverlap(box, other.box, 0))) labels.push({ latex: text, plain: text, ...spot, kind: "axis", box });
   }
 
   // Caja de todo: la circunferencia, los ejes y los rótulos

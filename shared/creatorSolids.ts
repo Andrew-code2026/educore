@@ -2,7 +2,7 @@ import type { BlockInput } from "./creator";
 import { add, approxText, exactText, exactValue, multiply, rational, recognize, sqrtOf, type Exact } from "./creatorExact";
 import { formatNumber } from "./creatorMath";
 import { exactDecimals, formatDecimalEs } from "./creatorPlane";
-import { NUMBER_LABEL, plainToLatex, segmentTouchesBox, unitLatex } from "./creatorTriangle";
+import { boxAt, boxesOverlap, NUMBER_LABEL, plainToLatex, segmentTouchesBox, unitLatex, type Box, type Point } from "./creatorFigureLabels";
 
 /**
  * Sólidos del Creador de recursos: cubo, prismas, cilindro, cono, pirámide de base cuadrada y esfera.
@@ -204,18 +204,6 @@ export function quantityText(quantity: Quantity): string {
 
 /* ── Dibujo ── */
 
-export interface Point {
-  x: number;
-  y: number;
-}
-
-interface Box {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
 export interface SolidLabel {
   x: number;
   y: number;
@@ -261,8 +249,6 @@ const LABEL_H = 19;
 const MIN_FEATURE = 16;
 
 const labelSize = (plain: string) => ({ w: [...plain].reduce((sum, char) => sum + (char === "³" || char === "²" ? 5 : CHAR_W), 0) + 6, h: LABEL_H });
-const boxAt = (center: Point, size: { w: number; h: number }): Box => ({ x: center.x - size.w / 2, y: center.y - size.h / 2, w: size.w, h: size.h });
-const overlap = (a: Box, b: Box, gap = 2) => a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
 
 type V3 = [number, number, number];
 const project = ([x, y, z]: V3, k: number): Point => ({ x: (x + z * DEPTH * Math.cos(DEPTH_ANGLE)) * k, y: -(y + z * DEPTH * Math.sin(DEPTH_ANGLE)) * k });
@@ -538,7 +524,7 @@ export function solidLayout(spec: SolidSpec): SolidLayout {
       const text = measure ? measureLabel(measure, spec.unit ?? "", spec.showValues) : null;
       if (!text) continue;
       const size = labelSize(text.plain);
-      const free = (box: Box) => !labels.some(other => overlap(box, other.box)) && !segments.some(([p, q]) => segmentTouchesBox(p, q, box));
+      const free = (box: Box) => !labels.some(other => boxesOverlap(box, other.box, 2)) && !segments.some(([p, q]) => segmentTouchesBox(p, q, box));
       const spot = anchor.options
         .map(option => {
           const length = Math.hypot(option.toward.x, option.toward.y) || 1;
@@ -557,7 +543,7 @@ export function solidLayout(spec: SolidSpec): SolidLayout {
         { x: shape.maxX + 14 + size.w / 2, y: from.y },
         { x: shape.minX - 14 - size.w / 2, y: from.y },
       ].sort((a, b) => Math.abs(a.x - from.x) - Math.abs(b.x - from.x));
-      const aside = sides.find(center => !labels.some(other => overlap(boxAt(center, size), other.box)));
+      const aside = sides.find(center => !labels.some(other => boxesOverlap(boxAt(center, size), other.box, 2)));
       if (!aside) {
         issues.push(`en ${name(index)}, el rótulo «${text.plain}» no cabe sin montarse sobre otro; acórtalo o usa una letra.`);
         continue;

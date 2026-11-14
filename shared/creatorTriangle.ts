@@ -1,6 +1,7 @@
 import type { BlockInput } from "./creator";
 import { approxText, divide, exactText, measureText, rational, recognize, type Exact } from "./creatorExact";
 import { formatNumber } from "./creatorMath";
+import { boxAt, boxesOverlap, NUMBER_LABEL, plainToLatex, pointBoxDistance, support, unitLatex, type Box, type Point } from "./creatorFigureLabels";
 import { exactDecimals, formatDecimalEs } from "./creatorPlane";
 
 /**
@@ -62,7 +63,7 @@ function tidyAngle(value: number): number {
 }
 
 /** Los datos de un triángulo tal como llegan: lados y ángulos conocidos, null lo que falta. */
-export function triangleKnowns(data: TriangleData): { sides: Array<number | null>; angles: Array<number | null> } {
+function triangleKnowns(data: TriangleData): { sides: Array<number | null>; angles: Array<number | null> } {
   return { sides: SIDE_KEYS.map(key => data.sides[key]?.length ?? null), angles: ANGLE_KEYS.map(key => data.angles[key]?.degrees ?? null) };
 }
 
@@ -178,29 +179,11 @@ type TrianglePart = { show?: TriangleShow; label?: string } | undefined;
  * Qué se escribe junto a un lado o un ángulo: lo pedido o, si no se dijo, la medida cuando es un dato
  * y el rótulo si lo hay. Un ángulo recto dado ya lleva su cuadrito: no se le escribe «90°».
  */
-export function effectiveShow(part: TrianglePart, given: boolean, markedRight = false): TriangleShow {
+function effectiveShow(part: TrianglePart, given: boolean, markedRight = false): TriangleShow {
   if (part?.show) return part.show;
   if (part?.label) return "label";
   return given && !markedRight ? "value" : "none";
 }
-
-const LATEX_ESCAPES: Record<string, string> = { "#": "\\#", "%": "\\%", "&": "\\&", "~": "\\sim ", $: "\\$", "{": "\\{", "}": "\\}" };
-const TEXT_ESCAPES: Record<string, string> = { "#": "\\#", "%": "\\%", "&": "\\&", $: "\\$", "{": "\\{", "}": "\\}", _: "\\_", "~": "\\textasciitilde{}", "^": "\\textasciicircum{}", "\\": "\\textbackslash{}" };
-
-/**
- * Un rótulo de texto plano ("x", "θ", "2x + 1", "B'", "AB") escrito en LaTeX: las letras y los
- * nombres de vértices en cursiva, como en el tablero; las palabras derechas; la coma decimal sin espacio.
- */
-export function plainToLatex(text: string): string {
-  return text
-    .replace(/[#%&~${}]/g, char => LATEX_ESCAPES[char])
-    .replace(/\p{L}{2,}/gu, word => (/^\p{Lu}{2,3}$/u.test(word) ? word : `\\text{${word}}`))
-    .replace(/(\d),(\d)/g, "$1{,}$2")
-    .replace(/−/g, "-");
-}
-
-/** Una unidad dentro de \text{…}: sin signos que LaTeX lea como comandos. */
-export const unitLatex = (unit: string) => `\\text{ ${unit.replace(/[#%&$_{}~^\\]/g, char => TEXT_ESCAPES[char])}}`;
 
 interface Measure {
   latex: string;
@@ -239,18 +222,6 @@ function labelText(show: TriangleShow, label: string | undefined, measure: Measu
 }
 
 /* ── Disposición ── */
-
-export interface Point {
-  x: number;
-  y: number;
-}
-
-export interface Box {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
 
 export interface TrianglePlacedLabel extends TriangleLabelText {
   /** Centro del rótulo. */
@@ -307,7 +278,7 @@ const CLEARANCE = 3;
 /** Distancia máxima entre un vértice y el rótulo de su ángulo: más lejos ya no se sabe de qué ángulo es. */
 const ANGLE_LABEL_REACH = 90;
 
-const sub =(p: Point, q: Point): Point => ({ x: p.x - q.x, y: p.y - q.y });
+const sub = (p: Point, q: Point): Point => ({ x: p.x - q.x, y: p.y - q.y });
 const addv = (p: Point, q: Point): Point => ({ x: p.x + q.x, y: p.y + q.y });
 const scale = (p: Point, k: number): Point => ({ x: p.x * k, y: p.y * k });
 const dot = (p: Point, q: Point) => p.x * q.x + p.y * q.y;
@@ -317,46 +288,7 @@ const fmt = (value: number) => value.toFixed(2);
 
 export const labelSize = (plain: string): { w: number; h: number } => ({ w: Math.max(1, [...plain].length) * CHAR_W + 6, h: LABEL_H });
 
-/** Distancia del centro de una caja a su borde en la dirección `n` (unitaria). */
-const support = (n: Point, size: { w: number; h: number }) => (Math.abs(n.x) * size.w) / 2 + (Math.abs(n.y) * size.h) / 2;
-
-const boxAt = (center: Point, size: { w: number; h: number }): Box => ({ x: center.x - size.w / 2, y: center.y - size.h / 2, w: size.w, h: size.h });
-
-export const boxesOverlap = (a: Box, b: Box, gap = CLEARANCE) => a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
-
-/** ¿El segmento de p a q pasa por la caja, o a menos de `margin` de ella? (Liang–Barsky) */
-export function segmentTouchesBox(p: Point, q: Point, box: Box, margin = 1): boolean {
-  const dx = q.x - p.x;
-  const dy = q.y - p.y;
-  let t0 = 0;
-  let t1 = 1;
-  const edges: Array<[number, number]> = [
-    [-dx, p.x - (box.x - margin)],
-    [dx, box.x + box.w + margin - p.x],
-    [-dy, p.y - (box.y - margin)],
-    [dy, box.y + box.h + margin - p.y],
-  ];
-  for (const [step, room] of edges) {
-    if (step === 0) {
-      if (room < 0) return false;
-      continue;
-    }
-    const t = room / step;
-    if (step < 0) {
-      if (t > t1) return false;
-      t0 = Math.max(t0, t);
-    } else {
-      if (t < t0) return false;
-      t1 = Math.min(t1, t);
-    }
-  }
-  return true;
-}
-
-/** Distancia de un punto a una caja (0 si está dentro). */
-const pointBoxDistance = (p: Point, box: Box) => Math.hypot(Math.max(box.x - p.x, 0, p.x - box.x - box.w), Math.max(box.y - p.y, 0, p.y - box.y - box.h));
-
-/** La normal de un lado que apunta hacia `toward` (o en contra, con `away`). */
+/** La normal unitaria de un lado, del lado en que queda `toward`. */
 function sideNormal(from: Point, to: Point, toward: Point): Point {
   const along = sub(to, from);
   const normal = unitOf({ x: along.y, y: -along.x });
@@ -582,9 +514,6 @@ export function markPath(mark: TriangleMark): string {
 }
 
 /* ── Validación ── */
-
-/** Un rótulo que es solo un número con unidad: la medida la escribe el sistema, no el rótulo. */
-export const NUMBER_LABEL = /^[≈~]?\s*-?\d+(?:[.,]\d+)?\s*(?:°|(?:mm|cm|dm|m|km|u)[²³23]?)?$/;
 
 /** Problemas de un bloque de triángulos, redactados para quien deba corregirlos. */
 export function triangleIssues(spec: TriangleSpec, compile: (latex: string) => string | null): string[] {

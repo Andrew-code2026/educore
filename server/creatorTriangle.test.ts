@@ -3,7 +3,8 @@ import { BLOCK_TYPE_LABELS, blockInputSchema, blockPreview, emptyDoc, type Block
 import { minBlockWidth } from "@shared/creatorContainers";
 import { divide, exactText, recognize, sqrtOf, rational } from "@shared/creatorExact";
 import { describeComputed } from "@shared/creatorStats";
-import { boxesOverlap, describeTriangles, plainToLatex, solveTriangle, triangleLayout, type TriangleSpec } from "@shared/creatorTriangle";
+import { boxesOverlap, plainToLatex } from "@shared/creatorFigureLabels";
+import { describeTriangles, solveTriangle, triangleLayout, type TriangleSpec } from "@shared/creatorTriangle";
 import { validateBlock, validateBlockOrder } from "@shared/creatorValidate";
 import { CREATOR_SYSTEM_PROMPT } from "./creatorAgent";
 import { CREATOR_TOOLS, executeCreatorTool } from "./creatorTools";

@@ -20,7 +20,7 @@ export interface Exact {
 }
 
 /** Decimales con que se escribe exacta una medida dada o calculada. */
-export const EXACT_DECIMALS = 4;
+const EXACT_DECIMALS = 4;
 /** Decimales del cuadrado de una medida para reconocerla como raíz: (15√3/4)² = 42,1875. */
 const SQUARE_DECIMALS = 4;
 const RADICAND_MAX = 10_000;
@@ -94,8 +94,6 @@ export function add(a: Exact, b: Exact): Exact | null {
 }
 
 export const exactValue = (value: Exact): number => (value.n / value.d) * Math.sqrt(value.r) * (value.pi ? Math.PI : 1);
-
-export const exactInteger = (n: number): Exact => ({ n, d: 1, r: 1, pi: false });
 
 /**
  * Reconoce una medida calculada: exacta si se escribe con pocos decimales, raíz si su cuadrado sí
