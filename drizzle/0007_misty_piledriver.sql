@@ -1,5 +1,6 @@
 -- Tablas de asistencia. Idempotente: ensureAttendanceTables (server/db.ts) crea las mismas tablas
--- al primer uso, así que en bases existentes ya pueden estar. Mantén este SQL igual a esa función.
+-- al primer uso, así que en bases existentes ya pueden estar. Mantén cada CREATE TABLE igual al de
+-- esa función; los ALTER con que ella repara tablas viejas se quedan solo en el servidor.
 CREATE TABLE IF NOT EXISTS `attendance_records` (
 	`id` int NOT NULL AUTO_INCREMENT,
 	`schoolId` int NOT NULL DEFAULT 1,

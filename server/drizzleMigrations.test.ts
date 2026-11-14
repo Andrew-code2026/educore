@@ -5,9 +5,8 @@ import { describe, expect, it } from "vitest";
 import * as schema from "../drizzle/schema";
 
 // La versión ESM de drizzle-kit/api hace require() dinámicos que fallan en Vitest: se carga la CJS.
-const { generateMySQLDrizzleJson, generateMySQLMigration } = createRequire(import.meta.url)(
-  "drizzle-kit/api",
-) as typeof import("drizzle-kit/api");
+// No se usa generateMySQLMigration: ante un renombre pregunta en la terminal y el test se colgaría.
+const { generateMySQLDrizzleJson } = createRequire(import.meta.url)("drizzle-kit/api") as typeof import("drizzle-kit/api");
 
 // Estructura de drizzle/: que `drizzle-kit migrate` aplique todas las migraciones y que
 // `drizzle-kit generate` no tenga nada pendiente. No usa la base de datos.
@@ -43,9 +42,36 @@ describe("migraciones de Drizzle", () => {
     snapshots.slice(1).forEach((snapshot, index) => expect(snapshot.prevId).toBe(snapshots[index].id));
   });
 
+  it("las tablas que crea el servidor al primer uso tienen el mismo CREATE TABLE en su migración", () => {
+    // Espacios colapsados y sin el `;` final; en el código las comillas invertidas van escapadas.
+    const normalize = (statement: string) => statement.replace(/\\`/g, "`").replace(/\s+/g, " ").replace(/;$/, "").trim();
+    const byTable = (statements: string[]) =>
+      new Map(statements.map(normalize).map((statement) => [statement.match(/`(\w+)`/)![1], statement]));
+
+    const fromMigrations = byTable(
+      readdirSync(DRIZZLE_DIR)
+        .filter((file) => file.endsWith(".sql"))
+        .flatMap((file) => readFileSync(path.join(DRIZZLE_DIR, file), "utf8").split("--> statement-breakpoint"))
+        .map((chunk) => chunk.replace(/^--.*$/gm, "").trim())
+        .filter((statement) => statement.startsWith("CREATE TABLE IF NOT EXISTS")),
+    );
+    const serverDir = path.resolve(import.meta.dirname);
+    const fromServer = byTable(
+      readdirSync(serverDir)
+        .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
+        .flatMap((file) => readFileSync(path.join(serverDir, file), "utf8").match(/CREATE TABLE IF NOT EXISTS \\`\w+\\`[\s\S]*?;/g) ?? []),
+    );
+
+    expect(fromServer.size).toBeGreaterThan(0);
+    expect([...fromMigrations.keys()].sort()).toEqual([...fromServer.keys()].sort());
+    for (const [table, statement] of fromServer) expect(fromMigrations.get(table), table).toBe(statement);
+  });
+
   it("el último snapshot coincide con drizzle/schema.ts (drizzle-kit generate no produce nada)", async () => {
+    // Si falla, el diff muestra qué tabla o columna cambió: corre `pnpm exec drizzle-kit generate --name=<tema>`.
     const last = readSnapshot(journal.entries[journal.entries.length - 1]);
-    const current = await generateMySQLDrizzleJson(schema, last.id);
-    expect(await generateMySQLMigration(last, current)).toEqual([]);
+    // Ida y vuelta por JSON, como lo guarda drizzle-kit (quita los campos undefined).
+    const current = JSON.parse(JSON.stringify(await generateMySQLDrizzleJson(schema)));
+    expect({ tables: current.tables, views: current.views }).toEqual({ tables: last.tables, views: last.views });
   });
 });
