@@ -14,7 +14,10 @@ import { FormulaInput } from "./FormulaInput";
 import { GraphForm } from "./GraphForm";
 import { notesIssue } from "./noteDraft";
 import { RichTextEditor } from "./RichTextEditor";
+import { SOLID_TEMPLATE, SolidForm } from "./SolidForm";
 import { BoxPlotForm, HistogramForm, LineChartForm, ScatterPlotForm, STAT_TEMPLATES } from "./StatForms";
+import { TRIANGLE_TEMPLATE, TriangleForm } from "./TriangleForm";
+import { UNIT_CIRCLE_TEMPLATE, UnitCircleForm } from "./UnitCircleForm";
 import { ContingencyTableForm, FrequencyTableForm, STAT_TABLE_TEMPLATES } from "./StatTableForms";
 
 /** Contenido inicial de un bloque nuevo, listo para que el docente lo complete. */
@@ -64,6 +67,9 @@ export const BLOCK_TEMPLATES: Record<BlockType, BlockInput> = {
   ...CLASSROOM_TEMPLATES,
   area_model: AREA_MODEL_TEMPLATE,
   shapes: { type: "shapes", figures: [{ kind: "rectangle", width: 5, height: 3, widthLabel: "5 cm", heightLabel: "3 cm" }], toScale: true },
+  triangle: TRIANGLE_TEMPLATE,
+  unit_circle: UNIT_CIRCLE_TEMPLATE,
+  solid: SOLID_TEMPLATE,
   balance: { type: "balance", variable: "x", left: { variables: 2, units: 1, weights: [] }, right: { variables: 0, units: 7, weights: [] } },
   solution: { type: "solution", label: "Ejercicio", steps: ["Escribe aquí el primer paso."] },
   header_fields: { type: "header_fields", fields: ["Nombre", "Fecha", "Grado"] },
@@ -423,6 +429,12 @@ export function BlockForm({ draft, onChange, actions }: { draft: BlockInput; onC
       return <AreaModelForm draft={draft} onChange={onChange} />;
     case "shapes":
       return <ShapesForm draft={draft} onChange={onChange} />;
+    case "triangle":
+      return <TriangleForm draft={draft} onChange={onChange} />;
+    case "unit_circle":
+      return <UnitCircleForm draft={draft} onChange={onChange} />;
+    case "solid":
+      return <SolidForm draft={draft} onChange={onChange} />;
     case "balance":
       return <BalanceForm draft={draft} onChange={onChange} />;
     case "solution":

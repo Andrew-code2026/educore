@@ -14,7 +14,10 @@ import { FractionModel } from "./FractionModel";
 import { NumberLine } from "./NumberLine";
 import { RichText } from "./RichText";
 import { Balance, Shapes } from "./Shapes";
+import { Solids } from "./Solids";
 import { BoxPlot, Histogram, LineChart, ScatterPlot } from "./StatCharts";
+import { Triangle } from "./Triangle";
+import { UnitCircle } from "./UnitCircle";
 import { ContingencyTable, FrequencyTable } from "./StatTables";
 
 /**
@@ -388,6 +391,24 @@ export const BlockView = memo(function BlockView({ block }: { block: Block }) {
       return (
         <Figure caption={block.caption} size={block.size} notes={block.notes}>
           <Shapes spec={block} />
+        </Figure>
+      );
+    case "triangle":
+      return (
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
+          <Triangle spec={block} />
+        </Figure>
+      );
+    case "unit_circle":
+      return (
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
+          <UnitCircle spec={block} />
+        </Figure>
+      );
+    case "solid":
+      return (
+        <Figure caption={block.caption} size={block.size} notes={block.notes}>
+          <Solids spec={block} />
         </Figure>
       );
     case "balance":

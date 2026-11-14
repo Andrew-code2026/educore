@@ -13,7 +13,10 @@ import { planeAxisIssues } from "./creatorPlaneAxes";
 import { planeNotableIssues } from "./creatorNotable";
 import { planeFigureIssues } from "./creatorPlaneGeometry";
 import { planeInequalityIssues } from "./creatorRegions";
+import { solidIssues, solidPlainTexts } from "./creatorSolids";
 import { histogramClassIssues, histogramCounts, linearRegression, resolveAxis, type AxisOverride } from "./creatorStats";
+import { triangleIssues, trianglePlainTexts } from "./creatorTriangle";
+import { unitCircleIssues, unitCirclePlainTexts } from "./creatorUnitCircle";
 import { contingencyTableIssues, frequencyTableIssues } from "./creatorStatTables";
 
 /**
@@ -355,6 +358,15 @@ export function validateBlock(block: BlockInput): string[] {
         if (figure.sideLabels.length > figure.vertices.length) issues.push(`Figuras: el polígono ${index + 1} tiene más rótulos que lados.`);
       });
       break;
+    case "triangle":
+      issues.push(...triangleIssues(block, checkLatex).map(issue => `Triángulo: ${issue}`));
+      break;
+    case "unit_circle":
+      issues.push(...unitCircleIssues(block, checkLatex).map(issue => `Círculo unitario: ${issue}`));
+      break;
+    case "solid":
+      issues.push(...solidIssues(block, checkLatex).map(issue => `Sólidos: ${issue}`));
+      break;
     case "balance":
       for (const [name, side] of [["izquierdo", block.left], ["derecho", block.right]] as const) {
         if (side.variables + side.units + side.weights.length === 0) issues.push(`Balanza: el platillo ${name} está vacío.`);
@@ -420,6 +432,12 @@ function figurePlainTexts(block: BlockInput): string[] {
       return texts(block.title, block.unit, ...block.rows.map(row => row.label));
     case "clock":
       return texts(...block.clocks.map(clock => clock.label));
+    case "triangle":
+      return trianglePlainTexts(block);
+    case "unit_circle":
+      return unitCirclePlainTexts(block);
+    case "solid":
+      return solidPlainTexts(block);
     default:
       return [];
   }
@@ -544,7 +562,7 @@ function validateNumberLine(block: Extract<BlockInput, { type: "number_line" }>)
   return issues;
 }
 
-const FIGURE_TYPES: ReadonlySet<string> = new Set(["graph", "number_line", "fraction_model", "bar_chart", "pie_chart", "histogram", "box_plot", "line_chart", "scatter_plot", "angle", "venn", "tree_diagram", "bar_model", "pictogram", "clock", "base_ten", "area_model", "shapes", "balance"]);
+const FIGURE_TYPES: ReadonlySet<string> = new Set(["graph", "number_line", "fraction_model", "bar_chart", "pie_chart", "histogram", "box_plot", "line_chart", "scatter_plot", "angle", "venn", "tree_diagram", "bar_model", "pictogram", "clock", "base_ten", "area_model", "shapes", "triangle", "unit_circle", "solid", "balance"]);
 
 /** Palabras con las que un enunciado se refiere a una figura. */
 const FIGURE_MENTION = /\b(gr[aá]fic[ao]s?|figuras?|planos?|diagramas?|histogramas?|pictogramas?|reloj(?:es)?|transportador|balanzas?|rectas?\s+num[eé]ricas?|dibujos?|modelos?)\b/i;

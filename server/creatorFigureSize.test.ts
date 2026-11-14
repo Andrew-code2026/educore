@@ -42,7 +42,7 @@ describe("campo de tamaño", () => {
     expect(FIGURE_TYPES.has("table")).toBe(false);
     expect(FIGURE_TYPES.has("value_table")).toBe(false);
     expect(FIGURE_TYPES.has("paragraph")).toBe(false);
-    expect(FIGURE_TYPES.size).toBe(19);
+    expect(FIGURE_TYPES.size).toBe(22);
   });
 
   it("es opcional: un bloque guardado antes se lee igual, y uno con tamaño lo conserva", () => {
