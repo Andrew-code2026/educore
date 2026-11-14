@@ -259,5 +259,5 @@ function EduCoreMobileNavImpl({
   );
 }
 
-// Memo: el marco se re-renderiza al plegar el riel; la cabecera no depende de eso.
+// Memo: el marco se re-renderiza al plegar el riel; la navegación móvil no depende de eso.
 export const EduCoreMobileNav = React.memo(EduCoreMobileNavImpl);

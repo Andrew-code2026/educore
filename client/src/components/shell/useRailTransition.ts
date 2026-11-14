@@ -44,7 +44,9 @@ function prefersReducedMotion() {
 type SavedWidths = { width: string; minWidth: string; maxWidth: string };
 
 export function useRailTransition(frameRef: React.RefObject<HTMLElement | null>, collapsed: boolean) {
-  const first = React.useRef(true);
+  // Último estado aplicado: el efecto solo congela cuando el riel cambia de verdad (no al montar
+  // ni si el efecto se repite con el mismo valor, p. ej. en StrictMode).
+  const applied = React.useRef(collapsed);
   // Valores inline originales de cada hijo congelado, para devolverlos intactos al terminar.
   const frozen = React.useRef(new Map<HTMLElement, SavedWidths>());
 
@@ -59,10 +61,8 @@ export function useRailTransition(frameRef: React.RefObject<HTMLElement | null>,
   }, [frameRef]);
 
   React.useLayoutEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
+    if (applied.current === collapsed) return;
+    applied.current = collapsed;
     const frame = frameRef.current;
     if (!frame) return;
 
