@@ -1,7 +1,7 @@
 import katex from "katex";
 import { areaModelIssues } from "./creatorAlgebra";
 import { BLOCK_TYPE_LABELS, blockCells, blockTexts, CREATOR_LIMITS, extractMath, findMath, isContainer, type BlockInput, type GraphSpec } from "./creator";
-import { cellName, containerIssues } from "./creatorContainers";
+import { cellName, containerIssues, SHEET_WIDTH_PX } from "./creatorContainers";
 import { barPartFits, parseProbability, pictogramIcons, probabilityValue, siblingGroups, sumProbabilities, treePaths, vennRegionsFor, vennUniverseChars, vennZoneChars } from "./creatorDiagrams";
 import { isMultipleOfFraction, labelFits, polygonArea } from "./creatorFigures";
 import { figureSizeAllowed } from "./creatorFigureSize";
@@ -17,6 +17,7 @@ import { solidIssues, solidPlainTexts } from "./creatorSolids";
 import { histogramClassIssues, histogramCounts, linearRegression, resolveAxis, type AxisOverride } from "./creatorStats";
 import { triangleIssues, trianglePlainTexts } from "./creatorTriangle";
 import { unitCircleIssues, unitCirclePlainTexts } from "./creatorUnitCircle";
+import { contingencyTableIssues, frequencyTableIssues } from "./creatorStatTables";
 
 /**
  * Comprobaciones que un bloque debe pasar antes de entrar al documento.
@@ -287,6 +288,12 @@ export function validateBlock(block: BlockInput): string[] {
       if (block.trendLine && !linearRegression(block.points)) issues.push("Dispersión: todos los puntos tienen la misma x, así que no hay recta de tendencia. Quita trendLine o corrige los puntos.");
       break;
     }
+    case "frequency_table":
+      issues.push(...frequencyTableIssues(block, SHEET_WIDTH_PX).map(issue => `Tabla de frecuencias: ${issue}`));
+      break;
+    case "contingency_table":
+      issues.push(...contingencyTableIssues(block, SHEET_WIDTH_PX).map(issue => `Tabla de contingencia: ${issue}`));
+      break;
     case "angle":
       if (block.protractor && block.angles.some(angle => angle.degrees > 180)) issues.push("Ángulos: el transportador mide hasta 180°; quítalo (protractor) o usa ángulos de hasta 180°.");
       if (block.protractor && block.angles.length > 2) issues.push("Ángulos: con transportador caben como máximo dos ángulos; quita uno o divídelos en dos bloques.");
@@ -407,6 +414,10 @@ function figurePlainTexts(block: BlockInput): string[] {
     case "histogram":
     case "scatter_plot":
       return texts(block.title, block.xLabel, block.yLabel);
+    case "frequency_table":
+      return texts(block.variable, ...(block.categories ?? []).map(item => item.label));
+    case "contingency_table":
+      return texts(block.rowVariable, block.columnVariable, ...block.columns, ...block.rows.map(row => row.label));
     case "box_plot":
       return texts(block.title, block.xLabel, ...block.series.map(series => series.label));
     case "line_chart":

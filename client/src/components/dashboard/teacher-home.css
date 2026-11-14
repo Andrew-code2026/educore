@@ -703,6 +703,9 @@
 
 .edc-day {
   flex: 1 1 340px;
+  /* Alto según su contenido: no se estira con la columna de la izquierda (dejaba un hueco
+     vacío encima de "Nueva actividad"). */
+  align-self: flex-start;
   max-width: none;
   min-width: 0;
   gap: 16px;

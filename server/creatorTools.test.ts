@@ -216,9 +216,9 @@ describe("la IA con columnas y tarjetas", () => {
     const schema = CREATOR_TOOLS.find(tool => tool.name === "insert_blocks")!.input_schema as { $defs: Record<string, unknown> };
     expect(Object.keys(schema.$defs)).toContain("exercise");
     expect(Object.keys(schema.$defs).some(key => key.startsWith("__schema"))).toBe(false);
-    // Escrito una sola vez: no crece por llevar los bloques también dentro de las celdas. Cada figura nueva suma
-    // lo suyo (el triángulo, el círculo unitario y los sólidos, unos 8.300 caracteres sobre 49.700)
-    expect(JSON.stringify(schema).length).toBeLessThan(60_000);
+    // Escrito una sola vez: no crece por llevar los bloques también dentro de las celdas (repetido pasaría de 100 000).
+    // Cada tipo nuevo suma lo suyo: las tablas estadísticas, el triángulo, el círculo unitario y los sólidos
+    expect(JSON.stringify(schema).length).toBeLessThan(64_000);
     expect(JSON.stringify(schema).match(/"const":"exercise"/g)).toHaveLength(1);
   });
 

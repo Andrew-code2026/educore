@@ -57,6 +57,15 @@ export const CREATOR_LIMITS = {
   statDataMax: 200,
   histogramClassesMax: 12,
   scatterPointsMax: 40,
+  /** Filas de una tabla de frecuencias (valores, clases o categorías): las mismas clases que un histograma. */
+  statTableRowsMax: 12,
+  /** Rótulos de las tablas estadísticas (variable, categorías, filas y columnas): texto plano que cabe en una celda. */
+  statLabelMax: 40,
+  /** Conteo de una categoría o de una celda: una encuesta grande, no un censo. */
+  statCountMax: 100_000,
+  /** Una tabla de contingencia de 6 × 5 con sus totales todavía cabe a lo ancho de la hoja. */
+  contingencyRowsMax: 6,
+  contingencyColumnsMax: 5,
   docBytesMax: 400_000,
   versionsKept: 20,
   /** Columnas de un bloque de columnas: con cuatro, cada una mide menos que un renglón de cuaderno. */
@@ -636,6 +645,89 @@ const scatterPlotBlock = z.object({
   blank: z.boolean().default(false).describe("true dibuja los ejes y la cuadrícula sin puntos, para que el estudiante los ubique."),
 });
 
+/* ── Tablas estadísticas: cada celda (conteos, frecuencias, totales, medidas) se calcula en creatorStatTables.ts ── */
+
+const relativeFormat = z.enum(["fraction", "decimal", "percent"]);
+const tableLabel = z.string().trim().min(1).max(CREATOR_LIMITS.statLabelMax);
+
+const frequencyTableBlock = z.object({
+  type: z.literal("frequency_table"),
+  caption,
+  variable: tableLabel.describe('Encabezado de la primera columna, en texto plano: "Deporte favorito", "Estatura (cm)".'),
+  data: z
+    .array(z.number())
+    .min(1)
+    .max(CREATOR_LIMITS.statDataMax)
+    .optional()
+    .describe("Datos numéricos crudos. El sistema los cuenta: una fila por valor distinto, o por clase con classes."),
+  values: z
+    .array(z.object({ value: z.number(), count: z.number().int().min(0).max(CREATOR_LIMITS.statCountMax) }))
+    .min(2)
+    .max(CREATOR_LIMITS.statTableRowsMax)
+    .optional()
+    .describe("Valores numéricos ya contados, de menor a mayor."),
+  categories: z
+    .array(z.object({ label: tableLabel, count: z.number().int().min(0).max(CREATOR_LIMITS.statCountMax) }))
+    .min(2)
+    .max(CREATOR_LIMITS.statTableRowsMax)
+    .optional()
+    .describe("Categorías de una variable cualitativa con su conteo."),
+  classes: z
+    .object({
+      start: z.number(),
+      width: z.number().positive(),
+      count: z.number().int().min(2).max(CREATOR_LIMITS.statTableRowsMax).optional().describe("Si se omite, las clases que hagan falta."),
+    })
+    .optional()
+    .describe("Agrupa data en clases [a, b) del mismo ancho desde start, como las del histograma."),
+  relative: z
+    .array(relativeFormat)
+    .max(3)
+    .default(["decimal"])
+    .describe("Columnas de frecuencia relativa; [] sin ninguna."),
+  cumulative: z.boolean().default(false),
+  cumulativeRelative: z.boolean().default(false).describe("En el primer formato de relative."),
+  classMark: z.boolean().default(false).describe("Solo con classes."),
+  totals: z.boolean().default(true),
+  measures: z
+    .array(z.enum(["mean", "median", "mode", "range", "variance", "stdDev"]))
+    .max(6)
+    .default([])
+    .describe("Medidas escritas bajo la tabla. Con categorías, solo mode."),
+  blank: z
+    .array(z.enum(["classMark", "absolute", "relative", "cumulative", "cumulativeRelative", "measures"]))
+    .max(6)
+    .default([])
+    .describe("Lo que se deja en blanco para el estudiante."),
+});
+
+const contingencyTableBlock = z.object({
+  type: z.literal("contingency_table"),
+  caption,
+  rowVariable: tableLabel.optional().describe("Nombre de la variable de las filas."),
+  columnVariable: tableLabel.optional(),
+  columns: z.array(tableLabel).min(2).max(CREATOR_LIMITS.contingencyColumnsMax),
+  rows: z
+    .array(
+      z.object({
+        label: tableLabel,
+        counts: z.array(z.number().int().min(0).max(CREATOR_LIMITS.statCountMax)).min(2).max(CREATOR_LIMITS.contingencyColumnsMax).describe("Uno por columna."),
+      }),
+    )
+    .min(2)
+    .max(CREATOR_LIMITS.contingencyRowsMax),
+  display: z
+    .enum(["counts", "fraction", "decimal", "percent"])
+    .default("counts")
+    .describe("Conteos, o la frecuencia relativa al total general."),
+  totals: z.boolean().default(true),
+  blank: z
+    .array(z.object({ row: tableLabel, column: tableLabel }))
+    .max(48)
+    .default([])
+    .describe('Celdas en blanco por rótulo de fila y de columna; "Total" nombra los totales.'),
+});
+
 /* ── Figuras de aula: lo que se calcula (probabilidad de un camino, manecillas, número de dibujos) está en creatorDiagrams.ts ── */
 
 const angleBlock = z.object({
@@ -1031,6 +1123,8 @@ export const innerBlockInputSchema = z.discriminatedUnion("type", [
   boxPlotBlock,
   lineChartBlock,
   scatterPlotBlock,
+  frequencyTableBlock,
+  contingencyTableBlock,
   angleBlock,
   vennBlock,
   treeDiagramBlock,
@@ -1091,6 +1185,8 @@ export const blockInputSchema = z.discriminatedUnion("type", [
   boxPlotBlock,
   lineChartBlock,
   scatterPlotBlock,
+  frequencyTableBlock,
+  contingencyTableBlock,
   angleBlock,
   vennBlock,
   treeDiagramBlock,
@@ -1130,6 +1226,8 @@ export const innerBlockSchema = z.discriminatedUnion("type", [
   boxPlotBlock.extend({ id }),
   lineChartBlock.extend({ id }),
   scatterPlotBlock.extend({ id }),
+  frequencyTableBlock.extend({ id }),
+  contingencyTableBlock.extend({ id }),
   angleBlock.extend({ id }),
   vennBlock.extend({ id }),
   treeDiagramBlock.extend({ id }),
@@ -1165,6 +1263,8 @@ export const blockSchema = z.discriminatedUnion("type", [
   boxPlotBlock.extend({ id }),
   lineChartBlock.extend({ id }),
   scatterPlotBlock.extend({ id }),
+  frequencyTableBlock.extend({ id }),
+  contingencyTableBlock.extend({ id }),
   angleBlock.extend({ id }),
   vennBlock.extend({ id }),
   treeDiagramBlock.extend({ id }),
@@ -1241,6 +1341,8 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   box_plot: "Caja y bigotes",
   line_chart: "Gráfica de líneas",
   scatter_plot: "Diagrama de dispersión",
+  frequency_table: "Tabla de frecuencias",
+  contingency_table: "Tabla de contingencia",
   angle: "Ángulos",
   venn: "Diagrama de Venn",
   tree_diagram: "Diagrama de árbol",
@@ -1754,6 +1856,10 @@ export function blockPreview(block: BlockInput): string {
       return block.caption || block.title || `Líneas: ${block.categories.join(", ")}`;
     case "scatter_plot":
       return block.caption || block.title || `Dispersión de ${block.points.length} puntos${block.trendLine ? " con recta de tendencia" : ""}`;
+    case "frequency_table":
+      return block.caption || `Tabla de frecuencias: ${block.variable}`;
+    case "contingency_table":
+      return block.caption || `Tabla de contingencia: ${[block.rowVariable, block.columnVariable].filter(Boolean).join(" por ") || block.columns.join(", ")}`;
     case "angle":
       return block.caption || `Ángulos de ${block.angles.map(angle => `${angle.degrees}°`).join(", ")}`;
     case "venn":

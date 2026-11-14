@@ -1,7 +1,7 @@
 import React from "react";
 import type { EduRole, NavItem, Section } from "./shell.types";
 import { getNavGroupsForRole, ROLE_LABELS } from "./navigation";
-import { useShellContext } from "./ShellContext";
+import { toggleSidebar, useSidebarCollapsed } from "./sidebarStore";
 
 interface EduCoreSidebarProps {
   role: EduRole;
@@ -138,7 +138,7 @@ export function EduCoreSidebar({
   notificationCount = 0,
   user,
 }: EduCoreSidebarProps) {
-  const { sidebarCollapsed, toggleSidebar } = useShellContext();
+  const sidebarCollapsed = useSidebarCollapsed();
   const groups = getNavGroupsForRole(role, notificationCount);
   const navRef = React.useRef<HTMLElement>(null);
   const [indicator, setIndicator] = React.useState({ y: 0, visible: false, ready: false });
@@ -147,17 +147,17 @@ export function EduCoreSidebar({
   const handleToggle = React.useCallback(() => {
     hideTip(true);
     toggleSidebar();
-  }, [hideTip, toggleSidebar]);
+  }, [hideTip]);
 
   // Atajo de teclado (Ctrl+B / ⌘+B) para plegar/desplegar el menú
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const isTyping = !!target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
-      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "b" && !isTyping) {
-        e.preventDefault();
-        handleToggle();
-      }
+      if (isTyping || !(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== "b") return;
+      e.preventDefault();
+      // Mantener la tecla pulsada no debe encadenar plegados.
+      if (!e.repeat) handleToggle();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -175,7 +175,9 @@ export function EduCoreSidebar({
     };
     measure();
     // La primera medición puede ocurrir antes de que carguen las fuentes o termine el layout del riel:
-    // se vuelve a medir cuando el menú cambia de tamaño y cuando las fuentes están listas.
+    // se vuelve a medir cuando las fuentes están listas y cuando cambia la ALTURA del menú.
+    // Los cambios de ancho (plegar/desplegar) no mueven offsetTop: medir en cada frame de la
+    // transición solo forzaría layouts síncronos.
     const nav = navRef.current;
     let cancelled = false;
     void document.fonts?.ready.then(() => {
@@ -186,13 +188,19 @@ export function EduCoreSidebar({
         cancelled = true;
       };
     }
-    const observer = new ResizeObserver(measure);
+    let lastHeight = nav.getBoundingClientRect().height;
+    const observer = new ResizeObserver(entries => {
+      const height = entries[entries.length - 1]?.contentRect.height ?? lastHeight;
+      if (height === lastHeight) return;
+      lastHeight = height;
+      measure();
+    });
     observer.observe(nav);
     return () => {
       cancelled = true;
       observer.disconnect();
     };
-  }, [section, role, sidebarCollapsed]);
+  }, [section, role]);
 
   React.useEffect(() => {
     if (!indicator.visible || indicator.ready) return;
@@ -208,6 +216,10 @@ export function EduCoreSidebar({
 
   const displayName = role === "teacher" ? (user?.name || "Juan Diego Loaiza") : role === "admin" ? (user?.name || "Valentina Ríos") : user?.name || ROLE_LABELS[role];
   const displaySub = role === "admin" ? ROLE_LABELS.admin : schoolName;
+
+  // Orden de cada fila del menú para la cascada de entrada al desplegar (ver .edc-fade en shell.css).
+  let row = 0;
+  const rowStyle = () => ({ "--edc-i": row++ }) as React.CSSProperties;
 
   return (
     <aside className="edc-side edc-chrome" aria-label="Barra lateral" data-collapsed={sidebarCollapsed}>
@@ -225,7 +237,7 @@ export function EduCoreSidebar({
           onClick={handleToggle}
           aria-label="Plegar menú"
           aria-controls="educore-nav"
-          aria-expanded="true"
+          aria-expanded={!sidebarCollapsed}
           data-tip="Plegar menú"
           data-tip-kbd={SHORTCUT_LABEL}
           data-tip-always="true"
@@ -243,7 +255,7 @@ export function EduCoreSidebar({
           onClick={handleToggle}
           aria-label="Desplegar menú"
           aria-controls="educore-nav"
-          aria-expanded="false"
+          aria-expanded={!sidebarCollapsed}
           data-tip="Desplegar menú"
           data-tip-kbd={SHORTCUT_LABEL}
           {...tipHandlers}
@@ -273,7 +285,7 @@ export function EduCoreSidebar({
           return (
             <div key={group.key} role="group" aria-labelledby={headId} className="edc-nav-group">
               <div className="edc-nav-group__head">
-                <span id={headId} className="edc-nav-group__label edc-fade">{group.label}</span>
+                <span id={headId} className="edc-nav-group__label edc-fade" style={rowStyle()}>{group.label}</span>
                 <span aria-hidden="true" className="edc-nav-group__rule" />
               </div>
               {group.items.map(item => {
@@ -284,6 +296,7 @@ export function EduCoreSidebar({
                     key={item.id}
                     type="button"
                     className="edc-nav-item"
+                    style={rowStyle()}
                     onClick={() => {
                       hideTip(true);
                       setSection(item.id);

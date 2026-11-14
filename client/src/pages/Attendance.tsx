@@ -91,7 +91,7 @@ function AttendanceNextContainer({
   onNavigate,
 }: AttendanceNextContainerProps) {
   const { theme, toggleTheme } = useTheme();
-  const { sidebarCollapsed, setSidebarCollapsed, setIsFocusMode } = useShellContext();
+  const { setIsFocusMode } = useShellContext();
 
   const [accent, setAccentState] = React.useState<AccentId>(() => {
     const stored = typeof localStorage !== "undefined" ? localStorage.getItem("edu-accent") : null;

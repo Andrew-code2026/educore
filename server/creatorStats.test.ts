@@ -289,9 +289,8 @@ describe("figuras estadísticas: lo que ve la IA", () => {
   });
 
   it("le devuelve los valores calculados para que la clave use los de la figura", () => {
-    expect(describeComputed(block({ type: "box_plot", series: [{ label: "9A", data: [1, 2, 3, 4, 5, 6, 7, 8, 9] }] }))).toBe(
-      "Caja y bigotes: «9A»: mínimo 1 · Q1 2,5 · mediana 5 · Q3 7,5 · máximo 9.",
-    );
+    // Las medidas que la caja no dibuja (media, moda, dispersión) se prueban en creatorStatTables.test.ts
+    expect(describeComputed(block({ type: "box_plot", series: [{ label: "9A", data: [1, 2, 3, 4, 5, 6, 7, 8, 9] }] }))).toMatch(/^Caja y bigotes: «9A»: mínimo 1 · Q1 2,5 · mediana 5 · Q3 7,5 · máximo 9 · media 5 /);
     const points = [{ x: 1, y: 2 }, { x: 2, y: 3 }, { x: 3, y: 5 }, { x: 4, y: 4 }, { x: 5, y: 6 }];
     expect(describeComputed(block({ type: "scatter_plot", points, trendLine: true }))).toBe("Dispersión: recta de tendencia y = 0,9x + 1,3 (r = 0,9).");
     expect(describeComputed(block({ type: "scatter_plot", points }))).toBeNull();

@@ -18,6 +18,7 @@ import { Solids } from "./Solids";
 import { BoxPlot, Histogram, LineChart, ScatterPlot } from "./StatCharts";
 import { Triangle } from "./Triangle";
 import { UnitCircle } from "./UnitCircle";
+import { ContingencyTable, FrequencyTable } from "./StatTables";
 
 /**
  * Una figura centrada con su pie. Con un tamaño elegido, la figura se amplía o se reduce entera desde su
@@ -334,6 +335,10 @@ export const BlockView = memo(function BlockView({ block }: { block: Block }) {
           <ScatterPlot spec={block} />
         </Figure>
       );
+    case "frequency_table":
+      return <FrequencyTable block={block} />;
+    case "contingency_table":
+      return <ContingencyTable block={block} />;
     case "angle":
       return (
         <Figure caption={block.caption} size={block.size} notes={block.notes}>
