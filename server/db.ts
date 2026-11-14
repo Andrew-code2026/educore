@@ -88,8 +88,9 @@ let _dbInitPromise: Promise<void> | null = null;
 export const DEMO_SCHOOL_ID = 1;
 
 /**
- * Columnas agregadas después de la última migración generada. Se aplican al conectar para que
- * las bases locales existentes no fallen al leer el esquema nuevo (MySQL no admite ADD COLUMN IF NOT EXISTS).
+ * Columnas nuevas en tablas viejas; su migración también las agrega (submissions.fileUrl: 0008).
+ * Se aplican al conectar para que las bases locales que no han corrido `pnpm db:migrate` no fallen
+ * al leer el esquema nuevo (MySQL no admite ADD COLUMN IF NOT EXISTS).
  */
 async function ensureRuntimeColumns(db: NonNullable<typeof _db>) {
   try {

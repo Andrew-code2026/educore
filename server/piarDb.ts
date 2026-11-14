@@ -20,12 +20,14 @@ function assertPiarActor(actor: AcademicActor) {
 
 let _piarTableEnsured = false;
 
-/** Igual que los recursos del curso: la tabla se crea al primer uso; al crearla se siembra el PIAR demo. */
+/**
+ * Igual que los recursos del curso: la tabla se crea al primer uso (también la crea la migración 0008).
+ * Si está vacía se siembra el PIAR demo, que solo existe donde están los usuarios y cursos demo.
+ */
 export async function ensurePiarTable() {
   if (_piarTableEnsured) return;
   const db = await getDb();
   if (!db) return;
-  const [existing] = (await db.execute(sql`SHOW TABLES LIKE 'piar_records'`)) as unknown as [unknown[]];
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS \`piar_records\` (
       \`id\` int NOT NULL AUTO_INCREMENT,
@@ -47,7 +49,8 @@ export async function ensurePiarTable() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `);
   _piarTableEnsured = true;
-  if (Array.isArray(existing) && existing.length === 0) await seedDemoPiar(DEMO_SCHOOL_ID);
+  const [rows] = (await db.execute(sql`SELECT 1 FROM \`piar_records\` LIMIT 1`)) as unknown as [unknown[]];
+  if (Array.isArray(rows) && rows.length === 0) await seedDemoPiar(DEMO_SCHOOL_ID);
 }
 
 const parseValues = (data: string): PiarValues => {

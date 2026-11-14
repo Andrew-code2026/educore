@@ -1,47 +1,56 @@
-CREATE TABLE `attendance_follow_up_cases` (
-	`id` int AUTO_INCREMENT NOT NULL,
+-- Tablas de asistencia. Idempotente: ensureAttendanceTables (server/db.ts) crea las mismas tablas
+-- al primer uso, así que en bases existentes ya pueden estar. Mantén cada CREATE TABLE igual al de
+-- esa función; los ALTER con que ella repara tablas viejas se quedan solo en el servidor.
+CREATE TABLE IF NOT EXISTS `attendance_records` (
+	`id` int NOT NULL AUTO_INCREMENT,
+	`schoolId` int NOT NULL DEFAULT 1,
+	`courseId` varchar(64) NOT NULL,
+	`studentId` varchar(64) NOT NULL,
+	`attendanceDate` timestamp NOT NULL,
+	`status` enum('present','absent','late','excused') NOT NULL,
+	`reason` text,
+	`recordedByUserId` int DEFAULT NULL,
+	`recordedByName` varchar(160) NOT NULL,
+	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`modifiedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	PRIMARY KEY (`id`),
+	UNIQUE KEY `attendance_course_student_date_uq` (`schoolId`,`courseId`,`studentId`,`attendanceDate`),
+	KEY `attendance_course_date_idx` (`schoolId`,`courseId`,`attendanceDate`),
+	KEY `attendance_student_date_idx` (`schoolId`,`studentId`,`attendanceDate`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `attendance_follow_up_cases` (
+	`id` int NOT NULL AUTO_INCREMENT,
 	`schoolId` int NOT NULL DEFAULT 1,
 	`courseId` varchar(64) NOT NULL,
 	`studentId` varchar(64) NOT NULL,
 	`reason` text NOT NULL,
 	`priority` enum('low','medium','high') NOT NULL DEFAULT 'medium',
 	`status` enum('open','in_review','resolved') NOT NULL DEFAULT 'open',
-	`responsibleUserId` int,
+	`responsibleUserId` int DEFAULT NULL,
 	`responsibleName` varchar(160) NOT NULL,
-	`createdAt` timestamp NOT NULL DEFAULT (now()),
-	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
-	`resolvedAt` timestamp,
-	CONSTRAINT `attendance_follow_up_cases_id` PRIMARY KEY(`id`)
-);
+	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	`resolvedAt` timestamp NULL DEFAULT NULL,
+	PRIMARY KEY (`id`),
+	KEY `follow_up_course_status_idx` (`schoolId`,`courseId`,`status`),
+	KEY `follow_up_student_idx` (`schoolId`,`studentId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 --> statement-breakpoint
-CREATE TABLE `attendance_follow_up_notes` (
-	`id` int AUTO_INCREMENT NOT NULL,
+CREATE TABLE IF NOT EXISTS `attendance_follow_up_notes` (
+	`id` int NOT NULL AUTO_INCREMENT,
 	`schoolId` int NOT NULL DEFAULT 1,
 	`caseId` int NOT NULL,
 	`note` text NOT NULL,
-	`authorUserId` int,
+	`authorUserId` int DEFAULT NULL,
 	`authorName` varchar(160) NOT NULL,
-	`createdAt` timestamp NOT NULL DEFAULT (now()),
-	CONSTRAINT `attendance_follow_up_notes_id` PRIMARY KEY(`id`)
-);
+	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (`id`),
+	KEY `follow_up_notes_case_created_idx` (`caseId`,`createdAt`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 --> statement-breakpoint
-CREATE TABLE `attendance_justification_events` (
-	`id` int AUTO_INCREMENT NOT NULL,
-	`schoolId` int NOT NULL DEFAULT 1,
-	`justificationId` int NOT NULL,
-	`eventType` varchar(64) NOT NULL,
-	`fromStatus` varchar(64),
-	`toStatus` varchar(64),
-	`actorRole` varchar(64) NOT NULL,
-	`actorName` varchar(160) NOT NULL,
-	`actorUserId` int,
-	`notes` text,
-	`createdAt` timestamp NOT NULL DEFAULT (now()),
-	CONSTRAINT `attendance_justification_events_id` PRIMARY KEY(`id`)
-);
---> statement-breakpoint
-CREATE TABLE `attendance_justifications` (
-	`id` int AUTO_INCREMENT NOT NULL,
+CREATE TABLE IF NOT EXISTS `attendance_justifications` (
+	`id` int NOT NULL AUTO_INCREMENT,
 	`schoolId` int NOT NULL DEFAULT 1,
 	`courseId` varchar(64) NOT NULL,
 	`studentId` varchar(64) NOT NULL,
@@ -50,50 +59,43 @@ CREATE TABLE `attendance_justifications` (
 	`description` text NOT NULL,
 	`submittedByRole` enum('student','guardian','teacher') NOT NULL,
 	`submittedByName` varchar(160) NOT NULL,
-	`submittedByUserId` int,
-	`submittedAt` timestamp NOT NULL DEFAULT (now()),
-	`digitalEvidenceUrl` text,
-	`digitalEvidenceName` varchar(255),
-	`requiresPhysicalSupport` boolean NOT NULL DEFAULT false,
-	`physicalSupportDeadline` timestamp,
-	`physicalSupportReceivedAt` timestamp,
-	`physicalSupportReceivedByName` varchar(160),
-	`physicalSupportReceivedByUserId` int,
-	`physicalSupportNotes` text,
+	`submittedByUserId` int DEFAULT NULL,
+	`submittedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`digitalEvidenceUrl` text DEFAULT NULL,
+	`digitalEvidenceName` varchar(255) DEFAULT NULL,
+	`requiresPhysicalSupport` boolean NOT NULL DEFAULT FALSE,
+	`physicalSupportDeadline` timestamp NULL DEFAULT NULL,
+	`physicalSupportReceivedAt` timestamp NULL DEFAULT NULL,
+	`physicalSupportReceivedByName` varchar(160) DEFAULT NULL,
+	`physicalSupportReceivedByUserId` int DEFAULT NULL,
+	`physicalSupportNotes` text DEFAULT NULL,
 	`status` enum('absence_registered','scheduled_absence','submitted','pending_physical_support','in_review','approved','unjustified','rejected') NOT NULL DEFAULT 'submitted',
-	`escalatedToCoordination` boolean NOT NULL DEFAULT false,
-	`coordinationNotes` text,
-	`resolutionNotes` text,
-	`resolvedAt` timestamp,
-	`resolvedByUserId` int,
-	`resolvedByName` varchar(160),
-	`createdAt` timestamp NOT NULL DEFAULT (now()),
-	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
-	CONSTRAINT `attendance_justifications_id` PRIMARY KEY(`id`),
-	CONSTRAINT `justification_student_course_date_uniq` UNIQUE(`schoolId`,`courseId`,`studentId`,`attendanceDate`)
-);
+	`escalatedToCoordination` boolean NOT NULL DEFAULT FALSE,
+	`coordinationNotes` text DEFAULT NULL,
+	`resolutionNotes` text DEFAULT NULL,
+	`resolvedAt` timestamp NULL DEFAULT NULL,
+	`resolvedByUserId` int DEFAULT NULL,
+	`resolvedByName` varchar(160) DEFAULT NULL,
+	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	PRIMARY KEY (`id`),
+	KEY `justification_course_status_idx` (`schoolId`,`courseId`,`status`),
+	KEY `justification_student_date_idx` (`schoolId`,`studentId`,`attendanceDate`),
+	UNIQUE KEY `justification_student_course_date_uniq` (`schoolId`,`courseId`,`studentId`,`attendanceDate`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 --> statement-breakpoint
-CREATE TABLE `attendance_records` (
-	`id` int AUTO_INCREMENT NOT NULL,
+CREATE TABLE IF NOT EXISTS `attendance_justification_events` (
+	`id` int NOT NULL AUTO_INCREMENT,
 	`schoolId` int NOT NULL DEFAULT 1,
-	`courseId` varchar(64) NOT NULL,
-	`studentId` varchar(64) NOT NULL,
-	`attendanceDate` timestamp NOT NULL,
-	`status` enum('present','absent','late','excused') NOT NULL,
-	`reason` text,
-	`recordedByUserId` int,
-	`recordedByName` varchar(160) NOT NULL,
-	`createdAt` timestamp NOT NULL DEFAULT (now()),
-	`modifiedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
-	CONSTRAINT `attendance_records_id` PRIMARY KEY(`id`),
-	CONSTRAINT `attendance_course_student_date_uq` UNIQUE(`schoolId`,`courseId`,`studentId`,`attendanceDate`)
-);
---> statement-breakpoint
-CREATE INDEX `follow_up_course_status_idx` ON `attendance_follow_up_cases` (`schoolId`,`courseId`,`status`);--> statement-breakpoint
-CREATE INDEX `follow_up_student_idx` ON `attendance_follow_up_cases` (`schoolId`,`studentId`);--> statement-breakpoint
-CREATE INDEX `follow_up_notes_case_created_idx` ON `attendance_follow_up_notes` (`caseId`,`createdAt`);--> statement-breakpoint
-CREATE INDEX `justification_events_justification_idx` ON `attendance_justification_events` (`justificationId`,`createdAt`);--> statement-breakpoint
-CREATE INDEX `justification_course_status_idx` ON `attendance_justifications` (`schoolId`,`courseId`,`status`);--> statement-breakpoint
-CREATE INDEX `justification_student_date_idx` ON `attendance_justifications` (`schoolId`,`studentId`,`attendanceDate`);--> statement-breakpoint
-CREATE INDEX `attendance_course_date_idx` ON `attendance_records` (`schoolId`,`courseId`,`attendanceDate`);--> statement-breakpoint
-CREATE INDEX `attendance_student_date_idx` ON `attendance_records` (`schoolId`,`studentId`,`attendanceDate`);
+	`justificationId` int NOT NULL,
+	`eventType` varchar(64) NOT NULL,
+	`fromStatus` varchar(64) DEFAULT NULL,
+	`toStatus` varchar(64) DEFAULT NULL,
+	`actorRole` varchar(64) NOT NULL,
+	`actorName` varchar(160) NOT NULL,
+	`actorUserId` int DEFAULT NULL,
+	`notes` text DEFAULT NULL,
+	`createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	PRIMARY KEY (`id`),
+	KEY `justification_events_justification_idx` (`justificationId`,`createdAt`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
