@@ -25,8 +25,11 @@ const ShellContext = createContext<ShellContextType | undefined>(undefined);
 
 const COLLAPSED_STORAGE_KEY = "educore-sidebar-collapsed";
 
-/** Como en el portal docente: la barra superior nombra el módulo y la página titula la vista ("Mis tareas"). */
-const STUDENT_TITLES: Partial<Record<Section, string>> = {
+/**
+ * Portales de estudiante y acudiente. Como en el portal docente: la barra superior nombra el
+ * módulo y la página titula la vista ("Mis tareas"). El acudiente no abre Tareas.
+ */
+const PORTAL_TITLES: Partial<Record<Section, string>> = {
   overview: "Inicio",
   classroom: "Tareas",
   grades: "Calificaciones",
@@ -116,12 +119,12 @@ export function ShellContextProvider({
 
     const item = ALL_NAV_ITEMS[section] ?? ALL_NAV_ITEMS.overview;
 
-    // Portal estudiante: títulos de sus módulos, sin migas de módulos docentes
-    if (role === "student" && STUDENT_TITLES[section]) {
+    // Portales estudiante y acudiente: títulos de sus módulos, sin migas ni pastillas docentes
+    if ((role === "student" || role === "guardian") && PORTAL_TITLES[section]) {
       return {
-        title: STUDENT_TITLES[section]!,
+        title: PORTAL_TITLES[section]!,
         subtitle: schoolName,
-        breadcrumbs: [{ label: STUDENT_TITLES[section]!, isCurrent: true }],
+        breadcrumbs: [{ label: PORTAL_TITLES[section]!, isCurrent: true }],
       };
     }
 
@@ -135,11 +138,11 @@ export function ShellContextProvider({
         };
       case "grades":
         return {
-          title: role === "student" ? "Mis Calificaciones" : role === "guardian" ? "Rendimiento" : "Grade Center",
-          subtitle: role === "student" ? "Seguimiento personal" : role === "guardian" ? "Seguimiento de estudiante" : "Matriz de calificaciones",
+          title: "Grade Center",
+          subtitle: "Matriz de calificaciones",
           breadcrumbs: [
             { label: "Académico" },
-            { label: role === "student" ? "Calificaciones" : "Grade Center", isCurrent: true },
+            { label: "Grade Center", isCurrent: true },
           ],
           contextPills: [{ label: "11-2 · Matemáticas", tone: "primary" }, { label: "Periodo 2", tone: "default" }],
         };

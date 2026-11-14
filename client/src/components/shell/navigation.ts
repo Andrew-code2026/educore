@@ -175,26 +175,27 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
     ];
   }
 
+  // Acudiente: el seguimiento de su hijo y lo que publica el colegio. Nada de vistas de aula.
   if (role === "guardian") {
     return [
       {
-        key: "family_tracking",
-        label: "Seguimiento Familiar",
+        key: "family",
+        label: "Seguimiento",
         items: [
-          { ...ALL_NAV_ITEMS.overview, roles: ["guardian"], groupKey: "family_tracking", mobilePriority: "bottom" },
-          { ...ALL_NAV_ITEMS.grades, label: "Rendimiento", roles: ["guardian"], groupKey: "family_tracking", mobilePriority: "bottom" },
-          { ...ALL_NAV_ITEMS.attendance, label: "Asistencia", roles: ["guardian"], groupKey: "family_tracking", mobilePriority: "bottom" },
-          { ...ALL_NAV_ITEMS.calendar, label: "Calendario", roles: ["guardian"], groupKey: "family_tracking", mobilePriority: "more" },
+          { ...ALL_NAV_ITEMS.overview, roles: ["guardian"], groupKey: "family", mobilePriority: "bottom" },
+          { ...ALL_NAV_ITEMS.grades, label: "Calificaciones", description: "Notas por materia, periodos y boletín", roles: ["guardian"], groupKey: "family", mobilePriority: "bottom" },
+          { ...ALL_NAV_ITEMS.attendance, description: "Registro de asistencia y envío de excusas", roles: ["guardian"], groupKey: "family", mobilePriority: "bottom" },
         ],
       },
       {
-        key: "communication",
-        label: "Comunidad",
+        key: "school",
+        label: "Colegio",
         items: [
+          { ...ALL_NAV_ITEMS.calendar, roles: ["guardian"], groupKey: "school", mobilePriority: "more" },
           {
             ...ALL_NAV_ITEMS.communications,
             roles: ["guardian"],
-            groupKey: "communication",
+            groupKey: "school",
             mobilePriority: "more",
             badge: notificationCount > 0 ? notificationCount : undefined,
           },
@@ -262,8 +263,8 @@ export function getNavGroupsForRole(role: EduRole, notificationCount = 0): NavGr
  * - Estudiante/acudiente: el PIAR contiene información sensible; el creador de recursos es
  *   una herramienta de docentes y directivos; usuarios y configuración son exclusivos del
  *   portal directivo.
- * - Estudiante: además, solo abre las secciones de su navegación (nada de vistas docentes
- *   o institucionales como Académico, Reportes o Análisis).
+ * - Estudiante y acudiente: además, solo abren las secciones de su navegación (nada de vistas
+ *   docentes o institucionales como Classroom, Académico, Reportes o Análisis).
  */
 const DENIED_SECTIONS: Record<EduRole, ReadonlySet<Section>> = {
   admin: new Set<Section>(["grades", "classroom", "attendance"]),
@@ -273,7 +274,8 @@ const DENIED_SECTIONS: Record<EduRole, ReadonlySet<Section>> = {
 };
 
 export function isSectionAllowed(role: EduRole, section: Section): boolean {
-  if (role === "student") return section === "overview" || getFlatNavItemsForRole("student").some(item => item.id === section);
+  // Portales de estudiante y acudiente: solo sus secciones (lista permitida, no bloqueada)
+  if (role === "student" || role === "guardian") return section === "overview" || getFlatNavItemsForRole(role).some(item => item.id === section);
   return !DENIED_SECTIONS[role].has(section);
 }
 

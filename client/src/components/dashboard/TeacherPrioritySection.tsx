@@ -3,6 +3,10 @@ import type { TeacherPriorityItem } from "./types";
 
 interface TeacherPrioritySectionProps {
   items: TeacherPriorityItem[];
+  /** Título de la tarjeta; por defecto, "Por hacer". */
+  title?: string;
+  /** Título del estado vacío; por defecto, "Estás al día". */
+  doneTitle?: string;
   /** Texto cuando no hay pendientes; por defecto, el del docente. */
   emptyText?: string;
   /** Texto junto al contador; por defecto, el del docente. */
@@ -45,7 +49,7 @@ function PriorityIcon({ id }: { id: string }) {
 }
 
 /** "Por hacer": pendientes accionables del día. */
-export function TeacherPrioritySection({ items, emptyText = "No tienes asistencia, entregas ni seguimientos pendientes.", hint = "pendientes para hoy" }: TeacherPrioritySectionProps) {
+export function TeacherPrioritySection({ items, title = "Por hacer", doneTitle = "Estás al día", emptyText = "No tienes asistencia, entregas ni seguimientos pendientes.", hint = "pendientes para hoy" }: TeacherPrioritySectionProps) {
   const hasItems = items.length > 0;
 
   return (
@@ -57,7 +61,7 @@ export function TeacherPrioritySection({ items, emptyText = "No tienes asistenci
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
           </svg>
         </span>
-        <h2 id="h-todo" className="edc-card__title">Por hacer</h2>
+        <h2 id="h-todo" className="edc-card__title">{title}</h2>
         {hasItems && (
           <>
             <span className="edc-count">{items.length}</span>
@@ -97,7 +101,7 @@ export function TeacherPrioritySection({ items, emptyText = "No tienes asistenci
             </svg>
           </span>
           <div>
-            <div className="edc-todo__done-title">Estás al día</div>
+            <div className="edc-todo__done-title">{doneTitle}</div>
             <div className="edc-todo__done-text">{emptyText}</div>
           </div>
         </div>

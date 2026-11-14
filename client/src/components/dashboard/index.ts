@@ -11,4 +11,3 @@ export * from "./TeacherQuickActions";
 export * from "./TeacherAiCallout";
 export * from "./TeacherCoursesCard";
 export * from "./TeacherDashboard";
-export * from "./student";

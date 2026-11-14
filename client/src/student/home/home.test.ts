@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildAttendanceModel } from "../attendance/attendance";
 import { buildGradesModel } from "../grades/grades";
 import { buildTasks } from "../tasks/tasks";
-import { buildAgenda, buildPriorities, dueChip } from "./home";
+import { buildPriorities, buildSummary, dueChip, nextEvents } from "./home";
 
 const NOW = new Date(2026, 10, 11, 10);
 const at = (days: number, hour = 23) => new Date(2026, 10, 11 + days, hour);
@@ -58,24 +58,55 @@ describe("buildPriorities", () => {
   });
 });
 
-describe("buildAgenda", () => {
-  it("splits today and upcoming events and highlights evaluations", () => {
-    const agenda = buildAgenda(
-      [
-        { id: 1, title: "Feria de ciencias", type: "Actividad institucional", eventDate: at(0, 9), location: "Patio" },
-        { id: 2, title: "Simulacro Saber 11", type: "Actividad institucional", eventDate: at(8, 7) },
-        { id: 3, title: "Reunión pasada", type: "Reunión", eventDate: at(-2, 7) },
-      ],
-      NOW,
-    );
-    expect(agenda.today.map(item => item.title)).toEqual(["Feria de ciencias"]);
-    expect(agenda.upcoming.map(item => [item.title, item.highlight])).toEqual([["Simulacro Saber 11", true]]);
-  });
-});
-
 describe("dueChip", () => {
   it("stays short enough for the mobile card", () => {
     const [overdue, tomorrow, later] = tasks;
     expect([dueChip(overdue, NOW), dueChip(tomorrow, NOW), dueChip(later, NOW)]).toEqual(["Vencida", "Mañana", "En 12 días"]);
+  });
+});
+
+describe("buildSummary", () => {
+  it("answers how the child is doing with the same numbers as the detail pages", () => {
+    const [average, presence, pending] = buildSummary({ grades, attendance, tasks }, NOW);
+    expect(average).toMatchObject({ label: "Promedio", value: "4.0", note: "1 materia en riesgo", alert: true });
+    expect(presence).toMatchObject({ label: "Asistencia", value: "0", unit: "%", note: "1 ausencia sin excusa", alert: true });
+    expect(pending).toMatchObject({ label: "Por entregar", value: "3", note: "1 vencida", alert: true });
+  });
+
+  it("points to the next deadline when nothing is overdue", () => {
+    const [, , pending] = buildSummary({ grades, attendance, tasks: tasks.filter(task => task.urgency !== "overdue") }, NOW);
+    expect(pending).toMatchObject({ value: "2", note: "Próxima: mañana", alert: false });
+  });
+
+  it("shows loading placeholders instead of invented numbers", () => {
+    const tiles = buildSummary({ grades: null, attendance: null, tasks: null }, NOW);
+    expect(tiles.map(tile => tile.value)).toEqual([null, null, null]);
+    expect(tiles.every(tile => tile.note === "Cargando…" && !tile.alert)).toBe(true);
+  });
+
+  it("reads as all clear when nothing needs attention", () => {
+    const clear = buildSummary({ grades: { ...grades, attention: 0, level: "alto" }, attendance: buildAttendanceModel([], []), tasks: [] }, NOW);
+    expect(clear.map(tile => tile.note)).toEqual(["Alto · todas al día", "Sin registros aún", "Al día"]);
+    expect(clear.some(tile => tile.alert)).toBe(false);
+  });
+});
+
+describe("nextEvents", () => {
+  it("drops events that already started today", () => {
+    expect(nextEvents([{ id: 1, title: "Izada de bandera", eventDate: at(0, 7) }], NOW)).toEqual([]);
+  });
+
+  it("keeps today and upcoming events, soonest first, at most three", () => {
+    const events = [
+      { id: 1, title: "Pasado", eventDate: at(-2, 9) },
+      { id: 2, title: "Cierre", eventDate: at(10, 17) },
+      { id: 3, title: "Hoy", eventDate: at(0, 15) },
+      { id: 4, title: "Simulacro", eventDate: at(2, 8) },
+      { id: 5, title: "Feria", eventDate: at(5, 9) },
+    ];
+    const items = nextEvents(events, NOW);
+    expect(items.map(item => item.title)).toEqual(["Hoy", "Simulacro", "Feria"]);
+    expect(items[0].when.startsWith("Hoy, ")).toBe(true);
+    expect(items[1].when.startsWith("Vie 13 nov, ")).toBe(true);
   });
 });
