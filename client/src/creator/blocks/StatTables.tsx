@@ -95,6 +95,7 @@ export function FrequencyTable({ block }: { block: BlockOf<"frequency_table"> })
       {view.note && <p className="crt-stat-table__note">{view.note}</p>}
       {view.measures.length > 0 && (
         <p className="crt-stat-table__measures">
+          {view.estimates && <span className="crt-stat-table__lead">Con las marcas de clase:</span>}
           {view.measures.map(measure => (
             <span key={measure.key}>
               {measure.name}: {measure.blank ? <span className="crt-stat-table__line" aria-label="En blanco" /> : <strong>{measure.value}</strong>}

@@ -239,8 +239,11 @@ export function estimateHeight(block: BlockInput, width: number): number {
       const rows = view ? view.rows.length + (view.totals ? 1 : 0) : CREATOR_LIMITS.statTableRowsMax;
       return 52 + rows * 34 + (view?.note ? LINE_PX : 0) + (block.measures.length > 0 ? LINE_PX : 0) + caption;
     }
-    case "contingency_table":
-      return (block.columnVariable ? 2 : 1) * 34 + (block.rows.length + (block.totals ? 1 : 0)) * 34 + caption;
+    case "contingency_table": {
+      // Una fracción (\dfrac) hace la fila más alta que un número
+      const row = block.display === "fraction" ? 50 : 34;
+      return (block.columnVariable ? 2 : 1) * 34 + (block.rows.length + (block.totals ? 1 : 0)) * row + caption;
+    }
     case "graph": {
       const ratio = Math.min(1.4, Math.max(0.5, (block.spec.yMax - block.spec.yMin) / (block.spec.xMax - block.spec.xMin)));
       return Math.min(width, 374 * 0.86) * ratio + caption;

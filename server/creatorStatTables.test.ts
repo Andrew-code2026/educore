@@ -199,7 +199,9 @@ describe("tabla de frecuencias", () => {
       { from: 165, to: 170, count: 4 },
     ])!;
     // (152,5·3 + 157,5·7 + 162,5·6 + 167,5·4) / 20 = 160,25; n/2 = 10 cae en la segunda clase: 155 + (10 − 3)/7 · 5 = 160
-    expect(estimates).toEqual({ mean: 160.25, medianClass: 1, median: 160, modalClasses: [1] });
+    expect(estimates).toMatchObject({ mean: 160.25, medianClass: 1, median: 160, modalClasses: [1], range: 20 });
+    // Σ f·(x − 160,25)² / 20 con las marcas 152,5 · 157,5 · 162,5 · 167,5
+    expect(estimates.variance).toBeCloseTo((3 * 7.75 ** 2 + 7 * 2.75 ** 2 + 6 * 2.25 ** 2 + 4 * 7.25 ** 2) / 20, 9);
   });
 
   it("escribe las medidas bajo la tabla, o su espacio en blanco", () => {
@@ -211,8 +213,14 @@ describe("tabla de frecuencias", () => {
     ]);
     const blank = frequencyTableView(frequency({ data: [1, 1, 2, 2], measures: ["mode"], blank: ["measures"] }))!;
     expect(blank.measures).toEqual([{ key: "mode", name: "Moda", value: "no hay", blank: true }]);
-    const grouped = frequencyTableView(frequency({ data: [1, 2, 2, 7], classes: { start: 0, width: 5 }, measures: ["mode"] }))!;
-    expect(grouped.measures[0]).toMatchObject({ name: "Clase modal", value: "[0, 5)" });
+    const grouped = frequencyTableView(frequency({ data: [1, 2, 2, 7], classes: { start: 0, width: 5 }, measures: ["mode", "mean", "median", "range"] }))!;
+    // Con clases, lo que sale de la tabla: marcas 2,5 y 7,5 → media (3·2,5 + 7,5)/4 = 3,75; mediana 0 + (2 − 0)/3 · 5; rango 10 − 0
+    expect(grouped.measures).toEqual([
+      { key: "mean", name: "Media", value: "3,75", blank: false },
+      { key: "median", name: "Mediana", value: "≈ 3,33", blank: false },
+      { key: "mode", name: "Clase modal", value: "[0, 5)", blank: false },
+      { key: "range", name: "Rango", value: "10", blank: false },
+    ]);
     const categories = frequencyTableView(frequency({ categories: [{ label: "Fútbol", count: 5 }, { label: "Tenis", count: 5 }, { label: "Patinaje", count: 2 }], measures: ["mode"] }))!;
     expect(categories.measures[0]).toMatchObject({ name: "Modas", value: "Fútbol y Tenis" });
   });
@@ -225,6 +233,8 @@ describe("tabla de frecuencias", () => {
     expect(issues({ data: [4, 4, 4] })).toContain("al menos dos valores distintos");
     expect(issues({ data: [1, 2, 30], classes: { start: 0, width: 2 } })).toContain("hacen falta 15 clases");
     expect(issues({ data: [1, 2, 30], classes: { start: 0, width: 5, count: 3 } })).toContain("un dato queda fuera de las clases");
+    // Datos antes de la primera clase: no sirve «reduce el ancho»
+    expect(issues({ data: [1, 2, 3], classes: { start: 10, width: 5 } })).toContain("3 datos son menores que el inicio de la primera clase");
     expect(issues({ values: [{ value: 2, count: 1 }, { value: 1, count: 1 }] })).toContain("ordénalos");
     expect(issues({ values: [{ value: 1, count: 1 }, { value: 1, count: 2 }] })).toContain("está repetido");
     expect(issues({ categories: [{ label: "Sí", count: 1 }, { label: "sí ", count: 2 }] })).toContain("repetida");
@@ -360,6 +370,7 @@ describe("lo que ve la IA", () => {
     expect(rounded).toContain("resto mayor");
     expect(rounded).toContain("No hay moda");
     const grouped = describeFrequencyTable(frequency({ data: [150, 152, 156, 158, 159, 161, 166], classes: { start: 150, width: 5 } }))!;
+    expect(grouped).toContain("Medidas de los datos crudos");
     expect(grouped).toContain("Con las marcas de clase");
     expect(describeComputed(frequency({ data: [1, 2, 2] }))).toBe(describeFrequencyTable(frequency({ data: [1, 2, 2] })));
   });

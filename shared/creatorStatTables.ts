@@ -1,4 +1,5 @@
 import { CREATOR_LIMITS, type BlockInput } from "./creator";
+import { gcd } from "./creatorDiagrams";
 import { roundPercents } from "./creatorFigures";
 import { formatNumber } from "./creatorMath";
 import { figureNumber, formatTableNumber, isExactNumber } from "./creatorPlane";
@@ -393,6 +394,15 @@ export function buildFrequencyTable(spec: Pick<FrequencyTableSpec, "data" | "val
   }
 
   const { start, width } = spec.classes;
+  // Un dato antes de la primera clase no se arregla con más clases ni con otro ancho: se dice eso
+  const below = data.filter(value => value < start && Math.abs(value - start) > 1e-9 * Math.max(1, Math.abs(start)));
+  if (below.length > 0) {
+    const shown = below
+      .slice(0, 5)
+      .map(value => formatNumber(value, 6))
+      .join(", ");
+    return { ok: false, issues: [`${below.length === 1 ? "un dato es menor" : `${below.length} datos son menores`} que el inicio de la primera clase (start = ${formatNumber(start, 6)}): ${shown}${below.length > 5 ? "…" : ""}. Empieza las clases en un valor menor o igual que el dato más pequeño.`] };
+  }
   const count = spec.classes.count ?? classesNeeded(start, width, data);
   if (count > FREQUENCY_ROWS_MAX) {
     return { ok: false, issues: [`con clases de ancho ${formatNumber(width, 6)} desde ${formatNumber(start, 6)} hacen falta ${count} clases y la tabla admite ${FREQUENCY_ROWS_MAX}: aumenta el ancho (width).`] };
@@ -435,6 +445,11 @@ export interface GroupedEstimates {
   median: number;
   /** Clases modales (mismo criterio de modeIndices). */
   modalClasses: number[];
+  /** Rango de las clases: del límite inferior de la primera al superior de la última. */
+  range: number;
+  /** Varianza y desviación estándar con las marcas de clase (entre n). */
+  variance: number;
+  stdDev: number;
 }
 
 /** Lo que se estima de unos datos agrupados solo con sus clases y frecuencias, como en clase sin los datos crudos. */
@@ -453,7 +468,16 @@ export function groupedEstimates(classes: ReadonlyArray<{ from: number; to: numb
   }
   const middle = classes[medianClass];
   const median = middle.from + ((n / 2 - before) / middle.count) * (middle.to - middle.from);
-  return { mean: clean(mean), medianClass, median: clean(median), modalClasses: modeIndices(classes.map(item => item.count)) };
+  const squares = classes.reduce((sum, item) => sum + item.count * ((item.from + item.to) / 2 - mean) ** 2, 0);
+  return {
+    mean: clean(mean),
+    medianClass,
+    median: clean(median),
+    modalClasses: modeIndices(classes.map(item => item.count)),
+    range: clean(classes[classes.length - 1].to - classes[0].from),
+    variance: clean(squares / n),
+    stdDev: clean(Math.sqrt(squares / n)),
+  };
 }
 
 export type FrequencyColumnKey = "classMark" | "absolute" | "relative" | "cumulative" | "cumulativeRelative";
@@ -473,6 +497,9 @@ export interface FrequencyColumn {
 
 export interface FrequencyView {
   model: FrequencyModel;
+  shares: RelativeShares;
+  /** Con datos agrupados, las medidas bajo la tabla salen de las marcas de clase, como las calcula el estudiante desde la tabla. */
+  estimates: GroupedEstimates | null;
   variable: string;
   columns: FrequencyColumn[];
   rows: Array<{ label: string; cells: CellText[] }>;
@@ -493,8 +520,10 @@ const MEASURE_NAMES: Record<Exclude<StatMeasureKey, "mode">, string> = { mean: "
 /** La tabla tal como se dibuja: encabezados, celdas, totales, nota y medidas. null si no se puede armar. */
 export function frequencyTableView(spec: FrequencyTableSpec): FrequencyView | null {
   const built = buildFrequencyTable(spec);
-  if (!built.ok) return null;
-  const { model } = built;
+  return built.ok ? viewOf(spec, built.model) : null;
+}
+
+function viewOf(spec: FrequencyTableSpec, model: FrequencyModel): FrequencyView {
   const blank = new Set<string>(spec.blank);
   const formats = FORMAT_ORDER.filter(format => spec.relative.includes(format));
   const hFormat = cumulativeFormat(spec);
@@ -547,8 +576,11 @@ export function frequencyTableView(spec: FrequencyTableSpec): FrequencyView | nu
   const visibleRounded = columns.filter(column => column.format && column.format !== "fraction" && !column.blank).map(column => column.format!);
   const note = shares.rounded ? roundingNote(visibleRounded) : null;
 
+  const estimates = model.grouped ? groupedEstimates(model.rows.map(row => ({ from: row.from!, to: row.to!, count: row.count }))) : null;
   const measures = STAT_MEASURE_KEYS.filter(key => spec.measures.includes(key)).map(key => {
     const blankMeasure = blank.has("measures");
+    // Con clases, lo que el estudiante puede calcular desde la tabla: marcas de clase y mediana interpolada
+    if (estimates && key !== "mode") return { key, name: MEASURE_NAMES[key], value: measureText(estimates[key]), blank: blankMeasure };
     if (key === "mode") {
       const labels = model.modeRows.map(index => model.rows[index].label);
       const name = model.grouped ? (labels.length > 1 ? "Clases modales" : "Clase modal") : labels.length > 1 ? "Modas" : "Moda";
@@ -558,7 +590,7 @@ export function frequencyTableView(spec: FrequencyTableSpec): FrequencyView | nu
     return { key, name: MEASURE_NAMES[key], value, blank: blankMeasure };
   });
 
-  return { model, variable: spec.variable.trim(), columns, rows, totals, note, measures };
+  return { model, shares, estimates, variable: spec.variable.trim(), columns, rows, totals, note, measures };
 }
 
 /** Encabezado de una columna como lo lee la IA: «Frecuencia absoluta (f)». */
@@ -606,11 +638,8 @@ export function frequencyTableIssues(spec: FrequencyTableSpec, sheetWidth: numbe
   for (const key of spec.blank) if (!shown[key]) issues.push(`blank incluye "${key}", pero esa ${key === "measures" ? "parte" : "columna"} no se muestra; quítala de blank o muéstrala.`);
 
   if (issues.length > 0) return issues;
-  const view = frequencyTableView(spec);
-  if (view) {
-    const width = frequencyTableWidth(view);
-    if (width > sheetWidth) issues.push(`la tabla mide unos ${width} px y la hoja ${sheetWidth}: quita columnas o acorta los rótulos.`);
-  }
+  const width = frequencyTableWidth(viewOf(spec, model));
+  if (width > sheetWidth) issues.push(`la tabla mide unos ${width} px y la hoja ${sheetWidth}: quita columnas o acorta los rótulos.`);
   return issues;
 }
 
@@ -621,17 +650,17 @@ export function describeFrequencyTable(spec: FrequencyTableSpec): string | null 
   const { model } = view;
   const rows = view.rows.map(row => `${row.label}: ${row.cells.map((cell, index) => `${view.columns[index].symbol}${view.columns[index].suffix ? " %" : ""} = ${cell.text}`).join(", ")}`);
   const parts = [`Tabla de frecuencias «${view.variable}» (n = ${model.total}; columnas: ${view.columns.map(columnName).join(", ")}): ${rows.join("; ")}.`];
-  if (relativeShares(model.rows.map(row => row.count)).rounded && (spec.relative.some(format => format !== "fraction") || (spec.cumulativeRelative && cumulativeFormat(spec) !== "fraction"))) {
+  if (view.shares.rounded && (spec.relative.some(format => format !== "fraction") || (spec.cumulativeRelative && cumulativeFormat(spec) !== "fraction"))) {
     parts.push("Las frecuencias relativas van redondeadas por el método del resto mayor para que sumen 1 (100 %): usa esos valores, no los de redondear cada una aparte.");
   }
-  if (model.measures) parts.push(`Medidas de los datos: ${measuresFacts(model.measures)}.`);
+  if (model.measures) parts.push(`Medidas de los datos${model.grouped ? " crudos" : ""}: ${measuresFacts(model.measures)}.`);
   else {
     const modes = model.modeRows.map(index => model.rows[index].label);
     parts.push(modes.length === 0 ? "No hay moda: todas las categorías tienen la misma frecuencia." : `${modes.length > 1 ? "Modas" : "Moda"}: ${joinEs(modes)}.`);
   }
-  if (model.grouped) {
-    const estimates = groupedEstimates(model.rows.map(row => ({ from: row.from!, to: row.to!, count: row.count })));
-    if (estimates) parts.push(groupedFacts(estimates, model.rows.map(row => row.label)));
+  if (view.estimates) {
+    parts.push(groupedFacts(view.estimates, model.rows.map(row => row.label)));
+    if (view.measures.length > 0) parts.push("Las medidas escritas bajo la tabla son las de las marcas de clase.");
   }
   return parts.join(" ");
 }
@@ -641,7 +670,7 @@ export function groupedFacts(estimates: GroupedEstimates, labels: readonly strin
   const modal = estimates.modalClasses.map(index => labels[index]);
   return `Con las marcas de clase (sin los datos crudos): media estimada ${measureText(estimates.mean)}; la mediana cae en la clase ${labels[estimates.medianClass]} y por interpolación es ${measureText(estimates.median)}; ${
     modal.length === 0 ? "no hay clase modal (todas tienen la misma frecuencia)" : `${modal.length > 1 ? "clases modales" : "clase modal"} ${joinEs(modal)}`
-  }.`;
+  }; rango de las clases ${measureText(estimates.range)}; varianza ${measureText(estimates.variance)} y desviación estándar ${measureText(estimates.stdDev)} (entre n).`;
 }
 
 /* ── Tabla de contingencia ── */
@@ -781,8 +810,6 @@ export function contingencyTableIssues(spec: ContingencyTableSpec, sheetWidth: n
   }
   return issues;
 }
-
-const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
 
 /** Una probabilidad como la escribe la clave: «8/20 = 2/5 = 0,4», «7/30 ≈ 0,23», «0/20 = 0». */
 export function probabilityText(part: number, whole: number): string {
